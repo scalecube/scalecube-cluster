@@ -1,65 +1,4 @@
-# ScaleCube
-
-[![Build Status](https://travis-ci.org/scalecube/scalecube.svg?branch=master)](https://travis-ci.org/scalecube/scalecube)
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.scalecube/scalecube-cluster/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.scalecube/scalecube-cluster)
-[![Codacy Badge](https://api.codacy.com/project/badge/Coverage/7a02aba38e5d4744ae3e3100a6b542a5)](https://www.codacy.com/app/ronenn/scalecube?utm_source=github.com&utm_medium=referral&utm_content=scalecube/scalecube&utm_campaign=Badge_Coverage)
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/a162edec5ca347ef87db19320e41138a)](https://www.codacy.com/app/ScaleCube/scalecube?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=scalecube/scalecube&amp;utm_campaign=Badge_Grade)
-[![Join the chat at https://gitter.im/scalecube/Lobby](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/scalecube/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-[![Twitter URL](https://img.shields.io/twitter/url/https/twitter.com/fold_left.svg?style=social&label=Follow%20%40ScaleCube)](https://twitter.com/scalecube)
-
-## Welcome to scalecube! if you are new to scalecube:
-[Please read ScaleCube-services Motivations and vision](https://github.com/scalecube/scalecube/wiki)
-
-## Overview 
-ScaleCube project provides the tools to develop, test and scale distributed components in a cluster with ease.
-it provides a general purpose cluster-membership library based on [SWIM Membership protocol](http://www.cs.cornell.edu/~asdas/research/dsn02-swim.pdf) with gossip protocol as improvement. scalecube-cluster is Embeddable and can be used by any cluster-aware application that requires cluster membership, node discovery, failure-detection and gossip style of communication across member nodes. based on that unique properties scalecube implements aditional seperated module for microservices coordination library that features service discovery, fault-tolerance at scale.
-
-The project focuses on ensuring that your application realizes the full potential of the [Reactive Manifesto](http://www.reactivemanifesto.org/), 
-while delivering a high productivity development environment, and seamless production deployment experience.
-
-Web Site: [http://scalecube.io](http://scalecube.io/)
-
-## Features
-
-ScaleCube is designed as an embeddable library for the Java VM. It is built in a modular way where each module independently 
-implements a useful set of functionality and provides foundation for higher level features by abstracting away lower level concerns.
-
-Next is described modules in the top to bottom order from the higher level features to the low level components.
-
-### MICROSERVICES
-
-ScaleCube Services provides a low latency Reactive Microservices library for peer-to-peer service registry and discovery 
-based on gossip protocol ad without single point-of-failure or bottlenecks.
-
-ScaleCube Services Features:
-
-* Provision and interconnect microservices as a unified system (cluster)</li>
-* Async RPC with java-8 CompleteableFutures support
-* Reactive Streams support with RxJava.
-* No single-point-of-failure or single-point-of-bottleneck
-* Cluster aware and distributed
-* Modular, flexible deployment models and topology
-* Zero configuration, automatic peer-to-peer service discovery using gossip
-* Simple non-blocking, asynchronous programming model
-* Resilient due to failure detection, fault tolerance, and elasticity
-* Routing and balancing strategies for both stateless and stateful services
-* Low latency and high throughput
-* Takes advantage of the JVM and scales over available cores
-* Embeddable to existing Java applications
-* Message Driven based on google-protocol-buffers
-* Natural Circuit-Breaker due to tight integration with scalecube-cluster failure detector.
-* Support Service instance tagging. 
-
-User Guide:
-
-* [Services Overview](http://scalecube.io/services.html)
-* [Defining Services](http://scalecube.io/user-reference/services/DefineService.html)
-* [Implementing services](http://scalecube.io/user-reference/services/ServiceImplementation.html)
-* [Provisioning Clustered Services](http://scalecube.io/user-reference/services/ProvisionClusterServices.html)
-* [Consuming services](http://scalecube.io/user-reference/services/ConsumingServices.html)
-
-
-### CLUSTER
+# ScaleCube - Cluster
 
 ScaleCube Cluster is a lightweight decentralized cluster membership, failure detection, and gossip protocol library. 
 It provides an implementation of [SWIM](http://www.cs.cornell.edu/~asdas/research/dsn02-swim.pdf) cluster membership protocol for Java VM.
@@ -133,16 +72,6 @@ You are more then welcome to join us or just show your support by granting us a 
 
 Binaries and dependency information for Maven can be found at 
 [http://search.maven.org](http://search.maven.org/#search%7Cga%7C1%7Cio.scalecube.scalecube).
-
-To add a dependency on ScaleCube Services using Maven, use the following:
-
-``` xml
-<dependency>
-  <groupId>io.scalecube</groupId>
-  <artifactId>scalecube-services</artifactId>
-  <version>x.y.z</version> 
-</dependency>
-```
 
 To add a dependency on ScaleCube Cluster using Maven, use the following:
 
