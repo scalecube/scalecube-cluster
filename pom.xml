@@ -28,8 +28,8 @@
 
     <scm>
         <url>https://github.com/scalecube/scalecube</url>
-        <connection>scm:git:git@github.com:scalecube/scalecube.git</connection>
-        <developerConnection>scm:git:git@github.com:scalecube/scalecube.git
+        <connection>scm:git:git@github.com:scalecube/scalecube-cluster.git</connection>
+        <developerConnection>scm:git:git@github.com:scalecube/scalecube-cluster.git
         </developerConnection>
         <tag>HEAD</tag>
     </scm>
