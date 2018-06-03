@@ -27,7 +27,7 @@
     </prerequisites>
 
     <scm>
-        <url>https://github.com/scalecube/scalecube</url>
+        <url>https://github.com/scalecube/scalecube-cluster</url>
         <connection>scm:git:git@github.com:scalecube/scalecube-cluster.git</connection>
         <developerConnection>scm:git:git@github.com:scalecube/scalecube-cluster.git
         </developerConnection>
