@@ -81,7 +81,7 @@
         <module>benchmark</module>
         <module>examples</module>
         <module>utils</module>
-        <module>stresstests</module>
+<!--         <module>stresstests</module> -->
     </modules>
 
     <dependencyManagement>
