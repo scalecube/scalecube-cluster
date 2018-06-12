@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.scalecube</groupId>
-    <artifactId>scalecube-parent</artifactId>
+    <artifactId>scalecube-cluster-parent</artifactId>
     <version>1.0.9-SNAPSHOT</version>
     <packaging>pom</packaging>
 
@@ -27,9 +27,9 @@
     </prerequisites>
 
     <scm>
-        <url>https://github.com/scalecube/scalecube</url>
-        <connection>scm:git:git@github.com:scalecube/scalecube.git</connection>
-        <developerConnection>scm:git:git@github.com:scalecube/scalecube.git
+        <url>https://github.com/scalecube/scalecube-cluster</url>
+        <connection>scm:git:git@github.com:scalecube/scalecube-cluster.git</connection>
+        <developerConnection>scm:git:git@github.com:scalecube/scalecube-cluster.git
         </developerConnection>
         <tag>HEAD</tag>
     </scm>
@@ -79,9 +79,9 @@
         <module>cluster</module>
         <module>testlib</module>
         <module>benchmark</module>
-        <module>examples</module>
+        <module>scalecube-cluster-examples</module>
         <module>utils</module>
-        <module>stresstests</module>
+<!--         <module>stresstests</module> -->
     </modules>
 
     <dependencyManagement>
@@ -319,10 +319,6 @@
                                 </goals>
                             </execution>
                         </executions>
-                        <configuration>
-							<keyname>${env.GPG_KEY}</keyname>
-							<passphraseServerId>${env.GPG_KEY}</passphraseServerId>
-						</configuration>
                     </plugin>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
