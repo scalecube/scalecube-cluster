@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>io.scalecube</groupId>
-        <artifactId>scalecube-parent</artifactId>
+        <artifactId>scalecube-cluster-parent</artifactId>
         <version>1.0.9-SNAPSHOT</version>
     </parent>
     <artifactId>scalecube-benchmark</artifactId>

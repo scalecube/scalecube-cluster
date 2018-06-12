@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.scalecube</groupId>
-    <artifactId>scalecube-parent</artifactId>
+    <artifactId>scalecube-cluster-parent</artifactId>
     <version>1.0.9-SNAPSHOT</version>
     <packaging>pom</packaging>
 
@@ -79,7 +79,7 @@
         <module>cluster</module>
         <module>testlib</module>
         <module>benchmark</module>
-        <module>examples</module>
+        <module>scalecube-cluster-examples</module>
         <module>utils</module>
 <!--         <module>stresstests</module> -->
     </modules>
