@@ -3,9 +3,15 @@
   <parent>
     <groupId>io.scalecube</groupId>
     <artifactId>scalecube-parent</artifactId>
-    <version>1.0.9-SNAPSHOT</version>
+    <version>1.0.9</version>
   </parent>
   <artifactId>scalecube-examples</artifactId>
   <name>ScaleCube/Examples</name>
-
+  <dependencies>
+    <dependency>
+        <groupId>io.scalecube</groupId>
+        <artifactId>scalecube-cluster</artifactId>
+        <version>${project.version}</version>
+    </dependency>
+ </dependencies>
 </project>
