@@ -1,8 +1,6 @@
 package io.scalecube.transport;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
-import com.google.common.base.Strings;
+import io.scalecube.Strings;
 
 import java.util.Objects;
 import java.util.regex.Matcher;
@@ -11,6 +9,8 @@ import java.util.regex.Pattern;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.Immutable;
+
+import static io.scalecube.Preconditions.checkArgument;
 
 @Immutable
 public final class Address {

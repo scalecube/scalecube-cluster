@@ -1,7 +1,7 @@
 package io.scalecube.transport;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
+import static io.scalecube.Preconditions.checkArgument;
+import static io.scalecube.Preconditions.checkState;
 import static io.scalecube.transport.Addressing.MAX_PORT_NUMBER;
 import static io.scalecube.transport.Addressing.MIN_PORT_NUMBER;
 
