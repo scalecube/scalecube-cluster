@@ -3,18 +3,16 @@ package io.scalecube.cluster.membership;
 import static io.scalecube.cluster.membership.MemberStatus.ALIVE;
 import static io.scalecube.cluster.membership.MemberStatus.DEAD;
 
+import io.scalecube.Preconditions;
+import io.scalecube.ThreadFactoryBuilder;
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.Member;
-import io.scalecube.cluster.fdetector.FailureDetectorEvent;
 import io.scalecube.cluster.fdetector.FailureDetector;
+import io.scalecube.cluster.fdetector.FailureDetectorEvent;
 import io.scalecube.cluster.gossip.GossipProtocol;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.Transport;
-
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,11 +46,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private static final Logger LOGGER = LoggerFactory.getLogger(MembershipProtocolImpl.class);
 
   private enum MembershipUpdateReason {
-    FAILURE_DETECTOR_EVENT,
-    MEMBERSHIP_GOSSIP,
-    SYNC,
-    INITIAL_SYNC,
-    SUSPICION_TIMEOUT
+    FAILURE_DETECTOR_EVENT, MEMBERSHIP_GOSSIP, SYNC, INITIAL_SYNC, SUSPICION_TIMEOUT
   }
 
   // Qualifiers
@@ -117,6 +111,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   /**
    * Returns the accessible member address, either from the transport or the overridden variables.
+   * 
    * @param transport transport
    * @param config membership config parameters
    * @return Accessible member address
@@ -171,7 +166,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
    * <b>NOTE:</b> this method is for testing purpose only.
    */
   List<MembershipRecord> getMembershipRecords() {
-    return ImmutableList.copyOf(membershipTable.values());
+    return Collections.unmodifiableList(new ArrayList<>(membershipTable.values()));
   }
 
   @Override

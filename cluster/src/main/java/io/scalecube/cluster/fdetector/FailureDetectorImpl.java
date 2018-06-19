@@ -1,15 +1,14 @@
 package io.scalecube.cluster.fdetector;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static io.scalecube.Preconditions.checkArgument;
 
+import io.scalecube.ThreadFactoryBuilder;
 import io.scalecube.cluster.Member;
-import io.scalecube.cluster.membership.MembershipProtocol;
 import io.scalecube.cluster.membership.MemberStatus;
 import io.scalecube.cluster.membership.MembershipEvent;
-import io.scalecube.transport.Transport;
+import io.scalecube.cluster.membership.MembershipProtocol;
 import io.scalecube.transport.Message;
-
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import io.scalecube.transport.Transport;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -1,16 +1,14 @@
 package io.scalecube.cluster.gossip;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static io.scalecube.Preconditions.checkArgument;
 
+import io.scalecube.ThreadFactoryBuilder;
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.Member;
-import io.scalecube.cluster.membership.MembershipProtocol;
 import io.scalecube.cluster.membership.MembershipEvent;
-import io.scalecube.transport.Transport;
+import io.scalecube.cluster.membership.MembershipProtocol;
 import io.scalecube.transport.Message;
-
-import com.google.common.collect.Maps;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import io.scalecube.transport.Transport;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +23,7 @@ import rx.subjects.Subject;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -53,8 +52,8 @@ public final class GossipProtocolImpl implements GossipProtocol {
 
   private long period = 0;
   private long gossipCounter = 0;
-  private Map<String, GossipState> gossips = Maps.newHashMap();
-  private Map<String, CompletableFuture<String>> futures = Maps.newHashMap();
+  private Map<String, GossipState> gossips = new HashMap<>();
+  private Map<String, CompletableFuture<String>> futures = new HashMap<>();
 
   private List<Member> remoteMembers = new ArrayList<>();
   private int remoteMembersIndex = -1;

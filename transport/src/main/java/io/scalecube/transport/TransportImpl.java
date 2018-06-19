@@ -254,7 +254,7 @@ final class TransportImpl implements Transport {
    * Converts netty {@link ChannelFuture} to the given {@link CompletableFuture}.
    *
    * @param channelFuture netty channel future
-   * @param promise guava future; can be null
+   * @param promise future; can be null
    */
   private void composeFutures(ChannelFuture channelFuture, @Nonnull final CompletableFuture<Void> promise) {
     channelFuture.addListener((ChannelFuture future) -> {

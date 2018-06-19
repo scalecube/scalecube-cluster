@@ -1,6 +1,6 @@
 package io.scalecube.cluster;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static io.scalecube.Preconditions.checkArgument;
 
 import io.scalecube.transport.Address;
 

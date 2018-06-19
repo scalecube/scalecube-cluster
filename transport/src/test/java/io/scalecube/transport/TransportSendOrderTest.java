@@ -5,10 +5,8 @@ import static io.scalecube.transport.TransportTestUtils.createTransport;
 import static io.scalecube.transport.TransportTestUtils.destroyTransport;
 import static org.junit.Assert.assertEquals;
 
+import io.scalecube.ThreadFactoryBuilder;
 import io.scalecube.testlib.BaseTest;
-
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import org.junit.After;
 import org.junit.Test;

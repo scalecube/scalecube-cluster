@@ -1,6 +1,6 @@
 package io.scalecube.cluster.membership;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static io.scalecube.Preconditions.checkArgument;
 import static io.scalecube.cluster.membership.MemberStatus.ALIVE;
 import static io.scalecube.cluster.membership.MemberStatus.DEAD;
 import static io.scalecube.cluster.membership.MemberStatus.SUSPECT;

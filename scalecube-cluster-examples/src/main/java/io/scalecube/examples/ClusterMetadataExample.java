@@ -4,8 +4,7 @@ import io.scalecube.cluster.Cluster;
 import io.scalecube.cluster.Member;
 import io.scalecube.transport.Message;
 
-import com.google.common.collect.ImmutableMap;
-
+import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -30,7 +29,7 @@ public class ClusterMetadataExample {
     Cluster alice = Cluster.joinAwait();
 
     // Join Joe to cluster with metadata
-    Map<String, String> metadata = ImmutableMap.of("name", "Joe");
+    Map<String, String> metadata = Collections.singletonMap("name", "Joe");
     Cluster joe = Cluster.joinAwait(metadata, alice.address());
 
     // Subscribe Joe to listen for incoming messages and print them to system out
