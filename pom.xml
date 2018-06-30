@@ -64,13 +64,13 @@
 
 		<slf4j.version>1.7.7</slf4j.version>
 		<findbugs.version>2.0.3</findbugs.version>
-		<netty.version>4.1.21.Final</netty.version>
+		<netty.version>4.1.25.Final</netty.version>
 		<reactor.version>3.1.8.RELEASE</reactor.version>
 		<socketio.version>2.3.0</socketio.version>
 		<protostuff.version>1.6.0</protostuff.version>
 		<protobuf.version>3.4.0</protobuf.version>
 		<metrics.version>3.1.2</metrics.version>
-		<jackson.version>2.9.0</jackson.version>
+		<jackson.version>2.9.5</jackson.version>
 
 		<maven-gpg-plugin.version>1.6</maven-gpg-plugin.version>
 		<maven-source-plugin.version>3.0.1</maven-source-plugin.version>
@@ -85,7 +85,6 @@
 		<module>benchmark</module>
 		<module>scalecube-cluster-examples</module>
 		<module>utils</module>
-		<!-- <module>stresstests</module> -->
 	</modules>
 
 	<dependencyManagement>
@@ -95,13 +94,6 @@
 				<groupId>org.slf4j</groupId>
 				<artifactId>slf4j-api</artifactId>
 				<version>${slf4j.version}</version>
-			</dependency>
-
-			<!-- Rxjava -->
-			<dependency>
-				<groupId>io.reactivex</groupId>
-				<artifactId>rxjava</artifactId>
-				<version>${rxjava.version}</version>
 			</dependency>
 
 			<!-- Google -->
