@@ -29,9 +29,9 @@ public final class Throwables {
    * @return nothing will ever be returned; this return type is only for your convenience, as illustrated in the example
    *         above
    */
-  public static RuntimeException propagate(Throwable throwable) {
+  public static UncheckedException propagate(Throwable throwable) {
     propagateIfPossible(throwable);
-    throw new RuntimeException(throwable);
+    throw new UncheckedException(throwable);
   }
 
   /**
@@ -86,10 +86,18 @@ public final class Throwables {
    * </pre>
    */
   public static Throwable getRootCause(Throwable throwable) {
+    Throwable result = throwable;
     Throwable cause;
     while ((cause = throwable.getCause()) != null) {
-      throwable = cause;
+      result = cause;
     }
-    return throwable;
+    return result;
+  }
+
+  private static class UncheckedException extends RuntimeException {
+
+    private UncheckedException(Throwable cause) {
+      super(cause);
+    }
   }
 }
