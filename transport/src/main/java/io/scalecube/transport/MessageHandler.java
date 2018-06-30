@@ -4,9 +4,10 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
-import org.reactivestreams.Processor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import reactor.core.publisher.FluxSink;
 
 
 /**
@@ -19,9 +20,9 @@ final class MessageHandler extends ChannelInboundHandlerAdapter {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MessageHandler.class);
 
-  private final Processor<Message,Message> incomingMessagesSubject;
+  private final FluxSink<Message> incomingMessagesSubject;
 
-  MessageHandler(Processor<Message,Message> incomingMessagesSubject) {
+  MessageHandler(FluxSink<Message> incomingMessagesSubject) {
     this.incomingMessagesSubject = incomingMessagesSubject;
   }
 
@@ -34,6 +35,6 @@ final class MessageHandler extends ChannelInboundHandlerAdapter {
     if (LOGGER.isDebugEnabled()) {
       LOGGER.debug("Received: {}", message);
     }
-    incomingMessagesSubject.onNext(message);
+    incomingMessagesSubject.next(message);
   }
 }

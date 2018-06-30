@@ -26,8 +26,10 @@ import org.reactivestreams.Processor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.EmitterProcessor;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxProcessor;
 
 import java.net.BindException;
 import java.net.InetAddress;
@@ -46,7 +48,7 @@ final class TransportImpl implements Transport {
 
   private final TransportConfig config;
 
-  private final Processor<Message, Message> incomingMessagesSubject = EmitterProcessor.create();
+  private final FluxProcessor<Message, Message> incomingMessagesSubject = DirectProcessor.<Message>create().serialize();
 
   private final Map<Address, ChannelFuture> outgoingChannels = new ConcurrentHashMap<>();
 
@@ -72,7 +74,7 @@ final class TransportImpl implements Transport {
     this.config = config;
     this.serializerHandler = new MessageSerializerHandler();
     this.deserializerHandler = new MessageDeserializerHandler();
-    this.messageHandler = new MessageHandler(incomingMessagesSubject);
+    this.messageHandler = new MessageHandler(incomingMessagesSubject.sink());
     this.bootstrapFactory = new BootstrapFactory(config);
   }
 
