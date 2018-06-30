@@ -10,7 +10,6 @@ import io.scalecube.cluster.membership.MembershipProtocol;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.Transport;
 
-import org.reactivestreams.Processor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,8 +65,10 @@ public final class GossipProtocolImpl implements GossipProtocol {
   private Disposable onGossipRequestSubscriber;
 
   // Subject
-  private FluxProcessor<Message, Message> subject = DirectProcessor.<Message>create().serialize();
-  private FluxSink<Message> sink = subject.sink();
+
+  private FluxProcessor<Message, Message> subject = DirectProcessor.create();
+  private FluxSink<Message> sink = subject.serialize().sink();
+
   // Scheduled
 
   private final ScheduledExecutorService executor;
@@ -91,7 +92,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
     String nameFormat = "sc-gossip-" + Integer.toString(membership.member().address().port());
     this.executor = Executors.newSingleThreadScheduledExecutor(
         new ThreadFactoryBuilder().setNameFormat(nameFormat).setDaemon(true).build());
-    this.scheduler = Schedulers.fromExecutor(executor);
+    this.scheduler = Schedulers.fromExecutorService(executor);
   }
 
   /**

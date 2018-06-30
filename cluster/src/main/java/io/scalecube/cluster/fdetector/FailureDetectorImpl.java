@@ -63,10 +63,9 @@ public final class FailureDetectorImpl implements FailureDetector {
   private Disposable onTransitPingAckRequestSubscriber;
 
   // Subject
-  private FluxProcessor<FailureDetectorEvent, FailureDetectorEvent> subject =
-      DirectProcessor.<FailureDetectorEvent>create().serialize();
+  private FluxProcessor<FailureDetectorEvent, FailureDetectorEvent> subject = DirectProcessor.create();
   
-  private FluxSink<FailureDetectorEvent> sink = subject.sink();
+  private FluxSink<FailureDetectorEvent> sink = subject.serialize().sink();
 
   // Scheduled
   private final ScheduledExecutorService executor;
@@ -90,7 +89,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     String nameFormat = "sc-fdetector-" + Integer.toString(membership.member().address().port());
     this.executor = Executors.newSingleThreadScheduledExecutor(
         new ThreadFactoryBuilder().setNameFormat(nameFormat).setDaemon(true).build());
-    this.scheduler = Schedulers.fromExecutor(executor);
+    this.scheduler = Schedulers.fromExecutorService(executor);
   }
 
   /**
