@@ -13,9 +13,6 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import rx.Subscriber;
-import rx.observers.Subscribers;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -30,9 +27,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.LongStream;
 
-/**
- * @author Anton Kharenko
- */
 public class TransportSendOrderTest extends BaseTest {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(TransportSendOrderTest.class);

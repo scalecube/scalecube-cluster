@@ -108,7 +108,6 @@ public final class GossipProtocolImpl implements GossipProtocol {
 
   @Override
   public void start() {
-    
     onMemberAddedEventSubscriber = Subscribers.create(remoteMembers::add, this::onError);
     membership.listen().publishOn(scheduler)
         .filter(MembershipEvent::isAdded)

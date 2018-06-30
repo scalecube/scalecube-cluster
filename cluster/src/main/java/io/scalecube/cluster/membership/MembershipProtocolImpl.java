@@ -211,14 +211,14 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
     // Listen to incoming SYNC requests from other members
     onSyncRequestSubscriber = Subscribers.create(this::onSync, this::onError);
-    transport.listen().observeOn(scheduler)
+    transport.listen().publishOn(scheduler)
         .filter(msg -> SYNC.equals(msg.qualifier()))
         .filter(this::checkSyncGroup)
         .subscribe(onSyncRequestSubscriber);
 
     // Listen to incoming SYNC ACK responses from other members
     onSyncAckResponseSubscriber = Subscribers.create(this::onSyncAck, this::onError);
-    transport.listen().observeOn(scheduler)
+    transport.listen().publishOn(scheduler)
         .filter(msg -> SYNC_ACK.equals(msg.qualifier()))
         .filter(msg -> msg.correlationId() == null) // filter out initial sync
         .filter(this::checkSyncGroup)
@@ -226,12 +226,12 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
     // Listen to events from failure detector
     onFdEventSubscriber = Subscribers.create(this::onFailureDetectorEvent, this::onError);
-    failureDetector.listen().observeOn(scheduler)
+    failureDetector.listen().publishOn(scheduler)
         .subscribe(onFdEventSubscriber);
 
     // Listen to membership gossips
     onGossipRequestSubscriber = Subscribers.create(this::onMembershipGossip, this::onError);
-    gossipProtocol.listen().observeOn(scheduler)
+    gossipProtocol.listen().publishOn(scheduler)
         .filter(msg -> MEMBERSHIP_GOSSIP.equals(msg.qualifier()))
         .subscribe(onGossipRequestSubscriber);
 

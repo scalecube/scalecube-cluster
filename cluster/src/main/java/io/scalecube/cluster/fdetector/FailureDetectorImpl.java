@@ -15,8 +15,11 @@ import org.reactivestreams.Subscriber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import reactor.core.Disposable;
 import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxProcessor;
+import reactor.core.publisher.FluxSink;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
@@ -55,19 +58,20 @@ public final class FailureDetectorImpl implements FailureDetector {
 
   // Subscriptions
 
-  private Subscriber<Member> onMemberAddedSubscriber;
-  private Subscriber<Member> onMemberRemovedSubscriber;
-  private Subscriber<MembershipEvent> onMemberUpdatedSubscriber;
-  private Subscriber<Message> onPingRequestSubscriber;
-  private Subscriber<Message> onAskToPingRequestSubscriber;
-  private Subscriber<Message> onTransitPingAckRequestSubscriber;
+  private Disposable onMemberAddedSubscriber;
+  private Disposable onMemberRemovedSubscriber;
+  private Disposable onMemberUpdatedSubscriber;
+  private Disposable onPingRequestSubscriber;
+  private Disposable onAskToPingRequestSubscriber;
+  private Disposable onTransitPingAckRequestSubscriber;
 
   // Subject
-
-  private DirectProcessor<FailureDetectorEvent> subject = DirectProcessor.create();
+  private FluxProcessor<FailureDetectorEvent, FailureDetectorEvent> subject =
+      DirectProcessor.<FailureDetectorEvent>create().serialize();
+  
+  private FluxSink<FailureDetectorEvent> sink = subject.sink();
 
   // Scheduled
-
   private final ScheduledExecutorService executor;
   private final Scheduler scheduler;
   private ScheduledFuture<?> pingTask;
@@ -101,37 +105,31 @@ public final class FailureDetectorImpl implements FailureDetector {
 
   @Override
   public void start() {
-    onMemberAddedSubscriber = Subscribers.create(this::onMemberAdded, this::onError);
-    membership.listen().observeOn(scheduler)
+    onMemberAddedSubscriber = membership.listen().publishOn(scheduler)
         .filter(MembershipEvent::isAdded)
         .map(MembershipEvent::member)
-        .subscribe(onMemberAddedSubscriber);
+        .subscribe(this::onMemberAdded, this::onError);
 
-    onMemberRemovedSubscriber = Subscribers.create(this::onMemberRemoved, this::onError);
-    membership.listen().observeOn(scheduler)
+    onMemberRemovedSubscriber = membership.listen().publishOn(scheduler)
         .filter(MembershipEvent::isRemoved)
         .map(MembershipEvent::member)
-        .subscribe(onMemberRemovedSubscriber);
+        .subscribe(this::onMemberRemoved, this::onError);
 
-    onMemberUpdatedSubscriber = Subscribers.create(this::onMemberUpdated, this::onError);
-    membership.listen().observeOn(scheduler)
+    onMemberUpdatedSubscriber = membership.listen().publishOn(scheduler)
         .filter(MembershipEvent::isUpdated)
-        .subscribe(onMemberUpdatedSubscriber);
+        .subscribe(this::onMemberUpdated, this::onError);
 
-    onPingRequestSubscriber = Subscribers.create(this::onPing, this::onError);
-    transport.listen().observeOn(scheduler)
+    onPingRequestSubscriber = transport.listen().publishOn(scheduler)
         .filter(this::isPing)
-        .subscribe(onPingRequestSubscriber);
+        .subscribe(this::onPing, this::onError);
 
-    onAskToPingRequestSubscriber = Subscribers.create(this::onPingReq, this::onError);
-    transport.listen().observeOn(scheduler)
+    onAskToPingRequestSubscriber = transport.listen().publishOn(scheduler)
         .filter(this::isPingReq)
-        .subscribe(onAskToPingRequestSubscriber);
+        .subscribe(this::onPingReq, this::onError);
 
-    onTransitPingAckRequestSubscriber = Subscribers.create(this::onTransitPingAck, this::onError);
-    transport.listen().observeOn(scheduler)
+    onTransitPingAckRequestSubscriber = transport.listen().publishOn(scheduler)
         .filter(this::isTransitPingAck)
-        .subscribe(onTransitPingAckRequestSubscriber);
+        .subscribe(this::onTransitPingAck, this::onError);
 
     pingTask = executor.scheduleWithFixedDelay(
         this::doPing, config.getPingInterval(), config.getPingInterval(), TimeUnit.MILLISECONDS);
@@ -141,22 +139,22 @@ public final class FailureDetectorImpl implements FailureDetector {
   public void stop() {
     // Stop accepting requests
     if (onMemberAddedSubscriber != null) {
-      onMemberAddedSubscriber.unsubscribe();
+      onMemberAddedSubscriber.dispose();
     }
     if (onMemberRemovedSubscriber != null) {
-      onMemberRemovedSubscriber.unsubscribe();
+      onMemberRemovedSubscriber.dispose();
     }
     if (onMemberUpdatedSubscriber != null) {
-      onMemberUpdatedSubscriber.unsubscribe();
+      onMemberUpdatedSubscriber.dispose();
     }
     if (onPingRequestSubscriber != null) {
-      onPingRequestSubscriber.unsubscribe();
+      onPingRequestSubscriber.dispose();
     }
     if (onAskToPingRequestSubscriber != null) {
-      onAskToPingRequestSubscriber.unsubscribe();
+      onAskToPingRequestSubscriber.dispose();
     }
     if (onTransitPingAckRequestSubscriber != null) {
-      onTransitPingAckRequestSubscriber.unsubscribe();
+      onTransitPingAckRequestSubscriber.dispose();
     }
 
     // Stop sending pings
@@ -168,7 +166,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     executor.shutdown();
 
     // Stop publishing events
-    subject.onCompleted();
+    sink.complete();
   }
 
   @Override
@@ -197,7 +195,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     Message pingMsg = Message.withData(pingData).qualifier(PING).correlationId(cid).build();
     try {
       LOGGER.trace("Send Ping[{}] to {}", period, pingMember);
-      transport.listen().observeOn(scheduler)
+      transport.listen().publishOn(scheduler)
           .filter(this::isPingAck)
           .filter(message -> cid.equals(message.correlationId()))
           .take(1)
@@ -235,7 +233,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     }
 
     Member localMember = membership.member();
-    transport.listen().observeOn(scheduler)
+    transport.listen().publishOn(scheduler)
         .filter(this::isPingAck)
         .filter(message -> cid.equals(message.correlationId()))
         .take(1)
@@ -366,7 +364,7 @@ public final class FailureDetectorImpl implements FailureDetector {
 
   private void publishPingResult(Member member, MemberStatus status) {
     LOGGER.debug("Member {} detected as {}", member, status);
-    subject.onNext(new FailureDetectorEvent(member, status));
+    sink.next(new FailureDetectorEvent(member, status));
   }
 
   private boolean isPing(Message message) {
