@@ -1,11 +1,10 @@
 package io.scalecube.cluster;
 
+import io.scalecube.Throwables;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.NetworkEmulator;
-
-import com.google.common.base.Throwables;
 
 import rx.Observable;
 

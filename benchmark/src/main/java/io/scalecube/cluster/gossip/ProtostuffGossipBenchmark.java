@@ -5,8 +5,6 @@ import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.MessageCodec;
 
-import com.google.common.collect.ImmutableList;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
@@ -23,6 +21,7 @@ import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -56,7 +55,7 @@ public class ProtostuffGossipBenchmark {
    */
   @Setup
   public void setup() {
-    List<Gossip> gossips = ImmutableList.of(new Gossip("ABCDEFGH_0", Message.fromData(PAYLOAD_X32)));
+    List<Gossip> gossips = Collections.singletonList(new Gossip("ABCDEFGH_0", Message.fromData(PAYLOAD_X32)));
     Member from = new Member("0", Address.from("localhost:1234"));
     gossipReq = Message.fromData(new GossipRequest(gossips, from.id()));
     MessageCodec.serialize(gossipReq, gossipReqSer = Unpooled.buffer(1024));

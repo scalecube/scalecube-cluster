@@ -1,14 +1,19 @@
 package io.scalecube.cluster.gossip;
 
+import static io.scalecube.cluster.ClusterMath.gossipConvergencePercent;
+import static io.scalecube.cluster.ClusterMath.gossipDisseminationTime;
+import static io.scalecube.cluster.ClusterMath.maxMessagesPerGossipPerNode;
+import static io.scalecube.cluster.ClusterMath.maxMessagesPerGossipTotal;
+
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.membership.DummyMembershipProtocol;
 import io.scalecube.cluster.membership.MembershipProtocol;
 import io.scalecube.testlib.BaseTest;
-import io.scalecube.transport.Transport;
-import io.scalecube.transport.Message;
 import io.scalecube.transport.Address;
+import io.scalecube.transport.Message;
+import io.scalecube.transport.Transport;
 import io.scalecube.transport.TransportConfig;
 
 import org.junit.Assert;
@@ -23,17 +28,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.LongSummaryStatistics;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import static io.scalecube.cluster.ClusterMath.gossipConvergencePercent;
-import static io.scalecube.cluster.ClusterMath.gossipDisseminationTime;
-import static io.scalecube.cluster.ClusterMath.maxMessagesPerGossipPerNode;
-import static io.scalecube.cluster.ClusterMath.maxMessagesPerGossipTotal;
 
 @RunWith(Parameterized.class)
 public class GossipProtocolTest extends BaseTest {

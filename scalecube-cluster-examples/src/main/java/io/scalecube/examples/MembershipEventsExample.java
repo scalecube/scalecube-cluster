@@ -4,9 +4,8 @@ import io.scalecube.cluster.Cluster;
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterMath;
 
-import com.google.common.collect.ImmutableMap;
-
 import java.text.SimpleDateFormat;
+import java.util.Collections;
 import java.util.Date;
 import java.util.concurrent.Future;
 
@@ -25,19 +24,19 @@ public class MembershipEventsExample {
    */
   public static void main(String[] args) throws Exception {
     // Alice init cluster
-    Cluster alice = Cluster.joinAwait(ImmutableMap.of("name", "Alice"));
+    Cluster alice = Cluster.joinAwait(Collections.singletonMap("name", "Alice"));
     System.out.println(now() + " Alice join members: " + alice.members());
     alice.listenMembership()
         .subscribe(event -> System.out.println(now() + " Alice received: " + event));
 
     // Bob join cluster
-    Cluster bob = Cluster.joinAwait(ImmutableMap.of("name", "Bob"), alice.address());
+    Cluster bob = Cluster.joinAwait(Collections.singletonMap("name", "Bob"), alice.address());
     System.out.println(now() + " Bob join members: " + bob.members());
     bob.listenMembership()
         .subscribe(event -> System.out.println(now() + " Bob received: " + event));
 
     // Carol join cluster
-    Cluster carol = Cluster.joinAwait(ImmutableMap.of("name", "Carol"), alice.address(), bob.address());
+    Cluster carol = Cluster.joinAwait(Collections.singletonMap("name", "Carol"), alice.address(), bob.address());
     System.out.println(now() + " Carol join members: " + carol.members());
     carol.listenMembership()
         .subscribe(event -> System.out.println(now() + " Carol received: " + event));

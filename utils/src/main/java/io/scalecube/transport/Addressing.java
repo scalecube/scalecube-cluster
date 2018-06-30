@@ -1,7 +1,7 @@
 package io.scalecube.transport;
 
-import com.google.common.base.Strings;
-import com.google.common.base.Throwables;
+import io.scalecube.Strings;
+import io.scalecube.Throwables;
 
 import java.net.Inet4Address;
 import java.net.Inet6Address;

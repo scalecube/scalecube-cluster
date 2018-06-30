@@ -1,7 +1,7 @@
 package io.scalecube.transport;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
+import static io.scalecube.Preconditions.checkArgument;
+import static io.scalecube.Preconditions.checkState;
 import static io.scalecube.transport.Addressing.MAX_PORT_NUMBER;
 import static io.scalecube.transport.Addressing.MIN_PORT_NUMBER;
 
@@ -243,7 +243,7 @@ final class TransportImpl implements Transport {
   }
 
   private void send(Channel channel, Message message, CompletableFuture<Void> promise) {
-    if (promise == COMPLETED_PROMISE) {
+    if (promise.equals(COMPLETED_PROMISE)) {
       channel.writeAndFlush(message, channel.voidPromise());
     } else {
       composeFutures(channel.writeAndFlush(message), promise);
@@ -254,7 +254,7 @@ final class TransportImpl implements Transport {
    * Converts netty {@link ChannelFuture} to the given {@link CompletableFuture}.
    *
    * @param channelFuture netty channel future
-   * @param promise guava future; can be null
+   * @param promise future; can be null
    */
   private void composeFutures(ChannelFuture channelFuture, @Nonnull final CompletableFuture<Void> promise) {
     channelFuture.addListener((ChannelFuture future) -> {

@@ -1,28 +1,27 @@
 package io.scalecube.cluster.fdetector;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static io.scalecube.cluster.membership.MemberStatus.SUSPECT;
+import static io.scalecube.Preconditions.checkArgument;
 import static io.scalecube.cluster.membership.MemberStatus.ALIVE;
+import static io.scalecube.cluster.membership.MemberStatus.SUSPECT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.membership.DummyMembershipProtocol;
-import io.scalecube.cluster.membership.MembershipProtocol;
 import io.scalecube.cluster.membership.MemberStatus;
+import io.scalecube.cluster.membership.MembershipProtocol;
 import io.scalecube.testlib.BaseTest;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Transport;
 import io.scalecube.transport.TransportConfig;
-
-import com.google.common.collect.Lists;
 
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
@@ -341,7 +340,7 @@ public class FailureDetectorTest extends BaseTest {
       assertStatus(x.address(), ALIVE, awaitEvents(list_x), a.address(), b.address());
 
       // stop node X
-      stop(Lists.newArrayList(fd_x));
+      stop(Collections.singletonList(fd_x));
       TimeUnit.SECONDS.sleep(2);
 
       // restart node X as XX

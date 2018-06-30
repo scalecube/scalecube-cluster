@@ -62,7 +62,6 @@
 
     <slf4j.version>1.7.7</slf4j.version>
     <rxjava.version>1.3.0</rxjava.version>
-    <guava.version>19.0</guava.version>
     <findbugs.version>2.0.3</findbugs.version>
     <netty.version>4.1.21.Final</netty.version>
     <socketio.version>2.3.0</socketio.version>
@@ -111,11 +110,6 @@
         <groupId>com.google.code.findbugs</groupId>
         <artifactId>jsr305</artifactId>
         <version>${findbugs.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>com.google.guava</groupId>
-        <artifactId>guava</artifactId>
-        <version>${guava.version}</version>
       </dependency>
 
       <!-- Protostuff/Protobuf -->

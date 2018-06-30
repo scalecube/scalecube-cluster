@@ -1,6 +1,6 @@
 package io.scalecube.cluster;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static io.scalecube.Preconditions.checkNotNull;
 import static io.scalecube.cluster.fdetector.FailureDetectorImpl.PING;
 import static io.scalecube.cluster.fdetector.FailureDetectorImpl.PING_ACK;
 import static io.scalecube.cluster.fdetector.FailureDetectorImpl.PING_REQ;
@@ -18,8 +18,6 @@ import io.scalecube.transport.Message;
 import io.scalecube.transport.NetworkEmulator;
 import io.scalecube.transport.Transport;
 
-import com.google.common.collect.ImmutableSet;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,6 +32,8 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.annotation.Nonnull;
 
@@ -47,9 +47,10 @@ final class ClusterImpl implements Cluster {
   private static final Logger LOGGER = LoggerFactory.getLogger(ClusterImpl.class);
 
   private static final Set<String> SYSTEM_MESSAGES =
-      ImmutableSet.of(PING, PING_REQ, PING_ACK, SYNC, SYNC_ACK, GOSSIP_REQ);
+      Collections.unmodifiableSet(Stream.of(PING, PING_REQ, PING_ACK, SYNC, SYNC_ACK, GOSSIP_REQ)
+          .collect(Collectors.toSet()));
 
-  private static final Set<String> SYSTEM_GOSSIPS = ImmutableSet.of(MEMBERSHIP_GOSSIP);
+  private static final Set<String> SYSTEM_GOSSIPS = Collections.singleton(MEMBERSHIP_GOSSIP);
 
   private final ClusterConfig config;
 

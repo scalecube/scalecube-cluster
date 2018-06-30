@@ -1,8 +1,8 @@
 package io.scalecube.transport;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static io.scalecube.Preconditions.checkArgument;
 
-import com.google.common.base.Strings;
+import io.scalecube.Strings;
 
 import java.util.Objects;
 import java.util.regex.Matcher;

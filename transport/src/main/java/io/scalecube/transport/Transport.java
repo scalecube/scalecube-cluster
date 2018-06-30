@@ -1,6 +1,6 @@
 package io.scalecube.transport;
 
-import com.google.common.base.Throwables;
+import io.scalecube.Throwables;
 
 import rx.Observable;
 

@@ -5,7 +5,6 @@ import io.scalecube.cluster.Member;
 import rx.Observable;
 
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * Cluster Membership Protocol component responsible for managing information about existing members of the cluster.
