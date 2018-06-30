@@ -88,7 +88,7 @@ public final class Throwables {
   public static Throwable getRootCause(Throwable throwable) {
     Throwable result = throwable;
     Throwable cause;
-    while ((cause = throwable.getCause()) != null) {
+    while ((cause = result.getCause()) != null) {
       result = cause;
     }
     return result;
