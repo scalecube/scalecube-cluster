@@ -26,11 +26,6 @@ public final class ThreadFactoryBuilder {
   private ThreadFactory backingThreadFactory = null;
 
   /**
-   * Creates a new {@link ThreadFactory} builder.
-   */
-  public ThreadFactoryBuilder() {}
-
-  /**
    * Sets the naming format to use when naming threads ({@link Thread#setName}) which are created with this
    * ThreadFactory.
    *
@@ -41,7 +36,7 @@ public final class ThreadFactoryBuilder {
    * @return this for the builder pattern
    */
   public ThreadFactoryBuilder setNameFormat(String nameFormat) {
-    String unused = format(nameFormat, 0); // fail fast if the format is bad or null
+    format(nameFormat, 0); // fail fast if the format is bad or null
     this.nameFormat = nameFormat;
     return this;
   }

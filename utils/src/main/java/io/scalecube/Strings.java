@@ -3,8 +3,7 @@ package io.scalecube;
 import javax.annotation.Nullable;
 
 /**
- * Static utility methods pertaining to {@code String} or {@code CharSequence}
- * instances.
+ * Static utility methods pertaining to {@code String} or {@code CharSequence} instances.
  */
 public final class Strings {
   private Strings() {}
