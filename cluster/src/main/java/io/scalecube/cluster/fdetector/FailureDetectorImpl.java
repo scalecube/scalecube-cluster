@@ -21,6 +21,7 @@ import reactor.core.publisher.FluxSink;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -195,7 +196,7 @@ public final class FailureDetectorImpl implements FailureDetector {
           .filter(this::isPingAck)
           .filter(message -> cid.equals(message.correlationId()))
           .take(1)
-          .timeout(config.getPingTimeout(), TimeUnit.MILLISECONDS, scheduler)
+          .timeout(Duration.ofMillis(config.getPingTimeout()), scheduler)
           .subscribe(
               message -> {
                 LOGGER.trace("Received PingAck[{}] from {}", period, pingMember);
@@ -233,7 +234,7 @@ public final class FailureDetectorImpl implements FailureDetector {
         .filter(this::isPingAck)
         .filter(message -> cid.equals(message.correlationId()))
         .take(1)
-        .timeout(timeout, TimeUnit.MILLISECONDS, scheduler)
+        .timeout(Duration.ofMillis(timeout), scheduler)
         .subscribe(
             message -> {
               LOGGER.trace("Received transit PingAck[{}] from {} to {}", period, message.sender(), pingMember);

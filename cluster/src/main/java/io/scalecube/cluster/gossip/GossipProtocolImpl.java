@@ -17,6 +17,8 @@ import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxProcessor;
+import reactor.core.publisher.FluxSink;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
@@ -64,9 +66,8 @@ public final class GossipProtocolImpl implements GossipProtocol {
   private Disposable onGossipRequestSubscriber;
 
   // Subject
-
-  private Processor<Message, Message> subject = DirectProcessor.create();
-
+  private FluxProcessor<Message, Message> subject = DirectProcessor.<Message>create().serialize();
+  private FluxSink<Message> sink = subject.sink();
   // Scheduled
 
   private final ScheduledExecutorService executor;
@@ -154,7 +155,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
     executor.shutdown();
 
     // Stop publishing events
-    subject.onCompleted();
+    sink.complete();
   }
 
   @Override
@@ -211,7 +212,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
       if (gossipState == null) { // new gossip
         gossipState = new GossipState(gossip, period);
         gossips.put(gossip.gossipId(), gossipState);
-        subject.onNext(gossip.message());
+        sink.next(gossip.message());
       }
       gossipState.addToInfected(gossipRequest.from());
     }
@@ -300,5 +301,4 @@ public final class GossipProtocolImpl implements GossipProtocol {
       }
     }
   }
-
 }

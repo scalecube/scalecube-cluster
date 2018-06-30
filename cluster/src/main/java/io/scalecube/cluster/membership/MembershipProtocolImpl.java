@@ -25,6 +25,7 @@ import reactor.core.publisher.FluxSink;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -299,7 +300,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
         .filter(msg -> cid.equals(msg.correlationId()))
         .filter(this::checkSyncGroup)
         .take(1)
-        .timeout(config.getSyncTimeout(), TimeUnit.MILLISECONDS, scheduler)
+        .timeout(Duration.ofMillis(config.getSyncTimeout()), scheduler)
         .subscribe(
             message -> {
               SyncData syncData = message.data();
