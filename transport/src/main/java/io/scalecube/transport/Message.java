@@ -1,10 +1,10 @@
 package io.scalecube.transport;
 
+import static io.scalecube.Preconditions.checkArgument;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-
-import static io.scalecube.Preconditions.checkArgument;
 
 /**
  * The Class Message introduces generic protocol used for point to point communication by transport.

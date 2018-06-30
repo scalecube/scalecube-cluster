@@ -1,7 +1,5 @@
 package io.scalecube;
 
-import java.util.Formatter;
-
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nullable;
 

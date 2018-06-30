@@ -1,5 +1,7 @@
 package io.scalecube.transport;
 
+import static io.scalecube.Preconditions.checkArgument;
+
 import io.scalecube.Strings;
 
 import java.util.Objects;
@@ -9,8 +11,6 @@ import java.util.regex.Pattern;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.Immutable;
-
-import static io.scalecube.Preconditions.checkArgument;
 
 @Immutable
 public final class Address {

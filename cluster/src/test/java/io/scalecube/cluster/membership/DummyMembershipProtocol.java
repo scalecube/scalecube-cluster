@@ -1,13 +1,14 @@
 package io.scalecube.cluster.membership;
 
+import io.scalecube.cluster.Member;
+import io.scalecube.transport.Address;
+
+import rx.Observable;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
-import io.scalecube.cluster.Member;
-import io.scalecube.transport.Address;
-import rx.Observable;
 
 /**
  * @author Anton Kharenko

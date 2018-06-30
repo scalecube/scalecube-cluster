@@ -1,9 +1,9 @@
 package io.scalecube.transport;
 
+import static io.scalecube.Preconditions.checkState;
+
 import io.netty.util.Recycler;
 import io.protostuff.LinkedBuffer;
-
-import static io.scalecube.Preconditions.checkState;
 
 /**
  * Facility class for {@link io.protostuff.LinkedBuffer}. Based on idea of object pooling (done vian

@@ -1,5 +1,7 @@
 package io.scalecube.transport;
 
+import io.scalecube.Throwables;
+
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
@@ -16,7 +18,6 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.internal.SystemPropertyUtil;
 
-import io.scalecube.Throwables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
