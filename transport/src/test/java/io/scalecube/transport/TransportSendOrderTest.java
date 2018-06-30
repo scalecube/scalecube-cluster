@@ -10,7 +10,6 @@ import io.scalecube.testlib.BaseTest;
 
 import org.junit.After;
 import org.junit.Test;
-import org.reactivestreams.Subscriber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
