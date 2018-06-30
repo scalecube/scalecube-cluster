@@ -25,7 +25,6 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Protostuff schema for {@link Message}.
  * 
- * @author Anton Kharenko
  */
 final class MessageSchema implements Schema<Message> {
   private static final Logger LOGGER = LoggerFactory.getLogger(MessageSchema.class);

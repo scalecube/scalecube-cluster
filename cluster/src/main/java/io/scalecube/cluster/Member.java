@@ -14,7 +14,6 @@ import javax.annotation.concurrent.Immutable;
 /**
  * Cluster member which represents node in the cluster and contains its id, address and metadata.
  *
- * @author Anton Kharenko
  */
 @Immutable
 public final class Member {

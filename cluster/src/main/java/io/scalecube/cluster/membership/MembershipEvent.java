@@ -9,7 +9,6 @@ import javax.annotation.concurrent.Immutable;
 /**
  * Event which is emitted on cluster membership changes when new member added or removed from cluster.
  *
- * @author Anton Kharenko
  */
 @Immutable
 public final class MembershipEvent {

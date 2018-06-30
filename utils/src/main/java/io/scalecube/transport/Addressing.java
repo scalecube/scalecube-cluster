@@ -15,9 +15,6 @@ import java.util.List;
 
 /**
  * Utility class which finds local IP address and currently available server ports.
- *
- * @author Anton Kharenko
- * @author Artem Vysochyn
  */
 public final class Addressing {
 

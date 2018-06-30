@@ -12,7 +12,6 @@ import io.protostuff.runtime.RuntimeSchema;
 /**
  * Contains static methods for message serializing/deserializing logic.
  *
- * @author Anton Kharenko
  */
 public final class MessageCodec {
 

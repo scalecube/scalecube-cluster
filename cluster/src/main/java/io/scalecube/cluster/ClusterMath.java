@@ -3,7 +3,6 @@ package io.scalecube.cluster;
 /**
  * Utility class which contains math computation on cluster properties.
  *
- * @author Anton Kharenko
  */
 public final class ClusterMath {
 

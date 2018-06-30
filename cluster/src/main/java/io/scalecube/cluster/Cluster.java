@@ -19,7 +19,6 @@ import javax.annotation.Nonnull;
 /**
  * Facade cluster interface which provides API to interact with cluster members.
  * 
- * @author Anton Kharenko
  */
 public interface Cluster {
 

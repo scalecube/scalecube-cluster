@@ -14,6 +14,7 @@ import org.reactivestreams.Processor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import reactor.core.Disposable;
 import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Scheduler;
@@ -58,9 +59,9 @@ public final class GossipProtocolImpl implements GossipProtocol {
 
   // Subscriptions
 
-  private Flux<Member> onMemberAddedEventSubscriber;
-  private Flux<Member> onMemberRemovedEventSubscriber;
-  private Flux<Message> onGossipRequestSubscriber;
+  private Disposable onMemberAddedEventSubscriber;
+  private Disposable onMemberRemovedEventSubscriber;
+  private Disposable onGossipRequestSubscriber;
 
   // Subject
 
@@ -108,22 +109,19 @@ public final class GossipProtocolImpl implements GossipProtocol {
 
   @Override
   public void start() {
-    onMemberAddedEventSubscriber = Subscribers.create(remoteMembers::add, this::onError);
-    membership.listen().publishOn(scheduler)
+    onMemberAddedEventSubscriber = membership.listen().publishOn(scheduler)
         .filter(MembershipEvent::isAdded)
         .map(MembershipEvent::member)
-        .subscribe(onMemberAddedEventSubscriber);
+        .subscribe(remoteMembers::add, this::onError);
 
-    onMemberRemovedEventSubscriber = Subscribers.create(remoteMembers::remove, this::onError);
-    membership.listen().publishOn(scheduler)
+    onMemberRemovedEventSubscriber = membership.listen().publishOn(scheduler)
         .filter(MembershipEvent::isRemoved)
         .map(MembershipEvent::member)
-        .subscribe(onMemberRemovedEventSubscriber);
+        .subscribe(remoteMembers::remove, this::onError);
 
-    onGossipRequestSubscriber = Subscribers.create(this::onGossipReq, this::onError);
-    transport.listen().publishOn(scheduler)
+    onGossipRequestSubscriber = transport.listen().publishOn(scheduler)
         .filter(this::isGossipReq)
-        .subscribe(onGossipRequestSubscriber);
+        .subscribe(this::onGossipReq, this::onError);
 
     spreadGossipTask = executor.scheduleWithFixedDelay(this::doSpreadGossip,
         config.getGossipInterval(), config.getGossipInterval(), TimeUnit.MILLISECONDS);
@@ -137,13 +135,13 @@ public final class GossipProtocolImpl implements GossipProtocol {
   public void stop() {
     // Stop accepting gossip requests
     if (onMemberAddedEventSubscriber != null) {
-      onMemberAddedEventSubscriber.unsubscribe();
+      onMemberAddedEventSubscriber.dispose();
     }
     if (onMemberRemovedEventSubscriber != null) {
-      onMemberRemovedEventSubscriber.unsubscribe();
+      onMemberRemovedEventSubscriber.dispose();
     }
     if (onGossipRequestSubscriber != null) {
-      onGossipRequestSubscriber.unsubscribe();
+      onGossipRequestSubscriber.dispose();
     }
 
     // Stop spreading gossips

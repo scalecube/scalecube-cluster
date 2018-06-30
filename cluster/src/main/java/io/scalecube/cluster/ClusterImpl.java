@@ -40,7 +40,6 @@ import javax.annotation.Nonnull;
 /**
  * Cluster implementation.
  * 
- * @author Anton Kharenko
  */
 final class ClusterImpl implements Cluster {
 

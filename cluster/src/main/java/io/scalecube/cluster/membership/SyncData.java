@@ -11,7 +11,6 @@ import javax.annotation.concurrent.Immutable;
 /**
  * A class containing full membership table from specific member and used full synchronization between cluster members.
  *
- * @author Anton Kharenko
  */
 @Immutable
 final class SyncData {
