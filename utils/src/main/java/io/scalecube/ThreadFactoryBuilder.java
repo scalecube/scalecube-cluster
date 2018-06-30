@@ -2,6 +2,7 @@ package io.scalecube;
 
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicLong;
@@ -67,27 +68,16 @@ public final class ThreadFactoryBuilder {
     final String nameFormat = builder.nameFormat;
     final Boolean daemon = builder.daemon;
     final Integer priority = builder.priority;
-    final UncaughtExceptionHandler uncaughtExceptionHandler =
-        builder.uncaughtExceptionHandler;
+    final UncaughtExceptionHandler uncaughtExceptionHandler = builder.uncaughtExceptionHandler;
     final ThreadFactory backingThreadFactory =
-        (builder.backingThreadFactory != null)
-            ? builder.backingThreadFactory
-            : Executors.defaultThreadFactory();
+        Optional.ofNullable(builder.backingThreadFactory).orElse(Executors.defaultThreadFactory());
     final AtomicLong count = (nameFormat != null) ? new AtomicLong(0) : null;
     return runnable -> {
       Thread thread = backingThreadFactory.newThread(runnable);
-      if (nameFormat != null) {
-        thread.setName(format(nameFormat, count.getAndIncrement()));
-      }
-      if (daemon != null) {
-        thread.setDaemon(daemon);
-      }
-      if (priority != null) {
-        thread.setPriority(priority);
-      }
-      if (uncaughtExceptionHandler != null) {
-        thread.setUncaughtExceptionHandler(uncaughtExceptionHandler);
-      }
+      Optional.ofNullable(nameFormat).ifPresent(value -> thread.setName(format(value, count.getAndIncrement())));
+      Optional.ofNullable(daemon).ifPresent(thread::setDaemon);
+      Optional.ofNullable(priority).ifPresent(thread::setPriority);
+      Optional.ofNullable(uncaughtExceptionHandler).ifPresent(thread::setUncaughtExceptionHandler);
       return thread;
     };
   }
