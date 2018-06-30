@@ -30,6 +30,7 @@ import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.EmitterProcessor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxProcessor;
+import reactor.core.publisher.FluxSink;
 
 import java.net.BindException;
 import java.net.InetAddress;
@@ -49,7 +50,7 @@ final class TransportImpl implements Transport {
   private final TransportConfig config;
 
   private final FluxProcessor<Message, Message> incomingMessagesSubject = DirectProcessor.<Message>create().serialize();
-
+  private final FluxSink<Message> messageSink = incomingMessagesSubject.sink();
   private final Map<Address, ChannelFuture> outgoingChannels = new ConcurrentHashMap<>();
 
   // Pipeline
@@ -74,7 +75,7 @@ final class TransportImpl implements Transport {
     this.config = config;
     this.serializerHandler = new MessageSerializerHandler();
     this.deserializerHandler = new MessageDeserializerHandler();
-    this.messageHandler = new MessageHandler(incomingMessagesSubject.sink());
+    this.messageHandler = new MessageHandler(messageSink);
     this.bootstrapFactory = new BootstrapFactory(config);
   }
 
@@ -180,7 +181,7 @@ final class TransportImpl implements Transport {
     stopped = true;
     // Complete incoming messages observable
     try {
-      incomingMessagesSubject.onComplete();
+      messageSink.complete();
     } catch (Exception ignore) {
       // ignore
     }
