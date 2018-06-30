@@ -71,8 +71,9 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   // Subject
   // Subject
-  private FluxProcessor<MembershipEvent, MembershipEvent> subject = DirectProcessor.create();
-  private FluxSink<MembershipEvent> sink = subject.serialize().sink();
+  private FluxProcessor<MembershipEvent, MembershipEvent> subject =
+      DirectProcessor.<MembershipEvent>create().serialize();
+  private FluxSink<MembershipEvent> sink = subject.sink();
   // Subscriptions
   private Disposable onSyncRequestSubscriber;
   private Disposable onSyncAckResponseSubscriber;

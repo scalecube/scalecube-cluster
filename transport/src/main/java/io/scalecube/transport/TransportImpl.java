@@ -31,6 +31,7 @@ import reactor.core.publisher.EmitterProcessor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxProcessor;
 import reactor.core.publisher.FluxSink;
+import reactor.core.scheduler.Schedulers;
 
 import java.net.BindException;
 import java.net.InetAddress;
@@ -107,7 +108,7 @@ final class TransportImpl implements Transport {
   private CompletableFuture<Transport> bind0(ServerBootstrap server, InetAddress listenAddress, int bindPort,
       int finalBindPort) {
 
-    //incomingMessagesSubject.subscribeOn(Schedulers.fromExecutor(bootstrapFactory.getWorkerGroup()));
+    incomingMessagesSubject.subscribeOn(Schedulers.fromExecutor(bootstrapFactory.getWorkerGroup()));
 
     final CompletableFuture<Transport> result = new CompletableFuture<>();
 
@@ -213,7 +214,7 @@ final class TransportImpl implements Transport {
   @Override
   public final Flux<Message> listen() {
     checkState(!stopped, "Transport is stopped");
-    return Flux.from(incomingMessagesSubject);
+    return incomingMessagesSubject.onBackpressureBuffer();
   }
 
   @Override

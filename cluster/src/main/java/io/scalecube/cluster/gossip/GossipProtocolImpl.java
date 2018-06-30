@@ -66,8 +66,8 @@ public final class GossipProtocolImpl implements GossipProtocol {
 
   // Subject
 
-  private FluxProcessor<Message, Message> subject = DirectProcessor.create();
-  private FluxSink<Message> sink = subject.serialize().sink();
+  private FluxProcessor<Message, Message> subject = DirectProcessor.<Message>create().serialize();
+  private FluxSink<Message> sink = subject.sink();
 
   // Scheduled
 
@@ -168,7 +168,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
 
   @Override
   public Flux<Message> listen() {
-    return subject;
+    return subject.onBackpressureBuffer();
   }
 
   // ================================================
