@@ -14,13 +14,11 @@ import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.Transport;
 
-import org.reactivestreams.Processor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import reactor.core.Disposable;
 import reactor.core.publisher.DirectProcessor;
-import reactor.core.publisher.EmitterProcessor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxProcessor;
 import reactor.core.publisher.FluxSink;
