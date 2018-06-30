@@ -13,7 +13,6 @@ import io.scalecube.testlib.BaseTest;
 
 import org.junit.After;
 import org.junit.Test;
-import org.reactivestreams.Subscriber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -354,21 +353,13 @@ public class TransportTest extends BaseTest {
     final CompletableFuture<Boolean> completeLatch = new CompletableFuture<>();
     final CompletableFuture<Message> messageLatch = new CompletableFuture<>();
 
-    server.listen().subscribe(new Subscriber<Message>() {
-      @Override
-      public void onCompleted() {
-        completeLatch.complete(true);
-      }
-
-      @Override
-      public void onError(Throwable e) {}
-
-      @Override
-      public void onNext(Message message) {
-        messageLatch.complete(message);
-      }
+    server.listen().subscribe(message->{
+      messageLatch.complete(message);
+    }, errorConsumer->{}, 
+    ()->{
+      completeLatch.complete(true);  
     });
-
+    
     CompletableFuture<Void> send = new CompletableFuture<>();
     client.send(server.address(), Message.fromData("q"), send);
     send.get(1, TimeUnit.SECONDS);
