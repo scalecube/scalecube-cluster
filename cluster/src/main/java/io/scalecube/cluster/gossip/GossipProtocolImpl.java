@@ -167,7 +167,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
 
   @Override
   public Flux<Message> listen() {
-    return Flux.from(subject);
+    return subject;
   }
 
   // ================================================
