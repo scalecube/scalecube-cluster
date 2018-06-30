@@ -18,8 +18,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * <li>an {@linkplain Thread#setUncaughtExceptionHandler uncaught exception handler}
  * <li>a {@linkplain ThreadFactory#newThread backing thread factory}
  * </ul>
- * <p>
- * If no backing thread factory is provided, a default backing thread factory is used as if by calling
+ * <p>If no backing thread factory is provided, a default backing thread factory is used as if by calling
  * {@code setThreadFactory(}{@link Executors#defaultThreadFactory()}{@code )}.
  */
 public final class ThreadFactoryBuilder {
