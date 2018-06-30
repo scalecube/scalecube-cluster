@@ -14,16 +14,14 @@ import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.Transport;
 
+import org.reactivestreams.Processor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import rx.Observable;
-import rx.Scheduler;
-import rx.Subscriber;
-import rx.observers.Subscribers;
-import rx.schedulers.Schedulers;
-import rx.subjects.PublishSubject;
-import rx.subjects.Subject;
+import reactor.core.publisher.EmitterProcessor;
+import reactor.core.publisher.Flux;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -70,15 +68,14 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   // Subject
 
-  private final Subject<MembershipEvent, MembershipEvent> subject =
-      PublishSubject.<MembershipEvent>create().toSerialized();
+  private final Processor<MembershipEvent, MembershipEvent> subject = EmitterProcessor.create();
 
   // Subscriptions
 
-  private Subscriber<Message> onSyncRequestSubscriber;
-  private Subscriber<Message> onSyncAckResponseSubscriber;
-  private Subscriber<FailureDetectorEvent> onFdEventSubscriber;
-  private Subscriber<Message> onGossipRequestSubscriber;
+  private Flux<Message> onSyncRequestSubscriber;
+  private Flux<Message> onSyncAckResponseSubscriber;
+  private Flux<FailureDetectorEvent> onFdEventSubscriber;
+  private Flux<Message> onGossipRequestSubscriber;
 
   // Scheduled
 
@@ -105,7 +102,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     this.executor = Executors.newSingleThreadScheduledExecutor(
         new ThreadFactoryBuilder().setNameFormat(nameFormat).setDaemon(true).build());
 
-    this.scheduler = Schedulers.from(executor);
+    this.scheduler = Schedulers.fromExecutor(executor);
     this.seedMembers = cleanUpSeedMembers(config.getSeedMembers());
   }
 
@@ -170,8 +167,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   }
 
   @Override
-  public Observable<MembershipEvent> listen() {
-    return subject.onBackpressureBuffer().asObservable();
+  public Flux<MembershipEvent> listen() {
+    return Flux.from(subject);
   }
 
   @Override
@@ -300,7 +297,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
     // Listen initial Sync Ack
     String cid = memberRef.get().id();
-    transport.listen().observeOn(scheduler)
+    transport.listen().publishOn(scheduler)
         .filter(msg -> SYNC_ACK.equals(msg.qualifier()))
         .filter(msg -> cid.equals(msg.correlationId()))
         .filter(this::checkSyncGroup)

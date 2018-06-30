@@ -22,13 +22,13 @@ import io.netty.handler.codec.MessageToMessageDecoder;
 import io.netty.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
 import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
 
+import org.reactivestreams.Processor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import rx.Observable;
-import rx.schedulers.Schedulers;
-import rx.subjects.PublishSubject;
-import rx.subjects.Subject;
+import reactor.core.publisher.EmitterProcessor;
+import reactor.core.publisher.Flux;
+import reactor.core.scheduler.Schedulers;
 
 import java.net.BindException;
 import java.net.InetAddress;
@@ -47,7 +47,7 @@ final class TransportImpl implements Transport {
 
   private final TransportConfig config;
 
-  private final Subject<Message, Message> incomingMessagesSubject = PublishSubject.<Message>create().toSerialized();
+  private final Processor<Message, Message> incomingMessagesSubject = EmitterProcessor.create();
 
   private final Map<Address, ChannelFuture> outgoingChannels = new ConcurrentHashMap<>();
 
@@ -105,7 +105,7 @@ final class TransportImpl implements Transport {
   private CompletableFuture<Transport> bind0(ServerBootstrap server, InetAddress listenAddress, int bindPort,
       int finalBindPort) {
 
-    incomingMessagesSubject.subscribeOn(Schedulers.from(bootstrapFactory.getWorkerGroup()));
+    //incomingMessagesSubject.subscribeOn(Schedulers.fromExecutor(bootstrapFactory.getWorkerGroup()));
 
     final CompletableFuture<Transport> result = new CompletableFuture<>();
 
@@ -179,7 +179,7 @@ final class TransportImpl implements Transport {
     stopped = true;
     // Complete incoming messages observable
     try {
-      incomingMessagesSubject.onCompleted();
+      incomingMessagesSubject.onComplete();
     } catch (Exception ignore) {
       // ignore
     }
@@ -209,9 +209,9 @@ final class TransportImpl implements Transport {
 
   @Nonnull
   @Override
-  public final Observable<Message> listen() {
+  public final Flux<Message> listen() {
     checkState(!stopped, "Transport is stopped");
-    return incomingMessagesSubject.onBackpressureBuffer().asObservable();
+    return Flux.from(incomingMessagesSubject);
   }
 
   @Override

@@ -21,7 +21,7 @@ import io.scalecube.transport.Transport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import rx.Observable;
+import reactor.core.publisher.Flux;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -63,8 +63,8 @@ final class ClusterImpl implements Cluster {
   private GossipProtocolImpl gossip;
   private MembershipProtocolImpl membership;
 
-  private Observable<Message> messageObservable;
-  private Observable<Message> gossipObservable;
+  private Flux<Message> messageObservable;
+  private Flux<Message> gossipObservable;
 
   public ClusterImpl(ClusterConfig config) {
     checkNotNull(config);
@@ -152,7 +152,7 @@ final class ClusterImpl implements Cluster {
   }
 
   @Override
-  public Observable<Message> listen() {
+  public Flux<Message> listen() {
     return messageObservable;
   }
 
@@ -162,7 +162,7 @@ final class ClusterImpl implements Cluster {
   }
 
   @Override
-  public Observable<Message> listenGossips() {
+  public Flux<Message> listenGossips() {
     return gossipObservable;
   }
 
@@ -205,7 +205,7 @@ final class ClusterImpl implements Cluster {
   }
 
   @Override
-  public Observable<MembershipEvent> listenMembership() {
+  public Flux<MembershipEvent> listenMembership() {
     return membership.listen();
   }
 

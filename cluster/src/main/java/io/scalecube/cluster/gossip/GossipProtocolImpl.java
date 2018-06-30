@@ -10,16 +10,14 @@ import io.scalecube.cluster.membership.MembershipProtocol;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.Transport;
 
+import org.reactivestreams.Processor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import rx.Observable;
-import rx.Scheduler;
-import rx.Subscriber;
-import rx.observers.Subscribers;
-import rx.schedulers.Schedulers;
-import rx.subjects.PublishSubject;
-import rx.subjects.Subject;
+import reactor.core.publisher.DirectProcessor;
+import reactor.core.publisher.Flux;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -60,13 +58,13 @@ public final class GossipProtocolImpl implements GossipProtocol {
 
   // Subscriptions
 
-  private Subscriber<Member> onMemberAddedEventSubscriber;
-  private Subscriber<Member> onMemberRemovedEventSubscriber;
-  private Subscriber<Message> onGossipRequestSubscriber;
+  private Flux<Member> onMemberAddedEventSubscriber;
+  private Flux<Member> onMemberRemovedEventSubscriber;
+  private Flux<Message> onGossipRequestSubscriber;
 
   // Subject
 
-  private Subject<Message, Message> subject = PublishSubject.<Message>create().toSerialized();
+  private Processor<Message, Message> subject = DirectProcessor.create();
 
   // Scheduled
 
@@ -91,7 +89,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
     String nameFormat = "sc-gossip-" + Integer.toString(membership.member().address().port());
     this.executor = Executors.newSingleThreadScheduledExecutor(
         new ThreadFactoryBuilder().setNameFormat(nameFormat).setDaemon(true).build());
-    this.scheduler = Schedulers.from(executor);
+    this.scheduler = Schedulers.fromExecutor(executor);
   }
 
   /**
@@ -110,20 +108,21 @@ public final class GossipProtocolImpl implements GossipProtocol {
 
   @Override
   public void start() {
+    
     onMemberAddedEventSubscriber = Subscribers.create(remoteMembers::add, this::onError);
-    membership.listen().observeOn(scheduler)
+    membership.listen().publishOn(scheduler)
         .filter(MembershipEvent::isAdded)
         .map(MembershipEvent::member)
         .subscribe(onMemberAddedEventSubscriber);
 
     onMemberRemovedEventSubscriber = Subscribers.create(remoteMembers::remove, this::onError);
-    membership.listen().observeOn(scheduler)
+    membership.listen().publishOn(scheduler)
         .filter(MembershipEvent::isRemoved)
         .map(MembershipEvent::member)
         .subscribe(onMemberRemovedEventSubscriber);
 
     onGossipRequestSubscriber = Subscribers.create(this::onGossipReq, this::onError);
-    transport.listen().observeOn(scheduler)
+    transport.listen().publishOn(scheduler)
         .filter(this::isGossipReq)
         .subscribe(onGossipRequestSubscriber);
 
@@ -169,8 +168,8 @@ public final class GossipProtocolImpl implements GossipProtocol {
   }
 
   @Override
-  public Observable<Message> listen() {
-    return subject.onBackpressureBuffer().asObservable();
+  public Flux<Message> listen() {
+    return Flux.from(subject);
   }
 
   // ================================================

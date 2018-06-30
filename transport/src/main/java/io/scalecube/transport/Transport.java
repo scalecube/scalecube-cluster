@@ -2,7 +2,7 @@ package io.scalecube.transport;
 
 import io.scalecube.Throwables;
 
-import rx.Observable;
+import reactor.core.publisher.Flux;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -131,7 +131,7 @@ public interface Transport {
    * @return Observable which emit received messages or complete event when transport is closed
    */
   @Nonnull
-  Observable<Message> listen();
+  Flux<Message> listen();
 
   /**
    * Returns network emulator associated with this instance of transport. It always returns non null instance even if

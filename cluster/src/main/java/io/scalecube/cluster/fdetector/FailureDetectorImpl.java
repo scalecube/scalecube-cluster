@@ -10,16 +10,15 @@ import io.scalecube.cluster.membership.MembershipProtocol;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.Transport;
 
+import org.reactivestreams.Processor;
+import org.reactivestreams.Subscriber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import rx.Observable;
-import rx.Scheduler;
-import rx.Subscriber;
-import rx.observers.Subscribers;
-import rx.schedulers.Schedulers;
-import rx.subjects.PublishSubject;
-import rx.subjects.Subject;
+import reactor.core.publisher.DirectProcessor;
+import reactor.core.publisher.Flux;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -29,6 +28,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+
+import javax.security.auth.Subject;
 
 public final class FailureDetectorImpl implements FailureDetector {
 
@@ -63,8 +64,7 @@ public final class FailureDetectorImpl implements FailureDetector {
 
   // Subject
 
-  private Subject<FailureDetectorEvent, FailureDetectorEvent> subject =
-      PublishSubject.<FailureDetectorEvent>create().toSerialized();
+  private DirectProcessor<FailureDetectorEvent> subject = DirectProcessor.create();
 
   // Scheduled
 
@@ -89,7 +89,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     String nameFormat = "sc-fdetector-" + Integer.toString(membership.member().address().port());
     this.executor = Executors.newSingleThreadScheduledExecutor(
         new ThreadFactoryBuilder().setNameFormat(nameFormat).setDaemon(true).build());
-    this.scheduler = Schedulers.from(executor);
+    this.scheduler = Schedulers.fromExecutor(executor);
   }
 
   /**
@@ -172,8 +172,8 @@ public final class FailureDetectorImpl implements FailureDetector {
   }
 
   @Override
-  public Observable<FailureDetectorEvent> listen() {
-    return subject.onBackpressureDrop().asObservable();
+  public Flux<FailureDetectorEvent> listen() {
+    return subject.onBackpressureDrop();
   }
 
   // ================================================
