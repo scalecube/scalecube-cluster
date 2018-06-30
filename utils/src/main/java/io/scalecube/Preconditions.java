@@ -1,5 +1,7 @@
 package io.scalecube;
 
+import java.util.Objects;
+
 public final class Preconditions {
   private Preconditions() {}
 
@@ -114,9 +116,7 @@ public final class Preconditions {
    * @throws NullPointerException if {@code reference} is null
    */
   public static <T> T checkNotNull(T reference) {
-    if (reference == null) {
-      throw new NullPointerException();
-    }
+    Objects.requireNonNull(reference);
     return reference;
   }
 
@@ -129,10 +129,8 @@ public final class Preconditions {
    * @return the non-null reference that was validated
    * @throws NullPointerException if {@code reference} is null
    */
-  public static <T> T checkNotNull(T reference, Object errorMessage) {
-    if (reference == null) {
-      throw new NullPointerException(String.valueOf(errorMessage));
-    }
+  public static <T> T checkNotNull(T reference, String errorMessage) {
+    Objects.requireNonNull(reference,errorMessage);
     return reference;
   }
 
@@ -152,10 +150,7 @@ public final class Preconditions {
    */
   public static <T> T checkNotNull(
       T reference, String errorMessageTemplate, Object... errorMessageArgs) {
-    if (reference == null) {
-      // If either of these parameters is null, the right thing happens anyway
-      throw new NullPointerException(format(errorMessageTemplate, errorMessageArgs));
-    }
+    Objects.requireNonNull(reference,format(errorMessageTemplate, errorMessageArgs));
     return reference;
   }
 
