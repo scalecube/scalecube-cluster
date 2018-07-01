@@ -63,7 +63,6 @@
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
 		<slf4j.version>1.7.7</slf4j.version>
-		<findbugs.version>2.0.3</findbugs.version>
 		<netty.version>4.1.25.Final</netty.version>
 		<reactor.version>3.1.8.RELEASE</reactor.version>
 		<socketio.version>2.3.0</socketio.version>
