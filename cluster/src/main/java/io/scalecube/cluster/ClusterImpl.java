@@ -35,8 +35,6 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import javax.annotation.Nonnull;
-
 /**
  * Cluster implementation.
  * 
@@ -229,7 +227,6 @@ final class ClusterImpl implements Cluster {
     return transportStoppedFuture;
   }
 
-  @Nonnull
   @Override
   public NetworkEmulator networkEmulator() {
     return transport.networkEmulator();

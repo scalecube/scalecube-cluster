@@ -38,9 +38,6 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
-
 final class TransportImpl implements Transport {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(TransportImpl.class);
@@ -152,7 +149,7 @@ final class TransportImpl implements Transport {
   }
 
   @Override
-  @Nonnull
+
   public Address address() {
     return address;
   }
@@ -162,7 +159,7 @@ final class TransportImpl implements Transport {
     return stopped;
   }
 
-  @Nonnull
+
   @Override
   public NetworkEmulator networkEmulator() {
     return networkEmulator;
@@ -208,7 +205,7 @@ final class TransportImpl implements Transport {
     bootstrapFactory.shutdown();
   }
 
-  @Nonnull
+
   @Override
   public final Flux<Message> listen() {
     checkState(!stopped, "Transport is stopped");
@@ -216,13 +213,13 @@ final class TransportImpl implements Transport {
   }
 
   @Override
-  public void send(@CheckForNull Address address, @CheckForNull Message message) {
+  public void send(Address address, Message message) {
     send(address, message, COMPLETED_PROMISE);
   }
 
   @Override
-  public void send(@CheckForNull Address address, @CheckForNull Message message,
-      @CheckForNull CompletableFuture<Void> promise) {
+  public void send(Address address, Message message,
+      CompletableFuture<Void> promise) {
     checkState(!stopped, "Transport is stopped");
     checkArgument(address != null);
     checkArgument(message != null);
@@ -230,6 +227,7 @@ final class TransportImpl implements Transport {
     message.setSender(this.address);
 
     final ChannelFuture channelFuture = outgoingChannels.computeIfAbsent(address, this::connect);
+
     if (channelFuture.isSuccess()) {
       send(channelFuture.channel(), message, promise);
     } else {
@@ -257,7 +255,7 @@ final class TransportImpl implements Transport {
    * @param channelFuture netty channel future
    * @param promise future; can be null
    */
-  private void composeFutures(ChannelFuture channelFuture, @Nonnull final CompletableFuture<Void> promise) {
+  private void composeFutures(ChannelFuture channelFuture, final CompletableFuture<Void> promise) {
     channelFuture.addListener((ChannelFuture future) -> {
       if (channelFuture.isSuccess()) {
         promise.complete(channelFuture.get());
@@ -281,7 +279,6 @@ final class TransportImpl implements Transport {
         outgoingChannels.remove(address);
       }
     });
-
     return connectFuture;
   }
 

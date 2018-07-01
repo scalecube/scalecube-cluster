@@ -14,8 +14,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
-import javax.annotation.Nonnull;
-
 /**
  * Facade cluster interface which provides API to interact with cluster members.
  * 
@@ -194,7 +192,7 @@ public interface Cluster {
    * network emulator is disabled by transport config. In case when network emulator is disable all calls to network
    * emulator instance will result in no operation.
    */
-  @Nonnull
+  
   NetworkEmulator networkEmulator();
 
 }

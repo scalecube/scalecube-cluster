@@ -6,9 +6,6 @@ import reactor.core.publisher.Flux;
 
 import java.util.concurrent.CompletableFuture;
 
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
-
 /**
  * Transport is responsible for maintaining existing p2p connections to/from other transports. It allows to send
  * messages to other transports and listen for incoming messages.
@@ -71,7 +68,7 @@ public interface Transport {
    *
    * @return address
    */
-  @Nonnull
+
   Address address();
 
   /**
@@ -89,7 +86,7 @@ public interface Transport {
    *
    * @param promise promise will be completed with result of closing (void or exception)
    */
-  void stop(@CheckForNull CompletableFuture<Void> promise);
+  void stop(CompletableFuture<Void> promise);
 
 
   /**
@@ -105,7 +102,7 @@ public interface Transport {
    * @param message message to send
    * @throws IllegalArgumentException if {@code message} or {@code address} is null
    */
-  void send(@CheckForNull Address address, @CheckForNull Message message);
+  void send(Address address, Message message);
 
   /**
    * Sends message to the given address. It will issue connect in case if no transport channel by given {@code address}
@@ -116,8 +113,8 @@ public interface Transport {
    * @param promise promise will be completed with result of sending (void or exception)
    * @throws IllegalArgumentException if {@code message} or {@code address} is null
    */
-  void send(@CheckForNull Address address, @CheckForNull Message message,
-      @CheckForNull CompletableFuture<Void> promise);
+  void send(Address address, Message message,
+      CompletableFuture<Void> promise);
 
   /**
    * Returns stream of received messages. For each observers subscribed to the returned observable:
@@ -130,7 +127,7 @@ public interface Transport {
    *
    * @return Observable which emit received messages or complete event when transport is closed
    */
-  @Nonnull
+
   Flux<Message> listen();
 
   /**
@@ -140,7 +137,7 @@ public interface Transport {
    * 
    * @return network emulator
    */
-  @Nonnull
+
   NetworkEmulator networkEmulator();
 
 }

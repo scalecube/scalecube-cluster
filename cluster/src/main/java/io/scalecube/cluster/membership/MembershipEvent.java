@@ -4,13 +4,11 @@ import static io.scalecube.Preconditions.checkArgument;
 
 import io.scalecube.cluster.Member;
 
-import javax.annotation.concurrent.Immutable;
-
 /**
  * Event which is emitted on cluster membership changes when new member added or removed from cluster.
  *
  */
-@Immutable
+
 public final class MembershipEvent {
 
   public enum Type {

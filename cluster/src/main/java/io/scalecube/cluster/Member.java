@@ -9,13 +9,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
-import javax.annotation.concurrent.Immutable;
-
 /**
  * Cluster member which represents node in the cluster and contains its id, address and metadata.
  *
  */
-@Immutable
+
 public final class Member {
 
   private final String id;

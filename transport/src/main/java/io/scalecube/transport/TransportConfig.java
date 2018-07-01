@@ -1,12 +1,10 @@
 package io.scalecube.transport;
 
-import javax.annotation.concurrent.Immutable;
-
 /**
  * Encapsulate transport settings.
  * 
  */
-@Immutable
+
 public final class TransportConfig {
 
   public static final String DEFAULT_LISTEN_ADDRESS = null;

@@ -96,13 +96,6 @@
 				<version>${slf4j.version}</version>
 			</dependency>
 
-			<!-- Google -->
-			<dependency>
-				<groupId>com.google.code.findbugs</groupId>
-				<artifactId>jsr305</artifactId>
-				<version>${findbugs.version}</version>
-			</dependency>
-
 			<!-- Protostuff/Protobuf -->
 			<dependency>
 				<groupId>io.protostuff</groupId>
