@@ -353,13 +353,12 @@ public class TransportTest extends BaseTest {
     final CompletableFuture<Boolean> completeLatch = new CompletableFuture<>();
     final CompletableFuture<Message> messageLatch = new CompletableFuture<>();
 
-    server.listen().subscribe(message->{
-      messageLatch.complete(message);
-    }, errorConsumer->{}, 
-    ()->{
-      completeLatch.complete(true);  
-    });
-    
+    server.listen().subscribe(messageLatch::complete,
+        errorConsumer->{},
+        () -> {
+          completeLatch.complete(true);
+        });
+
     CompletableFuture<Void> send = new CompletableFuture<>();
     client.send(server.address(), Message.fromData("q"), send);
     send.get(1, TimeUnit.SECONDS);
