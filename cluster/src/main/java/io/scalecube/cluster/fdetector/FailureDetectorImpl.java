@@ -14,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import reactor.core.Disposable;
+import reactor.core.Disposables;
 import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxProcessor;
@@ -23,6 +24,7 @@ import reactor.core.scheduler.Schedulers;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Executors;
@@ -53,14 +55,9 @@ public final class FailureDetectorImpl implements FailureDetector {
   private List<Member> pingMembers = new ArrayList<>();
   private int pingMemberIndex = 0; // index for sequential ping member selection
 
-  // Subscriptions
+  // Disposables
 
-  private Disposable onMemberAddedSubscriber;
-  private Disposable onMemberRemovedSubscriber;
-  private Disposable onMemberUpdatedSubscriber;
-  private Disposable onPingRequestSubscriber;
-  private Disposable onAskToPingRequestSubscriber;
-  private Disposable onTransitPingAckRequestSubscriber;
+  private final Disposable.Composite actionDisposables = Disposables.composite();
 
   // Subject
   private FluxProcessor<FailureDetectorEvent, FailureDetectorEvent> subject = DirectProcessor.create();
@@ -101,31 +98,34 @@ public final class FailureDetectorImpl implements FailureDetector {
 
   @Override
   public void start() {
-    onMemberAddedSubscriber = membership.listen().publishOn(scheduler)
-        .filter(MembershipEvent::isAdded)
-        .map(MembershipEvent::member)
-        .subscribe(this::onMemberAdded, this::onError);
-
-    onMemberRemovedSubscriber = membership.listen().publishOn(scheduler)
-        .filter(MembershipEvent::isRemoved)
-        .map(MembershipEvent::member)
-        .subscribe(this::onMemberRemoved, this::onError);
-
-    onMemberUpdatedSubscriber = membership.listen().publishOn(scheduler)
-        .filter(MembershipEvent::isUpdated)
-        .subscribe(this::onMemberUpdated, this::onError);
-
-    onPingRequestSubscriber = transport.listen().publishOn(scheduler)
-        .filter(this::isPing)
-        .subscribe(this::onPing, this::onError);
-
-    onAskToPingRequestSubscriber = transport.listen().publishOn(scheduler)
-        .filter(this::isPingReq)
-        .subscribe(this::onPingReq, this::onError);
-
-    onTransitPingAckRequestSubscriber = transport.listen().publishOn(scheduler)
-        .filter(this::isTransitPingAck)
-        .subscribe(this::onTransitPingAck, this::onError);
+    actionDisposables.addAll(Arrays.asList(
+      membership.listen()
+                .publishOn(scheduler)
+                .filter(MembershipEvent::isAdded)
+                .map(MembershipEvent::member)
+                .subscribe(this::onMemberAdded, this::onError),
+      membership.listen()
+                .publishOn(scheduler)
+                .filter(MembershipEvent::isRemoved)
+                .map(MembershipEvent::member)
+                .subscribe(this::onMemberRemoved, this::onError),
+      membership.listen()
+                .publishOn(scheduler)
+                .filter(MembershipEvent::isUpdated)
+                .subscribe(this::onMemberUpdated, this::onError),
+      transport.listen()
+               .publishOn(scheduler)
+               .filter(this::isPing)
+               .subscribe(this::onPing, this::onError),
+      transport.listen()
+               .publishOn(scheduler)
+               .filter(this::isPingReq)
+               .subscribe(this::onPingReq, this::onError),
+      transport.listen()
+               .publishOn(scheduler)
+               .filter(this::isTransitPingAck)
+               .subscribe(this::onTransitPingAck, this::onError)
+    ));
 
     pingTask = executor.scheduleWithFixedDelay(
         this::doPing, config.getPingInterval(), config.getPingInterval(), TimeUnit.MILLISECONDS);
@@ -134,24 +134,7 @@ public final class FailureDetectorImpl implements FailureDetector {
   @Override
   public void stop() {
     // Stop accepting requests
-    if (onMemberAddedSubscriber != null) {
-      onMemberAddedSubscriber.dispose();
-    }
-    if (onMemberRemovedSubscriber != null) {
-      onMemberRemovedSubscriber.dispose();
-    }
-    if (onMemberUpdatedSubscriber != null) {
-      onMemberUpdatedSubscriber.dispose();
-    }
-    if (onPingRequestSubscriber != null) {
-      onPingRequestSubscriber.dispose();
-    }
-    if (onAskToPingRequestSubscriber != null) {
-      onAskToPingRequestSubscriber.dispose();
-    }
-    if (onTransitPingAckRequestSubscriber != null) {
-      onTransitPingAckRequestSubscriber.dispose();
-    }
+    actionDisposables.dispose();
 
     // Stop sending pings
     if (pingTask != null) {

@@ -14,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import reactor.core.Disposable;
+import reactor.core.Disposables;
 import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxProcessor;
@@ -22,6 +23,7 @@ import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -58,11 +60,9 @@ public final class GossipProtocolImpl implements GossipProtocol {
   private List<Member> remoteMembers = new ArrayList<>();
   private int remoteMembersIndex = -1;
 
-  // Subscriptions
+  // Disposables
 
-  private Disposable onMemberAddedEventSubscriber;
-  private Disposable onMemberRemovedEventSubscriber;
-  private Disposable onGossipRequestSubscriber;
+  private final Disposable.Composite actionsDisposables = Disposables.composite();
 
   // Subject
 
@@ -111,19 +111,22 @@ public final class GossipProtocolImpl implements GossipProtocol {
 
   @Override
   public void start() {
-    onMemberAddedEventSubscriber = membership.listen().publishOn(scheduler)
-        .filter(MembershipEvent::isAdded)
-        .map(MembershipEvent::member)
-        .subscribe(remoteMembers::add, this::onError);
-
-    onMemberRemovedEventSubscriber = membership.listen().publishOn(scheduler)
-        .filter(MembershipEvent::isRemoved)
-        .map(MembershipEvent::member)
-        .subscribe(remoteMembers::remove, this::onError);
-
-    onGossipRequestSubscriber = transport.listen().publishOn(scheduler)
-        .filter(this::isGossipReq)
-        .subscribe(this::onGossipReq, this::onError);
+    actionsDisposables.addAll(Arrays.asList(
+      membership.listen()
+                .publishOn(scheduler)
+                .filter(MembershipEvent::isAdded)
+                .map(MembershipEvent::member)
+                .subscribe(remoteMembers::add, this::onError),
+      membership.listen()
+                .publishOn(scheduler)
+                .filter(MembershipEvent::isRemoved)
+                .map(MembershipEvent::member)
+                .subscribe(remoteMembers::remove, this::onError),
+      transport.listen()
+               .publishOn(scheduler)
+               .filter(this::isGossipReq)
+               .subscribe(this::onGossipReq, this::onError)
+    ));
 
     spreadGossipTask = executor.scheduleWithFixedDelay(this::doSpreadGossip,
         config.getGossipInterval(), config.getGossipInterval(), TimeUnit.MILLISECONDS);
@@ -136,15 +139,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
   @Override
   public void stop() {
     // Stop accepting gossip requests
-    if (onMemberAddedEventSubscriber != null) {
-      onMemberAddedEventSubscriber.dispose();
-    }
-    if (onMemberRemovedEventSubscriber != null) {
-      onMemberRemovedEventSubscriber.dispose();
-    }
-    if (onGossipRequestSubscriber != null) {
-      onGossipRequestSubscriber.dispose();
-    }
+    actionsDisposables.dispose();
 
     // Stop spreading gossips
     if (spreadGossipTask != null) {
