@@ -2,9 +2,9 @@ package io.scalecube.cluster.membership;
 
 import io.scalecube.cluster.Member;
 
-import java.util.Map;
-
 import reactor.core.publisher.Flux;
+
+import java.util.Map;
 
 /**
  * Cluster Membership Protocol component responsible for managing information about existing members of the cluster.

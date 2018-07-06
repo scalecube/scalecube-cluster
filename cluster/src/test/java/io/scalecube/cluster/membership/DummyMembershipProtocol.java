@@ -3,11 +3,11 @@ package io.scalecube.cluster.membership;
 import io.scalecube.cluster.Member;
 import io.scalecube.transport.Address;
 
+import reactor.core.publisher.Flux;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-
-import reactor.core.publisher.Flux;
 
 public class DummyMembershipProtocol implements MembershipProtocol {
 
