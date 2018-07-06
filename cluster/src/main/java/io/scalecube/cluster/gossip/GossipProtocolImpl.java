@@ -112,21 +112,20 @@ public final class GossipProtocolImpl implements GossipProtocol {
   @Override
   public void start() {
     actionsDisposables.addAll(Arrays.asList(
-      membership.listen()
-                .publishOn(scheduler)
-                .filter(MembershipEvent::isAdded)
-                .map(MembershipEvent::member)
-                .subscribe(remoteMembers::add, this::onError),
-      membership.listen()
-                .publishOn(scheduler)
-                .filter(MembershipEvent::isRemoved)
-                .map(MembershipEvent::member)
-                .subscribe(remoteMembers::remove, this::onError),
-      transport.listen()
-               .publishOn(scheduler)
-               .filter(this::isGossipReq)
-               .subscribe(this::onGossipReq, this::onError)
-    ));
+        membership.listen()
+            .publishOn(scheduler)
+            .filter(MembershipEvent::isAdded)
+            .map(MembershipEvent::member)
+            .subscribe(remoteMembers::add, this::onError),
+        membership.listen()
+            .publishOn(scheduler)
+            .filter(MembershipEvent::isRemoved)
+            .map(MembershipEvent::member)
+            .subscribe(remoteMembers::remove, this::onError),
+        transport.listen()
+            .publishOn(scheduler)
+            .filter(this::isGossipReq)
+            .subscribe(this::onGossipReq, this::onError)));
 
     spreadGossipTask = executor.scheduleWithFixedDelay(this::doSpreadGossip,
         config.getGossipInterval(), config.getGossipInterval(), TimeUnit.MILLISECONDS);
