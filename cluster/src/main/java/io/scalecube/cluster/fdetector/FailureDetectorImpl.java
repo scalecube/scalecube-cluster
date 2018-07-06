@@ -13,15 +13,6 @@ import io.scalecube.transport.Transport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import reactor.core.Disposable;
-import reactor.core.Disposables;
-import reactor.core.publisher.DirectProcessor;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxProcessor;
-import reactor.core.publisher.FluxSink;
-import reactor.core.scheduler.Scheduler;
-import reactor.core.scheduler.Schedulers;
-
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -32,6 +23,15 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+
+import reactor.core.Disposable;
+import reactor.core.Disposables;
+import reactor.core.publisher.DirectProcessor;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxProcessor;
+import reactor.core.publisher.FluxSink;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
 
 public final class FailureDetectorImpl implements FailureDetector {
 
@@ -61,7 +61,7 @@ public final class FailureDetectorImpl implements FailureDetector {
 
   // Subject
   private FluxProcessor<FailureDetectorEvent, FailureDetectorEvent> subject = DirectProcessor.create();
-  
+
   private FluxSink<FailureDetectorEvent> sink = subject.serialize().sink();
 
   // Scheduled
@@ -99,33 +99,32 @@ public final class FailureDetectorImpl implements FailureDetector {
   @Override
   public void start() {
     actionDisposables.addAll(Arrays.asList(
-      membership.listen()
-                .publishOn(scheduler)
-                .filter(MembershipEvent::isAdded)
-                .map(MembershipEvent::member)
-                .subscribe(this::onMemberAdded, this::onError),
-      membership.listen()
-                .publishOn(scheduler)
-                .filter(MembershipEvent::isRemoved)
-                .map(MembershipEvent::member)
-                .subscribe(this::onMemberRemoved, this::onError),
-      membership.listen()
-                .publishOn(scheduler)
-                .filter(MembershipEvent::isUpdated)
-                .subscribe(this::onMemberUpdated, this::onError),
-      transport.listen()
-               .publishOn(scheduler)
-               .filter(this::isPing)
-               .subscribe(this::onPing, this::onError),
-      transport.listen()
-               .publishOn(scheduler)
-               .filter(this::isPingReq)
-               .subscribe(this::onPingReq, this::onError),
-      transport.listen()
-               .publishOn(scheduler)
-               .filter(this::isTransitPingAck)
-               .subscribe(this::onTransitPingAck, this::onError)
-    ));
+        membership.listen()
+            .publishOn(scheduler)
+            .filter(MembershipEvent::isAdded)
+            .map(MembershipEvent::member)
+            .subscribe(this::onMemberAdded, this::onError),
+        membership.listen()
+            .publishOn(scheduler)
+            .filter(MembershipEvent::isRemoved)
+            .map(MembershipEvent::member)
+            .subscribe(this::onMemberRemoved, this::onError),
+        membership.listen()
+            .publishOn(scheduler)
+            .filter(MembershipEvent::isUpdated)
+            .subscribe(this::onMemberUpdated, this::onError),
+        transport.listen()
+            .publishOn(scheduler)
+            .filter(this::isPing)
+            .subscribe(this::onPing, this::onError),
+        transport.listen()
+            .publishOn(scheduler)
+            .filter(this::isPingReq)
+            .subscribe(this::onPingReq, this::onError),
+        transport.listen()
+            .publishOn(scheduler)
+            .filter(this::isTransitPingAck)
+            .subscribe(this::onTransitPingAck, this::onError)));
 
     pingTask = executor.scheduleWithFixedDelay(
         this::doPing, config.getPingInterval(), config.getPingInterval(), TimeUnit.MILLISECONDS);
