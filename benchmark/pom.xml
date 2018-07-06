@@ -11,8 +11,8 @@
 
     <properties>
         <uberjar.name>scalecube-benchmark</uberjar.name>
-        <jmh.version>1.4.1</jmh.version>
-        <guava.version>19.0</guava.version>
+        <jmh.version>1.21</jmh.version>
+        <guava.version>21.0</guava.version>
     </properties>
 
     <dependencies>
