@@ -29,8 +29,6 @@ import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxProcessor;
 import reactor.core.publisher.FluxSink;
-import reactor.core.scheduler.Scheduler;
-import reactor.core.scheduler.Schedulers;
 
 import java.net.BindException;
 import java.net.InetAddress;
@@ -57,8 +55,7 @@ final class TransportImpl implements Transport {
   private final MessageToByteEncoder<Message> serializerHandler;
   private final MessageToMessageDecoder<ByteBuf> deserializerHandler;
   private final MessageHandler messageHandler;
-  private final Scheduler messageScheduler;
-  
+
   // Network emulator
   private NetworkEmulator networkEmulator;
   private NetworkEmulatorHandler networkEmulatorHandler;
@@ -75,7 +72,6 @@ final class TransportImpl implements Transport {
     this.deserializerHandler = new MessageDeserializerHandler();
     this.messageHandler = new MessageHandler(messageSink);
     this.bootstrapFactory = new BootstrapFactory(config);
-    this.messageScheduler = Schedulers.fromExecutor(bootstrapFactory.getWorkerGroup());
   }
 
   /**
@@ -210,8 +206,7 @@ final class TransportImpl implements Transport {
   @Override
   public final Flux<Message> listen() {
     checkState(!stopped, "Transport is stopped");
-    return incomingMessagesSubject.onBackpressureBuffer()
-        .subscribeOn(messageScheduler);
+    return incomingMessagesSubject.onBackpressureBuffer();
   }
 
   @Override
