@@ -2,9 +2,9 @@ package io.scalecube.cluster.gossip;
 
 import io.scalecube.transport.Message;
 
-import reactor.core.publisher.Flux;
-
 import java.util.concurrent.CompletableFuture;
+
+import reactor.core.publisher.Flux;
 
 /**
  * Gossip Protocol component responsible for spreading information (gossips) over the cluster members using
