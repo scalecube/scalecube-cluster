@@ -211,32 +211,32 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     membershipTable.put(member.id(), localMemberRecord);
 
     // Listen to incoming SYNC requests from other members
-    actionsDisposables.addAll(Arrays.asList(
-      transport.listen()
-               .publishOn(scheduler)
-               .filter(msg -> SYNC.equals(msg.qualifier()))
-               .filter(this::checkSyncGroup)
-               .subscribe(this::onSync, this::onError),
+    actionsDisposables.addAll(
+        Arrays.asList(
+            transport.listen()
+                .publishOn(scheduler)
+                .filter(msg -> SYNC.equals(msg.qualifier()))
+                .filter(this::checkSyncGroup)
+                .subscribe(this::onSync, this::onError),
 
-      // Listen to incoming SYNC ACK responses from other members
-      transport.listen()
-               .publishOn(scheduler)
-               .filter(msg -> SYNC_ACK.equals(msg.qualifier()))
-               .filter(msg -> msg.correlationId() == null) // filter out initial sync
-               .filter(this::checkSyncGroup)
-               .subscribe(this::onSyncAck, this::onError),
+            // Listen to incoming SYNC ACK responses from other members
+            transport.listen()
+                .publishOn(scheduler)
+                .filter(msg -> SYNC_ACK.equals(msg.qualifier()))
+                .filter(msg -> msg.correlationId() == null) // filter out initial sync
+                .filter(this::checkSyncGroup)
+                .subscribe(this::onSyncAck, this::onError),
 
-      // Listen to events from failure detector
-      failureDetector.listen()
-                     .publishOn(scheduler)
-                     .subscribe(this::onFailureDetectorEvent, this::onError),
+            // Listen to events from failure detector
+            failureDetector.listen()
+                .publishOn(scheduler)
+                .subscribe(this::onFailureDetectorEvent, this::onError),
 
-      // Listen to membership gossips
-      gossipProtocol.listen()
-                    .publishOn(scheduler)
-                    .filter(msg -> MEMBERSHIP_GOSSIP.equals(msg.qualifier()))
-                    .subscribe(this::onMembershipGossip, this::onError)
-    ));
+            // Listen to membership gossips
+            gossipProtocol.listen()
+                .publishOn(scheduler)
+                .filter(msg -> MEMBERSHIP_GOSSIP.equals(msg.qualifier()))
+                .subscribe(this::onMembershipGossip, this::onError)));
 
     // Make initial sync with all seed members
     return doInitialSync();
