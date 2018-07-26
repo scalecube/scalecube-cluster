@@ -14,9 +14,6 @@ import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.Transport;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import reactor.core.Disposable;
 import reactor.core.Disposables;
 import reactor.core.publisher.DirectProcessor;
@@ -25,6 +22,9 @@ import reactor.core.publisher.FluxProcessor;
 import reactor.core.publisher.FluxSink;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -72,10 +72,12 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private final Map<String, MembershipRecord> membershipTable = new HashMap<>();
 
   // Subject
-  // Subject
-  private FluxProcessor<MembershipEvent, MembershipEvent> subject =
+
+  private final FluxProcessor<MembershipEvent, MembershipEvent> subject =
       DirectProcessor.<MembershipEvent>create().serialize();
-  private FluxSink<MembershipEvent> sink = subject.sink();
+
+  private final FluxSink<MembershipEvent> sink = subject.sink();
+
   // Disposables
   private final Disposable.Composite actionsDisposables = Disposables.composite();
 

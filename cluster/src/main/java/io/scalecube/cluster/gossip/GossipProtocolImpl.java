@@ -10,9 +10,6 @@ import io.scalecube.cluster.membership.MembershipProtocol;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.Transport;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import reactor.core.Disposable;
 import reactor.core.Disposables;
 import reactor.core.publisher.DirectProcessor;
@@ -21,6 +18,9 @@ import reactor.core.publisher.FluxProcessor;
 import reactor.core.publisher.FluxSink;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -66,8 +66,10 @@ public final class GossipProtocolImpl implements GossipProtocol {
 
   // Subject
 
-  private FluxProcessor<Message, Message> subject = DirectProcessor.<Message>create().serialize();
-  private FluxSink<Message> sink = subject.sink();
+  private final FluxProcessor<Message, Message> subject =
+      DirectProcessor.<Message>create().serialize();
+
+  private final FluxSink<Message> sink = subject.sink();
 
   // Scheduled
 

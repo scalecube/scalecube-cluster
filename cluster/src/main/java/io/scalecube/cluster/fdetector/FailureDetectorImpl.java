@@ -10,9 +10,6 @@ import io.scalecube.cluster.membership.MembershipProtocol;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.Transport;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import reactor.core.Disposable;
 import reactor.core.Disposables;
 import reactor.core.publisher.DirectProcessor;
@@ -21,6 +18,9 @@ import reactor.core.publisher.FluxProcessor;
 import reactor.core.publisher.FluxSink;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -60,10 +60,10 @@ public final class FailureDetectorImpl implements FailureDetector {
   private final Disposable.Composite actionDisposables = Disposables.composite();
 
   // Subject
-  private FluxProcessor<FailureDetectorEvent, FailureDetectorEvent> subject =
+  private final FluxProcessor<FailureDetectorEvent, FailureDetectorEvent> subject =
       DirectProcessor.<FailureDetectorEvent>create().serialize();
 
-  private FluxSink<FailureDetectorEvent> sink = subject.sink();
+  private final FluxSink<FailureDetectorEvent> sink = subject.sink();
 
   // Scheduled
   private final ScheduledExecutorService executor;

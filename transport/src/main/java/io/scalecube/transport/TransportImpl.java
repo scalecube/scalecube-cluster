@@ -5,6 +5,11 @@ import static io.scalecube.Preconditions.checkState;
 import static io.scalecube.transport.Addressing.MAX_PORT_NUMBER;
 import static io.scalecube.transport.Addressing.MIN_PORT_NUMBER;
 
+import reactor.core.publisher.DirectProcessor;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxProcessor;
+import reactor.core.publisher.FluxSink;
+
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
@@ -25,11 +30,6 @@ import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import reactor.core.publisher.DirectProcessor;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxProcessor;
-import reactor.core.publisher.FluxSink;
-
 import java.net.BindException;
 import java.net.InetAddress;
 import java.util.Map;
@@ -44,8 +44,13 @@ final class TransportImpl implements Transport {
 
   private final TransportConfig config;
 
-  private final FluxProcessor<Message, Message> incomingMessagesSubject = DirectProcessor.<Message>create().serialize();
+  // SUbject
+
+  private final FluxProcessor<Message, Message> incomingMessagesSubject =
+      DirectProcessor.<Message>create().serialize();
+
   private final FluxSink<Message> messageSink = incomingMessagesSubject.sink();
+
   private final Map<Address, ChannelFuture> outgoingChannels = new ConcurrentHashMap<>();
 
   // Pipeline
