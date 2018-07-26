@@ -60,9 +60,10 @@ public final class FailureDetectorImpl implements FailureDetector {
   private final Disposable.Composite actionDisposables = Disposables.composite();
 
   // Subject
-  private FluxProcessor<FailureDetectorEvent, FailureDetectorEvent> subject = DirectProcessor.create();
+  private FluxProcessor<FailureDetectorEvent, FailureDetectorEvent> subject =
+      DirectProcessor.<FailureDetectorEvent>create().serialize();
 
-  private FluxSink<FailureDetectorEvent> sink = subject.serialize().sink();
+  private FluxSink<FailureDetectorEvent> sink = subject.sink();
 
   // Scheduled
   private final ScheduledExecutorService executor;
