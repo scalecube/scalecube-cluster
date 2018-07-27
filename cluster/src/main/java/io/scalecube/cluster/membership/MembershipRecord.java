@@ -1,6 +1,5 @@
 package io.scalecube.cluster.membership;
 
-import static io.scalecube.Preconditions.checkArgument;
 import static io.scalecube.cluster.membership.MemberStatus.ALIVE;
 import static io.scalecube.cluster.membership.MemberStatus.DEAD;
 import static io.scalecube.cluster.membership.MemberStatus.SUSPECT;
@@ -24,10 +23,8 @@ final class MembershipRecord {
    * Instantiates new instance of membership record with given member, status and incarnation.
    */
   public MembershipRecord(Member member, MemberStatus status, int incarnation) {
-    checkArgument(member != null);
-    checkArgument(status != null);
-    this.member = member;
-    this.status = status;
+    this.member = Objects.requireNonNull(member);
+    this.status = Objects.requireNonNull(status);
     this.incarnation = incarnation;
   }
 
@@ -77,7 +74,9 @@ final class MembershipRecord {
     if (r0 == null) {
       return isAlive();
     }
-    checkArgument(this.member.id().equals(r0.member.id()), "Can't compare records for different members");
+    if (!this.member.id().equals(r0.member.id())) {
+      throw new IllegalArgumentException("Can't compare records for different members");
+    }
     if (r0.status == DEAD) {
       return false;
     }

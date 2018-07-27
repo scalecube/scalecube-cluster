@@ -1,14 +1,7 @@
 package io.scalecube.transport;
 
-import static io.scalecube.Preconditions.checkArgument;
-import static io.scalecube.Preconditions.checkState;
 import static io.scalecube.transport.Addressing.MAX_PORT_NUMBER;
 import static io.scalecube.transport.Addressing.MIN_PORT_NUMBER;
-
-import reactor.core.publisher.DirectProcessor;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxProcessor;
-import reactor.core.publisher.FluxSink;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
@@ -34,8 +27,14 @@ import java.net.BindException;
 import java.net.InetAddress;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+
+import reactor.core.publisher.DirectProcessor;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxProcessor;
+import reactor.core.publisher.FluxSink;
 
 final class TransportImpl implements Transport {
 
@@ -71,8 +70,7 @@ final class TransportImpl implements Transport {
   private volatile boolean stopped = false;
 
   public TransportImpl(TransportConfig config) {
-    checkArgument(config != null);
-    this.config = config;
+    this.config = Objects.requireNonNull(config);
     this.serializerHandler = new MessageSerializerHandler();
     this.deserializerHandler = new MessageDeserializerHandler();
     this.messageHandler = new MessageHandler(messageSink);
@@ -174,8 +172,10 @@ final class TransportImpl implements Transport {
 
   @Override
   public final void stop(CompletableFuture<Void> promise) {
-    checkState(!stopped, "Transport is stopped");
-    checkArgument(promise != null);
+    if (stopped) {
+      throw new IllegalStateException("Transport is stopped");
+    }
+    Objects.requireNonNull(promise);
     stopped = true;
     // Complete incoming messages observable
     try {
@@ -210,7 +210,9 @@ final class TransportImpl implements Transport {
 
   @Override
   public final Flux<Message> listen() {
-    checkState(!stopped, "Transport is stopped");
+    if (stopped) {
+      throw new IllegalStateException("Transport is stopped");
+    }
     return incomingMessagesSubject.onBackpressureBuffer();
   }
 
@@ -222,10 +224,12 @@ final class TransportImpl implements Transport {
   @Override
   public void send(Address address, Message message,
       CompletableFuture<Void> promise) {
-    checkState(!stopped, "Transport is stopped");
-    checkArgument(address != null);
-    checkArgument(message != null);
-    checkArgument(promise != null);
+    if (stopped) {
+      throw new IllegalStateException("Transport is stopped");
+    }
+    Objects.requireNonNull(address);
+    Objects.requireNonNull(message);
+    Objects.requireNonNull(promise);
     message.setSender(this.address);
 
     final ChannelFuture channelFuture = outgoingChannels.computeIfAbsent(address, this::connect);

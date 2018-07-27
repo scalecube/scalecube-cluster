@@ -3,7 +3,6 @@ package io.scalecube.cluster.membership;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import io.scalecube.Throwables;
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
@@ -22,6 +21,8 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
+import reactor.core.Exceptions;
 
 public class MembershipProtocolTest extends BaseTest {
 
@@ -497,7 +498,7 @@ public class MembershipProtocolTest extends BaseTest {
     try {
       TimeUnit.SECONDS.sleep(seconds);
     } catch (InterruptedException e) {
-      Throwables.propagate(e);
+      Exceptions.propagate(e);
     }
   }
 
@@ -535,7 +536,7 @@ public class MembershipProtocolTest extends BaseTest {
       gossipProtocol.start();
       membership.start().get();
     } catch (Exception ex) {
-      Throwables.propagate(ex);
+      Exceptions.propagate(ex);
     }
 
     return membership;

@@ -1,7 +1,5 @@
 package io.scalecube.cluster.gossip;
 
-import static io.scalecube.Preconditions.checkArgument;
-
 import io.scalecube.transport.Message;
 
 import java.util.Objects;
@@ -15,10 +13,8 @@ final class Gossip {
   private final Message message;
 
   public Gossip(String gossipId, Message message) {
-    checkArgument(gossipId != null);
-    checkArgument(message != null);
-    this.gossipId = gossipId;
-    this.message = message;
+    this.gossipId = Objects.requireNonNull(gossipId);
+    this.message = Objects.requireNonNull(message);
   }
 
   public String gossipId() {

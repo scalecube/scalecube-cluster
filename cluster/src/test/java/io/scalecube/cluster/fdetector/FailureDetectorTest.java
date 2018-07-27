@@ -1,6 +1,5 @@
 package io.scalecube.cluster.fdetector;
 
-import static io.scalecube.Preconditions.checkArgument;
 import static io.scalecube.cluster.membership.MemberStatus.ALIVE;
 import static io.scalecube.cluster.membership.MemberStatus.SUSPECT;
 import static org.junit.Assert.assertEquals;
@@ -438,7 +437,9 @@ public class FailureDetectorTest extends BaseTest {
   private Future<List<FailureDetectorEvent>> listenNextEventFor(FailureDetectorImpl fd, List<Address> addresses) {
     addresses = new ArrayList<>(addresses);
     addresses.remove(fd.getTransport().address()); // exclude self
-    checkArgument(!addresses.isEmpty());
+    if (addresses.isEmpty()) {
+      throw new IllegalArgumentException();
+    }
 
     List<CompletableFuture<FailureDetectorEvent>> resultFuture = new ArrayList<>();
     for (final Address member : addresses) {

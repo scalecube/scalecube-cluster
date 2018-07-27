@@ -3,8 +3,6 @@ package io.scalecube.cluster.membership;
 import static io.scalecube.cluster.membership.MemberStatus.ALIVE;
 import static io.scalecube.cluster.membership.MemberStatus.DEAD;
 
-import io.scalecube.Preconditions;
-import io.scalecube.ThreadFactoryBuilder;
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.fdetector.FailureDetector;
@@ -13,15 +11,6 @@ import io.scalecube.cluster.gossip.GossipProtocol;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.Transport;
-
-import reactor.core.Disposable;
-import reactor.core.Disposables;
-import reactor.core.publisher.DirectProcessor;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxProcessor;
-import reactor.core.publisher.FluxSink;
-import reactor.core.scheduler.Scheduler;
-import reactor.core.scheduler.Schedulers;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +24,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
@@ -43,6 +33,15 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+
+import reactor.core.Disposable;
+import reactor.core.Disposables;
+import reactor.core.publisher.DirectProcessor;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxProcessor;
+import reactor.core.publisher.FluxSink;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
 
 public final class MembershipProtocolImpl implements MembershipProtocol {
 
@@ -102,9 +101,12 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     this.memberRef = new AtomicReference<>(member);
 
     String nameFormat = "sc-membership-" + Integer.toString(address.port());
-    this.executor = Executors.newSingleThreadScheduledExecutor(
-        new ThreadFactoryBuilder().setNameFormat(nameFormat).setDaemon(true).build());
-
+    this.executor = Executors.newSingleThreadScheduledExecutor(r -> {
+      Thread thread = new Thread(r);
+      thread.setName(nameFormat);
+      thread.setDaemon(true);
+      return thread;
+    });
     this.scheduler = Schedulers.fromExecutorService(executor);
     this.seedMembers = cleanUpSeedMembers(config.getSeedMembers());
   }
@@ -455,8 +457,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
    * @param reason indicating the reason for updating membership table
    */
   private void updateMembership(MembershipRecord r1, MembershipUpdateReason reason) {
-    Preconditions.checkArgument(r1 != null, "Membership record can't be null");
-
+    Objects.requireNonNull(r1, "Membership record can't be null");
     // Get current record
     MembershipRecord r0 = membershipTable.get(r1.id());
 

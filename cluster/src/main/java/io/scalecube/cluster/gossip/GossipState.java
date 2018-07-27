@@ -1,8 +1,7 @@
 package io.scalecube.cluster.gossip;
 
-import io.scalecube.Preconditions;
-
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 
 /** Data related to gossip, maintained locally on each node. */
@@ -18,8 +17,7 @@ final class GossipState {
   private final Set<String> infected = new HashSet<>();
 
   GossipState(Gossip gossip, long infectionPeriod) {
-    Preconditions.checkArgument(gossip != null);
-    this.gossip = gossip;
+    this.gossip = Objects.requireNonNull(gossip);
     this.infectionPeriod = infectionPeriod;
   }
 

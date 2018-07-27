@@ -1,6 +1,4 @@
-package io.scalecube.utils;
-
-import io.scalecube.cluster.membership.IdGenerator;
+package io.scalecube.cluster.membership;
 
 import org.junit.Assert;
 import org.junit.Test;

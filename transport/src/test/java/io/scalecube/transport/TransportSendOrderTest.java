@@ -1,19 +1,15 @@
 package io.scalecube.transport;
 
-import static io.scalecube.Throwables.propagate;
 import static io.scalecube.transport.TransportTestUtils.createTransport;
 import static io.scalecube.transport.TransportTestUtils.destroyTransport;
 import static org.junit.Assert.assertEquals;
 
-import io.scalecube.ThreadFactoryBuilder;
 import io.scalecube.testlib.BaseTest;
 
 import org.junit.After;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import reactor.core.Disposable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -28,6 +24,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.LongStream;
+
+import reactor.core.Disposable;
+import reactor.core.Exceptions;
 
 public class TransportSendOrderTest extends BaseTest {
 
@@ -155,7 +154,12 @@ public class TransportSendOrderTest extends BaseTest {
     final int total = 1000;
     for (int i = 0; i < 10; i++) {
       LOGGER.info("####### {} : iteration = {}", testName.getMethodName(), i);
-      ExecutorService exec = Executors.newFixedThreadPool(4, new ThreadFactoryBuilder().setDaemon(true).build());
+      ExecutorService exec = Executors.newFixedThreadPool(4, r -> {
+        Thread thread = new Thread(r);
+        thread.setName("testSendOrderMultiThread");
+        thread.setDaemon(true);
+        return thread;
+      });
 
       Transport client = createTransport();
       final List<Message> received = new ArrayList<>();
@@ -209,7 +213,7 @@ public class TransportSendOrderTest extends BaseTest {
           sendPromise.get(3, TimeUnit.SECONDS);
         } catch (Exception e) {
           LOGGER.error("Failed to send message: j = {} id = {}", j, id, e);
-          propagate(e);
+          Exceptions.propagate(e);
         }
       }
       return null;

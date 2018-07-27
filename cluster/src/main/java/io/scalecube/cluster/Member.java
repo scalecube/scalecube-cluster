@@ -1,7 +1,5 @@
 package io.scalecube.cluster;
 
-import static io.scalecube.Preconditions.checkArgument;
-
 import io.scalecube.transport.Address;
 
 import java.util.Collections;
@@ -38,10 +36,8 @@ public final class Member {
    * @param metadata member's metadata
    */
   public Member(String id, Address address, Map<String, String> metadata) {
-    checkArgument(id != null);
-    checkArgument(address != null);
-    this.id = id;
-    this.address = address;
+    this.id = Objects.requireNonNull(id);
+    this.address = Objects.requireNonNull(address);
     this.metadata = metadata != null ? new HashMap<>(metadata) : Collections.emptyMap();
   }
 

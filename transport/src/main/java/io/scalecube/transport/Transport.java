@@ -1,10 +1,9 @@
 package io.scalecube.transport;
 
-import io.scalecube.Throwables;
-
-import reactor.core.publisher.Flux;
-
 import java.util.concurrent.CompletableFuture;
+
+import reactor.core.Exceptions;
+import reactor.core.publisher.Flux;
 
 /**
  * Transport is responsible for maintaining existing p2p connections to/from other transports. It allows to send
@@ -40,7 +39,7 @@ public interface Transport {
     try {
       return bind(config).get();
     } catch (Exception e) {
-      throw Throwables.propagate(Throwables.getRootCause(e));
+      throw Exceptions.propagate(e.getCause() != null ? e.getCause() : e);
     }
   }
 

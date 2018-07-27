@@ -1,10 +1,8 @@
-package io.scalecube.utils;
+package io.scalecube.transport;
 
 import static org.junit.Assert.assertEquals;
 
 import io.scalecube.testlib.BaseTest;
-import io.scalecube.transport.Address;
-import io.scalecube.transport.Addressing;
 
 import org.junit.Test;
 

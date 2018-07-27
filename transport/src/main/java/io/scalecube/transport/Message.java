@@ -1,10 +1,9 @@
 package io.scalecube.transport;
 
-import static io.scalecube.Preconditions.checkArgument;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * The Class Message introduces generic protocol used for point to point communication by transport.
@@ -147,8 +146,7 @@ public final class Message {
    * @param headers headers to set
    */
   void setHeaders(Map<String, String> headers) {
-    checkArgument(headers != null);
-    this.headers = Collections.unmodifiableMap(headers);
+    this.headers = Collections.unmodifiableMap(Objects.requireNonNull(headers));
   }
 
   /**
