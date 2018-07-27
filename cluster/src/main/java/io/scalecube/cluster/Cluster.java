@@ -192,7 +192,7 @@ public interface Cluster {
    * network emulator is disabled by transport config. In case when network emulator is disable all calls to network
    * emulator instance will result in no operation.
    */
-  
+
   NetworkEmulator networkEmulator();
 
 }
