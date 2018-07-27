@@ -13,8 +13,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import rx.Subscriber;
-import rx.observers.Subscribers;
+import reactor.core.Disposable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -30,9 +29,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.LongStream;
 
-/**
- * @author Anton Kharenko
- */
 public class TransportSendOrderTest extends BaseTest {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(TransportSendOrderTest.class);
@@ -61,11 +57,10 @@ public class TransportSendOrderTest extends BaseTest {
       final List<Message> received = new ArrayList<>();
       final CountDownLatch latch = new CountDownLatch(sentPerIteration);
 
-      Subscriber<Message> serverSubscriber = Subscribers.create(message -> {
+      Disposable serverSubscriber = server.listen().subscribe(message -> {
         received.add(message);
         latch.countDown();
       });
-      server.listen().subscribe(serverSubscriber);
 
       long startAt = System.currentTimeMillis();
       for (int j = 0; j < sentPerIteration; j++) {
@@ -80,7 +75,7 @@ public class TransportSendOrderTest extends BaseTest {
 
       LOGGER.info("Iteration time: {} ms", iterationTime);
 
-      serverSubscriber.unsubscribe();
+      serverSubscriber.dispose();
       destroyTransport(client);
     }
 
@@ -104,11 +99,10 @@ public class TransportSendOrderTest extends BaseTest {
       final List<Message> received = new ArrayList<>();
       final CountDownLatch latch = new CountDownLatch(sentPerIteration);
 
-      Subscriber<Message> serverSubscriber = Subscribers.create(message -> {
+      Disposable serverSubscriber = server.listen().subscribe(message -> {
         received.add(message);
         latch.countDown();
       });
-      server.listen().subscribe(serverSubscriber);
 
       long startAt = System.currentTimeMillis();
       for (int j = 0; j < sentPerIteration; j++) {
@@ -146,7 +140,7 @@ public class TransportSendOrderTest extends BaseTest {
         LOGGER.info("Sent time stats total (ms): {}", totalSentTimeStats);
       }
 
-      serverSubscriber.unsubscribe();
+      serverSubscriber.dispose();
       destroyTransport(client);
     }
 

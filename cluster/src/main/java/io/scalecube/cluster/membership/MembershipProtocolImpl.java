@@ -14,18 +14,21 @@ import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.Transport;
 
+import reactor.core.Disposable;
+import reactor.core.Disposables;
+import reactor.core.publisher.DirectProcessor;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxProcessor;
+import reactor.core.publisher.FluxSink;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import rx.Observable;
-import rx.Scheduler;
-import rx.Subscriber;
-import rx.observers.Subscribers;
-import rx.schedulers.Schedulers;
-import rx.subjects.PublishSubject;
-import rx.subjects.Subject;
-
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -70,18 +73,15 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   // Subject
 
-  private final Subject<MembershipEvent, MembershipEvent> subject =
-      PublishSubject.<MembershipEvent>create().toSerialized();
+  private final FluxProcessor<MembershipEvent, MembershipEvent> subject =
+      DirectProcessor.<MembershipEvent>create().serialize();
 
-  // Subscriptions
+  private final FluxSink<MembershipEvent> sink = subject.sink();
 
-  private Subscriber<Message> onSyncRequestSubscriber;
-  private Subscriber<Message> onSyncAckResponseSubscriber;
-  private Subscriber<FailureDetectorEvent> onFdEventSubscriber;
-  private Subscriber<Message> onGossipRequestSubscriber;
+  // Disposables
+  private final Disposable.Composite actionsDisposables = Disposables.composite();
 
   // Scheduled
-
   private final Scheduler scheduler;
   private final ScheduledExecutorService executor;
   private final Map<String, ScheduledFuture<?>> suspicionTimeoutTasks = new HashMap<>();
@@ -105,7 +105,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     this.executor = Executors.newSingleThreadScheduledExecutor(
         new ThreadFactoryBuilder().setNameFormat(nameFormat).setDaemon(true).build());
 
-    this.scheduler = Schedulers.from(executor);
+    this.scheduler = Schedulers.fromExecutorService(executor);
     this.seedMembers = cleanUpSeedMembers(config.getSeedMembers());
   }
 
@@ -170,8 +170,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   }
 
   @Override
-  public Observable<MembershipEvent> listen() {
-    return subject.onBackpressureBuffer().asObservable();
+  public Flux<MembershipEvent> listen() {
+    return Flux.from(subject);
   }
 
   @Override
@@ -213,30 +213,32 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     membershipTable.put(member.id(), localMemberRecord);
 
     // Listen to incoming SYNC requests from other members
-    onSyncRequestSubscriber = Subscribers.create(this::onSync, this::onError);
-    transport.listen().observeOn(scheduler)
-        .filter(msg -> SYNC.equals(msg.qualifier()))
-        .filter(this::checkSyncGroup)
-        .subscribe(onSyncRequestSubscriber);
+    actionsDisposables.addAll(
+        Arrays.asList(
+            transport.listen()
+                .publishOn(scheduler)
+                .filter(msg -> SYNC.equals(msg.qualifier()))
+                .filter(this::checkSyncGroup)
+                .subscribe(this::onSync, this::onError),
 
-    // Listen to incoming SYNC ACK responses from other members
-    onSyncAckResponseSubscriber = Subscribers.create(this::onSyncAck, this::onError);
-    transport.listen().observeOn(scheduler)
-        .filter(msg -> SYNC_ACK.equals(msg.qualifier()))
-        .filter(msg -> msg.correlationId() == null) // filter out initial sync
-        .filter(this::checkSyncGroup)
-        .subscribe(onSyncAckResponseSubscriber);
+            // Listen to incoming SYNC ACK responses from other members
+            transport.listen()
+                .publishOn(scheduler)
+                .filter(msg -> SYNC_ACK.equals(msg.qualifier()))
+                .filter(msg -> msg.correlationId() == null) // filter out initial sync
+                .filter(this::checkSyncGroup)
+                .subscribe(this::onSyncAck, this::onError),
 
-    // Listen to events from failure detector
-    onFdEventSubscriber = Subscribers.create(this::onFailureDetectorEvent, this::onError);
-    failureDetector.listen().observeOn(scheduler)
-        .subscribe(onFdEventSubscriber);
+            // Listen to events from failure detector
+            failureDetector.listen()
+                .publishOn(scheduler)
+                .subscribe(this::onFailureDetectorEvent, this::onError),
 
-    // Listen to membership gossips
-    onGossipRequestSubscriber = Subscribers.create(this::onMembershipGossip, this::onError);
-    gossipProtocol.listen().observeOn(scheduler)
-        .filter(msg -> MEMBERSHIP_GOSSIP.equals(msg.qualifier()))
-        .subscribe(onGossipRequestSubscriber);
+            // Listen to membership gossips
+            gossipProtocol.listen()
+                .publishOn(scheduler)
+                .filter(msg -> MEMBERSHIP_GOSSIP.equals(msg.qualifier()))
+                .subscribe(this::onMembershipGossip, this::onError)));
 
     // Make initial sync with all seed members
     return doInitialSync();
@@ -251,18 +253,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
    */
   public void stop() {
     // Stop accepting requests and events
-    if (onSyncRequestSubscriber != null) {
-      onSyncRequestSubscriber.unsubscribe();
-    }
-    if (onFdEventSubscriber != null) {
-      onFdEventSubscriber.unsubscribe();
-    }
-    if (onGossipRequestSubscriber != null) {
-      onGossipRequestSubscriber.unsubscribe();
-    }
-    if (onSyncAckResponseSubscriber != null) {
-      onSyncAckResponseSubscriber.unsubscribe();
-    }
+    actionsDisposables.dispose();
 
     // Stop sending sync
     if (syncTask != null) {
@@ -282,7 +273,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     executor.shutdown();
 
     // Stop publishing events
-    subject.onCompleted();
+    sink.complete();
   }
 
   // ================================================
@@ -300,12 +291,12 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
     // Listen initial Sync Ack
     String cid = memberRef.get().id();
-    transport.listen().observeOn(scheduler)
+    transport.listen().publishOn(scheduler)
         .filter(msg -> SYNC_ACK.equals(msg.qualifier()))
         .filter(msg -> cid.equals(msg.correlationId()))
         .filter(this::checkSyncGroup)
         .take(1)
-        .timeout(config.getSyncTimeout(), TimeUnit.MILLISECONDS, scheduler)
+        .timeout(Duration.ofMillis(config.getSyncTimeout()), scheduler)
         .subscribe(
             message -> {
               SyncData syncData = message.data();
@@ -365,7 +356,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     membershipTable.put(memberId, newRecord);
 
     // Emit membership updated event
-    subject.onNext(MembershipEvent.createUpdated(curMember, newMember));
+    sink.next(MembershipEvent.createUpdated(curMember, newMember));
 
     // Spread new membership record over the cluster
     spreadMembershipGossip(newRecord);
@@ -501,11 +492,11 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
     // Emit membership event
     if (r1.isDead()) {
-      subject.onNext(MembershipEvent.createRemoved(r1.member()));
+      sink.next(MembershipEvent.createRemoved(r1.member()));
     } else if (r0 == null && r1.isAlive()) {
-      subject.onNext(MembershipEvent.createAdded(r1.member()));
+      sink.next(MembershipEvent.createAdded(r1.member()));
     } else if (r0 != null && !r0.member().equals(r1.member())) {
-      subject.onNext(MembershipEvent.createUpdated(r0.member(), r1.member()));
+      sink.next(MembershipEvent.createUpdated(r0.member(), r1.member()));
     }
 
 

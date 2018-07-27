@@ -10,18 +10,20 @@ import io.scalecube.cluster.membership.MembershipProtocol;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.Transport;
 
+import reactor.core.Disposable;
+import reactor.core.Disposables;
+import reactor.core.publisher.DirectProcessor;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxProcessor;
+import reactor.core.publisher.FluxSink;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import rx.Observable;
-import rx.Scheduler;
-import rx.Subscriber;
-import rx.observers.Subscribers;
-import rx.schedulers.Schedulers;
-import rx.subjects.PublishSubject;
-import rx.subjects.Subject;
-
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -58,15 +60,16 @@ public final class GossipProtocolImpl implements GossipProtocol {
   private List<Member> remoteMembers = new ArrayList<>();
   private int remoteMembersIndex = -1;
 
-  // Subscriptions
+  // Disposables
 
-  private Subscriber<Member> onMemberAddedEventSubscriber;
-  private Subscriber<Member> onMemberRemovedEventSubscriber;
-  private Subscriber<Message> onGossipRequestSubscriber;
+  private final Disposable.Composite actionsDisposables = Disposables.composite();
 
   // Subject
 
-  private Subject<Message, Message> subject = PublishSubject.<Message>create().toSerialized();
+  private final FluxProcessor<Message, Message> subject =
+      DirectProcessor.<Message>create().serialize();
+
+  private final FluxSink<Message> sink = subject.sink();
 
   // Scheduled
 
@@ -91,7 +94,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
     String nameFormat = "sc-gossip-" + Integer.toString(membership.member().address().port());
     this.executor = Executors.newSingleThreadScheduledExecutor(
         new ThreadFactoryBuilder().setNameFormat(nameFormat).setDaemon(true).build());
-    this.scheduler = Schedulers.from(executor);
+    this.scheduler = Schedulers.fromExecutorService(executor);
   }
 
   /**
@@ -110,22 +113,21 @@ public final class GossipProtocolImpl implements GossipProtocol {
 
   @Override
   public void start() {
-    onMemberAddedEventSubscriber = Subscribers.create(remoteMembers::add, this::onError);
-    membership.listen().observeOn(scheduler)
-        .filter(MembershipEvent::isAdded)
-        .map(MembershipEvent::member)
-        .subscribe(onMemberAddedEventSubscriber);
-
-    onMemberRemovedEventSubscriber = Subscribers.create(remoteMembers::remove, this::onError);
-    membership.listen().observeOn(scheduler)
-        .filter(MembershipEvent::isRemoved)
-        .map(MembershipEvent::member)
-        .subscribe(onMemberRemovedEventSubscriber);
-
-    onGossipRequestSubscriber = Subscribers.create(this::onGossipReq, this::onError);
-    transport.listen().observeOn(scheduler)
-        .filter(this::isGossipReq)
-        .subscribe(onGossipRequestSubscriber);
+    actionsDisposables.addAll(Arrays.asList(
+        membership.listen()
+            .publishOn(scheduler)
+            .filter(MembershipEvent::isAdded)
+            .map(MembershipEvent::member)
+            .subscribe(remoteMembers::add, this::onError),
+        membership.listen()
+            .publishOn(scheduler)
+            .filter(MembershipEvent::isRemoved)
+            .map(MembershipEvent::member)
+            .subscribe(remoteMembers::remove, this::onError),
+        transport.listen()
+            .publishOn(scheduler)
+            .filter(this::isGossipReq)
+            .subscribe(this::onGossipReq, this::onError)));
 
     spreadGossipTask = executor.scheduleWithFixedDelay(this::doSpreadGossip,
         config.getGossipInterval(), config.getGossipInterval(), TimeUnit.MILLISECONDS);
@@ -138,15 +140,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
   @Override
   public void stop() {
     // Stop accepting gossip requests
-    if (onMemberAddedEventSubscriber != null) {
-      onMemberAddedEventSubscriber.unsubscribe();
-    }
-    if (onMemberRemovedEventSubscriber != null) {
-      onMemberRemovedEventSubscriber.unsubscribe();
-    }
-    if (onGossipRequestSubscriber != null) {
-      onGossipRequestSubscriber.unsubscribe();
-    }
+    actionsDisposables.dispose();
 
     // Stop spreading gossips
     if (spreadGossipTask != null) {
@@ -158,7 +152,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
     executor.shutdown();
 
     // Stop publishing events
-    subject.onCompleted();
+    sink.complete();
   }
 
   @Override
@@ -169,8 +163,8 @@ public final class GossipProtocolImpl implements GossipProtocol {
   }
 
   @Override
-  public Observable<Message> listen() {
-    return subject.onBackpressureBuffer().asObservable();
+  public Flux<Message> listen() {
+    return subject.onBackpressureBuffer();
   }
 
   // ================================================
@@ -215,7 +209,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
       if (gossipState == null) { // new gossip
         gossipState = new GossipState(gossip, period);
         gossips.put(gossip.gossipId(), gossipState);
-        subject.onNext(gossip.message());
+        sink.next(gossip.message());
       }
       gossipState.addToInfected(gossipRequest.from());
     }
@@ -304,5 +298,4 @@ public final class GossipProtocolImpl implements GossipProtocol {
       }
     }
   }
-
 }

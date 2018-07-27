@@ -7,7 +7,8 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import rx.subjects.Subject;
+import reactor.core.publisher.FluxSink;
+
 
 /**
  * Channel handler for getting message traffic. Activated when connection established/accepted.
@@ -19,9 +20,9 @@ final class MessageHandler extends ChannelInboundHandlerAdapter {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MessageHandler.class);
 
-  private final Subject<Message, Message> incomingMessagesSubject;
+  private final FluxSink<Message> incomingMessagesSubject;
 
-  MessageHandler(Subject<Message, Message> incomingMessagesSubject) {
+  MessageHandler(FluxSink<Message> incomingMessagesSubject) {
     this.incomingMessagesSubject = incomingMessagesSubject;
   }
 
@@ -34,6 +35,6 @@ final class MessageHandler extends ChannelInboundHandlerAdapter {
     if (LOGGER.isDebugEnabled()) {
       LOGGER.debug("Received: {}", message);
     }
-    incomingMessagesSubject.onNext(message);
+    incomingMessagesSubject.next(message);
   }
 }

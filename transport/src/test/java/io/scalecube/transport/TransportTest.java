@@ -16,8 +16,6 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import rx.Subscriber;
-
 import java.io.IOException;
 import java.net.BindException;
 import java.net.ServerSocket;
@@ -355,20 +353,11 @@ public class TransportTest extends BaseTest {
     final CompletableFuture<Boolean> completeLatch = new CompletableFuture<>();
     final CompletableFuture<Message> messageLatch = new CompletableFuture<>();
 
-    server.listen().subscribe(new Subscriber<Message>() {
-      @Override
-      public void onCompleted() {
-        completeLatch.complete(true);
-      }
-
-      @Override
-      public void onError(Throwable e) {}
-
-      @Override
-      public void onNext(Message message) {
-        messageLatch.complete(message);
-      }
-    });
+    server.listen().subscribe(messageLatch::complete,
+        errorConsumer->{},
+        () -> {
+          completeLatch.complete(true);
+        });
 
     CompletableFuture<Void> send = new CompletableFuture<>();
     client.send(server.address(), Message.fromData("q"), send);

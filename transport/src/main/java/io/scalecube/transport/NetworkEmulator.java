@@ -14,7 +14,6 @@ import java.util.concurrent.atomic.AtomicLong;
  * Network Emulator is allowing to control link quality between endpoints in order to allow testing of message loss,
  * message delay, cluster partitions cluster recovery and other network related conditions.
  *
- * @author Anton Kharenko
  */
 public final class NetworkEmulator {
 

@@ -22,7 +22,6 @@ import java.util.Map;
  * @see GossipConfig
  * @see TransportConfig
  *
- * @author Anton Kharenko
  */
 public final class ClusterConfig implements FailureDetectorConfig, GossipConfig, MembershipConfig {
 

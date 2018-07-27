@@ -2,15 +2,13 @@ package io.scalecube.cluster.gossip;
 
 import io.scalecube.transport.Message;
 
-import rx.Observable;
+import reactor.core.publisher.Flux;
 
 import java.util.concurrent.CompletableFuture;
 
 /**
  * Gossip Protocol component responsible for spreading information (gossips) over the cluster members using
  * infection-style dissemination algorithms. It provides reliable cross-cluster broadcast.
- *
- * @author Anton Kharenko
  */
 public interface GossipProtocol {
 
@@ -34,6 +32,6 @@ public interface GossipProtocol {
   /**
    * Listens for gossips from other cluster members.
    */
-  Observable<Message> listen();
+  Flux<Message> listen();
 
 }

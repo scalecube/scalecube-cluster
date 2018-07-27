@@ -10,13 +10,10 @@ import io.scalecube.transport.Address;
 
 import java.util.Objects;
 
-import javax.annotation.Nonnull;
-import javax.annotation.concurrent.Immutable;
-
 /**
  * Cluster membership record which represents member, status, and incarnation.
  */
-@Immutable
+
 final class MembershipRecord {
 
   private final Member member;
@@ -34,22 +31,22 @@ final class MembershipRecord {
     this.incarnation = incarnation;
   }
 
-  @Nonnull
+
   public Member member() {
     return member;
   }
 
-  @Nonnull
+
   public String id() {
     return member.id();
   }
 
-  @Nonnull
+
   public Address address() {
     return member.address();
   }
 
-  @Nonnull
+
   public MemberStatus status() {
     return status;
   }
