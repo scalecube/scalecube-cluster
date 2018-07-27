@@ -1,6 +1,5 @@
 package io.scalecube.cluster;
 
-import static io.scalecube.Preconditions.checkNotNull;
 import static io.scalecube.cluster.fdetector.FailureDetectorImpl.PING;
 import static io.scalecube.cluster.fdetector.FailureDetectorImpl.PING_ACK;
 import static io.scalecube.cluster.fdetector.FailureDetectorImpl.PING_REQ;
@@ -27,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -64,8 +64,7 @@ final class ClusterImpl implements Cluster {
   private Flux<Message> gossipObservable;
 
   public ClusterImpl(ClusterConfig config) {
-    checkNotNull(config);
-    this.config = config;
+    this.config = Objects.requireNonNull(config);
   }
 
   public CompletableFuture<Cluster> join0() {

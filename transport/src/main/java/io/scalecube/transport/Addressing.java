@@ -1,7 +1,6 @@
 package io.scalecube.transport;
 
-import io.scalecube.Strings;
-import io.scalecube.Throwables;
+import reactor.core.Exceptions;
 
 import java.net.Inet4Address;
 import java.net.Inet6Address;
@@ -12,6 +11,7 @@ import java.net.UnknownHostException;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
+
 
 /**
  * Utility class which finds local IP address and currently available server ports.
@@ -45,9 +45,9 @@ public final class Addressing {
    */
   public static InetAddress getLocalIpAddress(String listenAddress, String listenInterface, boolean preferIPv6) {
     InetAddress ipAddress;
-    if (!Strings.isNullOrEmpty(listenAddress) && !Strings.isNullOrEmpty(listenInterface)) {
+    if (isNotEmpty(listenAddress) && isNotEmpty(listenInterface)) {
       throw new IllegalArgumentException("Not allowed to set both listenAddress and listenInterface, choose one");
-    } else if (!Strings.isNullOrEmpty(listenAddress)) {
+    } else if (isNotEmpty(listenAddress)) {
       try {
         ipAddress = InetAddress.getByName(listenAddress);
       } catch (UnknownHostException e) {
@@ -62,7 +62,7 @@ public final class Addressing {
         throw new IllegalArgumentException(
             "listenAddress: " + listenAddress + " doesn't belong to any active network interface");
       }
-    } else if (!Strings.isNullOrEmpty(listenInterface)) {
+    } else if (isNotEmpty(listenInterface)) {
       ipAddress = getNetworkInterfaceIpAddress(listenInterface, preferIPv6);
     } else {
       // fallback to local ip address
@@ -82,7 +82,7 @@ public final class Addressing {
     try {
       return InetAddress.getLocalHost();
     } catch (UnknownHostException e) {
-      throw Throwables.propagate(e);
+      throw Exceptions.propagate(e);
     }
   }
 
@@ -153,5 +153,9 @@ public final class Addressing {
     }
     // looked at all network interfaces and didn't match IP address
     return false;
+  }
+
+  private static boolean isNotEmpty(String string) {
+    return string != null && string.length() > 0;
   }
 }

@@ -1,7 +1,5 @@
 package io.scalecube.transport;
 
-import io.scalecube.Throwables;
-
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
@@ -43,7 +41,7 @@ final class BootstrapFactory {
       } catch (Throwable t) {
         LOGGER
             .warn("Tried to use epoll transport, but it's not supported by host OS (or no corresponding libs included) "
-                + "using NIO instead, cause: " + Throwables.getRootCause(t));
+                + "using NIO instead, cause: " + getRootCause(t));
         envSupportEpoll = false;
       }
     }
@@ -112,4 +110,12 @@ final class BootstrapFactory {
     this.workerGroup.shutdownGracefully();
   }
 
+  private static Throwable getRootCause(Throwable throwable) {
+    Throwable result = throwable;
+    Throwable cause;
+    while ((cause = result.getCause()) != null) {
+      result = cause;
+    }
+    return result;
+  }
 }

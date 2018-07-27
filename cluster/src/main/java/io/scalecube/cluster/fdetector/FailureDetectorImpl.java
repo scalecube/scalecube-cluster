@@ -1,14 +1,14 @@
 package io.scalecube.cluster.fdetector;
 
-import static io.scalecube.Preconditions.checkArgument;
-
-import io.scalecube.ThreadFactoryBuilder;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.membership.MemberStatus;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipProtocol;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.Transport;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import reactor.core.Disposable;
 import reactor.core.Disposables;
@@ -19,14 +19,12 @@ import reactor.core.publisher.FluxSink;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -78,15 +76,16 @@ public final class FailureDetectorImpl implements FailureDetector {
    * @param config failure detector settings
    */
   public FailureDetectorImpl(Transport transport, MembershipProtocol membership, FailureDetectorConfig config) {
-    checkArgument(transport != null);
-    checkArgument(membership != null);
-    checkArgument(config != null);
-    this.transport = transport;
-    this.membership = membership;
-    this.config = config;
+    this.transport = Objects.requireNonNull(transport);
+    this.membership = Objects.requireNonNull(membership);
+    this.config = Objects.requireNonNull(config);
     String nameFormat = "sc-fdetector-" + Integer.toString(membership.member().address().port());
-    this.executor = Executors.newSingleThreadScheduledExecutor(
-        new ThreadFactoryBuilder().setNameFormat(nameFormat).setDaemon(true).build());
+    this.executor = Executors.newSingleThreadScheduledExecutor(r -> {
+      Thread thread = new Thread(r);
+      thread.setName(nameFormat);
+      thread.setDaemon(true);
+      return thread;
+    });
     this.scheduler = Schedulers.fromExecutorService(executor);
   }
 

@@ -1,8 +1,8 @@
 package io.scalecube.cluster.membership;
 
-import static io.scalecube.Preconditions.checkArgument;
-
 import io.scalecube.cluster.Member;
+
+import java.util.Objects;
 
 /**
  * Event which is emitted on cluster membership changes when new member added or removed from cluster.
@@ -20,8 +20,7 @@ public final class MembershipEvent {
   private final Member oldMember;
 
   private MembershipEvent(Type type, Member oldMember, Member newMember) {
-    checkArgument(type != null);
-    this.type = type;
+    this.type = Objects.requireNonNull(type);
     this.oldMember = oldMember;
     this.newMember = newMember;
   }

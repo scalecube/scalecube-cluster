@@ -1,6 +1,5 @@
 package io.scalecube.cluster;
 
-import io.scalecube.Preconditions;
 import io.scalecube.cluster.fdetector.FailureDetectorConfig;
 import io.scalecube.cluster.gossip.GossipConfig;
 import io.scalecube.cluster.membership.MembershipConfig;
@@ -383,7 +382,9 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
 
 
     public ClusterConfig build() {
-      Preconditions.checkState(pingTimeout < pingInterval, "Ping timeout can't be bigger than ping interval");
+      if (pingTimeout >= pingInterval) {
+        throw new IllegalStateException("Ping timeout can't be bigger than ping interval");
+      }
       return new ClusterConfig(this);
     }
   }

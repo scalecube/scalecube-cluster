@@ -81,7 +81,6 @@
     <module>testlib</module>
     <module>benchmark</module>
     <module>examples</module>
-    <module>utils</module>
   </modules>
 
   <dependencyManagement>

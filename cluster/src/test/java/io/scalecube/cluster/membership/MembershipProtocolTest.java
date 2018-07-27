@@ -3,7 +3,6 @@ package io.scalecube.cluster.membership;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import io.scalecube.Throwables;
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
@@ -13,6 +12,8 @@ import io.scalecube.transport.Address;
 import io.scalecube.transport.Transport;
 
 import org.junit.Test;
+
+import reactor.core.Exceptions;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -497,7 +498,7 @@ public class MembershipProtocolTest extends BaseTest {
     try {
       TimeUnit.SECONDS.sleep(seconds);
     } catch (InterruptedException e) {
-      Throwables.propagate(e);
+      Exceptions.propagate(e);
     }
   }
 
@@ -535,7 +536,7 @@ public class MembershipProtocolTest extends BaseTest {
       gossipProtocol.start();
       membership.start().get();
     } catch (Exception ex) {
-      Throwables.propagate(ex);
+      Exceptions.propagate(ex);
     }
 
     return membership;

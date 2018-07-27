@@ -1,11 +1,11 @@
 package io.scalecube.cluster;
 
-import io.scalecube.Throwables;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.NetworkEmulator;
 
+import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
 
 import java.util.Arrays;
@@ -27,7 +27,7 @@ public interface Cluster {
     try {
       return join().get();
     } catch (Exception e) {
-      throw Throwables.propagate(Throwables.getRootCause(e));
+      throw Exceptions.propagate(e.getCause() != null ? e.getCause() : e);
     }
   }
 
@@ -38,7 +38,7 @@ public interface Cluster {
     try {
       return join(seedMembers).get();
     } catch (Exception e) {
-      throw Throwables.propagate(Throwables.getRootCause(e));
+      throw Exceptions.propagate(e.getCause() != null ? e.getCause() : e);
     }
   }
 
@@ -49,7 +49,7 @@ public interface Cluster {
     try {
       return join(metadata, seedMembers).get();
     } catch (Exception e) {
-      throw Throwables.propagate(Throwables.getRootCause(e));
+      throw Exceptions.propagate(e.getCause() != null ? e.getCause() : e);
     }
   }
 
@@ -60,7 +60,7 @@ public interface Cluster {
     try {
       return join(config).get();
     } catch (Exception e) {
-      throw Throwables.propagate(Throwables.getRootCause(e));
+      throw Exceptions.propagate(e.getCause() != null ? e.getCause() : e);
     }
   }
 
@@ -192,7 +192,7 @@ public interface Cluster {
    * network emulator is disabled by transport config. In case when network emulator is disable all calls to network
    * emulator instance will result in no operation.
    */
-  
+
   NetworkEmulator networkEmulator();
 
 }

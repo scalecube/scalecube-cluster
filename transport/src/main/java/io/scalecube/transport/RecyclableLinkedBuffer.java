@@ -1,9 +1,9 @@
 package io.scalecube.transport;
 
-import static io.scalecube.Preconditions.checkState;
-
 import io.netty.util.Recycler;
 import io.protostuff.LinkedBuffer;
+
+import java.util.Objects;
 
 /**
  * Facility class for {@link io.protostuff.LinkedBuffer}. Based on idea of object pooling (done vian
@@ -47,8 +47,7 @@ final class RecyclableLinkedBuffer implements AutoCloseable {
   }
 
   public LinkedBuffer buffer() {
-    checkState(buffer != null, "Call LinkedBufferWrapper.get() first");
-    return buffer;
+    return Objects.requireNonNull(buffer, "Call LinkedBufferWrapper.get() first");
   }
 
   public RecyclableLinkedBuffer get() {
@@ -56,7 +55,7 @@ final class RecyclableLinkedBuffer implements AutoCloseable {
   }
 
   public void release() {
-    checkState(buffer != null, "Call LinkedBufferWrapper.get() first");
+    Objects.requireNonNull(buffer, "Call LinkedBufferWrapper.get() first");
     buffer.clear();
     recycler.recycle(this, handle);
   }

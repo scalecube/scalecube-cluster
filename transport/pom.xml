@@ -16,11 +16,6 @@
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>io.scalecube</groupId>
-            <artifactId>scalecube-utils</artifactId>
-            <version>${project.version}</version>
-        </dependency>
         <!-- Other dependencies -->
         <dependency>
             <groupId>io.netty</groupId>
