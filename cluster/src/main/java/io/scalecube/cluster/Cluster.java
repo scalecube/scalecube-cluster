@@ -5,14 +5,14 @@ import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.NetworkEmulator;
 
+import reactor.core.Exceptions;
+import reactor.core.publisher.Flux;
+
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-
-import reactor.core.Exceptions;
-import reactor.core.publisher.Flux;
 
 /**
  * Facade cluster interface which provides API to interact with cluster members.

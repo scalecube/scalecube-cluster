@@ -1,5 +1,7 @@
 package io.scalecube.transport;
 
+import reactor.core.Exceptions;
+
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
@@ -9,8 +11,6 @@ import java.net.UnknownHostException;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
-
-import reactor.core.Exceptions;
 
 
 /**

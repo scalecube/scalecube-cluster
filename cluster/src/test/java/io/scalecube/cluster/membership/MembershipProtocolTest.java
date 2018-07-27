@@ -13,6 +13,8 @@ import io.scalecube.transport.Transport;
 
 import org.junit.Test;
 
+import reactor.core.Exceptions;
+
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Arrays;
@@ -21,8 +23,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-
-import reactor.core.Exceptions;
 
 public class MembershipProtocolTest extends BaseTest {
 

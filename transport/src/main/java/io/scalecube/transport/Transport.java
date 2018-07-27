@@ -1,9 +1,9 @@
 package io.scalecube.transport;
 
-import java.util.concurrent.CompletableFuture;
-
 import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
+
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Transport is responsible for maintaining existing p2p connections to/from other transports. It allows to send
