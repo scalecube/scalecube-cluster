@@ -10,7 +10,6 @@
   </parent>
   <artifactId>scalecube-utils</artifactId>
   <name>ScaleCube/Utils</name>
-
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
@@ -19,5 +18,4 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
-
 </project>
