@@ -382,14 +382,10 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
 
 
     public ClusterConfig build() {
-      checkState(pingTimeout < pingInterval, "Ping timeout can't be bigger than ping interval");
-      return new ClusterConfig(this);
-    }
-
-    private void checkState(boolean expression, Object errorMessage) {
-      if (!expression) {
-        throw new IllegalStateException(String.valueOf(errorMessage));
+      if (pingTimeout >= pingInterval) {
+        throw new IllegalStateException("Ping timeout can't be bigger than ping interval");
       }
+      return new ClusterConfig(this);
     }
   }
 }

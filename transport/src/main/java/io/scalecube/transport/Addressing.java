@@ -44,9 +44,9 @@ public final class Addressing {
    */
   public static InetAddress getLocalIpAddress(String listenAddress, String listenInterface, boolean preferIPv6) {
     InetAddress ipAddress;
-    if (!isNullOrEmpty(listenAddress) && !isNullOrEmpty(listenInterface)) {
+    if (isNotEmpty(listenAddress) && isNotEmpty(listenInterface)) {
       throw new IllegalArgumentException("Not allowed to set both listenAddress and listenInterface, choose one");
-    } else if (!isNullOrEmpty(listenAddress)) {
+    } else if (isNotEmpty(listenAddress)) {
       try {
         ipAddress = InetAddress.getByName(listenAddress);
       } catch (UnknownHostException e) {
@@ -61,7 +61,7 @@ public final class Addressing {
         throw new IllegalArgumentException(
             "listenAddress: " + listenAddress + " doesn't belong to any active network interface");
       }
-    } else if (!isNullOrEmpty(listenInterface)) {
+    } else if (isNotEmpty(listenInterface)) {
       ipAddress = getNetworkInterfaceIpAddress(listenInterface, preferIPv6);
     } else {
       // fallback to local ip address
@@ -154,7 +154,7 @@ public final class Addressing {
     return false;
   }
 
-  private static boolean isNullOrEmpty(String string) {
-    return string == null || string.length() == 0;
+  private static boolean isNotEmpty(String string) {
+    return string != null && string.length() > 0;
   }
 }

@@ -12,7 +12,7 @@ public final class Address {
   private final int port;
 
   private Address(String host, int port) {
-    checkArgument(!isNullOrEmpty(host));
+    requireNonEmpty(host);
     this.host = host;
     this.port = port;
   }
@@ -24,7 +24,7 @@ public final class Address {
    * @param hostAndPort must come in form {@code host:port}
    */
   public static Address from(String hostAndPort) {
-    checkArgument(!isNullOrEmpty(hostAndPort));
+    requireNonEmpty(hostAndPort);
 
     Matcher matcher = ADDRESS_FORMAT.matcher(hostAndPort);
     if (!matcher.find()) {
@@ -32,7 +32,7 @@ public final class Address {
     }
 
     String host = matcher.group(1);
-    checkArgument(!isNullOrEmpty(host));
+    requireNonEmpty(host);
     String host1 =
         "localhost".equals(host) || "127.0.0.1".equals(host) ? Addressing.getLocalIpAddress().getHostAddress() : host;
     int port = Integer.parseInt(matcher.group(2));
@@ -82,12 +82,8 @@ public final class Address {
     return host + ":" + port;
   }
 
-  private static boolean isNullOrEmpty(String string) {
-    return string == null || string.length() == 0;
-  }
-
-  private static void checkArgument(boolean expression) {
-    if (!expression) {
+  private static void requireNonEmpty(String string) {
+    if (string == null || string.length() == 0) {
       throw new IllegalArgumentException();
     }
   }
