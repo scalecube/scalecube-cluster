@@ -10,7 +10,6 @@ import java.util.concurrent.ThreadLocalRandom;
  * <li>Mean network delays in milliseconds. Delays are emulated using exponential distribution of probabilities</li>
  * </ul>
  * 
- * @author Anton Kharenko
  */
 public final class NetworkLinkSettings {
 

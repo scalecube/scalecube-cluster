@@ -18,8 +18,6 @@ import org.openjdk.jmh.annotations.Warmup;
 
 import java.util.concurrent.TimeUnit;
 
-import javax.annotation.Nonnull;
-
 @Fork(2)
 @State(Scope.Benchmark)
 @Threads(4)
@@ -38,7 +36,7 @@ public class CacheReadBenchmark {
   LoadingCache<String, Optional<Class>> guavaCache = CacheBuilder.newBuilder().build(
       new CacheLoader<String, Optional<Class>>() {
         @Override
-        public Optional<Class> load(@Nonnull String className) {
+        public Optional<Class> load(String className) {
           try {
             Class dataClass = Class.forName(className);
             return Optional.of(dataClass);

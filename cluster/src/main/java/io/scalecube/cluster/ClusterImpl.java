@@ -1,6 +1,6 @@
 package io.scalecube.cluster;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static io.scalecube.Preconditions.checkNotNull;
 import static io.scalecube.cluster.fdetector.FailureDetectorImpl.PING;
 import static io.scalecube.cluster.fdetector.FailureDetectorImpl.PING_ACK;
 import static io.scalecube.cluster.fdetector.FailureDetectorImpl.PING_REQ;
@@ -18,12 +18,10 @@ import io.scalecube.transport.Message;
 import io.scalecube.transport.NetworkEmulator;
 import io.scalecube.transport.Transport;
 
-import com.google.common.collect.ImmutableSet;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import rx.Observable;
+import reactor.core.publisher.Flux;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -34,22 +32,22 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-
-import javax.annotation.Nonnull;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Cluster implementation.
  * 
- * @author Anton Kharenko
  */
 final class ClusterImpl implements Cluster {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ClusterImpl.class);
 
   private static final Set<String> SYSTEM_MESSAGES =
-      ImmutableSet.of(PING, PING_REQ, PING_ACK, SYNC, SYNC_ACK, GOSSIP_REQ);
+      Collections.unmodifiableSet(Stream.of(PING, PING_REQ, PING_ACK, SYNC, SYNC_ACK, GOSSIP_REQ)
+          .collect(Collectors.toSet()));
 
-  private static final Set<String> SYSTEM_GOSSIPS = ImmutableSet.of(MEMBERSHIP_GOSSIP);
+  private static final Set<String> SYSTEM_GOSSIPS = Collections.singleton(MEMBERSHIP_GOSSIP);
 
   private final ClusterConfig config;
 
@@ -62,8 +60,8 @@ final class ClusterImpl implements Cluster {
   private GossipProtocolImpl gossip;
   private MembershipProtocolImpl membership;
 
-  private Observable<Message> messageObservable;
-  private Observable<Message> gossipObservable;
+  private Flux<Message> messageObservable;
+  private Flux<Message> gossipObservable;
 
   public ClusterImpl(ClusterConfig config) {
     checkNotNull(config);
@@ -151,7 +149,7 @@ final class ClusterImpl implements Cluster {
   }
 
   @Override
-  public Observable<Message> listen() {
+  public Flux<Message> listen() {
     return messageObservable;
   }
 
@@ -161,7 +159,7 @@ final class ClusterImpl implements Cluster {
   }
 
   @Override
-  public Observable<Message> listenGossips() {
+  public Flux<Message> listenGossips() {
     return gossipObservable;
   }
 
@@ -204,7 +202,7 @@ final class ClusterImpl implements Cluster {
   }
 
   @Override
-  public Observable<MembershipEvent> listenMembership() {
+  public Flux<MembershipEvent> listenMembership() {
     return membership.listen();
   }
 
@@ -229,7 +227,6 @@ final class ClusterImpl implements Cluster {
     return transportStoppedFuture;
   }
 
-  @Nonnull
   @Override
   public NetworkEmulator networkEmulator() {
     return transport.networkEmulator();

@@ -3,11 +3,9 @@ package io.scalecube.cluster.fdetector;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.membership.MemberStatus;
 
-import javax.annotation.concurrent.Immutable;
-
 /**
- * CLass contains result of ping check. */
-@Immutable
+ * CLass contains result of ping check.
+ */
 public final class FailureDetectorEvent {
 
   private final Member member;

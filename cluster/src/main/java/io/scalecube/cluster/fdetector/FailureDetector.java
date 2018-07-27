@@ -1,6 +1,6 @@
 package io.scalecube.cluster.fdetector;
 
-import rx.Observable;
+import reactor.core.publisher.Flux;
 
 /**
  * Failure Detector component responsible for monitoring availability of other members in the cluster. This interface is
@@ -8,7 +8,6 @@ import rx.Observable;
  * failed, but just provide information that either it is suspected or trusted at current moment of time. So it is up to
  * cluster membership or other top level component to define when suspected member is actually failed.
  *
- * @author Anton Kharenko
  */
 public interface FailureDetector {
 
@@ -25,6 +24,6 @@ public interface FailureDetector {
   /**
    * Listens for results of ping checks (ALIVE/SUSPECT) done periodically by failure detector.
    */
-  Observable<FailureDetectorEvent> listen();
+  Flux<FailureDetectorEvent> listen();
 
 }

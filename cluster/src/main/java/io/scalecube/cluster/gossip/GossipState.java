@@ -1,6 +1,6 @@
 package io.scalecube.cluster.gossip;
 
-import com.google.common.base.Preconditions;
+import io.scalecube.Preconditions;
 
 import java.util.HashSet;
 import java.util.Set;

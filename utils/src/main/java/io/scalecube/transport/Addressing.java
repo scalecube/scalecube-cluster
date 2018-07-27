@@ -1,7 +1,7 @@
 package io.scalecube.transport;
 
-import com.google.common.base.Strings;
-import com.google.common.base.Throwables;
+import io.scalecube.Strings;
+import io.scalecube.Throwables;
 
 import java.net.Inet4Address;
 import java.net.Inet6Address;
@@ -15,9 +15,6 @@ import java.util.List;
 
 /**
  * Utility class which finds local IP address and currently available server ports.
- *
- * @author Anton Kharenko
- * @author Artem Vysochyn
  */
 public final class Addressing {
 

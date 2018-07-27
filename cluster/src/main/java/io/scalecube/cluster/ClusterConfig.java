@@ -1,12 +1,11 @@
 package io.scalecube.cluster;
 
+import io.scalecube.Preconditions;
 import io.scalecube.cluster.fdetector.FailureDetectorConfig;
 import io.scalecube.cluster.gossip.GossipConfig;
 import io.scalecube.cluster.membership.MembershipConfig;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.TransportConfig;
-
-import com.google.common.base.Preconditions;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -23,7 +22,6 @@ import java.util.Map;
  * @see GossipConfig
  * @see TransportConfig
  *
- * @author Anton Kharenko
  */
 public final class ClusterConfig implements FailureDetectorConfig, GossipConfig, MembershipConfig {
 

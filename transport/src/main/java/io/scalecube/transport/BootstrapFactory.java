@@ -1,6 +1,6 @@
 package io.scalecube.transport;
 
-import com.google.common.base.Throwables;
+import io.scalecube.Throwables;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;

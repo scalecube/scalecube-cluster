@@ -2,15 +2,12 @@ package io.scalecube.cluster.membership;
 
 import io.scalecube.cluster.Member;
 
-import rx.Observable;
+import reactor.core.publisher.Flux;
 
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * Cluster Membership Protocol component responsible for managing information about existing members of the cluster.
- *
- * @author Anton Kharenko
  */
 public interface MembershipProtocol {
 
@@ -32,6 +29,6 @@ public interface MembershipProtocol {
   /**
    * Listen changes in cluster membership.
    */
-  Observable<MembershipEvent> listen();
+  Flux<MembershipEvent> listen();
 
 }

@@ -1,18 +1,13 @@
 package io.scalecube.transport;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static io.scalecube.Preconditions.checkArgument;
 
-import com.google.common.base.Strings;
+import io.scalecube.Strings;
 
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
-import javax.annotation.concurrent.Immutable;
-
-@Immutable
 public final class Address {
 
   private static final Pattern ADDRESS_FORMAT = Pattern.compile("(?<host>^.*):(?<port>\\d+$)");
@@ -20,7 +15,7 @@ public final class Address {
   private final String host;
   private final int port;
 
-  private Address(@CheckForNull String host, int port) {
+  private Address(String host, int port) {
     checkArgument(!Strings.isNullOrEmpty(host));
     this.host = host;
     this.port = port;
@@ -32,7 +27,7 @@ public final class Address {
    *
    * @param hostAndPort must come in form {@code host:port}
    */
-  public static Address from(@CheckForNull String hostAndPort) {
+  public static Address from(String hostAndPort) {
     checkArgument(!Strings.isNullOrEmpty(hostAndPort));
 
     Matcher matcher = ADDRESS_FORMAT.matcher(hostAndPort);
@@ -58,7 +53,6 @@ public final class Address {
   /**
    * Host address.
    */
-  @Nonnull
   public String host() {
     return host;
   }

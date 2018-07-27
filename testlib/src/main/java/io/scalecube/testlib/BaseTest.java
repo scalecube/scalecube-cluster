@@ -10,7 +10,6 @@ import org.slf4j.LoggerFactory;
 /**
  * Base test class.
  * 
- * @author Anton Kharenko
  */
 public class BaseTest {
 

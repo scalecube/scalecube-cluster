@@ -6,9 +6,6 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-/**
- * @author Anton Kharenko
- */
 public final class TransportTestUtils {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(TransportTestUtils.class);

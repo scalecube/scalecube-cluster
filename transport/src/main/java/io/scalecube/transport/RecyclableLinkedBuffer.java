@@ -1,6 +1,6 @@
 package io.scalecube.transport;
 
-import static com.google.common.base.Preconditions.checkState;
+import static io.scalecube.Preconditions.checkState;
 
 import io.netty.util.Recycler;
 import io.protostuff.LinkedBuffer;

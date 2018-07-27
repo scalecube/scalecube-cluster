@@ -1,6 +1,6 @@
 package io.scalecube.cluster;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static io.scalecube.Preconditions.checkArgument;
 
 import io.scalecube.transport.Address;
 
@@ -9,14 +9,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
-import javax.annotation.concurrent.Immutable;
-
 /**
  * Cluster member which represents node in the cluster and contains its id, address and metadata.
  *
- * @author Anton Kharenko
  */
-@Immutable
+
 public final class Member {
 
   private final String id;

@@ -1,13 +1,12 @@
 package io.scalecube.cluster;
 
+import io.scalecube.Throwables;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.NetworkEmulator;
 
-import com.google.common.base.Throwables;
-
-import rx.Observable;
+import reactor.core.publisher.Flux;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -15,12 +14,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
-import javax.annotation.Nonnull;
-
 /**
  * Facade cluster interface which provides API to interact with cluster members.
  * 
- * @author Anton Kharenko
  */
 public interface Cluster {
 
@@ -116,7 +112,7 @@ public interface Cluster {
 
   void send(Address address, Message message, CompletableFuture<Void> promise);
 
-  Observable<Message> listen();
+  Flux<Message> listen();
 
   /**
    * Spreads given message between cluster members using gossiping protocol.
@@ -126,7 +122,7 @@ public interface Cluster {
   /**
    * Listens for gossips from other cluster members.
    */
-  Observable<Message> listenGossips();
+  Flux<Message> listenGossips();
 
   /**
    * Returns local cluster member which corresponds to this cluster instance.
@@ -175,7 +171,7 @@ public interface Cluster {
   /**
    * Listen changes in cluster membership.
    */
-  Observable<MembershipEvent> listenMembership();
+  Flux<MembershipEvent> listenMembership();
 
   /**
    * Member notifies other members of the cluster about leaving and gracefully shutdown and free occupied resources.
@@ -196,7 +192,7 @@ public interface Cluster {
    * network emulator is disabled by transport config. In case when network emulator is disable all calls to network
    * emulator instance will result in no operation.
    */
-  @Nonnull
+  
   NetworkEmulator networkEmulator();
 
 }

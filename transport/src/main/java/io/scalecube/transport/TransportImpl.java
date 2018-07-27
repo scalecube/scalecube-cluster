@@ -1,9 +1,14 @@
 package io.scalecube.transport;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
+import static io.scalecube.Preconditions.checkArgument;
+import static io.scalecube.Preconditions.checkState;
 import static io.scalecube.transport.Addressing.MAX_PORT_NUMBER;
 import static io.scalecube.transport.Addressing.MIN_PORT_NUMBER;
+
+import reactor.core.publisher.DirectProcessor;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxProcessor;
+import reactor.core.publisher.FluxSink;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
@@ -25,20 +30,12 @@ import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import rx.Observable;
-import rx.schedulers.Schedulers;
-import rx.subjects.PublishSubject;
-import rx.subjects.Subject;
-
 import java.net.BindException;
 import java.net.InetAddress;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
 
 final class TransportImpl implements Transport {
 
@@ -47,7 +44,12 @@ final class TransportImpl implements Transport {
 
   private final TransportConfig config;
 
-  private final Subject<Message, Message> incomingMessagesSubject = PublishSubject.<Message>create().toSerialized();
+  // SUbject
+
+  private final FluxProcessor<Message, Message> incomingMessagesSubject =
+      DirectProcessor.<Message>create().serialize();
+
+  private final FluxSink<Message> messageSink = incomingMessagesSubject.sink();
 
   private final Map<Address, ChannelFuture> outgoingChannels = new ConcurrentHashMap<>();
 
@@ -73,7 +75,7 @@ final class TransportImpl implements Transport {
     this.config = config;
     this.serializerHandler = new MessageSerializerHandler();
     this.deserializerHandler = new MessageDeserializerHandler();
-    this.messageHandler = new MessageHandler(incomingMessagesSubject);
+    this.messageHandler = new MessageHandler(messageSink);
     this.bootstrapFactory = new BootstrapFactory(config);
   }
 
@@ -104,8 +106,6 @@ final class TransportImpl implements Transport {
    */
   private CompletableFuture<Transport> bind0(ServerBootstrap server, InetAddress listenAddress, int bindPort,
       int finalBindPort) {
-
-    incomingMessagesSubject.subscribeOn(Schedulers.from(bootstrapFactory.getWorkerGroup()));
 
     final CompletableFuture<Transport> result = new CompletableFuture<>();
 
@@ -151,7 +151,7 @@ final class TransportImpl implements Transport {
   }
 
   @Override
-  @Nonnull
+
   public Address address() {
     return address;
   }
@@ -161,7 +161,7 @@ final class TransportImpl implements Transport {
     return stopped;
   }
 
-  @Nonnull
+
   @Override
   public NetworkEmulator networkEmulator() {
     return networkEmulator;
@@ -179,7 +179,7 @@ final class TransportImpl implements Transport {
     stopped = true;
     // Complete incoming messages observable
     try {
-      incomingMessagesSubject.onCompleted();
+      messageSink.complete();
     } catch (Exception ignore) {
       // ignore
     }
@@ -207,21 +207,21 @@ final class TransportImpl implements Transport {
     bootstrapFactory.shutdown();
   }
 
-  @Nonnull
+
   @Override
-  public final Observable<Message> listen() {
+  public final Flux<Message> listen() {
     checkState(!stopped, "Transport is stopped");
-    return incomingMessagesSubject.onBackpressureBuffer().asObservable();
+    return incomingMessagesSubject.onBackpressureBuffer();
   }
 
   @Override
-  public void send(@CheckForNull Address address, @CheckForNull Message message) {
+  public void send(Address address, Message message) {
     send(address, message, COMPLETED_PROMISE);
   }
 
   @Override
-  public void send(@CheckForNull Address address, @CheckForNull Message message,
-      @CheckForNull CompletableFuture<Void> promise) {
+  public void send(Address address, Message message,
+      CompletableFuture<Void> promise) {
     checkState(!stopped, "Transport is stopped");
     checkArgument(address != null);
     checkArgument(message != null);
@@ -229,6 +229,7 @@ final class TransportImpl implements Transport {
     message.setSender(this.address);
 
     final ChannelFuture channelFuture = outgoingChannels.computeIfAbsent(address, this::connect);
+
     if (channelFuture.isSuccess()) {
       send(channelFuture.channel(), message, promise);
     } else {
@@ -243,7 +244,7 @@ final class TransportImpl implements Transport {
   }
 
   private void send(Channel channel, Message message, CompletableFuture<Void> promise) {
-    if (promise == COMPLETED_PROMISE) {
+    if (promise.equals(COMPLETED_PROMISE)) {
       channel.writeAndFlush(message, channel.voidPromise());
     } else {
       composeFutures(channel.writeAndFlush(message), promise);
@@ -254,9 +255,9 @@ final class TransportImpl implements Transport {
    * Converts netty {@link ChannelFuture} to the given {@link CompletableFuture}.
    *
    * @param channelFuture netty channel future
-   * @param promise guava future; can be null
+   * @param promise future; can be null
    */
-  private void composeFutures(ChannelFuture channelFuture, @Nonnull final CompletableFuture<Void> promise) {
+  private void composeFutures(ChannelFuture channelFuture, final CompletableFuture<Void> promise) {
     channelFuture.addListener((ChannelFuture future) -> {
       if (channelFuture.isSuccess()) {
         promise.complete(channelFuture.get());
@@ -280,7 +281,6 @@ final class TransportImpl implements Transport {
         outgoingChannels.remove(address);
       }
     });
-
     return connectFuture;
   }
 

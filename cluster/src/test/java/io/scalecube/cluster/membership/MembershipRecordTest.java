@@ -1,16 +1,16 @@
 package io.scalecube.cluster.membership;
 
-import org.junit.Test;
+import static io.scalecube.cluster.membership.MemberStatus.ALIVE;
+import static io.scalecube.cluster.membership.MemberStatus.DEAD;
+import static io.scalecube.cluster.membership.MemberStatus.SUSPECT;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import io.scalecube.cluster.Member;
 import io.scalecube.testlib.BaseTest;
 import io.scalecube.transport.Address;
 
-import static io.scalecube.cluster.membership.MemberStatus.ALIVE;
-import static io.scalecube.cluster.membership.MemberStatus.DEAD;
-import static io.scalecube.cluster.membership.MemberStatus.SUSPECT;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertFalse;
+import org.junit.Test;
 
 public class MembershipRecordTest extends BaseTest {
 

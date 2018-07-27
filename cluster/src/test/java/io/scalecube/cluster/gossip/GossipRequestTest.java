@@ -10,9 +10,9 @@ import io.scalecube.cluster.Member;
 import io.scalecube.testlib.BaseTest;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
+import io.scalecube.transport.MessageCodec;
 
 import io.netty.buffer.ByteBuf;
-import io.scalecube.transport.MessageCodec;
 
 import org.junit.Assert;
 import org.junit.Before;

@@ -6,13 +6,13 @@ import static org.junit.Assert.assertTrue;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.testlib.BaseTest;
 
-import com.google.common.collect.ImmutableMap;
-
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -54,7 +54,9 @@ public class ClusterTest extends BaseTest {
     List<Cluster> otherNodes = new ArrayList<>(testMembersNum);
     try {
       // Start member with metadata
-      Map<String, String> metadata = ImmutableMap.of("key1", "value1", "key2", "value2");
+      Map<String, String> metadata = new HashMap<>();
+      metadata.put("key1", "value1");
+      metadata.put("key2", "value2");
       metadataNode = Cluster.joinAwait(metadata, seedNode.address());
 
       // Start other test members
@@ -82,7 +84,7 @@ public class ClusterTest extends BaseTest {
       }
 
       // Update metadata
-      Map<String, String> updatedMetadata = ImmutableMap.of("key1", "value3");
+      Map<String, String> updatedMetadata = Collections.singletonMap("key1", "value3");
       metadataNode.updateMetadata(updatedMetadata);
 
       // Await latch
@@ -114,7 +116,9 @@ public class ClusterTest extends BaseTest {
 
     try {
       // Start member with metadata
-      Map<String, String> metadata = ImmutableMap.of("key1", "value1", "key2", "value2");
+      Map<String, String> metadata = new HashMap<>();
+      metadata.put("key1", "value1");
+      metadata.put("key2", "value2");
       metadataNode = Cluster.joinAwait(metadata, seedNode.address());
 
       // Start other test members

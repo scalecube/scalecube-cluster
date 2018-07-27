@@ -3,6 +3,7 @@ package io.scalecube.cluster.membership;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import io.scalecube.Throwables;
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
@@ -10,9 +11,6 @@ import io.scalecube.cluster.gossip.GossipProtocolImpl;
 import io.scalecube.testlib.BaseTest;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Transport;
-
-import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
 
 import org.junit.Test;
 
@@ -34,7 +32,7 @@ public class MembershipProtocolTest extends BaseTest {
     Transport a = Transport.bindAwait(true);
     Transport b = Transport.bindAwait(true);
     Transport c = Transport.bindAwait(true);
-    List<Address> members = ImmutableList.of(a.address(), b.address(), c.address());
+    List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
 
     MembershipProtocolImpl cm_a = createMembership(a, members);
     MembershipProtocolImpl cm_b = createMembership(b, members);
@@ -59,7 +57,7 @@ public class MembershipProtocolTest extends BaseTest {
     Transport a = Transport.bindAwait(true);
     Transport b = Transport.bindAwait(true);
     Transport c = Transport.bindAwait(true);
-    List<Address> members = ImmutableList.of(a.address(), b.address(), c.address());
+    List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
 
     MembershipProtocolImpl cm_a = createMembership(a, members);
     MembershipProtocolImpl cm_b = createMembership(b, members);
@@ -102,7 +100,7 @@ public class MembershipProtocolTest extends BaseTest {
     Transport a = Transport.bindAwait(true);
     Transport b = Transport.bindAwait(true);
     Transport c = Transport.bindAwait(true);
-    List<Address> members = ImmutableList.of(a.address(), b.address(), c.address());
+    List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
 
     MembershipProtocolImpl cm_a = createMembership(a, members);
     MembershipProtocolImpl cm_b = createMembership(b, members);
@@ -158,7 +156,7 @@ public class MembershipProtocolTest extends BaseTest {
     Transport a = Transport.bindAwait(true);
     Transport b = Transport.bindAwait(true);
     Transport c = Transport.bindAwait(true);
-    List<Address> members = ImmutableList.of(a.address(), b.address(), c.address());
+    List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
 
     MembershipProtocolImpl cm_a = createMembership(a, members);
     MembershipProtocolImpl cm_b = createMembership(b, members);
@@ -228,7 +226,7 @@ public class MembershipProtocolTest extends BaseTest {
     Transport a = Transport.bindAwait(true);
     Transport b = Transport.bindAwait(true);
     Transport c = Transport.bindAwait(true);
-    List<Address> members = ImmutableList.of(a.address(), b.address(), c.address());
+    List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
 
     MembershipProtocolImpl cm_a = createMembership(a, members);
     MembershipProtocolImpl cm_b = createMembership(b, members);
@@ -284,7 +282,7 @@ public class MembershipProtocolTest extends BaseTest {
     Transport b = Transport.bindAwait(true);
     Transport c = Transport.bindAwait(true);
     Transport d = Transport.bindAwait(true);
-    List<Address> members = ImmutableList.of(a.address(), b.address(), c.address(), d.address());
+    List<Address> members = Arrays.asList(a.address(), b.address(), c.address(), d.address());
 
     MembershipProtocolImpl cm_a = createMembership(a, members);
     MembershipProtocolImpl cm_b = createMembership(b, members);
@@ -339,7 +337,7 @@ public class MembershipProtocolTest extends BaseTest {
     Transport b = Transport.bindAwait(true);
     Transport c = Transport.bindAwait(true);
     Transport d = Transport.bindAwait(true);
-    List<Address> members = ImmutableList.of(a.address(), b.address(), c.address(), d.address());
+    List<Address> members = Arrays.asList(a.address(), b.address(), c.address(), d.address());
 
     MembershipProtocolImpl cm_a = createMembership(a, members);
     MembershipProtocolImpl cm_b = createMembership(b, members);
