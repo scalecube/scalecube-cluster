@@ -10,7 +10,7 @@ before_install:
 - "./src/main/scripts/ci/before-install.sh"
 - "./src/main/scripts/cd/before-deploy.sh"
 after_success:
-- java -jar ~/codacy-coverage-reporter-assembly.jar report -l Java -r /target/site/jacoco/jacoco.xml
+- java -jar ~/codacy-coverage-reporter-assembly.jar report -l Java -r target/site/jacoco/jacoco.xml
 
 deploy:
 - provider: script
