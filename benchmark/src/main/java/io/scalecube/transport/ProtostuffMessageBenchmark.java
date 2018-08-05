@@ -1,4 +1,4 @@
-package io.scalecube.cluster.netty.transport;
+package io.scalecube.transport;
 
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.MessageCodec;
