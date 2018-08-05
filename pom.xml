@@ -79,13 +79,13 @@
   </properties>
 
   <modules>
-    <module>transport</module>
+    <module>transport-api</module>
     <module>cluster</module>
     <module>testlib</module>
     <module>benchmark</module>
     <module>examples</module>
     <module>rsocket-transport</module>
-    <module>transport-api</module>
+    <module>netty-transport</module>
   </modules>
 
   <dependencyManagement>

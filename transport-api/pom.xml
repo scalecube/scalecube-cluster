@@ -8,8 +8,8 @@
     <groupId>io.scalecube</groupId>
     <version>2.0.1-SNAPSHOT</version>
   </parent>
-  <artifactId>scalecube-transport-api</artifactId>
-  <name>Scalecube/Transport-API</name>
+  <artifactId>scalecube-cluster-transport-api</artifactId>
+  <name>Scalecube/Cluster-Transport-API</name>
 
   <dependencies>
     <dependency>

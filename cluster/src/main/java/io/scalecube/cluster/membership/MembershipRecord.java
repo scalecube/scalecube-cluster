@@ -5,7 +5,7 @@ import static io.scalecube.cluster.membership.MemberStatus.DEAD;
 import static io.scalecube.cluster.membership.MemberStatus.SUSPECT;
 
 import io.scalecube.cluster.Member;
-import io.scalecube.rsocket.transport.api.Address;
+import io.scalecube.cluster.transport.api.Address;
 
 import java.util.Objects;
 

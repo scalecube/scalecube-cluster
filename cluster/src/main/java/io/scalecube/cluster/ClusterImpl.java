@@ -12,11 +12,11 @@ import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipProtocolImpl;
-import io.scalecube.rsocket.transport.api.Address;
-import io.scalecube.rsocket.transport.api.Message;
-import io.scalecube.rsocket.transport.api.NetworkEmulator;
-import io.scalecube.rsocket.transport.api.Transport;
-import io.scalecube.transport.TransportImpl;
+import io.scalecube.cluster.netty.transport.TransportImpl;
+import io.scalecube.cluster.transport.api.Address;
+import io.scalecube.cluster.transport.api.Message;
+import io.scalecube.cluster.transport.api.NetworkEmulator;
+import io.scalecube.cluster.transport.api.Transport;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

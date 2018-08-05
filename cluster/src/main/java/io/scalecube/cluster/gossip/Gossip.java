@@ -1,6 +1,6 @@
 package io.scalecube.cluster.gossip;
 
-import io.scalecube.rsocket.transport.api.Message;
+import io.scalecube.cluster.transport.api.Message;
 
 import java.util.Objects;
 

@@ -1,6 +1,6 @@
 package io.scalecube.cluster.membership;
 
-import io.scalecube.rsocket.transport.api.Address;
+import io.scalecube.cluster.transport.api.Address;
 
 import java.util.List;
 import java.util.Map;

@@ -7,11 +7,11 @@ import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
-import io.scalecube.rsocket.transport.api.Address;
-import io.scalecube.rsocket.transport.api.Transport;
+import io.scalecube.cluster.netty.transport.TransportConfig;
+import io.scalecube.cluster.netty.transport.TransportImpl;
+import io.scalecube.cluster.transport.api.Address;
+import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.testlib.BaseTest;
-import io.scalecube.transport.TransportConfig;
-import io.scalecube.transport.TransportImpl;
 
 import org.junit.Test;
 

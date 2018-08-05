@@ -1,7 +1,7 @@
 package io.scalecube.cluster.membership;
 
 import io.scalecube.cluster.Member;
-import io.scalecube.rsocket.transport.api.Address;
+import io.scalecube.cluster.transport.api.Address;
 
 import reactor.core.publisher.Flux;
 

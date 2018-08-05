@@ -10,12 +10,12 @@ import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.membership.DummyMembershipProtocol;
 import io.scalecube.cluster.membership.MembershipProtocol;
-import io.scalecube.rsocket.transport.api.Address;
-import io.scalecube.rsocket.transport.api.Message;
-import io.scalecube.rsocket.transport.api.Transport;
+import io.scalecube.cluster.netty.transport.TransportConfig;
+import io.scalecube.cluster.netty.transport.TransportImpl;
+import io.scalecube.cluster.transport.api.Address;
+import io.scalecube.cluster.transport.api.Message;
+import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.testlib.BaseTest;
-import io.scalecube.transport.TransportConfig;
-import io.scalecube.transport.TransportImpl;
 
 import org.junit.Assert;
 import org.junit.Test;
