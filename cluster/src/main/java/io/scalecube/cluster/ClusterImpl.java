@@ -12,7 +12,6 @@ import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipProtocolImpl;
-import io.scalecube.cluster.netty.transport.TransportImpl;
 import io.scalecube.cluster.transport.api.Address;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.NetworkEmulator;
@@ -70,7 +69,7 @@ final class ClusterImpl implements Cluster {
   }
 
   public Mono<Cluster> join0() {
-    Mono<Transport> transportFuture = new TransportImpl(config.getTransportConfig()).bind0();
+    Mono<Transport> transportFuture = Transport.bind(config.getTransportConfig());
 
     return transportFuture.flatMap(boundTransport -> {
       this.transport = boundTransport;

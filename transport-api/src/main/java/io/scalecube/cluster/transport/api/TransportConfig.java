@@ -1,10 +1,8 @@
-package io.scalecube.cluster.netty.transport;
+package io.scalecube.cluster.transport.api;
 
 /**
  * Encapsulate transport settings.
- * 
  */
-
 public final class TransportConfig {
 
   public static final String DEFAULT_LISTEN_ADDRESS = null;

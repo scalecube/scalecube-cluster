@@ -7,8 +7,6 @@ import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
-import io.scalecube.cluster.netty.transport.TransportConfig;
-import io.scalecube.cluster.netty.transport.TransportImpl;
 import io.scalecube.cluster.transport.api.Address;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.testlib.BaseTest;
@@ -32,9 +30,9 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testInitialPhaseOk() {
-    Transport a = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
-    Transport b = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
-    Transport c = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
+    Transport a = Transport.bindAwait(true);
+    Transport b = Transport.bindAwait(true);
+    Transport c = Transport.bindAwait(true);
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
 
     MembershipProtocolImpl cm_a = createMembership(a, members);
@@ -57,9 +55,9 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testNetworkPartitionThenRecovery() {
-    Transport a = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
-    Transport b = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
-    Transport c = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
+    Transport a = Transport.bindAwait(true);
+    Transport b = Transport.bindAwait(true);
+    Transport c = Transport.bindAwait(true);
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
 
     MembershipProtocolImpl cm_a = createMembership(a, members);
@@ -100,9 +98,9 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testMemberLostNetworkThenRecover() {
-    Transport a = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
-    Transport b = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
-    Transport c = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
+    Transport a = Transport.bindAwait(true);
+    Transport b = Transport.bindAwait(true);
+    Transport c = Transport.bindAwait(true);
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
 
     MembershipProtocolImpl cm_a = createMembership(a, members);
@@ -156,9 +154,9 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testDoublePartitionThenRecover() {
-    Transport a = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
-    Transport b = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
-    Transport c = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
+    Transport a = Transport.bindAwait(true);
+    Transport b = Transport.bindAwait(true);
+    Transport c = Transport.bindAwait(true);
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
 
     MembershipProtocolImpl cm_a = createMembership(a, members);
@@ -226,9 +224,9 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testNetworkDisabledThenRecovered() {
-    Transport a = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
-    Transport b = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
-    Transport c = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
+    Transport a = Transport.bindAwait(true);
+    Transport b = Transport.bindAwait(true);
+    Transport c = Transport.bindAwait(true);
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
 
     MembershipProtocolImpl cm_a = createMembership(a, members);
@@ -281,10 +279,10 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testLongNetworkPartitionNoRecovery() {
-    Transport a = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
-    Transport b = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
-    Transport c = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
-    Transport d = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
+    Transport a = Transport.bindAwait(true);
+    Transport b = Transport.bindAwait(true);
+    Transport c = Transport.bindAwait(true);
+    Transport d = Transport.bindAwait(true);
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address(), d.address());
 
     MembershipProtocolImpl cm_a = createMembership(a, members);
@@ -336,10 +334,10 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testRestartFailedMembers() {
-    Transport a = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
-    Transport b = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
-    Transport c = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
-    Transport d = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
+    Transport a = Transport.bindAwait(true);
+    Transport b = Transport.bindAwait(true);
+    Transport c = Transport.bindAwait(true);
+    Transport d = Transport.bindAwait(true);
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address(), d.address());
 
     MembershipProtocolImpl cm_a = createMembership(a, members);
@@ -377,8 +375,8 @@ public class MembershipProtocolTest extends BaseTest {
       assertTrusted(cm_b, a.address(), b.address());
       assertNoSuspected(cm_b);
 
-      c = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
-      d = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
+      c = Transport.bindAwait(true);
+      d = Transport.bindAwait(true);
       cm_restartedC = createMembership(c, Arrays.asList(a.address(), b.address()));
       cm_restartedD = createMembership(d, Arrays.asList(a.address(), b.address()));
 
@@ -399,11 +397,11 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testLimitedSeedMembers() {
-    Transport a = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
-    Transport b = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
-    Transport c = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
-    Transport d = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
-    Transport e = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
+    Transport a = Transport.bindAwait(true);
+    Transport b = Transport.bindAwait(true);
+    Transport c = Transport.bindAwait(true);
+    Transport d = Transport.bindAwait(true);
+    Transport e = Transport.bindAwait(true);
 
     MembershipProtocolImpl cm_a = createMembership(a, Collections.emptyList());
     MembershipProtocolImpl cm_b = createMembership(b, Collections.singletonList(a.address()));
@@ -433,11 +431,11 @@ public class MembershipProtocolTest extends BaseTest {
   public void testOverrideMemberAddress() throws UnknownHostException {
     String localAddress = InetAddress.getLocalHost().getHostName();
 
-    Transport a = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
-    Transport b = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
-    Transport c = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
-    Transport d = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
-    Transport e = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
+    Transport a = Transport.bindAwait(true);
+    Transport b = Transport.bindAwait(true);
+    Transport c = Transport.bindAwait(true);
+    Transport d = Transport.bindAwait(true);
+    Transport e = Transport.bindAwait(true);
 
     MembershipProtocolImpl cm_a = createMembership(a, testConfig(Collections.emptyList()).memberHost(localAddress).build());
     MembershipProtocolImpl cm_b = createMembership(b, testConfig(Collections.singletonList(a.address())).memberHost(localAddress).build());
@@ -465,7 +463,7 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testMemberAddressOverrides()  {
-    Transport t = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
+    Transport t = Transport.bindAwait(true);
     String host = "host1";
 
     // Default behavior

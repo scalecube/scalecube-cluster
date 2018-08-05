@@ -1,5 +1,7 @@
 package io.scalecube.cluster.netty.transport;
 
+import io.scalecube.cluster.transport.api.TransportConfig;
+
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.PooledByteBufAllocator;

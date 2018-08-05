@@ -10,11 +10,10 @@ import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.membership.DummyMembershipProtocol;
 import io.scalecube.cluster.membership.MembershipProtocol;
-import io.scalecube.cluster.netty.transport.TransportConfig;
-import io.scalecube.cluster.netty.transport.TransportImpl;
 import io.scalecube.cluster.transport.api.Address;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
+import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.testlib.BaseTest;
 
 import org.junit.Assert;
@@ -221,7 +220,7 @@ public class GossipProtocolTest extends BaseTest {
           .port(startPort)
           .portCount(1000)
           .build();
-      Transport transport = new TransportImpl(transportConfig).bind0().block();
+      Transport transport = Transport.bindAwait(transportConfig);
       transport.networkEmulator().setDefaultLinkSettings(lostPercent, meanDelay);
       transports.add(transport);
       startPort = transport.address().port() + 1;

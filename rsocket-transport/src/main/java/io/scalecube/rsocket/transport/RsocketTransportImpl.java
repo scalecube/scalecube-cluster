@@ -15,65 +15,74 @@ import reactor.ipc.netty.http.server.HttpServer;
 import reactor.ipc.netty.resources.LoopResources;
 
 import java.net.InetSocketAddress;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class RsocketTransportImpl implements RsocketTransport {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(RsocketTransportImpl.class);
 
-  private final DirectProcessor<Message> listen = DirectProcessor.create();
+  private final DirectProcessor<Message> subject = DirectProcessor.create();
+  private final AtomicReference<NettyContextCloseable> server = new AtomicReference<>();
+  private final LoopResources loopResources = LoopResources.create("rsocket");
+  private final RSocketClientTransport rSocketClientTransport = new RSocketClientTransport(loopResources);
 
-  private InetSocketAddress address;
-  private LoopResources loopResources;
-  private NettyContextCloseable server;
-
-  private volatile boolean stopped = false;
-
-  public void bind() {
-    InetSocketAddress address =
-        InetSocketAddress.createUnresolved(this.address.getHostName(), this.address.getPort());
-
-    loopResources = LoopResources.create("rsocket-transport");
-
+  public Mono<Void> bind(InetSocketAddress address) {
     HttpServer httpServer = HttpServer.create(options -> options
         .listenAddress(address)
         .loopResources(loopResources));
 
     WebsocketServerTransport transport = WebsocketServerTransport.create(httpServer);
 
-    server = RSocketFactory.receive()
+    return RSocketFactory.receive()
         .frameDecoder(frame -> ByteBufPayload.create(frame.sliceData().retain(), frame.sliceMetadata().retain()))
-        .acceptor(new RSocketAcceptor(listen))
+        .acceptor(new RSocketAcceptor(subject))
         .transport(transport)
-        .start()
-        .block();
-
-    LOGGER.info("Bound to: {}", server.address());
+        .start().doOnSuccess(server -> {
+          if (this.server.compareAndSet(null, server)) {
+            LOGGER.info("Bound to: {}", server.address());
+          } else {
+            server.dispose();
+            throw new IllegalStateException("server is already running");
+          }
+        })
+        .then();
   }
 
   @Override
   public Address address() {
+    NettyContextCloseable server = this.server.get();
+    if (server == null) {
+      throw new IllegalStateException("server not running");
+    }
     return Address.create(server.address().getHostName(), server.address().getPort());
   }
 
   @Override
   public Mono<Void> send(Address address, Message message) {
-    socketAcceptor.accept()
-    return null;
+    return rSocketClientTransport.fireAndForget(address, message);
   }
 
   @Override
   public Flux<Message> listen() {
-    return listen;
+    return subject;
   }
 
   @Override
   public Mono<Void> stop() {
-    return null;
+    return Mono.defer(() -> {
+      server.getAndUpdate(server -> {
+        if (server != null) {
+          server.dispose();
+        }
+        return null;
+      });
+      return Mono.when(rSocketClientTransport.close(), loopResources.disposeLater());
+    });
   }
 
   @Override
   public boolean isStopped() {
-    return false;
+    return server.get() == null;
   }
 
   @Override

@@ -9,6 +9,7 @@ import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.NetworkEmulator;
 import io.scalecube.cluster.transport.api.NetworkEmulatorHandler;
 import io.scalecube.cluster.transport.api.Transport;
+import io.scalecube.cluster.transport.api.TransportConfig;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
@@ -44,9 +45,9 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
-public final class TransportImpl implements Transport {
+public final class NettyTransport implements Transport {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(TransportImpl.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(NettyTransport.class);
   private static final CompletableFuture<Void> COMPLETED_PROMISE = CompletableFuture.completedFuture(null);
 
   private final TransportConfig config;
@@ -77,7 +78,7 @@ public final class TransportImpl implements Transport {
 
   private volatile boolean stopped = false;
 
-  public TransportImpl(TransportConfig config) {
+  public NettyTransport(TransportConfig config) {
     this.config = Objects.requireNonNull(config);
     this.serializerHandler = new MessageSerializerHandler();
     this.deserializerHandler = new MessageDeserializerHandler();
@@ -88,7 +89,7 @@ public final class TransportImpl implements Transport {
   /**
    * Starts to accept connections on local address.
    */
-  public Mono<Transport> bind0() {
+  private Mono<Transport> bind0() {
     ServerBootstrap server = bootstrapFactory.serverBootstrap().childHandler(incomingChannelInitializer);
 
     // Resolve listen IP address
@@ -136,7 +137,7 @@ public final class TransportImpl implements Transport {
         networkEmulator = new NetworkEmulator(address, config.isUseNetworkEmulator());
         networkEmulatorHandler = config.isUseNetworkEmulator() ? new NetworkEmulatorHandler(networkEmulator) : null;
         LOGGER.info("Bound to: {}", address);
-        result.complete(TransportImpl.this);
+        result.complete(NettyTransport.this);
       } else {
         Throwable cause = channelFuture.cause();
         if (config.isPortAutoIncrement() && isAddressAlreadyInUseException(cause)) {
@@ -159,6 +160,11 @@ public final class TransportImpl implements Transport {
   @Override
   public Address address() {
     return address;
+  }
+
+  @Override
+  public Mono<Transport> start() {
+    return bind0();
   }
 
   @Override
@@ -283,9 +289,9 @@ public final class TransportImpl implements Transport {
     // Register logger and cleanup listener
     connectFuture.addListener((ChannelFutureListener) channelFuture -> {
       if (channelFuture.isSuccess()) {
-        LOGGER.debug("Connected from {} to {}: {}", TransportImpl.this.address, address, channelFuture.channel());
+        LOGGER.debug("Connected from {} to {}: {}", NettyTransport.this.address, address, channelFuture.channel());
       } else {
-        LOGGER.warn("Failed to connect from {} to {}", TransportImpl.this.address, address);
+        LOGGER.warn("Failed to connect from {} to {}", NettyTransport.this.address, address);
         outgoingChannels.remove(address);
       }
     });

@@ -1,9 +1,67 @@
 package io.scalecube.cluster.transport.api;
 
+import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+/**
+ * Transport is responsible for maintaining existing p2p connections to/from other transports. It allows to send
+ * messages to other transports and listen for incoming messages.
+ */
 public interface Transport {
+
+  /**
+   * Init transport with the default configuration synchronously. Starts to accept connections on local address.
+   *
+   * @return transport
+   */
+  static Transport bindAwait() {
+    return bindAwait(TransportConfig.defaultConfig());
+  }
+
+  /**
+   * Init transport with the default configuration and network emulator flag synchronously. Starts to accept connections
+   * on local address.
+   *
+   * @return transport
+   */
+  static Transport bindAwait(boolean useNetworkEmulator) {
+    return bindAwait(TransportConfig.builder().useNetworkEmulator(useNetworkEmulator).build());
+  }
+
+  /**
+   * Init transport with the given configuration synchronously. Starts to accept connections on local address.
+   *
+   * @return transport
+   */
+  static Transport bindAwait(TransportConfig config) {
+    try {
+      return bind(config).block();
+    } catch (Exception e) {
+      throw Exceptions.propagate(e.getCause() != null ? e.getCause() : e);
+    }
+  }
+
+  /**
+   * Init transport with the default configuration asynchronously. Starts to accept connections on local address.
+   *
+   * @return promise for bind operation
+   */
+  static Mono<Transport> bind() {
+    return bind(TransportConfig.defaultConfig());
+  }
+
+  /**
+   * Init transport with the given configuration asynchronously. Starts to accept connections on local address.
+   *
+   * @param config transport config
+   * @return promise for bind operation
+   */
+  static Mono<Transport> bind(TransportConfig config) {
+    return ServiceLoaderUtil.findFirstMatched(TransportFactory.class)
+        .map(factory -> factory.create(config).start())
+        .orElseThrow(() -> new IllegalStateException("TransportFactory implementation not found"));
+  }
 
   /**
    * Returns local {@link Address} on which current instance of transport listens for incoming messages.
@@ -11,6 +69,13 @@ public interface Transport {
    * @return address
    */
   Address address();
+
+  /**
+   * Init transport asynchronously. Starts to accept connections on local address.
+   *
+   * @return promise for bind operation
+   */
+  Mono<Transport> start();
 
   /**
    * Sends message to the given address. It will issue connect in case if no transport channel by given transport

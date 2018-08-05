@@ -3,6 +3,7 @@ package io.scalecube.cluster.netty.transport;
 import io.scalecube.cluster.transport.api.Address;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
+import io.scalecube.cluster.transport.api.TransportConfig;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,7 +28,7 @@ public final class TransportTestUtils {
         .useNetworkEmulator(true)
         .port(DEFAULT_PORT)
         .build();
-    return new TransportImpl(config).bind0().block();
+    return Transport.bindAwait(config);
   }
 
   public static void destroyTransport(Transport transport) {

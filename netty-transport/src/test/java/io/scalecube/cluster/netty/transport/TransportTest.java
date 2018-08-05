@@ -12,6 +12,7 @@ import static org.junit.Assert.fail;
 import io.scalecube.cluster.transport.api.Address;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
+import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.testlib.BaseTest;
 
 import org.junit.After;
@@ -47,7 +48,7 @@ public class TransportTest extends BaseTest {
   private Transport server;
 
   @After
-  public void tearDown() throws Exception {
+  public void tearDown() {
     destroyTransport(client);
     destroyTransport(server);
   }
@@ -57,7 +58,7 @@ public class TransportTest extends BaseTest {
     Transport transport = null;
     try {
       TransportConfig config = TransportConfig.builder().listenInterface("eth0").listenAddress("10.10.10.10").build();
-      transport = new TransportImpl(config).bind0().block();
+      transport = Transport.bindAwait(config);
     } finally {
       destroyTransport(transport);
     }
@@ -68,7 +69,7 @@ public class TransportTest extends BaseTest {
     Transport transport = null;
     try {
       TransportConfig config = TransportConfig.builder().listenInterface("yadayada").build();
-      transport = new TransportImpl(config).bind0().block();
+      transport = Transport.bindAwait(config);
     } finally {
       destroyTransport(transport);
     }
@@ -79,7 +80,7 @@ public class TransportTest extends BaseTest {
     Transport transport = null;
     try {
       TransportConfig config = TransportConfig.builder().listenAddress("0.0.0.0").build();
-      transport = new TransportImpl(config).bind0().block();
+      transport = Transport.bindAwait(config);
     } finally {
       destroyTransport(transport);
     }
@@ -98,7 +99,7 @@ public class TransportTest extends BaseTest {
     ExecutorService executor = Executors.newFixedThreadPool(4);
     for (int i = 0; i < count; i++) {
       executor.execute(() -> {
-        Mono<Transport> transportMono = new TransportImpl(config).bind0();
+        Mono<Transport> transportMono = Transport.bind(config);
         transports.put(transportMono, true);
         transportMono.subscribe();
       });
@@ -116,7 +117,7 @@ public class TransportTest extends BaseTest {
   }
 
   @Test
-  public void testBindExceptionWithoutPortAutoIncrement() throws Exception {
+  public void testBindExceptionWithoutPortAutoIncrement() {
     TransportConfig config = TransportConfig.builder()
         .port(6000)
         .portAutoIncrement(false)
@@ -125,8 +126,8 @@ public class TransportTest extends BaseTest {
     Transport transport1 = null;
     Transport transport2 = null;
     try {
-      transport1 = new TransportImpl(config).bind0().block();
-      transport2 = new TransportImpl(config).bind0().block();
+      transport1 = Transport.bindAwait(config);
+      transport2 = Transport.bindAwait(config);
       fail("Didn't get expected bind exception");
     } catch (Throwable throwable) {
       // Check that get address already in use exception
@@ -138,7 +139,7 @@ public class TransportTest extends BaseTest {
   }
 
   @Test
-  public void testNoBindExceptionWithPortAutoIncrement() throws Exception {
+  public void testNoBindExceptionWithPortAutoIncrement() {
     TransportConfig config = TransportConfig.builder()
         .port(6000)
         .portAutoIncrement(true)
@@ -148,8 +149,8 @@ public class TransportTest extends BaseTest {
     Transport transport2 = null;
 
     try {
-      transport1 = new TransportImpl(config).bind0().block();
-      transport2 = new TransportImpl(config).bind0().block();
+      transport1 = Transport.bindAwait(config);
+      transport2 = Transport.bindAwait(config);
     } finally {
       destroyTransport(transport1);
       destroyTransport(transport2);
@@ -187,7 +188,7 @@ public class TransportTest extends BaseTest {
         .build();
     Transport transport1 = null;
     try {
-      transport1 = new TransportImpl(config).bind0().block();
+      transport1 = Transport.bindAwait(config);
     } finally {
       destroyTransport(transport1);
       serverSocket.close();
@@ -200,7 +201,7 @@ public class TransportTest extends BaseTest {
     Transport transport = null;
     try {
       TransportConfig config = TransportConfig.builder().listenAddress("127.0.0.1").build();
-      transport = new TransportImpl(config).bind0().block();
+      transport = Transport.bindAwait(config);
     } finally {
       destroyTransport(transport);
     }

@@ -1,8 +1,8 @@
 package io.scalecube.rsocket.transport;
 
-import io.scalecube.gateway.clientsdk.ClientMessage;
-import io.scalecube.gateway.clientsdk.exceptions.ConnectionClosedException;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.rsocket.Payload;
 import io.rsocket.RSocket;
 import io.rsocket.RSocketFactory;
@@ -12,98 +12,71 @@ import io.rsocket.util.ByteBufPayload;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 import reactor.ipc.netty.http.client.HttpClient;
 import reactor.ipc.netty.resources.LoopResources;
 
 import java.net.InetSocketAddress;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class RSocketClientTransport {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(RSocketClientTransport.class);
 
-  private static final AtomicReferenceFieldUpdater<RSocketClientTransport, Mono> rSocketMonoUpdater =
-      AtomicReferenceFieldUpdater.newUpdater(RSocketClientTransport.class, Mono.class, "rSocketMono");
-
-  // private final ClientSettings settings;
-  // private final ClientMessageCodec messageCodec;
   private final LoopResources loopResources;
-
-  private volatile Mono<RSocket> rSocketMono;
+  private final Map<Address, Mono<RSocket>> rSockets = new ConcurrentHashMap<>();
 
   public RSocketClientTransport(LoopResources loopResources) {
-    // this.settings = settings;
-    // this.messageCodec = messageCodec;
     this.loopResources = loopResources;
   }
 
-  // @Override
-  // public Mono<ClientMessage> requestResponse(ClientMessage request) {
-  // return getOrConnect()
-  // .flatMap(rSocket -> rSocket.requestResponse(toPayload(request))
-  // .takeUntilOther(listenConnectionClose(rSocket)))
-  // .map(this::toClientMessage);
-  // }
-  //
-  // @Override
-  // public Flux<ClientMessage> requestStream(ClientMessage request) {
-  // return getOrConnect()
-  // .flatMapMany(rSocket -> rSocket.requestStream(toPayload(request))
-  // .takeUntilOther(listenConnectionClose(rSocket)))
-  // .map(this::toClientMessage);
+  public Mono<Void> fireAndForget(Address address, Message message) {
+    return getOrConnect(address)
+        .map(rSocket -> rSocket.fireAndForget(toPayload(message))
+            .takeUntilOther(listenConnectionClose(rSocket)))
+        .then();
   }
 
-  // @Override
-  // public Mono<Void> close() {
-  // // noinspection unchecked
-  // Mono<RSocket> curr = rSocketMonoUpdater.get(this);
-  // if (curr == null) {
-  // return Mono.empty();
-  // }
-  //
-  // MonoProcessor<Void> sink = MonoProcessor.create();
-  // curr.subscribe(rSocket -> {
-  // rSocket.onClose().subscribe(sink::onNext, sink::onError, sink::onComplete);
-  // rSocket.dispose();
-  // });
-  // return sink;
-  // }
+  public Mono<Void> close() {
+    return Mono.defer(() -> {
+      rSockets.forEach((address, rSocketMono) -> {
+        rSocketMono.subscribe(Disposable::dispose);
+      });
+      rSockets.clear();
+      return Mono.empty();
+    });
+  }
 
-  private Mono<RSocket> getOrConnect() {
+  private Mono<RSocket> getOrConnect(Address address) {
     // noinspection unchecked
-    return rSocketMonoUpdater.updateAndGet(this, this::getOrConnect0);
+    return rSockets.computeIfAbsent(address, key -> Mono.defer(() -> {
+
+      InetSocketAddress socketAddress = InetSocketAddress.createUnresolved(key.host(), key.port());
+
+      return RSocketFactory.connect()
+          // .metadataMimeType(settings.contentType())
+          .frameDecoder(frame -> ByteBufPayload.create(frame.sliceData().retain(), frame.sliceMetadata().retain()))
+          .keepAlive()
+          .transport(createRSocketTransport(socketAddress))
+          .start()
+          .doOnSuccess(rSocket -> {
+            LOGGER.info("Connected successfully on {}", socketAddress);
+            // setup shutdown hook
+            rSocket.onClose().doOnTerminate(() -> {
+              rSockets.remove(key); // clean reference
+              LOGGER.info("Connection closed on {}", socketAddress);
+            }).subscribe();
+          })
+          .doOnError(throwable -> {
+            LOGGER.warn("Connect failed on {}, cause: {}", socketAddress, throwable);
+            rSockets.remove(key); // clean reference
+          })
+          .cache();
+    }));
   }
 
-  private Mono<RSocket> getOrConnect0(Mono prev) {
-    if (prev != null) {
-      // noinspection unchecked
-      return prev;
-    }
-
-    InetSocketAddress address =
-        InetSocketAddress.createUnresolved(settings.host(), settings.port());
-
-    return RSocketFactory.connect()
-        // .metadataMimeType(settings.contentType())
-        .frameDecoder(frame -> ByteBufPayload.create(frame.sliceData().retain(), frame.sliceMetadata().retain()))
-        .keepAlive()
-        .transport(createRSocketTransport(address))
-        .start()
-        .doOnSuccess(rSocket -> {
-          LOGGER.info("Connected successfully on {}", address);
-          // setup shutdown hook
-          rSocket.onClose().doOnTerminate(() -> {
-            rSocketMonoUpdater.getAndSet(this, null); // clean reference
-            LOGGER.info("Connection closed on {}", address);
-          }).subscribe();
-        })
-        .doOnError(throwable -> {
-          LOGGER.warn("Connect failed on {}, cause: {}", address, throwable);
-          rSocketMonoUpdater.getAndSet(this, null); // clean reference
-        })
-        .cache();
-  }
 
   private WebsocketClientTransport createRSocketTransport(InetSocketAddress address) {
     return WebsocketClientTransport.create(HttpClient.create(options -> options.disablePool()
@@ -111,12 +84,10 @@ public final class RSocketClientTransport {
         .loopResources(loopResources)), "/");
   }
 
-  private Payload toPayload(ClientMessage clientMessage) {
-    return messageCodec.encodeAndTransform(clientMessage, ByteBufPayload::create);
-  }
-
-  private ClientMessage toClientMessage(Payload payload) {
-    return messageCodec.decode(payload.sliceData(), payload.sliceMetadata());
+  private Payload toPayload(Message message) {
+    ByteBuf data = ByteBufAllocator.DEFAULT.buffer();
+    MessageCodec.serialize(message, data);
+    return ByteBufPayload.create(data);
   }
 
   @SuppressWarnings("unchecked")
