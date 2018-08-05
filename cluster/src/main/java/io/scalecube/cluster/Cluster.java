@@ -107,11 +107,7 @@ public interface Cluster {
 
   Mono<Void> send(Member member, Message message);
 
-  // Mono<Void> send(Member member, Message message, CompletableFuture<Void> promise);
-
   Mono<Void> send(Address address, Message message);
-
-  // Mono<Void> send(Address address, Message message, CompletableFuture<Void> promise);
 
   Flux<Message> listen();
 
