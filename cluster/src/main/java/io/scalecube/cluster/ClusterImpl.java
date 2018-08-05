@@ -12,15 +12,16 @@ import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipProtocolImpl;
-import io.scalecube.transport.Address;
-import io.scalecube.transport.Message;
-import io.scalecube.transport.NetworkEmulator;
-import io.scalecube.transport.Transport;
+import io.scalecube.cluster.transport.api.Address;
+import io.scalecube.cluster.transport.api.Message;
+import io.scalecube.cluster.transport.api.NetworkEmulator;
+import io.scalecube.cluster.transport.api.Transport;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -67,16 +68,17 @@ final class ClusterImpl implements Cluster {
     this.config = Objects.requireNonNull(config);
   }
 
-  public CompletableFuture<Cluster> join0() {
-    CompletableFuture<Transport> transportFuture = Transport.bind(config.getTransportConfig());
-    CompletableFuture<Void> clusterFuture = transportFuture.thenCompose(boundTransport -> {
-      transport = boundTransport;
-      messageObservable = transport.listen()
+  public Mono<Cluster> join() {
+    Mono<Transport> transportFuture = config.getTransportSupplier().apply(config.getTransportConfig()).start();
+
+    return transportFuture.flatMap(boundTransport -> {
+      this.transport = boundTransport;
+      messageObservable = this.transport.listen()
           .filter(msg -> !SYSTEM_MESSAGES.contains(msg.qualifier())); // filter out system gossips
 
-      membership = new MembershipProtocolImpl(transport, config);
-      gossip = new GossipProtocolImpl(transport, membership, config);
-      failureDetector = new FailureDetectorImpl(transport, membership, config);
+      membership = new MembershipProtocolImpl(this.transport, config);
+      gossip = new GossipProtocolImpl(this.transport, membership, config);
+      failureDetector = new FailureDetectorImpl(this.transport, membership, config);
       membership.setFailureDetector(failureDetector);
       membership.setGossipProtocol(gossip);
 
@@ -99,9 +101,8 @@ final class ClusterImpl implements Cluster {
       gossip.start();
       gossipObservable = gossip.listen()
           .filter(msg -> !SYSTEM_GOSSIPS.contains(msg.qualifier())); // filter out system gossips
-      return membership.start();
+      return Mono.fromFuture(membership.start()).then(Mono.just(ClusterImpl.this));
     });
-    return clusterFuture.thenApply(aVoid -> ClusterImpl.this);
   }
 
   private void onError(Throwable throwable) {
@@ -128,23 +129,13 @@ final class ClusterImpl implements Cluster {
   }
 
   @Override
-  public void send(Member member, Message message) {
-    transport.send(member.address(), message);
+  public Mono<Void> send(Member member, Message message) {
+    return transport.send(member.address(), message);
   }
 
   @Override
-  public void send(Address address, Message message) {
-    transport.send(address, message);
-  }
-
-  @Override
-  public void send(Member member, Message message, CompletableFuture<Void> promise) {
-    transport.send(member.address(), message, promise);
-  }
-
-  @Override
-  public void send(Address address, Message message, CompletableFuture<Void> promise) {
-    transport.send(address, message, promise);
+  public Mono<Void> send(Address address, Message message) {
+    return transport.send(address, message);
   }
 
   @Override
@@ -206,24 +197,20 @@ final class ClusterImpl implements Cluster {
   }
 
   @Override
-  public CompletableFuture<Void> shutdown() {
+  public Mono<Void> shutdown() {
     LOGGER.info("Cluster member {} is shutting down...", membership.member());
-    CompletableFuture<Void> transportStoppedFuture = new CompletableFuture<>();
-    membership.leave()
-        .whenComplete((gossipId, error) -> {
-          LOGGER.info("Cluster member notified about his leaving and shutting down... {}", membership.member());
+    return Mono.fromFuture(membership.leave()).flatMap(gossipId -> {
+      LOGGER.info("Cluster member notified about his leaving and shutting down... {}", membership.member());
 
-          // stop algorithms
-          membership.stop();
-          gossip.stop();
-          failureDetector.stop();
+      // stop algorithms
+      membership.stop();
+      gossip.stop();
+      failureDetector.stop();
 
-          // stop transport
-          transport.stop(transportStoppedFuture);
-
-          LOGGER.info("Cluster member has shut down... {}", membership.member());
-        });
-    return transportStoppedFuture;
+      // stop transport
+      return transport.stop()
+          .doOnSuccess(aVoid -> LOGGER.info("Cluster member has shut down... {}", membership.member()));
+    });
   }
 
   @Override

@@ -12,9 +12,21 @@
     <dependencies>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>scalecube-transport</artifactId>
+            <artifactId>scalecube-cluster-transport-api</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>scalecube-cluster-netty-transport</artifactId>
+          <version>${project.version}</version>
+          <scope>test</scope>
+        </dependency>
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>scalecube-cluster-rsocket-transport</artifactId>
+        <version>${project.version}</version>
+        <scope>test</scope>
+      </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>scalecube-testlib</artifactId>

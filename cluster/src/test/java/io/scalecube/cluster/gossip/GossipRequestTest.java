@@ -7,10 +7,10 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import io.scalecube.cluster.Member;
+import io.scalecube.cluster.transport.api.Address;
+import io.scalecube.cluster.transport.api.Message;
+import io.scalecube.cluster.transport.api.MessageCodec;
 import io.scalecube.testlib.BaseTest;
-import io.scalecube.transport.Address;
-import io.scalecube.transport.Message;
-import io.scalecube.transport.MessageCodec;
 
 import io.netty.buffer.ByteBuf;
 
@@ -30,7 +30,7 @@ public class GossipRequestTest extends BaseTest {
   private TestData testData;
 
   @Before
-  public void init() throws Throwable {
+  public void init() {
     Map<String, String> properties = new HashMap<>();
     properties.put("key", "123");
 
@@ -39,7 +39,7 @@ public class GossipRequestTest extends BaseTest {
   }
 
   @Test
-  public void testSerializationAndDeserialization() throws Exception {
+  public void testSerializationAndDeserialization() {
 
     Member from = new Member("0", Address.from("localhost:1234"));
     List<Gossip> gossips = getGossips();

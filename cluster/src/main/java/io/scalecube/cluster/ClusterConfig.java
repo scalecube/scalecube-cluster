@@ -3,8 +3,10 @@ package io.scalecube.cluster;
 import io.scalecube.cluster.fdetector.FailureDetectorConfig;
 import io.scalecube.cluster.gossip.GossipConfig;
 import io.scalecube.cluster.membership.MembershipConfig;
-import io.scalecube.transport.Address;
-import io.scalecube.transport.TransportConfig;
+import io.scalecube.cluster.transport.api.Address;
+import io.scalecube.cluster.transport.api.Transport;
+import io.scalecube.cluster.transport.api.TransportConfig;
+import io.scalecube.cluster.transport.api.TransportFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -12,6 +14,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * Cluster configuration encapsulate settings needed cluster to create and successfully join.
@@ -73,6 +76,7 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
   private final int gossipRepeatMult;
 
   private final TransportConfig transportConfig;
+  private final Function<TransportConfig, Transport> transportSupplier;
   private final String memberHost;
   private final Integer memberPort;
 
@@ -93,6 +97,8 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
     this.gossipRepeatMult = builder.gossipRepeatMult;
 
     this.transportConfig = builder.transportConfigBuilder.build();
+    this.transportSupplier =
+        builder.transportSupplier != null ? builder.transportSupplier : TransportFactory::defaultTransport;
     this.memberHost = builder.memberHost;
     this.memberPort = builder.memberPort;
   }
@@ -191,6 +197,10 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
     return transportConfig;
   }
 
+  public Function<TransportConfig, Transport> getTransportSupplier() {
+    return transportSupplier;
+  }
+
   public String getMemberHost() {
     return memberHost;
   }
@@ -237,6 +247,7 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
     private int gossipRepeatMult = DEFAULT_GOSSIP_REPEAT_MULT;
 
     private TransportConfig.Builder transportConfigBuilder = TransportConfig.builder();
+    private Function<TransportConfig, Transport> transportSupplier = TransportFactory::defaultTransport;
 
     private String memberHost = DEFAULT_MEMBER_HOST;
     private Integer memberPort = DEFAULT_MEMBER_PORT;
@@ -353,6 +364,11 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
 
     public Builder useNetworkEmulator(boolean useNetworkEmulator) {
       this.transportConfigBuilder.useNetworkEmulator(useNetworkEmulator);
+      return this;
+    }
+
+    public Builder transportSupplier(Function<TransportConfig, Transport> transportSupplier) {
+      this.transportSupplier = transportSupplier;
       return this;
     }
 

@@ -10,11 +10,13 @@ import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.membership.DummyMembershipProtocol;
 import io.scalecube.cluster.membership.MembershipProtocol;
+import io.scalecube.cluster.transport.api.Address;
+import io.scalecube.cluster.transport.api.Message;
+import io.scalecube.cluster.transport.api.ServiceLoaderUtil;
+import io.scalecube.cluster.transport.api.Transport;
+import io.scalecube.cluster.transport.api.TransportConfig;
+import io.scalecube.cluster.transport.api.TransportFactory;
 import io.scalecube.testlib.BaseTest;
-import io.scalecube.transport.Address;
-import io.scalecube.transport.Message;
-import io.scalecube.transport.Transport;
-import io.scalecube.transport.TransportConfig;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -23,17 +25,20 @@ import org.junit.runners.Parameterized;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import reactor.core.publisher.Flux;
+
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.LongSummaryStatistics;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 @RunWith(Parameterized.class)
 public class GossipProtocolTest extends BaseTest {
@@ -78,19 +83,27 @@ public class GossipProtocolTest extends BaseTest {
 //    }
 //  }
 
-  @Parameterized.Parameters(name = "N={0}, Ploss={1}%, Tmean={2}ms")
+  @Parameterized.Parameters(name = "N={0}, Ploss={1}%, Tmean={2}ms, Transport={3}")
   public static List<Object[]> data() {
-    return experiments;
+    return ServiceLoaderUtil.findAll(TransportFactory.class).stream()
+        .flatMap(factory -> experiments.stream().map(line -> {
+          Object[] objects = Arrays.copyOf(line, line.length + 1);
+          objects[objects.length - 1] = factory;
+          return objects;
+        }))
+        .collect(Collectors.toList());
   }
 
   private final int membersNum;
   private final int lossPercent;
   private final int meanDelay;
+  private final TransportFactory transportFactory;
 
-  public GossipProtocolTest(int membersNum, int lossPercent, int meanDelay) {
+  public GossipProtocolTest(int membersNum, int lossPercent, int meanDelay, TransportFactory transportFactory) {
     this.membersNum = membersNum;
     this.lossPercent = lossPercent;
     this.meanDelay = meanDelay;
+    this.transportFactory = transportFactory;
   }
 
   @Test
@@ -218,7 +231,7 @@ public class GossipProtocolTest extends BaseTest {
           .port(startPort)
           .portCount(1000)
           .build();
-      Transport transport = Transport.bindAwait(transportConfig);
+      Transport transport = transportFactory.create(transportConfig).start().block();
       transport.networkEmulator().setDefaultLinkSettings(lostPercent, meanDelay);
       transports.add(transport);
       startPort = transport.address().port() + 1;
@@ -245,17 +258,11 @@ public class GossipProtocolTest extends BaseTest {
     }
 
     // Stop all transports
-    List<CompletableFuture<Void>> futures = new ArrayList<>();
-    for (GossipProtocolImpl gossipProtocol : gossipProtocols) {
-      CompletableFuture<Void> close = new CompletableFuture<>();
-      gossipProtocol.getTransport().stop(close);
-      futures.add(close);
-    }
-    try {
-      CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()])).get(30, TimeUnit.SECONDS);
-    } catch (Exception ignore) {
-      LOGGER.warn("Failed to await transport termination");
-    }
+    Flux.fromIterable(gossipProtocols)
+        .map(GossipProtocolImpl::getTransport)
+        .flatMap(Transport::stop)
+        .doOnError(ignore -> LOGGER.warn("Failed to await transport termination"))
+        .blockLast(Duration.ofSeconds(30));
 
     // Await a bit
     try {
