@@ -58,9 +58,7 @@ public interface Transport {
    * @return promise for bind operation
    */
   static Mono<Transport> bind(TransportConfig config) {
-    return ServiceLoaderUtil.findFirstMatched(TransportFactory.class)
-        .map(factory -> factory.create(config).start())
-        .orElseThrow(() -> new IllegalStateException("TransportFactory implementation not found"));
+    return TransportFactory.defaultTransport(config).start();
   }
 
   /**

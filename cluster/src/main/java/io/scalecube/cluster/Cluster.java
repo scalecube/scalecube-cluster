@@ -97,7 +97,7 @@ public interface Cluster {
    * Init cluster instance with the given configuration and join cluster synchronously.
    */
   static Mono<Cluster> join(final ClusterConfig config) {
-    return new ClusterImpl(config).join0();
+    return new ClusterImpl(config).join();
   }
 
   /**

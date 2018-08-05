@@ -11,11 +11,15 @@ import io.scalecube.cluster.membership.DummyMembershipProtocol;
 import io.scalecube.cluster.membership.MemberStatus;
 import io.scalecube.cluster.membership.MembershipProtocol;
 import io.scalecube.cluster.transport.api.Address;
+import io.scalecube.cluster.transport.api.ServiceLoaderUtil;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.transport.api.TransportConfig;
+import io.scalecube.cluster.transport.api.TransportFactory;
 import io.scalecube.testlib.BaseTest;
 
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -28,14 +32,28 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+@RunWith(Parameterized.class)
 public class FailureDetectorTest extends BaseTest {
+
+  @Parameterized.Parameters(name = "Transport={0}")
+  public static Collection<Object[]> data() {
+    return ServiceLoaderUtil.findAll(TransportFactory.class).stream()
+        .map(factory -> new Object[] {factory})
+        .collect(Collectors.toList());
+  }
+
+  public FailureDetectorTest(TransportFactory transportFactory) {
+    this.transportFactory = transportFactory;
+  }
+
+  private final TransportFactory transportFactory;
 
   @Test
   public void testTrusted() {
     // Create transports
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
+    Transport a = transportWithNetworkEmulator();
+    Transport b = transportWithNetworkEmulator();
+    Transport c = transportWithNetworkEmulator();
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
 
     // Create failure detectors
@@ -59,12 +77,16 @@ public class FailureDetectorTest extends BaseTest {
     }
   }
 
+  private Transport transportWithNetworkEmulator() {
+    return transportFactory.create(TransportConfig.builder().useNetworkEmulator(true).build()).start().block();
+  }
+
   @Test
   public void testSuspected() {
     // Create transports
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
+    Transport a = transportWithNetworkEmulator();
+    Transport b = transportWithNetworkEmulator();
+    Transport c = transportWithNetworkEmulator();
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
 
     // Create failure detectors
@@ -99,9 +121,9 @@ public class FailureDetectorTest extends BaseTest {
   @Test
   public void testTrustedDespiteBadNetwork() throws Exception {
     // Create transports
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
+    Transport a = transportWithNetworkEmulator();
+    Transport b = transportWithNetworkEmulator();
+    Transport c = transportWithNetworkEmulator();
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
 
     // Create failure detectors
@@ -131,9 +153,9 @@ public class FailureDetectorTest extends BaseTest {
   @Test
   public void testTrustedDespiteDifferentPingTimings() throws Exception {
     // Create transports
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
+    Transport a = transportWithNetworkEmulator();
+    Transport b = transportWithNetworkEmulator();
+    Transport c = transportWithNetworkEmulator();
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
 
     // Create failure detectors
@@ -161,10 +183,10 @@ public class FailureDetectorTest extends BaseTest {
   @Test
   public void testSuspectedMemberWithBadNetworkGetsPartitioned() throws Exception {
     // Create transports
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
-    Transport d = Transport.bindAwait(true);
+    Transport a = transportWithNetworkEmulator();
+    Transport b = transportWithNetworkEmulator();
+    Transport c = transportWithNetworkEmulator();
+    Transport d = transportWithNetworkEmulator();
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address(), d.address());
 
     // Create failure detectors
@@ -214,10 +236,10 @@ public class FailureDetectorTest extends BaseTest {
   @Test
   public void testSuspectedMemberWithNormalNetworkGetsPartitioned() throws Exception {
     // Create transports
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
-    Transport d = Transport.bindAwait(true);
+    Transport a = transportWithNetworkEmulator();
+    Transport b = transportWithNetworkEmulator();
+    Transport c = transportWithNetworkEmulator();
+    Transport d = transportWithNetworkEmulator();
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address(), d.address());
 
     // Create failure detectors
@@ -271,8 +293,8 @@ public class FailureDetectorTest extends BaseTest {
   @Test
   public void testMemberStatusChangeAfterNetworkRecovery() throws Exception {
     // Create transports
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
+    Transport a = transportWithNetworkEmulator();
+    Transport b = transportWithNetworkEmulator();
     List<Address> members = Arrays.asList(a.address(), b.address());
 
     // Create failure detectors
@@ -313,9 +335,9 @@ public class FailureDetectorTest extends BaseTest {
   @Test
   public void testStatusChangeAfterMemberRestart() throws Exception {
     // Create transports
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport x = Transport.bindAwait(true);
+    Transport a = transportWithNetworkEmulator();
+    Transport b = transportWithNetworkEmulator();
+    Transport x = transportWithNetworkEmulator();
     List<Address> members = Arrays.asList(a.address(), b.address(), x.address());
 
     // Create failure detectors
@@ -344,11 +366,11 @@ public class FailureDetectorTest extends BaseTest {
       TimeUnit.SECONDS.sleep(2);
 
       // restart node X as XX
-      xx = Transport.bindAwait(TransportConfig.builder()
+      xx = transportFactory.create(TransportConfig.builder()
           .port(x.address().port())
           .portAutoIncrement(false)
           .useNetworkEmulator(true)
-          .build());
+          .build()).start().block();
       assertEquals(x.address(), xx.address());
       fdetectors = Arrays.asList(fd_a, fd_b, fd_xx = createFD(xx, members));
 

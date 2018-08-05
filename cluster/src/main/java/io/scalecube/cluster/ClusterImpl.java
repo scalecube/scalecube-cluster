@@ -68,8 +68,8 @@ final class ClusterImpl implements Cluster {
     this.config = Objects.requireNonNull(config);
   }
 
-  public Mono<Cluster> join0() {
-    Mono<Transport> transportFuture = Transport.bind(config.getTransportConfig());
+  public Mono<Cluster> join() {
+    Mono<Transport> transportFuture = config.getTransportSupplier().apply(config.getTransportConfig()).start();
 
     return transportFuture.flatMap(boundTransport -> {
       this.transport = boundTransport;
