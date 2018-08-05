@@ -1,4 +1,4 @@
-package io.scalecube.rsocket.transport;
+package io.scalecube.cluster.rsocket.transport;
 
 public class ConnectionClosedException extends RuntimeException {
 

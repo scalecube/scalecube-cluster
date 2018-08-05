@@ -1,5 +1,9 @@
-package io.scalecube.rsocket.transport;
+package io.scalecube.cluster.rsocket.transport;
 
+import io.scalecube.cluster.transport.api.Address;
+import io.scalecube.cluster.transport.api.Message;
+import io.scalecube.cluster.transport.api.MessageCodec;
+import io.scalecube.cluster.transport.api.NetworkEmulatorHandler;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -26,17 +30,28 @@ public final class RSocketClientTransport {
   private static final Logger LOGGER = LoggerFactory.getLogger(RSocketClientTransport.class);
 
   private final LoopResources loopResources;
+  private final NetworkEmulatorHandler networkEmulatorHandler;
   private final Map<Address, Mono<RSocket>> rSockets = new ConcurrentHashMap<>();
 
-  public RSocketClientTransport(LoopResources loopResources) {
+  public RSocketClientTransport(LoopResources loopResources, NetworkEmulatorHandler networkEmulatorHandler) {
     this.loopResources = loopResources;
+    this.networkEmulatorHandler = networkEmulatorHandler;
   }
 
   public Mono<Void> fireAndForget(Address address, Message message) {
+    System.err.println("invoked client fireAndForget");
     return getOrConnect(address)
         .map(rSocket -> rSocket.fireAndForget(toPayload(message))
             .takeUntilOther(listenConnectionClose(rSocket)))
-        .then();
+        .then().log("client ------> ");
+  }
+
+  public Mono<Void> requestResponse(Address address, Message message) {
+    System.err.println("invoked client requestResponse");
+    return getOrConnect(address)
+        .map(rSocket -> rSocket.requestResponse(toPayload(message))
+            .takeUntilOther(listenConnectionClose(rSocket)))
+        .then().log("client ------> ");
   }
 
   public Mono<Void> close() {
@@ -80,8 +95,14 @@ public final class RSocketClientTransport {
 
   private WebsocketClientTransport createRSocketTransport(InetSocketAddress address) {
     return WebsocketClientTransport.create(HttpClient.create(options -> options.disablePool()
+        .afterChannelInit(channel -> {
+          if (networkEmulatorHandler != null) {
+            channel.pipeline().addLast(networkEmulatorHandler);
+          }
+        })
         .connectAddress(() -> address)
-        .loopResources(loopResources)), "/");
+        .loopResources(LoopResources.create("CLIENT"))), "/");
+    // .loopResources(loopResources)), "/");
   }
 
   private Payload toPayload(Message message) {

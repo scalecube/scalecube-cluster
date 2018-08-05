@@ -29,4 +29,9 @@ public final class ServiceLoaderUtil {
     ServiceLoader<T> load = ServiceLoader.load(aClass);
     return StreamSupport.stream(load.spliterator(), false).collect(Collectors.toList());
   }
+
+  public static <T> Collection<T> findAll(Class<T> aClass, Predicate<? super T> predicate) {
+    ServiceLoader<T> load = ServiceLoader.load(aClass);
+    return StreamSupport.stream(load.spliterator(), false).filter(predicate).collect(Collectors.toList());
+  }
 }
