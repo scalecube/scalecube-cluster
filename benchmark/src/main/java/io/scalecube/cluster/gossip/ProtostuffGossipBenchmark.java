@@ -1,9 +1,9 @@
 package io.scalecube.cluster.gossip;
 
 import io.scalecube.cluster.Member;
-import io.scalecube.transport.Address;
-import io.scalecube.transport.Message;
-import io.scalecube.transport.MessageCodec;
+import io.scalecube.rsocket.transport.api.Address;
+import io.scalecube.rsocket.transport.api.Message;
+import io.scalecube.rsocket.transport.api.MessageCodec;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;

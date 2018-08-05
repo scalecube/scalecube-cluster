@@ -1,12 +1,13 @@
 package io.scalecube.cluster;
 
 import io.scalecube.cluster.membership.MembershipEvent;
-import io.scalecube.transport.Address;
-import io.scalecube.transport.Message;
-import io.scalecube.transport.NetworkEmulator;
+import io.scalecube.rsocket.transport.api.Address;
+import io.scalecube.rsocket.transport.api.Message;
+import io.scalecube.rsocket.transport.api.NetworkEmulator;
 
 import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -25,7 +26,7 @@ public interface Cluster {
    */
   static Cluster joinAwait() {
     try {
-      return join().get();
+      return join().block();
     } catch (Exception e) {
       throw Exceptions.propagate(e.getCause() != null ? e.getCause() : e);
     }
@@ -36,7 +37,7 @@ public interface Cluster {
    */
   static Cluster joinAwait(Address... seedMembers) {
     try {
-      return join(seedMembers).get();
+      return join(seedMembers).block();
     } catch (Exception e) {
       throw Exceptions.propagate(e.getCause() != null ? e.getCause() : e);
     }
@@ -47,7 +48,7 @@ public interface Cluster {
    */
   static Cluster joinAwait(Map<String, String> metadata, Address... seedMembers) {
     try {
-      return join(metadata, seedMembers).get();
+      return join(metadata, seedMembers).block();
     } catch (Exception e) {
       throw Exceptions.propagate(e.getCause() != null ? e.getCause() : e);
     }
@@ -58,7 +59,7 @@ public interface Cluster {
    */
   static Cluster joinAwait(ClusterConfig config) {
     try {
-      return join(config).get();
+      return join(config).block();
     } catch (Exception e) {
       throw Exceptions.propagate(e.getCause() != null ? e.getCause() : e);
     }
@@ -67,14 +68,14 @@ public interface Cluster {
   /**
    * Init cluster instance and join cluster asynchronously.
    */
-  static CompletableFuture<Cluster> join() {
+  static Mono<Cluster> join() {
     return join(ClusterConfig.defaultConfig());
   }
 
   /**
    * Init cluster instance with the given seed members and join cluster asynchronously.
    */
-  static CompletableFuture<Cluster> join(Address... seedMembers) {
+  static Mono<Cluster> join(Address... seedMembers) {
     ClusterConfig config = ClusterConfig.builder()
         .seedMembers(seedMembers)
         .build();
@@ -84,7 +85,7 @@ public interface Cluster {
   /**
    * Init cluster instance with the given metadata and seed members and join cluster synchronously.
    */
-  static CompletableFuture<Cluster> join(Map<String, String> metadata, Address... seedMembers) {
+  static Mono<Cluster> join(Map<String, String> metadata, Address... seedMembers) {
     ClusterConfig config = ClusterConfig.builder()
         .seedMembers(Arrays.asList(seedMembers))
         .metadata(metadata)
@@ -95,7 +96,7 @@ public interface Cluster {
   /**
    * Init cluster instance with the given configuration and join cluster synchronously.
    */
-  static CompletableFuture<Cluster> join(final ClusterConfig config) {
+  static Mono<Cluster> join(final ClusterConfig config) {
     return new ClusterImpl(config).join0();
   }
 
@@ -104,13 +105,13 @@ public interface Cluster {
    */
   Address address();
 
-  void send(Member member, Message message);
+  Mono<Void> send(Member member, Message message);
 
-  void send(Member member, Message message, CompletableFuture<Void> promise);
+  // Mono<Void> send(Member member, Message message, CompletableFuture<Void> promise);
 
-  void send(Address address, Message message);
+  Mono<Void> send(Address address, Message message);
 
-  void send(Address address, Message message, CompletableFuture<Void> promise);
+  // Mono<Void> send(Address address, Message message, CompletableFuture<Void> promise);
 
   Flux<Message> listen();
 
@@ -178,7 +179,7 @@ public interface Cluster {
    *
    * @return Listenable future which is completed once graceful shutdown is finished.
    */
-  CompletableFuture<Void> shutdown();
+  Mono<Void> shutdown();
 
   /**
    * Check if cluster instance has been shut down.

@@ -1,5 +1,7 @@
 package io.scalecube.transport;
 
+import io.scalecube.rsocket.transport.api.NetworkEmulatorException;
+
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;

@@ -1,4 +1,4 @@
-package io.scalecube.transport;
+package io.scalecube.rsocket.transport.api;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;

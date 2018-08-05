@@ -7,8 +7,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import io.scalecube.cluster.Member;
+import io.scalecube.rsocket.transport.api.Address;
 import io.scalecube.testlib.BaseTest;
-import io.scalecube.transport.Address;
 
 import org.junit.Test;
 

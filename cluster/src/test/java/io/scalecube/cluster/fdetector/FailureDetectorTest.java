@@ -10,13 +10,15 @@ import io.scalecube.cluster.Member;
 import io.scalecube.cluster.membership.DummyMembershipProtocol;
 import io.scalecube.cluster.membership.MemberStatus;
 import io.scalecube.cluster.membership.MembershipProtocol;
+import io.scalecube.rsocket.transport.api.Address;
+import io.scalecube.rsocket.transport.api.Transport;
 import io.scalecube.testlib.BaseTest;
-import io.scalecube.transport.Address;
-import io.scalecube.transport.Transport;
 import io.scalecube.transport.TransportConfig;
+import io.scalecube.transport.TransportImpl;
 
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -32,9 +34,10 @@ public class FailureDetectorTest extends BaseTest {
   @Test
   public void testTrusted() {
     // Create transports
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
+
+    Transport a = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
+    Transport b = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
+    Transport c = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
 
     // Create failure detectors
@@ -61,9 +64,9 @@ public class FailureDetectorTest extends BaseTest {
   @Test
   public void testSuspected() {
     // Create transports
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
+    Transport a = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
+    Transport b = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
+    Transport c = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
 
     // Create failure detectors
@@ -98,9 +101,9 @@ public class FailureDetectorTest extends BaseTest {
   @Test
   public void testTrustedDespiteBadNetwork() throws Exception {
     // Create transports
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
+    Transport a = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
+    Transport b = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
+    Transport c = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
 
     // Create failure detectors
@@ -130,9 +133,9 @@ public class FailureDetectorTest extends BaseTest {
   @Test
   public void testTrustedDespiteDifferentPingTimings() throws Exception {
     // Create transports
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
+    Transport a = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
+    Transport b = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
+    Transport c = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
 
     // Create failure detectors
@@ -160,10 +163,10 @@ public class FailureDetectorTest extends BaseTest {
   @Test
   public void testSuspectedMemberWithBadNetworkGetsPartitioned() throws Exception {
     // Create transports
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
-    Transport d = Transport.bindAwait(true);
+    Transport a = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
+    Transport b = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
+    Transport c = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
+    Transport d = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address(), d.address());
 
     // Create failure detectors
@@ -213,10 +216,10 @@ public class FailureDetectorTest extends BaseTest {
   @Test
   public void testSuspectedMemberWithNormalNetworkGetsPartitioned() throws Exception {
     // Create transports
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
-    Transport d = Transport.bindAwait(true);
+    Transport a = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
+    Transport b = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
+    Transport c = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
+    Transport d = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address(), d.address());
 
     // Create failure detectors
@@ -270,8 +273,8 @@ public class FailureDetectorTest extends BaseTest {
   @Test
   public void testMemberStatusChangeAfterNetworkRecovery() throws Exception {
     // Create transports
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
+    Transport a = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
+    Transport b = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
     List<Address> members = Arrays.asList(a.address(), b.address());
 
     // Create failure detectors
@@ -312,9 +315,9 @@ public class FailureDetectorTest extends BaseTest {
   @Test
   public void testStatusChangeAfterMemberRestart() throws Exception {
     // Create transports
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport x = Transport.bindAwait(true);
+    Transport a = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
+    Transport b = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
+    Transport x = new TransportImpl(TransportConfig.builder().useNetworkEmulator(true).build()).bind0().block();
     List<Address> members = Arrays.asList(a.address(), b.address(), x.address());
 
     // Create failure detectors
@@ -343,11 +346,11 @@ public class FailureDetectorTest extends BaseTest {
       TimeUnit.SECONDS.sleep(2);
 
       // restart node X as XX
-      xx = Transport.bindAwait(TransportConfig.builder()
+      xx = new TransportImpl(TransportConfig.builder()
           .port(x.address().port())
           .portAutoIncrement(false)
           .useNetworkEmulator(true)
-          .build());
+          .build()).bind0().block();
       assertEquals(x.address(), xx.address());
       fdetectors = Arrays.asList(fd_a, fd_b, fd_xx = createFD(xx, members));
 
@@ -387,12 +390,14 @@ public class FailureDetectorTest extends BaseTest {
     if (transport == null || transport.isStopped()) {
       return;
     }
-    CompletableFuture<Void> close = new CompletableFuture<>();
-    transport.stop(close);
-    try {
-      close.get(1, TimeUnit.SECONDS);
-    } catch (Exception ignore) {
-    }
+    transport.stop().block(Duration.ofSeconds(1));
+
+    // CompletableFuture<Void> close = new CompletableFuture<>();
+    // transport.stop(close);
+    // try {
+    // close.get(1, TimeUnit.SECONDS);
+    // } catch (Exception ignore) {
+    // }
   }
 
   private void start(List<FailureDetectorImpl> fdetectors) {

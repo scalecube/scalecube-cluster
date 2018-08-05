@@ -1,7 +1,14 @@
 package io.scalecube.transport;
 
-import static io.scalecube.transport.Addressing.MAX_PORT_NUMBER;
-import static io.scalecube.transport.Addressing.MIN_PORT_NUMBER;
+import static io.scalecube.rsocket.transport.api.Addressing.MAX_PORT_NUMBER;
+import static io.scalecube.rsocket.transport.api.Addressing.MIN_PORT_NUMBER;
+
+import io.scalecube.rsocket.transport.api.Address;
+import io.scalecube.rsocket.transport.api.Addressing;
+import io.scalecube.rsocket.transport.api.Message;
+import io.scalecube.rsocket.transport.api.NetworkEmulator;
+import io.scalecube.rsocket.transport.api.NetworkEmulatorHandler;
+import io.scalecube.rsocket.transport.api.Transport;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
@@ -27,6 +34,7 @@ import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxProcessor;
 import reactor.core.publisher.FluxSink;
+import reactor.core.publisher.Mono;
 
 import java.net.BindException;
 import java.net.InetAddress;
@@ -36,7 +44,7 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
-final class TransportImpl implements Transport {
+public final class TransportImpl implements Transport {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(TransportImpl.class);
   private static final CompletableFuture<Void> COMPLETED_PROMISE = CompletableFuture.completedFuture(null);
@@ -80,7 +88,7 @@ final class TransportImpl implements Transport {
   /**
    * Starts to accept connections on local address.
    */
-  public CompletableFuture<Transport> bind0() {
+  public Mono<Transport> bind0() {
     ServerBootstrap server = bootstrapFactory.serverBootstrap().childHandler(incomingChannelInitializer);
 
     // Resolve listen IP address
@@ -90,7 +98,7 @@ final class TransportImpl implements Transport {
     // Listen port
     int bindPort = config.getPort();
 
-    return bind0(server, listenAddress, bindPort, bindPort + config.getPortCount());
+    return Mono.fromFuture(bind0(server, listenAddress, bindPort, bindPort + config.getPortCount()));
   }
 
   /**
@@ -149,7 +157,6 @@ final class TransportImpl implements Transport {
   }
 
   @Override
-
   public Address address() {
     return address;
   }
@@ -166,12 +173,13 @@ final class TransportImpl implements Transport {
   }
 
   @Override
-  public final void stop() {
-    stop(COMPLETED_PROMISE);
+  public final Mono<Void> stop() {
+    CompletableFuture<Void> promise = new CompletableFuture<>();
+    stop(promise);
+    return Mono.fromFuture(promise);
   }
 
-  @Override
-  public final void stop(CompletableFuture<Void> promise) {
+  private void stop(CompletableFuture<Void> promise) {
     if (stopped) {
       throw new IllegalStateException("Transport is stopped");
     }
@@ -217,22 +225,17 @@ final class TransportImpl implements Transport {
   }
 
   @Override
-  public void send(Address address, Message message) {
-    send(address, message, COMPLETED_PROMISE);
-  }
-
-  @Override
-  public void send(Address address, Message message,
-      CompletableFuture<Void> promise) {
+  public Mono<Void> send(Address address, Message message) {
     if (stopped) {
       throw new IllegalStateException("Transport is stopped");
     }
     Objects.requireNonNull(address);
     Objects.requireNonNull(message);
-    Objects.requireNonNull(promise);
     message.setSender(this.address);
 
     final ChannelFuture channelFuture = outgoingChannels.computeIfAbsent(address, this::connect);
+
+    CompletableFuture<Void> promise = new CompletableFuture<>();
 
     if (channelFuture.isSuccess()) {
       send(channelFuture.channel(), message, promise);
@@ -245,6 +248,7 @@ final class TransportImpl implements Transport {
         }
       });
     }
+    return Mono.fromFuture(promise);
   }
 
   private void send(Channel channel, Message message, CompletableFuture<Void> promise) {

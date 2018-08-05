@@ -1,4 +1,4 @@
-package io.scalecube.transport;
+package io.scalecube.rsocket.transport.api;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,7 +40,7 @@ public final class NetworkEmulator {
    * @param address local address
    * @param enabled either network emulator is enabled
    */
-  NetworkEmulator(Address address, boolean enabled) {
+  public NetworkEmulator(Address address, boolean enabled) {
     this.address = address;
     this.enabled = enabled;
   }

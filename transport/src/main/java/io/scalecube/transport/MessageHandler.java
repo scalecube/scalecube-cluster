@@ -1,5 +1,7 @@
 package io.scalecube.transport;
 
+import io.scalecube.rsocket.transport.api.Message;
+
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;

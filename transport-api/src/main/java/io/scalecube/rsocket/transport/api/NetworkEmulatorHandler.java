@@ -1,4 +1,4 @@
-package io.scalecube.transport;
+package io.scalecube.rsocket.transport.api;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
@@ -15,7 +15,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 
 @ChannelHandler.Sharable
-final class NetworkEmulatorHandler extends ChannelOutboundHandlerAdapter {
+public final class NetworkEmulatorHandler extends ChannelOutboundHandlerAdapter {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(NetworkEmulatorHandler.class);
 

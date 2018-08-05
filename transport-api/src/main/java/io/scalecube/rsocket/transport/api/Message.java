@@ -1,4 +1,4 @@
-package io.scalecube.transport;
+package io.scalecube.rsocket.transport.api;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -154,7 +154,7 @@ public final class Message {
    * 
    * @param sender address from where message was sent
    */
-  void setSender(Address sender) {
+  public void setSender(Address sender) {
     this.sender = sender;
   }
 

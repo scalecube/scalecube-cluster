@@ -10,11 +10,12 @@ import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.membership.DummyMembershipProtocol;
 import io.scalecube.cluster.membership.MembershipProtocol;
+import io.scalecube.rsocket.transport.api.Address;
+import io.scalecube.rsocket.transport.api.Message;
+import io.scalecube.rsocket.transport.api.Transport;
 import io.scalecube.testlib.BaseTest;
-import io.scalecube.transport.Address;
-import io.scalecube.transport.Message;
-import io.scalecube.transport.Transport;
 import io.scalecube.transport.TransportConfig;
+import io.scalecube.transport.TransportImpl;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -23,12 +24,14 @@ import org.junit.runners.Parameterized;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import reactor.core.publisher.Flux;
+
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.LongSummaryStatistics;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
@@ -218,7 +221,7 @@ public class GossipProtocolTest extends BaseTest {
           .port(startPort)
           .portCount(1000)
           .build();
-      Transport transport = Transport.bindAwait(transportConfig);
+      Transport transport = new TransportImpl(transportConfig).bind0().block();
       transport.networkEmulator().setDefaultLinkSettings(lostPercent, meanDelay);
       transports.add(transport);
       startPort = transport.address().port() + 1;
@@ -245,17 +248,11 @@ public class GossipProtocolTest extends BaseTest {
     }
 
     // Stop all transports
-    List<CompletableFuture<Void>> futures = new ArrayList<>();
-    for (GossipProtocolImpl gossipProtocol : gossipProtocols) {
-      CompletableFuture<Void> close = new CompletableFuture<>();
-      gossipProtocol.getTransport().stop(close);
-      futures.add(close);
-    }
-    try {
-      CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()])).get(30, TimeUnit.SECONDS);
-    } catch (Exception ignore) {
-      LOGGER.warn("Failed to await transport termination");
-    }
+    Flux.fromIterable(gossipProtocols)
+        .map(GossipProtocolImpl::getTransport)
+        .flatMap(Transport::stop)
+        .doOnError(ignore -> LOGGER.warn("Failed to await transport termination"))
+        .blockLast(Duration.ofSeconds(30));
 
     // Await a bit
     try {

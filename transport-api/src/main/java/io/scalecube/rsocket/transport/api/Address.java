@@ -1,4 +1,4 @@
-package io.scalecube.transport;
+package io.scalecube.rsocket.transport.api;
 
 import java.util.Objects;
 import java.util.regex.Matcher;

@@ -1,5 +1,7 @@
 package io.scalecube.transport;
 
+import io.scalecube.rsocket.transport.api.MessageCodec;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;

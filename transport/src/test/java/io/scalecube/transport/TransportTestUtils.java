@@ -1,10 +1,14 @@
 package io.scalecube.transport;
 
+import io.scalecube.rsocket.transport.api.Address;
+import io.scalecube.rsocket.transport.api.Message;
+import io.scalecube.rsocket.transport.api.Transport;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 
 public final class TransportTestUtils {
 
@@ -23,18 +27,14 @@ public final class TransportTestUtils {
         .useNetworkEmulator(true)
         .port(DEFAULT_PORT)
         .build();
-    return Transport.bindAwait(config);
+    return new TransportImpl(config).bind0().block();
   }
 
   public static void destroyTransport(Transport transport) {
     if (transport != null && !transport.isStopped()) {
-      CompletableFuture<Void> close = new CompletableFuture<>();
-      transport.stop(close);
-      try {
-        close.get(1, TimeUnit.SECONDS);
-      } catch (Exception ignore) {
-        LOGGER.warn("Failed to await transport termination");
-      }
+      transport.stop()
+          .doOnError(ignore -> LOGGER.warn("Failed to await transport termination"))
+          .block(Duration.ofSeconds(1));
     }
   }
 
@@ -49,6 +49,9 @@ public final class TransportTestUtils {
         }
       }
     });
-    from.send(to, msg, promise);
+    from.send(to, msg)
+        .doOnError(
+            e -> LOGGER.error("Failed to send {} to {} from transport: {}, cause: {}", msg, to, from, e.getCause()))
+        .subscribe();
   }
 }

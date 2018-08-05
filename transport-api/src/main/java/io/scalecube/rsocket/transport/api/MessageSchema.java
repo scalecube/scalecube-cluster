@@ -1,7 +1,7 @@
-package io.scalecube.transport;
+package io.scalecube.rsocket.transport.api;
 
 import static io.protostuff.LinkedBuffer.MIN_BUFFER_SIZE;
-import static io.scalecube.transport.RecyclableLinkedBuffer.DEFAULT_MAX_CAPACITY;
+import static io.scalecube.rsocket.transport.api.RecyclableLinkedBuffer.DEFAULT_MAX_CAPACITY;
 
 import io.protostuff.Input;
 import io.protostuff.Output;

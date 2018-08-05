@@ -8,6 +8,7 @@ import io.scalecube.testlib.BaseTest;
 
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -22,7 +23,7 @@ import java.util.concurrent.TimeUnit;
 public class ClusterTest extends BaseTest {
 
   @Test
-  public void testJoinDynamicPort() throws Exception {
+  public void testJoinDynamicPort() {
     // Start seed node
     Cluster seedNode = Cluster.joinAwait();
 
@@ -170,7 +171,7 @@ public class ClusterTest extends BaseTest {
   }
 
   @Test
-  public void testShutdownCluster() throws Exception {
+  public void testShutdownCluster() {
     // Start seed member
     Cluster seedNode = Cluster.joinAwait();
 
@@ -179,12 +180,9 @@ public class ClusterTest extends BaseTest {
     Cluster node2 = Cluster.joinAwait(seedNode.address());
     Cluster node3 = Cluster.joinAwait(seedNode.address());
 
-    CountDownLatch leave = new CountDownLatch(1);
-    node2.shutdown().whenComplete((done, error) -> {
-      leave.countDown();
-    });
+    node2.shutdown()
+        .block(Duration.ofSeconds(5));
 
-    leave.await(5, TimeUnit.SECONDS);
     assertTrue(!seedNode.members().contains(node2.member()));
     assertTrue(!node1.members().contains(node2.member()));
     assertTrue(!node3.members().contains(node2.member()));
@@ -202,7 +200,7 @@ public class ClusterTest extends BaseTest {
   private void shutdown(Collection<Cluster> nodes) {
     for (Cluster node : nodes) {
       try {
-        node.shutdown().get();
+        node.shutdown().block();
       } catch (Exception ex) {
         LOGGER.error("Exception on cluster shutdown", ex);
       }

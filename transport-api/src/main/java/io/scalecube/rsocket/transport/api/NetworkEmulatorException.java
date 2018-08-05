@@ -1,4 +1,4 @@
-package io.scalecube.transport;
+package io.scalecube.rsocket.transport.api;
 
 /**
  * Exception which is thrown by network emulator on message loss.

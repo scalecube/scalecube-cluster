@@ -3,7 +3,7 @@ package io.scalecube.cluster;
 import io.scalecube.cluster.fdetector.FailureDetectorConfig;
 import io.scalecube.cluster.gossip.GossipConfig;
 import io.scalecube.cluster.membership.MembershipConfig;
-import io.scalecube.transport.Address;
+import io.scalecube.rsocket.transport.api.Address;
 import io.scalecube.transport.TransportConfig;
 
 import java.util.ArrayList;

@@ -9,6 +9,9 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import io.scalecube.rsocket.transport.api.Address;
+import io.scalecube.rsocket.transport.api.Message;
+import io.scalecube.rsocket.transport.api.Transport;
 import io.scalecube.testlib.BaseTest;
 
 import org.junit.After;
@@ -16,17 +19,20 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
 import java.io.IOException;
 import java.net.BindException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -51,7 +57,7 @@ public class TransportTest extends BaseTest {
     Transport transport = null;
     try {
       TransportConfig config = TransportConfig.builder().listenInterface("eth0").listenAddress("10.10.10.10").build();
-      transport = Transport.bindAwait(config);
+      transport = new TransportImpl(config).bind0().block();
     } finally {
       destroyTransport(transport);
     }
@@ -62,7 +68,7 @@ public class TransportTest extends BaseTest {
     Transport transport = null;
     try {
       TransportConfig config = TransportConfig.builder().listenInterface("yadayada").build();
-      transport = Transport.bindAwait(config);
+      transport = new TransportImpl(config).bind0().block();
     } finally {
       destroyTransport(transport);
     }
@@ -73,7 +79,7 @@ public class TransportTest extends BaseTest {
     Transport transport = null;
     try {
       TransportConfig config = TransportConfig.builder().listenAddress("0.0.0.0").build();
-      transport = Transport.bindAwait(config);
+      transport = new TransportImpl(config).bind0().block();
     } finally {
       destroyTransport(transport);
     }
@@ -88,26 +94,24 @@ public class TransportTest extends BaseTest {
         .portCount(count)
         .build();
 
-    Map<CompletableFuture<Transport>, Boolean> transports = new ConcurrentHashMap<>();
+    Map<Mono<Transport>, Boolean> transports = new ConcurrentHashMap<>();
     ExecutorService executor = Executors.newFixedThreadPool(4);
     for (int i = 0; i < count; i++) {
-      executor.execute(() -> transports.put(Transport.bind(config), true));
+      executor.execute(() -> {
+        Mono<Transport> transportMono = new TransportImpl(config).bind0();
+        transports.put(transportMono, true);
+        transportMono.subscribe();
+      });
     }
     executor.shutdown();
     executor.awaitTermination(60, TimeUnit.SECONDS);
 
-    CompletableFuture<Void> allFuturesResult =
-        CompletableFuture.allOf(transports.keySet().toArray(new CompletableFuture[transports.size()]));
-
-    // Destroy transports
     try {
-      allFuturesResult.get(60, TimeUnit.SECONDS);
+      Flux.fromIterable(transports.keySet()).blockLast(Duration.ofMinutes(1));
     } finally {
-      for (CompletableFuture<Transport> transportFuture : transports.keySet()) {
-        if (transportFuture.isDone()) {
-          destroyTransport(transportFuture.get());
-        }
-      }
+      // Destroy transports
+      transports.keySet()
+          .forEach(mono -> mono.subscribe(transport -> transport.stop().subscribe()));
     }
   }
 
@@ -121,8 +125,8 @@ public class TransportTest extends BaseTest {
     Transport transport1 = null;
     Transport transport2 = null;
     try {
-      transport1 = Transport.bindAwait(config);
-      transport2 = Transport.bindAwait(config);
+      transport1 = new TransportImpl(config).bind0().block();
+      transport2 = new TransportImpl(config).bind0().block();
       fail("Didn't get expected bind exception");
     } catch (Throwable throwable) {
       // Check that get address already in use exception
@@ -144,8 +148,8 @@ public class TransportTest extends BaseTest {
     Transport transport2 = null;
 
     try {
-      transport1 = Transport.bindAwait(config);
-      transport2 = Transport.bindAwait(config);
+      transport1 = new TransportImpl(config).bind0().block();
+      transport2 = new TransportImpl(config).bind0().block();
     } finally {
       destroyTransport(transport1);
       destroyTransport(transport2);
@@ -183,7 +187,7 @@ public class TransportTest extends BaseTest {
         .build();
     Transport transport1 = null;
     try {
-      transport1 = Transport.bindAwait(config);
+      transport1 = new TransportImpl(config).bind0().block();
     } finally {
       destroyTransport(transport1);
       serverSocket.close();
@@ -196,22 +200,21 @@ public class TransportTest extends BaseTest {
     Transport transport = null;
     try {
       TransportConfig config = TransportConfig.builder().listenAddress("127.0.0.1").build();
-      transport = Transport.bindAwait(config);
+      transport = new TransportImpl(config).bind0().block();
     } finally {
       destroyTransport(transport);
     }
   }
 
   @Test
-  public void testUnresolvedHostConnection() throws Exception {
+  public void testUnresolvedHostConnection() {
     client = createTransport();
     // create transport with wrong host
-    CompletableFuture<Void> sendPromise0 = new CompletableFuture<>();
-    client.send(Address.from("wronghost:49255"), Message.fromData("q"), sendPromise0);
     try {
-      sendPromise0.get(5, TimeUnit.SECONDS);
+      client.send(Address.from("wronghost:49255"), Message.fromData("q"))
+          .block(Duration.ofSeconds(5));
       fail();
-    } catch (ExecutionException e) {
+    } catch (Exception e) {
       Throwable cause = e.getCause();
       assertNotNull(cause);
       assertEquals("Unexpected exception class", UnknownHostException.class, cause.getClass());
@@ -219,7 +222,7 @@ public class TransportTest extends BaseTest {
   }
 
   @Test
-  public void testInteractWithNoConnection() throws Exception {
+  public void testInteractWithNoConnection() {
     Address serverAddress = Address.from("localhost:49255");
     for (int i = 0; i < 10; i++) {
       LOGGER.info("####### {} : iteration = {}", testName.getMethodName(), i);
@@ -227,24 +230,22 @@ public class TransportTest extends BaseTest {
       client = createTransport();
 
       // create transport and don't wait just send message
-      CompletableFuture<Void> sendPromise0 = new CompletableFuture<>();
-      client.send(serverAddress, Message.fromData("q"), sendPromise0);
       try {
-        sendPromise0.get(3, TimeUnit.SECONDS);
+        client.send(serverAddress, Message.fromData("q"))
+            .block(Duration.ofSeconds(3));
         fail();
-      } catch (ExecutionException e) {
+      } catch (Exception e) {
         Throwable cause = e.getCause();
         assertNotNull(cause);
         assertTrue("Unexpected exception type (expects IOException)", cause instanceof IOException);
       }
 
       // send second message: no connection yet and it's clear that there's no connection
-      CompletableFuture<Void> sendPromise1 = new CompletableFuture<>();
-      client.send(serverAddress, Message.fromData("q"), sendPromise1);
       try {
-        sendPromise1.get(3, TimeUnit.SECONDS);
+        client.send(serverAddress, Message.fromData("q"))
+            .block(Duration.ofSeconds(3));
         fail();
-      } catch (ExecutionException e) {
+      } catch (Exception e) {
         Throwable cause = e.getCause();
         assertNotNull(cause);
         assertTrue("Unexpected exception type (expects IOException)", cause instanceof IOException);
@@ -359,15 +360,12 @@ public class TransportTest extends BaseTest {
           completeLatch.complete(true);
         });
 
-    CompletableFuture<Void> send = new CompletableFuture<>();
-    client.send(server.address(), Message.fromData("q"), send);
-    send.get(1, TimeUnit.SECONDS);
+    client.send(server.address(), Message.fromData("q"))
+        .block(Duration.ofSeconds(1));
 
     assertNotNull(messageLatch.get(1, TimeUnit.SECONDS));
 
-    CompletableFuture<Void> close = new CompletableFuture<>();
-    server.stop(close);
-    close.get();
+    server.stop().block();
 
     assertTrue(completeLatch.get(1, TimeUnit.SECONDS));
   }
