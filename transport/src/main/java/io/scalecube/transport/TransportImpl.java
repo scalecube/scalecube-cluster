@@ -1,6 +1,7 @@
 package io.scalecube.transport;
 
 import static io.scalecube.transport.Addressing.MAX_PORT_NUMBER;
+import static io.scalecube.transport.Addressing.MIN_PORT_NUMBER;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
@@ -29,8 +30,6 @@ import reactor.core.publisher.FluxSink;
 
 import java.net.BindException;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
@@ -109,7 +108,7 @@ final class TransportImpl implements Transport {
     final CompletableFuture<Transport> result = new CompletableFuture<>();
 
     // Perform basic bind port validation
-    if (bindPort > MAX_PORT_NUMBER) {
+    if (bindPort < MIN_PORT_NUMBER || bindPort > MAX_PORT_NUMBER) {
       result.completeExceptionally(
           new IllegalArgumentException("Invalid port number: " + bindPort));
       return result;
@@ -126,7 +125,6 @@ final class TransportImpl implements Transport {
     bindFuture.addListener((ChannelFutureListener) channelFuture -> {
       if (channelFuture.isSuccess()) {
         serverChannel = (ServerChannel) channelFuture.channel();
-        address = getAddress(channelFuture.channel().localAddress());
         networkEmulator = new NetworkEmulator(address, config.isUseNetworkEmulator());
         networkEmulatorHandler = config.isUseNetworkEmulator() ? new NetworkEmulatorHandler(networkEmulator) : null;
         LOGGER.info("Bound to: {}", address);
@@ -143,11 +141,6 @@ final class TransportImpl implements Transport {
       }
     });
     return result;
-  }
-
-  public Address getAddress(SocketAddress socketAddress) {
-    InetSocketAddress address = ((InetSocketAddress) socketAddress);
-    return Address.create(address.getHostString(), address.getPort());
   }
 
   private boolean isAddressAlreadyInUseException(Throwable exception) {

@@ -10,7 +10,7 @@ public final class TransportConfig {
   public static final String DEFAULT_LISTEN_ADDRESS = null;
   public static final String DEFAULT_LISTEN_INTERFACE = null; // Default listen settings fallback to getLocalHost
   public static final boolean DEFAULT_PREFER_IP6 = false;
-  public static final int DEFAULT_PORT = 0;
+  public static final int DEFAULT_PORT = 4801;
   public static final int DEFAULT_PORT_COUNT = 100;
   public static final boolean DEFAULT_PORT_AUTO_INCREMENT = true;
   public static final int DEFAULT_CONNECT_TIMEOUT = 3000;
