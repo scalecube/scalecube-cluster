@@ -19,11 +19,6 @@ import java.util.List;
 public final class Addressing {
 
   /**
-   * The minimum server port number. Set at 1100 to avoid returning privileged port numbers.
-   */
-  public static final int MIN_PORT_NUMBER = 1100;
-
-  /**
    * The maximum server port number.
    */
   public static final int MAX_PORT_NUMBER = 65535;
