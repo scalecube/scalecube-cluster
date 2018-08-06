@@ -6,8 +6,8 @@
         <artifactId>scalecube-cluster-parent</artifactId>
         <version>2.0.1-SNAPSHOT</version>
     </parent>
-    <artifactId>scalecube-transport</artifactId>
-    <name>ScaleCube/Transport</name>
+  <artifactId>scalecube-cluster-netty-transport</artifactId>
+  <name>ScaleCube/Cluster-Netty-Transport</name>
 
     <dependencies>
         <dependency>
@@ -16,7 +16,13 @@
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
-        <!-- Other dependencies -->
+      <dependency>
+        <groupId>io.scalecube</groupId>
+        <artifactId>scalecube-cluster-transport-api</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <!-- Other dependencies -->
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-buffer</artifactId>
