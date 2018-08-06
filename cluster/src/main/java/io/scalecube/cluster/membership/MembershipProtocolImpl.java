@@ -8,9 +8,9 @@ import io.scalecube.cluster.Member;
 import io.scalecube.cluster.fdetector.FailureDetector;
 import io.scalecube.cluster.fdetector.FailureDetectorEvent;
 import io.scalecube.cluster.gossip.GossipProtocol;
-import io.scalecube.transport.Address;
-import io.scalecube.transport.Message;
-import io.scalecube.transport.Transport;
+import io.scalecube.cluster.transport.Address;
+import io.scalecube.cluster.transport.Message;
+import io.scalecube.cluster.transport.Transport;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

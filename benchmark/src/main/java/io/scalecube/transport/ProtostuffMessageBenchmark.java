@@ -1,5 +1,8 @@
 package io.scalecube.transport;
 
+import io.scalecube.cluster.transport.Message;
+import io.scalecube.cluster.transport.MessageCodec;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 

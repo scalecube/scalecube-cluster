@@ -10,11 +10,11 @@ import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.membership.DummyMembershipProtocol;
 import io.scalecube.cluster.membership.MembershipProtocol;
+import io.scalecube.cluster.transport.Address;
+import io.scalecube.cluster.transport.Message;
+import io.scalecube.cluster.transport.Transport;
+import io.scalecube.cluster.transport.TransportConfig;
 import io.scalecube.testlib.BaseTest;
-import io.scalecube.transport.Address;
-import io.scalecube.transport.Message;
-import io.scalecube.transport.Transport;
-import io.scalecube.transport.TransportConfig;
 
 import org.junit.Assert;
 import org.junit.Test;

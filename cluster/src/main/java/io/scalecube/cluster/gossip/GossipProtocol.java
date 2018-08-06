@@ -1,6 +1,6 @@
 package io.scalecube.cluster.gossip;
 
-import io.scalecube.transport.Message;
+import io.scalecube.cluster.transport.Message;
 
 import reactor.core.publisher.Flux;
 
