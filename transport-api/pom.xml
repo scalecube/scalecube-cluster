@@ -22,40 +22,11 @@
       <groupId>io.projectreactor</groupId>
       <artifactId>reactor-core</artifactId>
     </dependency>
-
-    <dependency>
-      <groupId>io.netty</groupId>
-      <artifactId>netty-buffer</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.netty</groupId>
-      <artifactId>netty-codec</artifactId>
-    </dependency>
-
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
     </dependency>
-    <dependency>
-      <groupId>io.protostuff</groupId>
-      <artifactId>protostuff-api</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.protostuff</groupId>
-      <artifactId>protostuff-runtime</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.protostuff</groupId>
-      <artifactId>protostuff-core</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.protostuff</groupId>
-      <artifactId>protostuff-collectionschema</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.google.protobuf</groupId>
-      <artifactId>protobuf-java</artifactId>
-    </dependency>
+
   </dependencies>
 
 </project>

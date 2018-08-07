@@ -21,6 +21,11 @@
             <artifactId>scalecube-cluster</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>scalecube-cluster-netty-transport</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <!-- Other dependencies -->
         <dependency>
             <groupId>org.openjdk.jmh</groupId>

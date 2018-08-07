@@ -239,16 +239,16 @@ final class NettyTransport implements Transport {
     Objects.requireNonNull(address);
     Objects.requireNonNull(message);
     Objects.requireNonNull(promise);
-    message.setSender(this.address);
+    Message target = message.withSender(this.address);
 
     final ChannelFuture channelFuture = outgoingChannels.computeIfAbsent(address, this::connect);
 
     if (channelFuture.isSuccess()) {
-      send(channelFuture.channel(), message, promise);
+      send(channelFuture.channel(), target, promise);
     } else {
       channelFuture.addListener((ChannelFuture chFuture) -> {
         if (chFuture.isSuccess()) {
-          send(channelFuture.channel(), message, promise);
+          send(channelFuture.channel(), target, promise);
         } else {
           promise.completeExceptionally(chFuture.cause());
         }

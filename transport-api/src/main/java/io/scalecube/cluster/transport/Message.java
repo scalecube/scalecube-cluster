@@ -154,7 +154,7 @@ public final class Message {
    * 
    * @param sender address from where message was sent
    */
-  public void setSender(Address sender) {
+  void setSender(Address sender) {
     this.sender = sender;
   }
 
@@ -213,6 +213,14 @@ public final class Message {
    */
   public Address sender() {
     return sender;
+  }
+
+  public Message withSender(Address sender) {
+    Message message = new Message();
+    message.headers = this.headers;
+    message.data = this.data;
+    message.data = sender;
+    return message;
   }
 
   @Override
