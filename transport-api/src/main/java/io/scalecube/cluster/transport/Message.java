@@ -219,7 +219,7 @@ public final class Message {
     Message message = new Message();
     message.headers = this.headers;
     message.data = this.data;
-    message.data = sender;
+    message.sender = sender;
     return message;
   }
 
