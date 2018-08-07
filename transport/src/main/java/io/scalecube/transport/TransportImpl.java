@@ -145,11 +145,6 @@ final class TransportImpl implements Transport {
     return result;
   }
 
-  public Address toAddress(SocketAddress address) {
-    InetSocketAddress inetAddress = ((InetSocketAddress) address);
-    return Address.create(inetAddress.getHostString(), inetAddress.getPort());
-  }
-
   private boolean isAddressAlreadyInUseException(Throwable exception) {
     return exception instanceof BindException
         || (exception.getMessage() != null && exception.getMessage().contains("Address already in use"));
@@ -333,5 +328,10 @@ final class TransportImpl implements Transport {
       }
       pipeline.addLast(exceptionHandler);
     }
+  }
+  
+  private static Address toAddress(SocketAddress address) {
+    InetSocketAddress inetAddress = ((InetSocketAddress) address);
+    return Address.create(inetAddress.getHostString(), inetAddress.getPort());
   }
 }
