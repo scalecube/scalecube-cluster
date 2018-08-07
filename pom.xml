@@ -10,8 +10,8 @@
 
   <name>ScaleCube</name>
   <description>
-        ScaleCube is a lightweight decentralized cluster membership, failure detection, messaging and
-        gossip protocol library for the Java VM. 
+    ScaleCube is a lightweight decentralized cluster membership, failure detection, messaging and
+    gossip protocol library for the Java VM.
   </description>
   <inceptionYear>2015</inceptionYear>
   <url>http://scalecube.io</url>
@@ -80,11 +80,12 @@
 
   <modules>
     <module>transport-api</module>
-    <module>cluster</module>
     <module>testlib</module>
-    <module>benchmark</module>
-    <module>examples</module>
+    <module>codec</module>
     <module>netty-transport</module>
+    <module>cluster</module>
+    <module>examples</module>
+    <module>benchmark</module>
   </modules>
 
   <dependencyManagement>
