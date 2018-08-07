@@ -257,7 +257,7 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
       this.metadata.putAll(metadata);
       return this;
     }
-    
+
     public Builder seedMembers(Address... seedMembers) {
       this.seedMembers = Arrays.asList(seedMembers);
       return this;
@@ -341,11 +341,6 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
       return this;
     }
 
-    public Builder portAutoIncrement(boolean portAutoIncrement) {
-      this.transportConfigBuilder.portAutoIncrement(portAutoIncrement);
-      return this;
-    }
-
     public Builder connectTimeout(int connectTimeout) {
       this.transportConfigBuilder.connectTimeout(connectTimeout);
       return this;
@@ -357,11 +352,8 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
     }
 
     /**
-     * Member address overrides.
-     */
-
-    /**
      * Override the member host in cases when the transport address is not the address to be broadcast.
+     * 
      * @param memberHost Member host to broadcast
      * @return this builder
      */
@@ -372,6 +364,7 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
 
     /**
      * Override the member port in cases when the transport port is not the post to be broadcast.
+     * 
      * @param memberPort Member port to broadcast
      * @return this builder
      */

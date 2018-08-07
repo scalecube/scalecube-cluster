@@ -22,17 +22,11 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.BindException;
-import java.net.ServerSocket;
-import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -45,7 +39,7 @@ public class TransportTest extends BaseTest {
   private Transport server;
 
   @After
-  public void tearDown() throws Exception {
+  public void tearDown() {
     destroyTransport(client);
     destroyTransport(server);
   }
@@ -84,44 +78,8 @@ public class TransportTest extends BaseTest {
   }
 
   @Test
-  public void testPortAutoIncrementRaceConditions() throws Exception {
-    int count = 30;
-    TransportConfig config = TransportConfig.builder()
-        .port(6000)
-        .portAutoIncrement(true)
-        .portCount(count)
-        .build();
-
-    Map<CompletableFuture<Transport>, Boolean> transports = new ConcurrentHashMap<>();
-    ExecutorService executor = Executors.newFixedThreadPool(4);
-    for (int i = 0; i < count; i++) {
-      executor.execute(() -> transports.put(Transport.bind(config), true));
-    }
-    executor.shutdown();
-    executor.awaitTermination(60, TimeUnit.SECONDS);
-
-    CompletableFuture<Void> allFuturesResult =
-        CompletableFuture.allOf(transports.keySet().toArray(new CompletableFuture[transports.size()]));
-
-    // Destroy transports
-    try {
-      allFuturesResult.get(60, TimeUnit.SECONDS);
-    } finally {
-      for (CompletableFuture<Transport> transportFuture : transports.keySet()) {
-        if (transportFuture.isDone()) {
-          destroyTransport(transportFuture.get());
-        }
-      }
-    }
-  }
-
-  @Test
-  public void testBindExceptionWithoutPortAutoIncrement() throws Exception {
-    TransportConfig config = TransportConfig.builder()
-        .port(6000)
-        .portAutoIncrement(false)
-        .portCount(100)
-        .build();
+  public void testBindExceptionWithoutPortAutoIncrement() {
+    TransportConfig config = TransportConfig.builder().port(6000).build();
     Transport transport1 = null;
     Transport transport2 = null;
     try {
@@ -134,64 +92,6 @@ public class TransportTest extends BaseTest {
     } finally {
       destroyTransport(transport1);
       destroyTransport(transport2);
-    }
-  }
-
-  @Test
-  public void testNoBindExceptionWithPortAutoIncrement() throws Exception {
-    TransportConfig config = TransportConfig.builder()
-        .port(6000)
-        .portAutoIncrement(true)
-        .portCount(100)
-        .build();
-    Transport transport1 = null;
-    Transport transport2 = null;
-
-    try {
-      transport1 = Transport.bindAwait(config);
-      transport2 = Transport.bindAwait(config);
-    } finally {
-      destroyTransport(transport1);
-      destroyTransport(transport2);
-    }
-  }
-
-  @Test
-  public void testNoBindExceptionWithPortAutoIncrementWithHalfClosedSocket() throws Exception {
-    // Create half-closed socket scenario setup: server socket, connecting client socket, accepted socket
-    // on server side being closed, connected socket doesn't react on server's close
-
-    ServerSocket serverSocket = new ServerSocket(6000);
-    Thread acceptor = new Thread(() -> {
-      while (true) {
-        Socket accepted = null;
-        try {
-          accepted = serverSocket.accept();
-          accepted.close();
-        } catch (Exception ignore) {
-        }
-      }
-    });
-    acceptor.setDaemon(true);
-    acceptor.start();
-
-    Socket socket = new Socket(serverSocket.getInetAddress(), serverSocket.getLocalPort());
-
-    // Pretend that this port was chosen as bind port for the transport
-    int transportBindPort = socket.getLocalPort();
-
-    TransportConfig config = TransportConfig.builder()
-        .port(transportBindPort)
-        .portAutoIncrement(true)
-        .portCount(100)
-        .build();
-    Transport transport1 = null;
-    try {
-      transport1 = Transport.bindAwait(config);
-    } finally {
-      destroyTransport(transport1);
-      serverSocket.close();
-      socket.close();
     }
   }
 
@@ -358,10 +258,9 @@ public class TransportTest extends BaseTest {
     final CompletableFuture<Message> messageLatch = new CompletableFuture<>();
 
     server.listen().subscribe(messageLatch::complete,
-        errorConsumer->{},
-        () -> {
-          completeLatch.complete(true);
-        });
+        errorConsumer -> {
+        },
+        () -> completeLatch.complete(true));
 
     CompletableFuture<Void> send = new CompletableFuture<>();
     client.send(server.address(), Message.fromData("q"), send);

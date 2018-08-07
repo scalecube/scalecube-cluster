@@ -40,7 +40,7 @@ public class TransportSendOrderTest extends BaseTest {
   private Transport server;
 
   @After
-  public void tearDown() throws Exception {
+  public void tearDown() {
     destroyTransport(client);
     destroyTransport(server);
   }
@@ -216,7 +216,7 @@ public class TransportSendOrderTest extends BaseTest {
           sendPromise.get(3, TimeUnit.SECONDS);
         } catch (Exception e) {
           LOGGER.error("Failed to send message: j = {} id = {}", j, id, e);
-          Exceptions.propagate(e);
+          throw Exceptions.propagate(e);
         }
       }
       return null;

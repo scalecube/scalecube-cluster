@@ -345,7 +345,6 @@ public class FailureDetectorTest extends BaseTest {
       // restart node X as XX
       xx = Transport.bindAwait(TransportConfig.builder()
           .port(x.address().port())
-          .portAutoIncrement(false)
           .useNetworkEmulator(true)
           .build());
       assertEquals(x.address(), xx.address());
@@ -460,13 +459,11 @@ public class FailureDetectorTest extends BaseTest {
       throw new RuntimeException(e);
     }
   }
+
   private <T> CompletableFuture<List<T>> allOf(List<CompletableFuture<T>> futuresList) {
     CompletableFuture<Void> allFuturesResult =
-            CompletableFuture.allOf(futuresList.toArray(new CompletableFuture[futuresList.size()]));
-    return allFuturesResult.thenApply(v ->
-            futuresList.stream().
-                    map(CompletableFuture::join).
-                    collect(Collectors.toList())
-    );
+        CompletableFuture.allOf(futuresList.toArray(new CompletableFuture[futuresList.size()]));
+    return allFuturesResult
+        .thenApply(v -> futuresList.stream().map(CompletableFuture::join).collect(Collectors.toList()));
   }
 }

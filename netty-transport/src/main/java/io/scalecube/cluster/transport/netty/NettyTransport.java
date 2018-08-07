@@ -1,7 +1,5 @@
 package io.scalecube.cluster.transport.netty;
 
-import static io.scalecube.cluster.transport.Addressing.MAX_PORT_NUMBER;
-
 import io.scalecube.cluster.transport.Address;
 import io.scalecube.cluster.transport.Addressing;
 import io.scalecube.cluster.transport.Message;
@@ -35,12 +33,10 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxProcessor;
 import reactor.core.publisher.FluxSink;
 
-import java.net.BindException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -48,14 +44,14 @@ import java.util.concurrent.ConcurrentHashMap;
 final class NettyTransport implements Transport {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(NettyTransport.class);
+
   private static final CompletableFuture<Void> COMPLETED_PROMISE = CompletableFuture.completedFuture(null);
 
   private final TransportConfig config;
 
   // SUbject
 
-  private final FluxProcessor<Message, Message> incomingMessagesSubject =
-      DirectProcessor.<Message>create().serialize();
+  private final FluxProcessor<Message, Message> incomingMessagesSubject = DirectProcessor.<Message>create().serialize();
 
   private final FluxSink<Message> messageSink = incomingMessagesSubject.sink();
 
@@ -94,44 +90,26 @@ final class NettyTransport implements Transport {
     ServerBootstrap server = bootstrapFactory.serverBootstrap().childHandler(incomingChannelInitializer);
 
     // Resolve listen IP address
-    InetAddress listenAddress =
-        Addressing.getLocalIpAddress(config.getListenAddress(), config.getListenInterface(), config.isPreferIPv6());
+    InetAddress listenAddress = Addressing.getLocalIpAddress(config.getListenAddress(),
+        config.getListenInterface(), config.isPreferIPv6());
 
     // Listen port
     int bindPort = config.getPort();
 
-    return bind0(server, listenAddress, bindPort, bindPort + config.getPortCount());
+    return bind0(server, listenAddress, bindPort);
   }
 
   /**
    * Helper bind method to start accepting connections on {@code listenAddress} and {@code bindPort}.
    *
-   * @param bindPort bind port.
-   * @param finalBindPort maximum port to bind.
-   * @throws NoSuchElementException if {@code bindPort} greater than {@code finalBindPort}.
-   * @throws IllegalArgumentException if {@code bindPort} doesnt belong to the range [{@link Addressing#MIN_PORT_NUMBER}
-   *         .. {@link Addressing#MAX_PORT_NUMBER}].
+   * @param listenAddress listen address of cluster transport.
+   * @param bindPort listen port of cluster transport.
+   * @param server a server bootstrap.
    */
-  private CompletableFuture<Transport> bind0(ServerBootstrap server, InetAddress listenAddress, int bindPort,
-      int finalBindPort) {
-
+  private CompletableFuture<Transport> bind0(ServerBootstrap server, InetAddress listenAddress, int bindPort) {
     final CompletableFuture<Transport> result = new CompletableFuture<>();
-
-    // Perform basic bind port validation
-    if (bindPort > MAX_PORT_NUMBER) {
-      result.completeExceptionally(
-          new IllegalArgumentException("Invalid port number: " + bindPort));
-      return result;
-    }
-    if (bindPort > finalBindPort) {
-      result.completeExceptionally(
-          new NoSuchElementException("Could not find an available port from: " + bindPort + " to: " + finalBindPort));
-      return result;
-    }
-
     // Get address object and bind
-    address = Address.create(listenAddress.getHostAddress(), bindPort);
-    ChannelFuture bindFuture = server.bind(listenAddress, address.port());
+    ChannelFuture bindFuture = server.bind(listenAddress, bindPort);
     bindFuture.addListener((ChannelFutureListener) channelFuture -> {
       if (channelFuture.isSuccess()) {
         serverChannel = (ServerChannel) channelFuture.channel();
@@ -142,25 +120,14 @@ final class NettyTransport implements Transport {
         result.complete(NettyTransport.this);
       } else {
         Throwable cause = channelFuture.cause();
-        if (config.isPortAutoIncrement() && isAddressAlreadyInUseException(cause)) {
-          LOGGER.warn("Can't bind to address {}, try again on different port [cause={}]", address, cause.toString());
-          bind0(server, listenAddress, bindPort + 1, finalBindPort).thenAccept(result::complete);
-        } else {
-          LOGGER.error("Failed to bind to: {}, cause: {}", address, cause);
-          result.completeExceptionally(cause);
-        }
+        LOGGER.error("Failed to bind to: {}, cause: {}", listenAddress, cause);
+        result.completeExceptionally(cause);
       }
     });
     return result;
   }
 
-  private boolean isAddressAlreadyInUseException(Throwable exception) {
-    return exception instanceof BindException
-        || (exception.getMessage() != null && exception.getMessage().contains("Address already in use"));
-  }
-
   @Override
-
   public Address address() {
     return address;
   }
@@ -169,7 +136,6 @@ final class NettyTransport implements Transport {
   public boolean isStopped() {
     return stopped;
   }
-
 
   @Override
   public NetworkEmulator networkEmulator() {

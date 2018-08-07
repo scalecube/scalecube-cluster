@@ -41,19 +41,19 @@ public class GossipProtocolTest extends BaseTest {
   private static final Logger LOGGER = LoggerFactory.getLogger(GossipProtocolTest.class);
 
   private static List<Object[]> experiments = Arrays.asList(new Object[][] {
-//      N  , L  ,  D      // N - num of nodes, L - msg loss percent, D - msg mean delay (ms)
-      { 2  , 0  ,  2   }, // warm up
-      { 2  , 0  ,  2   },
-      { 3  , 0  ,  2   },
-      { 5  , 0  ,  2   },
-      { 10 , 0  ,  2   },
-      { 10 , 10 ,  2   },
-      { 10 , 25 ,  2   },
-      { 10 , 25 ,  100 },
-      { 10 , 50 ,  2   },
-      { 50 , 0  ,  2   },
-      { 50 , 10 ,  2   },
-      { 50 , 10 ,  100 },
+      // N , L , D // N - num of nodes, L - msg loss percent, D - msg mean delay (ms)
+      {2, 0, 2}, // warm up
+      {2, 0, 2},
+      {3, 0, 2},
+      {5, 0, 2},
+      {10, 0, 2},
+      {10, 10, 2},
+      {10, 25, 2},
+      {10, 25, 100},
+      {10, 50, 2},
+      {50, 0, 2},
+      {50, 10, 2},
+      {50, 10, 100},
   });
 
   // Makes tests run longer since always awaits for maximum gossip lifetime, but performs more checks
@@ -66,17 +66,17 @@ public class GossipProtocolTest extends BaseTest {
 
 
   // Uncomment and modify params to run single experiment repeatedly
-//  static {
-//    int repeatCount = 1000;
-//    int membersNum = 10;
-//    int lossPercent = 50; //%
-//    int meanDelay = 2; //ms
-//    experiments = new ArrayList<>(repeatCount + 1);
-//    experiments.add(new Object[] {2, 0, 2}); // add warm up experiment
-//    for (int i = 0; i < repeatCount; i++) {
-//      experiments.add(new Object[] {membersNum, lossPercent,  meanDelay});
-//    }
-//  }
+  // static {
+  // int repeatCount = 1000;
+  // int membersNum = 10;
+  // int lossPercent = 50; //%
+  // int meanDelay = 2; //ms
+  // experiments = new ArrayList<>(repeatCount + 1);
+  // experiments.add(new Object[] {2, 0, 2}); // add warm up experiment
+  // for (int i = 0; i < repeatCount; i++) {
+  // experiments.add(new Object[] {membersNum, lossPercent, meanDelay});
+  // }
+  // }
 
   @Parameterized.Parameters(name = "N={0}, Ploss={1}%, Tmean={2}ms")
   public static List<Object[]> data() {
@@ -135,7 +135,7 @@ public class GossipProtocolTest extends BaseTest {
       }
       Assert.assertEquals("Not all members received gossip", membersNum - 1, receivers.size());
       Assert.assertTrue("Too long dissemination time " + disseminationTime
-              + "ms (timeout " + gossipTimeout + "ms)", disseminationTime < gossipTimeout);
+          + "ms (timeout " + gossipTimeout + "ms)", disseminationTime < gossipTimeout);
 
       // Await gossip lifetime plus few gossip intervals too ensure gossip is fully spread
       if (awaitFullCompletion) {
@@ -211,17 +211,11 @@ public class GossipProtocolTest extends BaseTest {
 
   private List<Transport> initTransports(int count, int lostPercent, int meanDelay) {
     List<Transport> transports = new ArrayList<>(count);
-    int startPort = TransportConfig.DEFAULT_PORT;
+    TransportConfig transportConfig = TransportConfig.builder().useNetworkEmulator(true).build();
     for (int i = 0; i < count; i++) {
-      TransportConfig transportConfig = TransportConfig.builder()
-          .useNetworkEmulator(true)
-          .port(startPort)
-          .portCount(1000)
-          .build();
       Transport transport = Transport.bindAwait(transportConfig);
       transport.networkEmulator().setDefaultLinkSettings(lostPercent, meanDelay);
       transports.add(transport);
-      startPort = transport.address().port() + 1;
     }
     return transports;
   }
