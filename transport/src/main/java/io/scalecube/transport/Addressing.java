@@ -18,11 +18,6 @@ import java.util.List;
  */
 public final class Addressing {
 
-  /**
-   * The maximum server port number.
-   */
-  public static final int MAX_PORT_NUMBER = 65535;
-
   private Addressing() {
     // Do not instantiate
   }

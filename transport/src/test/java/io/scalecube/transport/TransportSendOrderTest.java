@@ -11,6 +11,9 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import reactor.core.Disposable;
+import reactor.core.Exceptions;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -25,9 +28,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.LongStream;
 
-import reactor.core.Disposable;
-import reactor.core.Exceptions;
-
 public class TransportSendOrderTest extends BaseTest {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(TransportSendOrderTest.class);
@@ -37,7 +37,7 @@ public class TransportSendOrderTest extends BaseTest {
   private Transport server;
 
   @After
-  public void tearDown() throws Exception {
+  public void tearDown() {
     destroyTransport(client);
     destroyTransport(server);
   }
@@ -213,7 +213,7 @@ public class TransportSendOrderTest extends BaseTest {
           sendPromise.get(3, TimeUnit.SECONDS);
         } catch (Exception e) {
           LOGGER.error("Failed to send message: j = {} id = {}", j, id, e);
-          Exceptions.propagate(e);
+          throw Exceptions.propagate(e);
         }
       }
       return null;
