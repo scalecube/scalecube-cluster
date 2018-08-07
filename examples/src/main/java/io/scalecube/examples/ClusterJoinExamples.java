@@ -33,7 +33,6 @@ public class ClusterJoinExamples {
     // Start Dan on port 3000
     ClusterConfig configWithFixedPort = ClusterConfig.builder()
         .seedMembers(alice.address())
-        .portAutoIncrement(false)
         .port(3000)
         .build();
     Cluster dan = Cluster.joinAwait(configWithFixedPort);
