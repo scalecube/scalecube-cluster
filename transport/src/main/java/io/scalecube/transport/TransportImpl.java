@@ -126,7 +126,7 @@ final class TransportImpl implements Transport {
     bindFuture.addListener((ChannelFutureListener) channelFuture -> {
       if (channelFuture.isSuccess()) {
         serverChannel = (ServerChannel) channelFuture.channel();
-        address = toAddress(channelFuture.channel().localAddress());
+        address = toAddress(serverChannel.localAddress());
         networkEmulator = new NetworkEmulator(address, config.isUseNetworkEmulator());
         networkEmulatorHandler = config.isUseNetworkEmulator() ? new NetworkEmulatorHandler(networkEmulator) : null;
         LOGGER.info("Bound to: {}", address);
