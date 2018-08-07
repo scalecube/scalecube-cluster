@@ -14,24 +14,24 @@ public final class ServiceLoaderUtil {
     // Do not instantiate
   }
 
-  public static <T> Optional<T> findFirst(Class<T> aClass) {
-    ServiceLoader<T> load = ServiceLoader.load(aClass);
+  public static <T> Optional<T> findFirst(Class<T> clazz) {
+    ServiceLoader<T> load = ServiceLoader.load(clazz);
     return StreamSupport.stream(load.spliterator(), false).findFirst();
   }
 
-  public static <T> Optional<T> findFirst(Class<T> aClass, Predicate<? super T> predicate) {
-    ServiceLoader<T> load = ServiceLoader.load(aClass);
+  public static <T> Optional<T> findFirst(Class<T> clazz, Predicate<? super T> predicate) {
+    ServiceLoader<T> load = ServiceLoader.load(clazz);
     Stream<T> stream = StreamSupport.stream(load.spliterator(), false);
     return stream.filter(predicate).findFirst();
   }
 
-  public static <T> Collection<T> findAll(Class<T> aClass) {
-    ServiceLoader<T> load = ServiceLoader.load(aClass);
+  public static <T> Collection<T> findAll(Class<T> clazz) {
+    ServiceLoader<T> load = ServiceLoader.load(clazz);
     return StreamSupport.stream(load.spliterator(), false).collect(Collectors.toList());
   }
 
-  public static <T> Collection<T> findAll(Class<T> aClass, Predicate<? super T> predicate) {
-    ServiceLoader<T> load = ServiceLoader.load(aClass);
+  public static <T> Collection<T> findAll(Class<T> clazz, Predicate<? super T> predicate) {
+    ServiceLoader<T> load = ServiceLoader.load(clazz);
     return StreamSupport.stream(load.spliterator(), false).filter(predicate).collect(Collectors.toList());
   }
 }

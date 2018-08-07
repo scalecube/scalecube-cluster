@@ -273,7 +273,7 @@
             <id>checkstyle</id>
             <phase>verify</phase>
             <configuration>
-              <skip>true</skip><!-- todo -->
+              <skip>false</skip>
               <configLocation>checkstyle.xml</configLocation>
               <encoding>UTF-8</encoding>
               <consoleOutput>true</consoleOutput>

@@ -215,6 +215,12 @@ public final class Message {
     return sender;
   }
 
+  /**
+   * Returns a new message instance with the given sender address.
+   *
+   * @param sender address from where message was sent
+   * @return a new message instance
+   */
   public Message withSender(Address sender) {
     Message message = new Message();
     message.headers = this.headers;
