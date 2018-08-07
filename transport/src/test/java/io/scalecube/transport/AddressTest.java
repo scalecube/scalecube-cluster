@@ -2,8 +2,6 @@ package io.scalecube.transport;
 
 import static org.junit.Assert.assertEquals;
 
-import io.scalecube.testlib.BaseTest;
-
 import org.junit.Test;
 
 public class AddressTest extends BaseTest {

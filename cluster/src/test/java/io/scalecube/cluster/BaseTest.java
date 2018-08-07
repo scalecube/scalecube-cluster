@@ -1,4 +1,4 @@
-package io.scalecube.testlib;
+package io.scalecube.cluster;
 
 import org.junit.After;
 import org.junit.Before;

@@ -4,15 +4,8 @@ import static io.scalecube.transport.TransportTestUtils.createTransport;
 import static io.scalecube.transport.TransportTestUtils.destroyTransport;
 import static org.junit.Assert.assertEquals;
 
-import io.scalecube.testlib.BaseTest;
-
 import org.junit.After;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import reactor.core.Disposable;
-import reactor.core.Exceptions;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -28,16 +21,17 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.LongStream;
 
-public class TransportSendOrderTest extends BaseTest {
+import reactor.core.Disposable;
+import reactor.core.Exceptions;
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(TransportSendOrderTest.class);
+public class TransportSendOrderTest extends BaseTest {
 
   // Auto-destroyed on tear down
   private Transport client;
   private Transport server;
 
   @After
-  public void tearDown() {
+  public final void tearDown() {
     destroyTransport(client);
     destroyTransport(server);
   }
