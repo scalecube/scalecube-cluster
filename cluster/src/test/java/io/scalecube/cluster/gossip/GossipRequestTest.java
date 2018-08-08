@@ -6,11 +6,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import io.scalecube.cluster.BaseTest;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.transport.Address;
 import io.scalecube.cluster.transport.Message;
 import io.scalecube.cluster.transport.MessageCodec;
-import io.scalecube.testlib.BaseTest;
 
 import io.netty.buffer.ByteBuf;
 

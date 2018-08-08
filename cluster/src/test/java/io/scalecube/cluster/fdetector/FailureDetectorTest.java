@@ -5,6 +5,7 @@ import static io.scalecube.cluster.membership.MemberStatus.SUSPECT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import io.scalecube.cluster.BaseTest;
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.membership.DummyMembershipProtocol;
@@ -13,7 +14,6 @@ import io.scalecube.cluster.membership.MembershipProtocol;
 import io.scalecube.cluster.transport.Address;
 import io.scalecube.cluster.transport.Transport;
 import io.scalecube.cluster.transport.TransportConfig;
-import io.scalecube.testlib.BaseTest;
 
 import org.junit.Test;
 

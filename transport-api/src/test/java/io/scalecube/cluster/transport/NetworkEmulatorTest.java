@@ -7,7 +7,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 
-public class NetworkEmulatorTest {
+public class NetworkEmulatorTest extends BaseTest {
 
   @Test
   public void testResolveLinkSettingsBySocketAddress() throws UnknownHostException {
@@ -25,7 +25,7 @@ public class NetworkEmulatorTest {
     Assert.assertEquals(10, link1.meanDelay());
 
     // Check resolve by ipaddr:port
-    byte[] byteAddr = new byte[]{(byte) 192, (byte) 168, 0, 1};
+    byte[] byteAddr = new byte[] {(byte) 192, (byte) 168, 0, 1};
     InetSocketAddress addr2 = new InetSocketAddress(InetAddress.getByAddress("localhost", byteAddr), 8765);
     NetworkLinkSettings link2 = networkEmulator.getLinkSettings(addr2);
     Assert.assertEquals(10, link2.lossPercent());

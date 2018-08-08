@@ -5,6 +5,7 @@ import static io.scalecube.cluster.ClusterMath.gossipDisseminationTime;
 import static io.scalecube.cluster.ClusterMath.maxMessagesPerGossipPerNode;
 import static io.scalecube.cluster.ClusterMath.maxMessagesPerGossipTotal;
 
+import io.scalecube.cluster.BaseTest;
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.Member;
@@ -14,7 +15,6 @@ import io.scalecube.cluster.transport.Address;
 import io.scalecube.cluster.transport.Message;
 import io.scalecube.cluster.transport.Transport;
 import io.scalecube.cluster.transport.TransportConfig;
-import io.scalecube.testlib.BaseTest;
 
 import org.junit.Assert;
 import org.junit.Test;

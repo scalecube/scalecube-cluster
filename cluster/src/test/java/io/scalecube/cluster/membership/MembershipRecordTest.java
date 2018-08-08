@@ -6,9 +6,9 @@ import static io.scalecube.cluster.membership.MemberStatus.SUSPECT;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import io.scalecube.cluster.BaseTest;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.transport.Address;
-import io.scalecube.testlib.BaseTest;
 
 import org.junit.Test;
 

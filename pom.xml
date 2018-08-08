@@ -70,21 +70,21 @@
     <protobuf.version>3.4.0</protobuf.version>
     <metrics.version>3.1.2</metrics.version>
     <jackson.version>2.9.5</jackson.version>
+    <junit.version>4.11</junit.version>
+    <mockito.version>1.9.5</mockito.version>
+    <log4j.version>2.8.2</log4j.version>
 
     <maven-gpg-plugin.version>1.6</maven-gpg-plugin.version>
     <maven-source-plugin.version>3.0.1</maven-source-plugin.version>
     <maven-javadoc-plugin.version>3.0.1</maven-javadoc-plugin.version>
-    <skipStressTests>true</skipStressTests>
   </properties>
 
   <modules>
     <module>transport-api</module>
-    <module>testlib</module>
     <module>codec</module>
     <module>netty-transport</module>
     <module>cluster</module>
     <module>examples</module>
-    <module>benchmark</module>
   </modules>
 
   <dependencyManagement>
@@ -128,13 +128,12 @@
         <version>${protobuf.version}</version>
       </dependency>
 
-      <!-- https://mvnrepository.com/artifact/io.projectreactor/reactor-core -->
+      <!-- Reactor -->
       <dependency>
         <groupId>io.projectreactor</groupId>
         <artifactId>reactor-core</artifactId>
         <version>${reactor.version}</version>
       </dependency>
-
 
       <!-- Netty -->
       <dependency>
@@ -217,6 +216,32 @@
         <groupId>io.scalecube</groupId>
         <artifactId>socketio</artifactId>
         <version>${socketio.version}</version>
+      </dependency>
+
+      <!-- Test dependencies -->
+      <dependency>
+        <groupId>junit</groupId>
+        <artifactId>junit</artifactId>
+        <version>${junit.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-core</artifactId>
+        <version>${mockito.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.logging.log4j</groupId>
+        <artifactId>log4j-slf4j-impl</artifactId>
+        <version>${log4j.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.logging.log4j</groupId>
+        <artifactId>log4j-core</artifactId>
+        <version>${log4j.version}</version>
+        <scope>test</scope>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -367,4 +392,5 @@
       </build>
     </profile>
   </profiles>
+
 </project>

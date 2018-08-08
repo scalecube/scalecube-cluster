@@ -9,16 +9,8 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import io.scalecube.cluster.transport.Address;
-import io.scalecube.cluster.transport.Message;
-import io.scalecube.cluster.transport.Transport;
-import io.scalecube.cluster.transport.TransportConfig;
-import io.scalecube.testlib.BaseTest;
-
 import org.junit.After;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.BindException;
@@ -32,14 +24,12 @@ import java.util.concurrent.TimeoutException;
 
 public class TransportTest extends BaseTest {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(TransportTest.class);
-
   // Auto-destroyed on tear down
   private Transport client;
   private Transport server;
 
   @After
-  public void tearDown() {
+  public final void tearDown() {
     destroyTransport(client);
     destroyTransport(server);
   }
