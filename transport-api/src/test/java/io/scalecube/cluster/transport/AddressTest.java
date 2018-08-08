@@ -4,7 +4,7 @@ import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
-public class AddressTest extends BaseTest {
+public class AddressTest {
 
   @Test
   public void testParseHostPort() throws Exception {

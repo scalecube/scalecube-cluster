@@ -9,6 +9,11 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import io.scalecube.cluster.transport.Address;
+import io.scalecube.cluster.transport.Message;
+import io.scalecube.cluster.transport.Transport;
+import io.scalecube.cluster.transport.TransportConfig;
+
 import org.junit.After;
 import org.junit.Test;
 

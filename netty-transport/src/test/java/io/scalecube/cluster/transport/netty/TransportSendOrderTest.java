@@ -1,11 +1,18 @@
 package io.scalecube.cluster.transport.netty;
 
-import static io.scalecube.cluster.transport.TransportTestUtils.createTransport;
-import static io.scalecube.cluster.transport.TransportTestUtils.destroyTransport;
+import static io.scalecube.cluster.transport.netty.TransportTestUtils.createTransport;
+import static io.scalecube.cluster.transport.netty.TransportTestUtils.destroyTransport;
 import static org.junit.Assert.assertEquals;
+
+import io.scalecube.cluster.transport.Address;
+import io.scalecube.cluster.transport.Message;
+import io.scalecube.cluster.transport.Transport;
 
 import org.junit.After;
 import org.junit.Test;
+
+import reactor.core.Disposable;
+import reactor.core.Exceptions;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -20,9 +27,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.LongStream;
-
-import reactor.core.Disposable;
-import reactor.core.Exceptions;
 
 public class TransportSendOrderTest extends BaseTest {
 

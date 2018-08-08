@@ -7,7 +7,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 
-public class NetworkEmulatorTest extends BaseTest {
+public class NetworkEmulatorTest {
 
   @Test
   public void testResolveLinkSettingsBySocketAddress() throws UnknownHostException {

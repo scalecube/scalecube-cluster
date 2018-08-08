@@ -1,4 +1,4 @@
-package io.scalecube.transport;
+package io.scalecube.cluster.transport.netty;
 
 import org.junit.After;
 import org.junit.Before;
