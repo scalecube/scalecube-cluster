@@ -3,17 +3,15 @@ package io.scalecube.cluster.membership;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import io.scalecube.cluster.BaseTest;
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
-import io.scalecube.testlib.BaseTest;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Transport;
 
 import org.junit.Test;
-
-import reactor.core.Exceptions;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -23,6 +21,8 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
+import reactor.core.Exceptions;
 
 public class MembershipProtocolTest extends BaseTest {
 
@@ -253,7 +253,7 @@ public class MembershipProtocolTest extends BaseTest {
       assertSuspected(cm_a, b.address(), c.address());
 
       assertTrusted(cm_b, b.address());
-      assertSuspected(cm_b,a.address(), c.address());
+      assertSuspected(cm_b, a.address(), c.address());
 
       assertTrusted(cm_c, c.address());
       assertSuspected(cm_c, a.address(), b.address());
@@ -437,24 +437,34 @@ public class MembershipProtocolTest extends BaseTest {
     Transport d = Transport.bindAwait(true);
     Transport e = Transport.bindAwait(true);
 
-    MembershipProtocolImpl cm_a = createMembership(a, testConfig(Collections.emptyList()).memberHost(localAddress).build());
-    MembershipProtocolImpl cm_b = createMembership(b, testConfig(Collections.singletonList(a.address())).memberHost(localAddress).build());
-    MembershipProtocolImpl cm_c = createMembership(c, testConfig(Collections.singletonList(a.address())).memberHost(localAddress).build());
-    MembershipProtocolImpl cm_d = createMembership(d, testConfig(Collections.singletonList(b.address())).memberHost(localAddress).build());
-    MembershipProtocolImpl cm_e = createMembership(e, testConfig(Collections.singletonList(b.address())).memberHost(localAddress).build());
+    MembershipProtocolImpl cm_a =
+        createMembership(a, testConfig(Collections.emptyList()).memberHost(localAddress).build());
+    MembershipProtocolImpl cm_b =
+        createMembership(b, testConfig(Collections.singletonList(a.address())).memberHost(localAddress).build());
+    MembershipProtocolImpl cm_c =
+        createMembership(c, testConfig(Collections.singletonList(a.address())).memberHost(localAddress).build());
+    MembershipProtocolImpl cm_d =
+        createMembership(d, testConfig(Collections.singletonList(b.address())).memberHost(localAddress).build());
+    MembershipProtocolImpl cm_e =
+        createMembership(e, testConfig(Collections.singletonList(b.address())).memberHost(localAddress).build());
 
     try {
       awaitSeconds(3);
 
-      assertTrusted(cm_a, cm_a.member().address(), cm_b.member().address(), cm_c.member().address(), cm_d.member().address(), cm_e.member().address());
+      assertTrusted(cm_a, cm_a.member().address(), cm_b.member().address(), cm_c.member().address(),
+          cm_d.member().address(), cm_e.member().address());
       assertNoSuspected(cm_a);
-      assertTrusted(cm_b, cm_a.member().address(), cm_b.member().address(), cm_c.member().address(), cm_d.member().address(), cm_e.member().address());
+      assertTrusted(cm_b, cm_a.member().address(), cm_b.member().address(), cm_c.member().address(),
+          cm_d.member().address(), cm_e.member().address());
       assertNoSuspected(cm_b);
-      assertTrusted(cm_c, cm_a.member().address(), cm_b.member().address(), cm_c.member().address(), cm_d.member().address(), cm_e.member().address());
+      assertTrusted(cm_c, cm_a.member().address(), cm_b.member().address(), cm_c.member().address(),
+          cm_d.member().address(), cm_e.member().address());
       assertNoSuspected(cm_c);
-      assertTrusted(cm_d, cm_a.member().address(), cm_b.member().address(), cm_c.member().address(), cm_d.member().address(), cm_e.member().address());
+      assertTrusted(cm_d, cm_a.member().address(), cm_b.member().address(), cm_c.member().address(),
+          cm_d.member().address(), cm_e.member().address());
       assertNoSuspected(cm_d);
-      assertTrusted(cm_e, cm_a.member().address(), cm_b.member().address(), cm_c.member().address(), cm_d.member().address(), cm_e.member().address());
+      assertTrusted(cm_e, cm_a.member().address(), cm_b.member().address(), cm_c.member().address(),
+          cm_d.member().address(), cm_e.member().address());
       assertNoSuspected(cm_e);
     } finally {
       stopAll(cm_a, cm_b, cm_c, cm_d, cm_e);
@@ -462,34 +472,34 @@ public class MembershipProtocolTest extends BaseTest {
   }
 
   @Test
-  public void testMemberAddressOverrides()  {
+  public void testMemberAddressOverrides() {
     Transport t = Transport.bindAwait(true);
     String host = "host1";
 
     // Default behavior
     Address address = MembershipProtocolImpl.memberAddress(t,
-            testConfig(Collections.emptyList())
+        testConfig(Collections.emptyList())
             .build());
     assertEquals(t.address(), address);
 
     // Override host only
     address = MembershipProtocolImpl.memberAddress(t,
-              testConfig(Collections.emptyList())
-                .memberHost(host)
-              .build());
+        testConfig(Collections.emptyList())
+            .memberHost(host)
+            .build());
     assertEquals(Address.create(host, t.address().port()), address);
 
     // Override host and port
     address = MembershipProtocolImpl.memberAddress(t,
-              testConfig(Collections.emptyList())
-                .memberHost(host).memberPort(80)
-              .build());
+        testConfig(Collections.emptyList())
+            .memberHost(host).memberPort(80)
+            .build());
     assertEquals(Address.create(host, 80), address);
 
     // Override port only (override is ignored)
     address = MembershipProtocolImpl.memberAddress(t,
-            testConfig(Collections.emptyList())
-                .memberPort(8080)
+        testConfig(Collections.emptyList())
+            .memberPort(8080)
             .build());
     assertEquals(t.address(), address);
   }
@@ -504,19 +514,18 @@ public class MembershipProtocolTest extends BaseTest {
 
   private ClusterConfig overrideConfig(Address seedAddress, String memberHost) {
     return testConfig(seedAddress != null
-            ? Collections.singletonList(seedAddress)
-            : Collections.emptyList()
-    ).memberHost(memberHost).build();
+        ? Collections.singletonList(seedAddress)
+        : Collections.emptyList()).memberHost(memberHost).build();
   }
 
   private ClusterConfig.Builder testConfig(List<Address> seedAddresses) {
     // Create faster config for local testing
     return ClusterConfig.builder()
-            .seedMembers(seedAddresses)
-            .syncInterval(2000)
-            .syncTimeout(1000)
-            .pingInterval(TEST_PING_INTERVAL)
-            .pingTimeout(100);
+        .seedMembers(seedAddresses)
+        .syncInterval(2000)
+        .syncTimeout(1000)
+        .pingInterval(TEST_PING_INTERVAL)
+        .pingTimeout(100);
   }
 
   private MembershipProtocolImpl createMembership(Transport transport, List<Address> seedAddresses) {
