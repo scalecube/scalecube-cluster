@@ -63,8 +63,6 @@
     <slf4j.version>1.7.7</slf4j.version>
     <netty.version>4.1.25.Final</netty.version>
     <reactor.version>3.1.8.RELEASE</reactor.version>
-    <rsocket.version>0.11.3</rsocket.version>
-    <reactor-netty.version>0.7.8.RELEASE</reactor-netty.version>
     <socketio.version>2.3.0</socketio.version>
     <protostuff.version>1.6.0</protostuff.version>
     <protobuf.version>3.4.0</protobuf.version>
@@ -173,25 +171,6 @@
         <version>${netty.version}</version>
       </dependency>
 
-      <!-- RSocket -->
-      <dependency>
-        <groupId>io.rsocket</groupId>
-        <artifactId>rsocket-core</artifactId>
-        <version>${rsocket.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.rsocket</groupId>
-        <artifactId>rsocket-transport-netty</artifactId>
-        <version>${rsocket.version}</version>
-      </dependency>
-
-      <!-- Reactor Netty -->
-      <dependency>
-        <groupId>io.projectreactor.ipc</groupId>
-        <artifactId>reactor-netty</artifactId>
-        <version>${reactor-netty.version}</version>
-      </dependency>
-
       <!-- Dropwizard -->
       <dependency>
         <groupId>io.dropwizard.metrics</groupId>
@@ -298,7 +277,6 @@
             <id>checkstyle</id>
             <phase>verify</phase>
             <configuration>
-              <skip>false</skip>
               <configLocation>checkstyle.xml</configLocation>
               <encoding>UTF-8</encoding>
               <consoleOutput>true</consoleOutput>
