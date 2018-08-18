@@ -8,9 +8,9 @@ import static org.junit.Assert.assertTrue;
 
 import io.scalecube.cluster.BaseTest;
 import io.scalecube.cluster.Member;
-import io.scalecube.transport.Address;
-import io.scalecube.transport.Message;
-import io.scalecube.transport.MessageCodec;
+import io.scalecube.cluster.transport.Address;
+import io.scalecube.cluster.transport.Message;
+import io.scalecube.cluster.transport.MessageCodec;
 
 import io.netty.buffer.ByteBuf;
 

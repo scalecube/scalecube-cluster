@@ -8,7 +8,7 @@ import static org.junit.Assert.assertTrue;
 
 import io.scalecube.cluster.BaseTest;
 import io.scalecube.cluster.Member;
-import io.scalecube.transport.Address;
+import io.scalecube.cluster.transport.Address;
 
 import org.junit.Test;
 

@@ -8,8 +8,8 @@ import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
-import io.scalecube.transport.Address;
-import io.scalecube.transport.Transport;
+import io.scalecube.cluster.transport.Address;
+import io.scalecube.cluster.transport.Transport;
 
 import org.junit.Test;
 

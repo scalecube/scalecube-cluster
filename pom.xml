@@ -30,8 +30,7 @@
   <scm>
     <url>https://github.com/scalecube/scalecube-cluster</url>
     <connection>scm:git:git@github.com:scalecube/scalecube-cluster.git</connection>
-    <developerConnection>scm:git:git@github.com:scalecube/scalecube-cluster.git
-    </developerConnection>
+    <developerConnection>scm:git:git@github.com:scalecube/scalecube-cluster.git</developerConnection>
     <tag>HEAD</tag>
   </scm>
 
@@ -79,7 +78,9 @@
   </properties>
 
   <modules>
-    <module>transport</module>
+    <module>transport-api</module>
+    <module>codec</module>
+    <module>netty-transport</module>
     <module>cluster</module>
     <module>examples</module>
   </modules>

@@ -15,8 +15,18 @@
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>scalecube-transport</artifactId>
+      <artifactId>scalecube-cluster-transport-api</artifactId>
       <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.protostuff</groupId>
+      <artifactId>protostuff-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>scalecube-cluster-netty-transport</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
     </dependency>
     <!-- Test dependencies -->
     <dependency>

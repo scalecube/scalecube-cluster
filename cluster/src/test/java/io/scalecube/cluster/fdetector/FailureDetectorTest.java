@@ -11,9 +11,9 @@ import io.scalecube.cluster.Member;
 import io.scalecube.cluster.membership.DummyMembershipProtocol;
 import io.scalecube.cluster.membership.MemberStatus;
 import io.scalecube.cluster.membership.MembershipProtocol;
-import io.scalecube.transport.Address;
-import io.scalecube.transport.Transport;
-import io.scalecube.transport.TransportConfig;
+import io.scalecube.cluster.transport.Address;
+import io.scalecube.cluster.transport.Transport;
+import io.scalecube.cluster.transport.TransportConfig;
 
 import org.junit.Test;
 

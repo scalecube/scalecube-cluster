@@ -3,8 +3,8 @@ package io.scalecube.cluster;
 import io.scalecube.cluster.fdetector.FailureDetectorConfig;
 import io.scalecube.cluster.gossip.GossipConfig;
 import io.scalecube.cluster.membership.MembershipConfig;
-import io.scalecube.transport.Address;
-import io.scalecube.transport.TransportConfig;
+import io.scalecube.cluster.transport.Address;
+import io.scalecube.cluster.transport.TransportConfig;
 
 import java.util.ArrayList;
 import java.util.Arrays;

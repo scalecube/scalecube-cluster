@@ -1,9 +1,9 @@
 package io.scalecube.cluster;
 
 import io.scalecube.cluster.membership.MembershipEvent;
-import io.scalecube.transport.Address;
-import io.scalecube.transport.Message;
-import io.scalecube.transport.NetworkEmulator;
+import io.scalecube.cluster.transport.Address;
+import io.scalecube.cluster.transport.Message;
+import io.scalecube.cluster.transport.NetworkEmulator;
 
 import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;

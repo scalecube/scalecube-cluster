@@ -4,8 +4,8 @@ import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipProtocol;
-import io.scalecube.transport.Message;
-import io.scalecube.transport.Transport;
+import io.scalecube.cluster.transport.Message;
+import io.scalecube.cluster.transport.Transport;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
