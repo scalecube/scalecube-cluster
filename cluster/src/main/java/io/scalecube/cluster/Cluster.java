@@ -66,6 +66,9 @@ public interface Cluster {
 
   /**
    * Init cluster instance with the given metadata and seed members and join cluster synchronously.
+   *
+   * @param metadata metadata
+   * @param seedMembers seed members
    */
   static CompletableFuture<Cluster> join(Map<String, String> metadata, Address... seedMembers) {
     ClusterConfig config =
@@ -73,12 +76,21 @@ public interface Cluster {
     return join(config);
   }
 
-  /** Init cluster instance with the given configuration and join cluster synchronously. */
+  /**
+   * Init cluster instance with the given configuration and join cluster synchronously.
+   *
+   * @param config cluster config
+   * @return result future
+   */
   static CompletableFuture<Cluster> join(final ClusterConfig config) {
     return new ClusterImpl(config).join0();
   }
 
-  /** Returns local listen {@link Address} of this cluster instance. */
+  /**
+   * Returns local listen {@link Address} of this cluster instance.
+   *
+   * @return local server address
+   */
   Address address();
 
   void send(Member member, Message message);
@@ -91,34 +103,57 @@ public interface Cluster {
 
   Flux<Message> listen();
 
-  /** Spreads given message between cluster members using gossiping protocol. */
+  /**
+   * Spreads given message between cluster members using gossiping protocol.
+   *
+   * @param message message to disseminate.
+   * @return result future
+   */
   CompletableFuture<String> spreadGossip(Message message);
 
-  /** Listens for gossips from other cluster members. */
+  /**
+   * Listens for gossips from other cluster members.
+   *
+   * @return gossip publisher
+   */
   Flux<Message> listenGossips();
 
-  /** Returns local cluster member which corresponds to this cluster instance. */
+  /**
+   * Returns local cluster member which corresponds to this cluster instance.
+   *
+   * @return local member
+   */
   Member member();
 
   /**
    * Returns cluster member with given id or null if no member with such id exists at joined
    * cluster.
+   *
+   * @return member by id
    */
   Optional<Member> member(String id);
 
   /**
    * Returns cluster member by given address or null if no member with such address exists at joined
    * cluster.
+   *
+   * @return member by address
    */
   Optional<Member> member(Address address);
 
   /**
    * Returns list of all members of the joined cluster. This will include all cluster members
    * including local member.
+   *
+   * @return all members in the cluster (including local one)
    */
   Collection<Member> members();
 
-  /** Returns list of all cluster members of the joined cluster excluding local member. */
+  /**
+   * Returns list of all cluster members of the joined cluster excluding local member.
+   *
+   * @return all members in the cluster (excluding local one)
+   */
   Collection<Member> otherMembers();
 
   /**
@@ -141,7 +176,11 @@ public interface Cluster {
    */
   void updateMetadataProperty(String key, String value);
 
-  /** Listen changes in cluster membership. */
+  /**
+   * Listen changes in cluster membership.
+   *
+   * @return membershiop publisher
+   */
   Flux<MembershipEvent> listenMembership();
 
   /**
@@ -163,6 +202,8 @@ public interface Cluster {
    * Returns network emulator associated with this instance of cluster. It always returns non null
    * instance even if network emulator is disabled by transport config. In case when network
    * emulator is disable all calls to network emulator instance will result in no operation.
+   *
+   * @return network emulator object
    */
   NetworkEmulator networkEmulator();
 }

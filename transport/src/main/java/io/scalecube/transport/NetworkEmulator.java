@@ -13,6 +13,8 @@ import org.slf4j.LoggerFactory;
  * Network Emulator is allowing to control link quality between endpoints in order to allow testing
  * of message loss, message delay, cluster partitions cluster recovery and other network related
  * conditions.
+ *
+ * <p>NOTE: used for test purposes.
  */
 public final class NetworkEmulator {
 
