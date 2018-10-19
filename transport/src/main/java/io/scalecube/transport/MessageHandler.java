@@ -24,7 +24,6 @@ final class MessageHandler extends ChannelInboundHandlerAdapter {
     this.incomingMessagesSubject = incomingMessagesSubject;
   }
 
-  /** Publish {@code msg} on the incoming messages observable. */
   @Override
   public void channelRead(ChannelHandlerContext ctx, Object msg) {
     Message message = (Message) msg;

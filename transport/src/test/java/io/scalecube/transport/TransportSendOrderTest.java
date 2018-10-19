@@ -29,6 +29,7 @@ public class TransportSendOrderTest extends BaseTest {
   private Transport client;
   private Transport server;
 
+  /** Tear down. */
   @AfterEach
   public final void tearDown() {
     destroyTransport(client);
@@ -49,7 +50,7 @@ public class TransportSendOrderTest extends BaseTest {
       final List<Message> received = new ArrayList<>();
       final CountDownLatch latch = new CountDownLatch(sentPerIteration);
 
-      Disposable serverSubscriber =
+      final Disposable serverSubscriber =
           server
               .listen()
               .subscribe(
@@ -96,7 +97,7 @@ public class TransportSendOrderTest extends BaseTest {
       final List<Message> received = new ArrayList<>();
       final CountDownLatch latch = new CountDownLatch(sentPerIteration);
 
-      Disposable serverSubscriber =
+      final Disposable serverSubscriber =
           server
               .listen()
               .subscribe(
@@ -111,7 +112,7 @@ public class TransportSendOrderTest extends BaseTest {
         long sentAt = System.currentTimeMillis();
         client.send(server.address(), Message.fromQualifier("q" + j), sendPromise);
         sendPromise.whenComplete(
-            (aVoid, exception) -> {
+            (avoid, exception) -> {
               if (exception == null) {
                 long sentTime = System.currentTimeMillis() - sentAt;
                 iterSentTimeSeries.add(sentTime);
@@ -184,10 +185,10 @@ public class TransportSendOrderTest extends BaseTest {
                 latch.countDown();
               });
 
-      Future<Void> f0 = exec.submit(sender(0, client, server.address(), total));
-      Future<Void> f1 = exec.submit(sender(1, client, server.address(), total));
-      Future<Void> f2 = exec.submit(sender(2, client, server.address(), total));
-      Future<Void> f3 = exec.submit(sender(3, client, server.address(), total));
+      final Future<Void> f0 = exec.submit(sender(0, client, server.address(), total));
+      final Future<Void> f1 = exec.submit(sender(1, client, server.address(), total));
+      final Future<Void> f2 = exec.submit(sender(2, client, server.address(), total));
+      final Future<Void> f3 = exec.submit(sender(3, client, server.address(), total));
 
       latch.await(20, TimeUnit.SECONDS);
 

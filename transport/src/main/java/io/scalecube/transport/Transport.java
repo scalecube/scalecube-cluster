@@ -91,7 +91,11 @@ public interface Transport {
    */
   void stop(CompletableFuture<Void> promise);
 
-  /** @return true if transport was stopped; false otherwise. */
+  /**
+   * Return transport's stopped state.
+   *
+   * @return true if transport was stopped; false otherwise
+   */
   boolean isStopped();
 
   /**

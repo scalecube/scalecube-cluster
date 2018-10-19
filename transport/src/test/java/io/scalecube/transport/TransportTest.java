@@ -29,6 +29,7 @@ public class TransportTest extends BaseTest {
   private Transport client;
   private Transport server;
 
+  /** Tear down. */
   @AfterEach
   public final void tearDown() {
     destroyTransport(client);
@@ -168,7 +169,7 @@ public class TransportTest extends BaseTest {
   }
 
   @Test
-  public void testPingPongClientTFListenAndServerTFListen() throws Exception {
+  public void testPingPongClientTfListenAndServerTfListen() throws Exception {
     client = createTransport();
     server = createTransport();
 
@@ -280,7 +281,12 @@ public class TransportTest extends BaseTest {
 
     server
         .listen()
-        .subscribe(messageLatch::complete, errorConsumer -> {}, () -> completeLatch.complete(true));
+        .subscribe(
+            messageLatch::complete,
+            errorConsumer -> {
+              // no-op
+            },
+            () -> completeLatch.complete(true));
 
     CompletableFuture<Void> send = new CompletableFuture<>();
     client.send(server.address(), Message.fromData("q"), send);

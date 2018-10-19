@@ -20,7 +20,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Protostuff schema for {@link Message}. */
+/**
+ * Protostuff schema for {@link Message}.
+ *
+ * <p>Used to enhance a speed of encoding and decoding message for cluster transport.
+ */
 final class MessageSchema implements Schema<Message> {
   private static final Logger LOGGER = LoggerFactory.getLogger(MessageSchema.class);
 

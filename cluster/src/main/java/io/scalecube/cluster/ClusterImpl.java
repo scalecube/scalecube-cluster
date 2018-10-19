@@ -111,7 +111,7 @@ final class ClusterImpl implements Cluster {
                                   msg.qualifier())); // filter out system gossips
               return membership.start();
             });
-    return clusterFuture.thenApply(aVoid -> ClusterImpl.this);
+    return clusterFuture.thenApply(avoid -> ClusterImpl.this);
   }
 
   private void onError(Throwable throwable) {

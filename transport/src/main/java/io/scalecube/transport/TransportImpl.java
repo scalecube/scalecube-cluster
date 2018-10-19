@@ -1,6 +1,5 @@
 package io.scalecube.transport;
 
-import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
@@ -30,6 +29,10 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxProcessor;
 import reactor.core.publisher.FluxSink;
 
+/**
+ * Default transport implementation based on tcp netty client and server implementation and protobuf
+ * codec.
+ */
 final class TransportImpl implements Transport {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(TransportImpl.class);
@@ -104,24 +107,21 @@ final class TransportImpl implements Transport {
     // Get address object and bind
     ChannelFuture bindFuture = server.bind(listenAddress, bindPort);
     bindFuture.addListener(
-        (ChannelFutureListener)
-            channelFuture -> {
-              if (channelFuture.isSuccess()) {
-                serverChannel = (ServerChannel) channelFuture.channel();
-                address = toAddress(serverChannel.localAddress());
-                networkEmulator = new NetworkEmulator(address, config.isUseNetworkEmulator());
-                networkEmulatorHandler =
-                    config.isUseNetworkEmulator()
-                        ? new NetworkEmulatorHandler(networkEmulator)
-                        : null;
-                LOGGER.info("Bound to: {}", address);
-                result.complete(TransportImpl.this);
-              } else {
-                Throwable cause = channelFuture.cause();
-                LOGGER.error("Failed to bind to: {}, cause: {}", listenAddress, cause);
-                result.completeExceptionally(cause);
-              }
-            });
+        channelFuture -> {
+          if (channelFuture.isSuccess()) {
+            serverChannel = (ServerChannel) ((ChannelFuture) channelFuture).channel();
+            address = toAddress(serverChannel.localAddress());
+            networkEmulator = new NetworkEmulator(address, config.isUseNetworkEmulator());
+            networkEmulatorHandler =
+                config.isUseNetworkEmulator() ? new NetworkEmulatorHandler(networkEmulator) : null;
+            LOGGER.info("Bound to: {}", address);
+            result.complete(TransportImpl.this);
+          } else {
+            Throwable cause = channelFuture.cause();
+            LOGGER.error("Failed to bind to: {}, cause: {}", listenAddress, cause);
+            result.completeExceptionally(cause);
+          }
+        });
     return result;
   }
 
@@ -247,32 +247,30 @@ final class TransportImpl implements Transport {
   }
 
   private ChannelFuture connect(Address address) {
-    OutgoingChannelInitializer channelInitializer = new OutgoingChannelInitializer(address);
-    Bootstrap client = bootstrapFactory.clientBootstrap().handler(channelInitializer);
-    ChannelFuture connectFuture = client.connect(address.host(), address.port());
-
     // Register logger and cleanup listener
-    connectFuture.addListener(
-        (ChannelFutureListener)
+    return bootstrapFactory
+        .clientBootstrap()
+        .handler(new OutgoingChannelInitializer(address))
+        .connect(address.host(), address.port())
+        .addListener(
             channelFuture -> {
               if (channelFuture.isSuccess()) {
                 LOGGER.debug(
                     "Connected from {} to {}: {}",
                     TransportImpl.this.address,
                     address,
-                    channelFuture.channel());
+                    ((ChannelFuture) channelFuture).channel());
               } else {
                 LOGGER.warn("Failed to connect from {} to {}", TransportImpl.this.address, address);
                 outgoingChannels.remove(address);
               }
             });
-    return connectFuture;
   }
 
   @ChannelHandler.Sharable
   private final class IncomingChannelInitializer extends ChannelInitializer {
     @Override
-    protected void initChannel(Channel channel) throws Exception {
+    protected void initChannel(Channel channel) {
       ChannelPipeline pipeline = channel.pipeline();
       pipeline.addLast(new ProtobufVarint32FrameDecoder());
       pipeline.addLast(deserializerHandler);
@@ -290,7 +288,7 @@ final class TransportImpl implements Transport {
     }
 
     @Override
-    protected void initChannel(Channel channel) throws Exception {
+    protected void initChannel(Channel channel) {
       ChannelPipeline pipeline = channel.pipeline();
       pipeline.addLast(
           new ChannelDuplexHandler() {

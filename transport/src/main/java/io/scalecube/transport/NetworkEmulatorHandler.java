@@ -6,7 +6,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
 import java.net.InetSocketAddress;
-import java.util.concurrent.Callable;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
@@ -46,11 +45,10 @@ final class NetworkEmulatorHandler extends ChannelOutboundHandlerAdapter {
         ctx.channel()
             .eventLoop()
             .schedule(
-                (Callable<Void>)
-                    () -> {
-                      ctx.writeAndFlush(msg, promise);
-                      return null;
-                    },
+                () -> {
+                  ctx.writeAndFlush(msg, promise);
+                  return null;
+                },
                 delay,
                 TimeUnit.MILLISECONDS);
       } catch (RejectedExecutionException e) {

@@ -38,7 +38,8 @@ final class BootstrapFactory {
         LOGGER.info("Use epoll transport");
       } catch (Throwable t) {
         LOGGER.warn(
-            "Tried to use epoll transport, but it's not supported by host OS (or no corresponding libs included) "
+            "Tried to use epoll transport, "
+                + "but it's not supported by host OS (or no corresponding libs included) "
                 + "using NIO instead, cause: "
                 + getRootCause(t));
         envSupportEpoll = false;
@@ -50,6 +51,11 @@ final class BootstrapFactory {
   private final EventLoopGroup bossGroup;
   private final EventLoopGroup workerGroup;
 
+  /**
+   * Construictor for bootstrap factory.
+   *
+   * @param config transport config
+   */
   public BootstrapFactory(TransportConfig config) {
     this.config = config;
     this.bossGroup =
@@ -58,6 +64,11 @@ final class BootstrapFactory {
         createEventLoopGroup(config.getWorkerThreads(), new DefaultThreadFactory("sc-io", true));
   }
 
+  /**
+   * Creates netty server bootstrap.
+   *
+   * @return server bootstrap
+   */
   public ServerBootstrap serverBootstrap() {
     ServerBootstrap bootstrap = new ServerBootstrap();
     bootstrap
@@ -70,6 +81,11 @@ final class BootstrapFactory {
     return bootstrap;
   }
 
+  /**
+   * Creates netty client bootstrap.
+   *
+   * @return client bootstrap
+   */
   public Bootstrap clientBootstrap() {
     Bootstrap bootstrap = new Bootstrap();
     bootstrap
@@ -84,6 +100,10 @@ final class BootstrapFactory {
   }
 
   /**
+   * Creates event loop group with given thread num and thread factory.
+   *
+   * @param threadNum thread number
+   * @param threadFactory thread factory
    * @return {@link EpollEventLoopGroup} or {@link NioEventLoopGroup} object dep on {@link
    *     #isEpollSupported()} call.
    */

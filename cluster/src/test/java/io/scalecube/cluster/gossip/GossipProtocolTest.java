@@ -87,7 +87,7 @@ public class GossipProtocolTest extends BaseTest {
   private final int lossPercent;
   private final int meanDelay;
 
-  public GossipProtocolTest(int membersNum, int lossPercent, int meanDelay) {
+  GossipProtocolTest(int membersNum, int lossPercent, int meanDelay) {
     this.membersNum = membersNum;
     this.lossPercent = lossPercent;
     this.meanDelay = meanDelay;
@@ -165,7 +165,8 @@ public class GossipProtocolTest extends BaseTest {
     } finally {
       // Print theoretical results
       LOGGER.info(
-          "Experiment params: N={}, Gfanout={}, Grepeat_mult={}, Tgossip={}ms Ploss={}%, Tmean={}ms",
+          "Experiment params: "
+              + "N={}, Gfanout={}, Grepeat_mult={}, Tgossip={}ms Ploss={}%, Tmean={}ms",
           membersNum, gossipFanout, gossipRepeatMultiplier, gossipInterval, lossPercent, meanDelay);
       double convergProb =
           gossipConvergencePercent(gossipFanout, gossipRepeatMultiplier, membersNum, lossPercent);

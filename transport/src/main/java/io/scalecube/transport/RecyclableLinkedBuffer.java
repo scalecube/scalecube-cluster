@@ -30,6 +30,8 @@ final class RecyclableLinkedBuffer implements AutoCloseable {
   }
 
   /**
+   * Constructor for recycled linked buffer.
+   *
    * @param bufferSize {@link io.protostuff.LinkedBuffer}'s buffer size.
    * @param maxCapacity {@link io.netty.util.Recycler}'s.
    */

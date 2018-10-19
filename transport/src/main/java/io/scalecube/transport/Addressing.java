@@ -79,8 +79,12 @@ public final class Addressing {
   }
 
   /**
+   * Return inet address bound to passed listen interface.
+   *
+   * @param listenInterface NIC to listen
+   * @param preferIPv6 should ip v6 be preferred over ip v4
    * @return {@link InetAddress} by network interface name and a flag indicating whether returned IP
-   *     address will be IPv4 or IPv6.
+   *     * address will be IPv4 or IPv6.
    */
   private static InetAddress getNetworkInterfaceIpAddress(
       String listenInterface, boolean preferIPv6) {
@@ -122,8 +126,15 @@ public final class Addressing {
     }
   }
 
-  /** @return boolean indicating whether given address belongs to any active network interface. */
-  private static boolean isValidLocalIpAddress(InetAddress listenAddress) {
+  /**
+   * Validates local ip address.
+   *
+   * @param listenAddress listen address parameter
+   * @return boolean indicating whether given address belongs to any active network interface
+   * @throws IllegalArgumentException in case validation fails
+   */
+  private static boolean isValidLocalIpAddress(InetAddress listenAddress)
+      throws IllegalArgumentException {
     List<NetworkInterface> networkInterfaces;
     try {
       networkInterfaces = Collections.list(NetworkInterface.getNetworkInterfaces());

@@ -16,6 +16,7 @@ public class BaseTest {
     LOGGER.info("***** Test started  : " + testInfo.getDisplayName() + " *****");
   }
 
+  /** Tear down. */
   @AfterEach
   public final void baseTearDown(TestInfo testInfo) {
     LOGGER.info("***** Test finished : " + testInfo.getDisplayName() + " *****");

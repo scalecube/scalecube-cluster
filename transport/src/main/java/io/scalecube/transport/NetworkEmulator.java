@@ -88,7 +88,8 @@ public final class NetworkEmulator {
   public void setLinkSettings(Address destination, int lossPercent, int meanDelay) {
     if (!enabled) {
       LOGGER.warn(
-          "Can't set network settings (loss={}%, mean={}ms) from {} to {} since network emulator is disabled",
+          "Can't set network settings (loss={}%, mean={}ms) "
+              + "from {} to {} since network emulator is disabled",
           lossPercent, meanDelay, address, destination);
       return;
     }
@@ -108,7 +109,8 @@ public final class NetworkEmulator {
   public void setDefaultLinkSettings(int lossPercent, int meanDelay) {
     if (!enabled) {
       LOGGER.warn(
-          "Can't set default network settings (loss={}%, mean={}ms) for {} since network emulator is disabled",
+          "Can't set default network settings (loss={}%, mean={}ms) "
+              + "for {} since network emulator is disabled",
           lossPercent, meanDelay, address);
       return;
     }
@@ -171,7 +173,11 @@ public final class NetworkEmulator {
     LOGGER.info("Unblocked network from {} to {}", address, destinations);
   }
 
-  /** Unblock messages to all destinations. If network emulator is disabled do nothing. */
+  /**
+   * Unblock messages to all destinations.
+   *
+   * <p>If network emulator is disabled do nothing.
+   */
   public void unblockAll() {
     if (!enabled) {
       LOGGER.warn("Can't unblock network from {} since network emulator is disabled", address);
