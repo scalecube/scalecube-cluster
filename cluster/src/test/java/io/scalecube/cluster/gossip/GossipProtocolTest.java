@@ -29,19 +29,20 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.junit.jupiter.api.Test;
+import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class GossipProtocolTest extends BaseTest {
+class GossipProtocolTest extends BaseTest {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GossipProtocolTest.class);
 
-  private static List<Object[]> experiments =
+  private static final List<int[]> experiments =
       Arrays.asList(
-          new Object[][] {
+          new int[][] {
             // N , L , D // N - num of nodes, L - msg loss percent, D - msg mean delay (ms)
             {2, 0, 2}, // warm up
             {2, 0, 2},
@@ -79,24 +80,14 @@ public class GossipProtocolTest extends BaseTest {
   // }
   // }
 
-  public static List<Object[]> experiments() {
-    return experiments;
+  static Stream<Arguments> experiment() {
+    return experiments.stream().map(objects -> Arguments.of(objects[0], objects[1], objects[2]));
   }
 
-  private final int membersNum;
-  private final int lossPercent;
-  private final int meanDelay;
-
-  GossipProtocolTest(int membersNum, int lossPercent, int meanDelay) {
-    this.membersNum = membersNum;
-    this.lossPercent = lossPercent;
-    this.meanDelay = meanDelay;
-  }
-
-  @Test
   @ParameterizedTest(name = "N={0}, Ploss={1}%, Tmean={2}ms")
-  @MethodSource("experiments")
-  public void testGossipProtocol() throws Exception {
+  @MethodSource("experiment")
+  void testGossipProtocol(int membersNum, int lossPercent, int meanDelay)
+      throws Exception {
     // Init gossip protocol instances
     List<GossipProtocolImpl> gossipProtocols =
         initGossipProtocols(membersNum, lossPercent, meanDelay);
