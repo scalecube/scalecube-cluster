@@ -383,6 +383,11 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
       return this;
     }
 
+    /**
+     * Creates new clsuter config out of this builder.
+     *
+     * @return cluster config object
+     */
     public ClusterConfig build() {
       if (pingTimeout >= pingInterval) {
         throw new IllegalStateException("Ping timeout can't be bigger than ping interval");

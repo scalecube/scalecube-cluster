@@ -12,6 +12,12 @@ public class DummyMembershipProtocol implements MembershipProtocol {
   private Member localMember;
   private List<Member> remoteMembers = new ArrayList<>();
 
+  /**
+   * Construcotr for dummy membership protocol.
+   *
+   * @param localAddress local addtess
+   * @param allAddresses all addresses
+   */
   public DummyMembershipProtocol(Address localAddress, List<Address> allAddresses) {
     int count = 0;
     for (Address address : allAddresses) {

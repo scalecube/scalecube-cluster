@@ -1,6 +1,10 @@
 package io.scalecube.cluster;
 
-/** Utility class which contains math computation on cluster properties. */
+/**
+ * Utility class which contains math computation on cluster properties.
+ *
+ * <p>Used for test purposes.
+ */
 public final class ClusterMath {
 
   private ClusterMath() {
@@ -49,7 +53,12 @@ public final class ClusterMath {
     return suspicionMult * ceilLog2(clusterSize) * pingInterval;
   }
 
-  /** Returns ceil(log2(n + 1)). */
+  /**
+   * Returns ceil(log2(n + 1)).
+   *
+   * @param num num
+   * @return ceil(log2(n + 1))
+   */
   public static int ceilLog2(int num) {
     return 32 - Integer.numberOfLeadingZeros(num);
   }
