@@ -1,7 +1,7 @@
 package io.scalecube.cluster.membership;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.scalecube.cluster.BaseTest;
 import io.scalecube.cluster.ClusterConfig;
@@ -10,9 +10,6 @@ import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Transport;
-
-import org.junit.Test;
-
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Arrays;
@@ -21,7 +18,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-
+import org.junit.jupiter.api.Test;
 import reactor.core.Exceptions;
 
 public class MembershipProtocolTest extends BaseTest {
@@ -316,7 +313,8 @@ public class MembershipProtocolTest extends BaseTest {
       assertSuspected(cm_d, a.address(), b.address());
 
       long suspicionTimeoutSec =
-          ClusterMath.suspicionTimeout(ClusterConfig.DEFAULT_SUSPICION_MULT, 4, TEST_PING_INTERVAL) / 1000;
+          ClusterMath.suspicionTimeout(ClusterConfig.DEFAULT_SUSPICION_MULT, 4, TEST_PING_INTERVAL)
+              / 1000;
       awaitSeconds(suspicionTimeoutSec + 1); // > max suspect time
 
       assertTrusted(cm_a, a.address(), b.address());
@@ -367,7 +365,8 @@ public class MembershipProtocolTest extends BaseTest {
       assertSuspected(cm_b, c.address(), d.address());
 
       long suspicionTimeoutSec =
-          ClusterMath.suspicionTimeout(ClusterConfig.DEFAULT_SUSPICION_MULT, 4, TEST_PING_INTERVAL) / 1000;
+          ClusterMath.suspicionTimeout(ClusterConfig.DEFAULT_SUSPICION_MULT, 4, TEST_PING_INTERVAL)
+              / 1000;
       awaitSeconds(suspicionTimeoutSec + 1); // > max suspect time
 
       assertTrusted(cm_a, a.address(), b.address());
@@ -440,31 +439,60 @@ public class MembershipProtocolTest extends BaseTest {
     MembershipProtocolImpl cm_a =
         createMembership(a, testConfig(Collections.emptyList()).memberHost(localAddress).build());
     MembershipProtocolImpl cm_b =
-        createMembership(b, testConfig(Collections.singletonList(a.address())).memberHost(localAddress).build());
+        createMembership(
+            b, testConfig(Collections.singletonList(a.address())).memberHost(localAddress).build());
     MembershipProtocolImpl cm_c =
-        createMembership(c, testConfig(Collections.singletonList(a.address())).memberHost(localAddress).build());
+        createMembership(
+            c, testConfig(Collections.singletonList(a.address())).memberHost(localAddress).build());
     MembershipProtocolImpl cm_d =
-        createMembership(d, testConfig(Collections.singletonList(b.address())).memberHost(localAddress).build());
+        createMembership(
+            d, testConfig(Collections.singletonList(b.address())).memberHost(localAddress).build());
     MembershipProtocolImpl cm_e =
-        createMembership(e, testConfig(Collections.singletonList(b.address())).memberHost(localAddress).build());
+        createMembership(
+            e, testConfig(Collections.singletonList(b.address())).memberHost(localAddress).build());
 
     try {
       awaitSeconds(3);
 
-      assertTrusted(cm_a, cm_a.member().address(), cm_b.member().address(), cm_c.member().address(),
-          cm_d.member().address(), cm_e.member().address());
+      assertTrusted(
+          cm_a,
+          cm_a.member().address(),
+          cm_b.member().address(),
+          cm_c.member().address(),
+          cm_d.member().address(),
+          cm_e.member().address());
       assertNoSuspected(cm_a);
-      assertTrusted(cm_b, cm_a.member().address(), cm_b.member().address(), cm_c.member().address(),
-          cm_d.member().address(), cm_e.member().address());
+      assertTrusted(
+          cm_b,
+          cm_a.member().address(),
+          cm_b.member().address(),
+          cm_c.member().address(),
+          cm_d.member().address(),
+          cm_e.member().address());
       assertNoSuspected(cm_b);
-      assertTrusted(cm_c, cm_a.member().address(), cm_b.member().address(), cm_c.member().address(),
-          cm_d.member().address(), cm_e.member().address());
+      assertTrusted(
+          cm_c,
+          cm_a.member().address(),
+          cm_b.member().address(),
+          cm_c.member().address(),
+          cm_d.member().address(),
+          cm_e.member().address());
       assertNoSuspected(cm_c);
-      assertTrusted(cm_d, cm_a.member().address(), cm_b.member().address(), cm_c.member().address(),
-          cm_d.member().address(), cm_e.member().address());
+      assertTrusted(
+          cm_d,
+          cm_a.member().address(),
+          cm_b.member().address(),
+          cm_c.member().address(),
+          cm_d.member().address(),
+          cm_e.member().address());
       assertNoSuspected(cm_d);
-      assertTrusted(cm_e, cm_a.member().address(), cm_b.member().address(), cm_c.member().address(),
-          cm_d.member().address(), cm_e.member().address());
+      assertTrusted(
+          cm_e,
+          cm_a.member().address(),
+          cm_b.member().address(),
+          cm_c.member().address(),
+          cm_d.member().address(),
+          cm_e.member().address());
       assertNoSuspected(cm_e);
     } finally {
       stopAll(cm_a, cm_b, cm_c, cm_d, cm_e);
@@ -477,30 +505,26 @@ public class MembershipProtocolTest extends BaseTest {
     String host = "host1";
 
     // Default behavior
-    Address address = MembershipProtocolImpl.memberAddress(t,
-        testConfig(Collections.emptyList())
-            .build());
+    Address address =
+        MembershipProtocolImpl.memberAddress(t, testConfig(Collections.emptyList()).build());
     assertEquals(t.address(), address);
 
     // Override host only
-    address = MembershipProtocolImpl.memberAddress(t,
-        testConfig(Collections.emptyList())
-            .memberHost(host)
-            .build());
+    address =
+        MembershipProtocolImpl.memberAddress(
+            t, testConfig(Collections.emptyList()).memberHost(host).build());
     assertEquals(Address.create(host, t.address().port()), address);
 
     // Override host and port
-    address = MembershipProtocolImpl.memberAddress(t,
-        testConfig(Collections.emptyList())
-            .memberHost(host).memberPort(80)
-            .build());
+    address =
+        MembershipProtocolImpl.memberAddress(
+            t, testConfig(Collections.emptyList()).memberHost(host).memberPort(80).build());
     assertEquals(Address.create(host, 80), address);
 
     // Override port only (override is ignored)
-    address = MembershipProtocolImpl.memberAddress(t,
-        testConfig(Collections.emptyList())
-            .memberPort(8080)
-            .build());
+    address =
+        MembershipProtocolImpl.memberAddress(
+            t, testConfig(Collections.emptyList()).memberPort(8080).build());
     assertEquals(t.address(), address);
   }
 
@@ -513,9 +537,10 @@ public class MembershipProtocolTest extends BaseTest {
   }
 
   private ClusterConfig overrideConfig(Address seedAddress, String memberHost) {
-    return testConfig(seedAddress != null
-        ? Collections.singletonList(seedAddress)
-        : Collections.emptyList()).memberHost(memberHost).build();
+    return testConfig(
+            seedAddress != null ? Collections.singletonList(seedAddress) : Collections.emptyList())
+        .memberHost(memberHost)
+        .build();
   }
 
   private ClusterConfig.Builder testConfig(List<Address> seedAddresses) {
@@ -528,7 +553,8 @@ public class MembershipProtocolTest extends BaseTest {
         .pingTimeout(100);
   }
 
-  private MembershipProtocolImpl createMembership(Transport transport, List<Address> seedAddresses) {
+  private MembershipProtocolImpl createMembership(
+      Transport transport, List<Address> seedAddresses) {
     return createMembership(transport, testConfig(seedAddresses).build());
   }
 
@@ -576,29 +602,48 @@ public class MembershipProtocolTest extends BaseTest {
 
   private void assertTrusted(MembershipProtocolImpl membership, Address... expected) {
     List<Address> actual = getAddressesWithStatus(membership, MemberStatus.ALIVE);
-    assertEquals("Expected " + expected.length + " trusted members " + Arrays.toString(expected)
-        + ", but actual: " + actual, expected.length, actual.size());
+    assertEquals(
+        expected.length,
+        actual.size(),
+        "Expected "
+            + expected.length
+            + " trusted members "
+            + Arrays.toString(expected)
+            + ", but actual: "
+            + actual);
     for (Address member : expected) {
-      assertTrue("Expected to trust " + member + ", but actual: " + actual, actual.contains(member));
+      assertTrue(
+          actual.contains(member), "Expected to trust " + member + ", but actual: " + actual);
     }
   }
 
   private void assertSuspected(MembershipProtocolImpl membership, Address... expected) {
     List<Address> actual = getAddressesWithStatus(membership, MemberStatus.SUSPECT);
-    assertEquals("Expected " + expected.length + " suspect members " + Arrays.toString(expected)
-        + ", but actual: " + actual, expected.length, actual.size());
+    assertEquals(
+        expected.length,
+        actual.size(),
+        "Expected "
+            + expected.length
+            + " suspect members "
+            + Arrays.toString(expected)
+            + ", but actual: "
+            + actual);
     for (Address member : expected) {
-      assertTrue("Expected to suspect " + member + ", but actual: " + actual, actual.contains(member));
+      assertTrue(
+          actual.contains(member), "Expected to suspect " + member + ", but actual: " + actual);
     }
   }
 
   private void assertNoSuspected(MembershipProtocolImpl membership) {
     List<Address> actual = getAddressesWithStatus(membership, MemberStatus.SUSPECT);
-    assertEquals("Expected no suspected, but actual: " + actual, 0, actual.size());
+    assertEquals(0, actual.size(), "Expected no suspected, but actual: " + actual);
   }
 
-  private List<Address> getAddressesWithStatus(MembershipProtocolImpl membership, MemberStatus status) {
-    return membership.getMembershipRecords().stream()
+  private List<Address> getAddressesWithStatus(
+      MembershipProtocolImpl membership, MemberStatus status) {
+    return membership
+        .getMembershipRecords()
+        .stream()
         .filter(member -> member.status() == status)
         .map(MembershipRecord::address)
         .collect(Collectors.toList());

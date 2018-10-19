@@ -1,7 +1,6 @@
 package io.scalecube.cluster.membership;
 
 import io.scalecube.transport.Address;
-
 import java.util.List;
 import java.util.Map;
 
@@ -24,5 +23,4 @@ public interface MembershipConfig {
   String getMemberHost();
 
   Integer getMemberPort();
-
 }

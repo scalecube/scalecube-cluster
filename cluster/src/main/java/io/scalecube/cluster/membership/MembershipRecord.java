@@ -6,43 +6,33 @@ import static io.scalecube.cluster.membership.MemberStatus.SUSPECT;
 
 import io.scalecube.cluster.Member;
 import io.scalecube.transport.Address;
-
 import java.util.Objects;
 
-/**
- * Cluster membership record which represents member, status, and incarnation.
- */
-
+/** Cluster membership record which represents member, status, and incarnation. */
 final class MembershipRecord {
 
   private final Member member;
   private final MemberStatus status;
   private final int incarnation;
 
-  /**
-   * Instantiates new instance of membership record with given member, status and incarnation.
-   */
+  /** Instantiates new instance of membership record with given member, status and incarnation. */
   public MembershipRecord(Member member, MemberStatus status, int incarnation) {
     this.member = Objects.requireNonNull(member);
     this.status = Objects.requireNonNull(status);
     this.incarnation = incarnation;
   }
 
-
   public Member member() {
     return member;
   }
-
 
   public String id() {
     return member.id();
   }
 
-
   public Address address() {
     return member.address();
   }
-
 
   public MemberStatus status() {
     return status;

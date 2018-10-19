@@ -39,9 +39,12 @@ final class GossipState {
 
   @Override
   public String toString() {
-    return "GossipState{gossip=" + gossip
-        + ", infectionPeriod=" + infectionPeriod
-        + ", infected=" + infected
+    return "GossipState{gossip="
+        + gossip
+        + ", infectionPeriod="
+        + infectionPeriod
+        + ", infected="
+        + infected
         + '}';
   }
 }

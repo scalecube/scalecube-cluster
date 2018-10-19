@@ -1,7 +1,5 @@
 package io.scalecube.transport;
 
-import reactor.core.Exceptions;
-
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
@@ -11,11 +9,9 @@ import java.net.UnknownHostException;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
+import reactor.core.Exceptions;
 
-
-/**
- * Utility class which finds local IP address and currently available server ports.
- */
+/** Utility class which finds local IP address and currently available server ports. */
 public final class Addressing {
 
   private Addressing() {
@@ -26,17 +22,22 @@ public final class Addressing {
    * Returns {@link InetAddress} by given IP address or network interface name.
    *
    * @param listenAddress listen address; if set then {@code listenInterface} must be not set.
-   * @param listenInterface network interface name; if set then {@code listenAddress} must be not set.
-   * @param preferIPv6 should we prefer IPv6 when choosing IP address; accounted when {@code listenInterface} is set.
+   * @param listenInterface network interface name; if set then {@code listenAddress} must be not
+   *     set.
+   * @param preferIPv6 should we prefer IPv6 when choosing IP address; accounted when {@code
+   *     listenInterface} is set.
    * @return {@link InetAddress} object.
-   * @throws IllegalArgumentException if both {@code listenAddress} and {@code listenInterface} were passed.
-   * @throws IllegalArgumentException if {@code listenAddress} can't be resolved or if it reprensents wildcard address,
-   *         or if it doesn't belong to any active network interface.
+   * @throws IllegalArgumentException if both {@code listenAddress} and {@code listenInterface} were
+   *     passed.
+   * @throws IllegalArgumentException if {@code listenAddress} can't be resolved or if it
+   *     reprensents wildcard address, or if it doesn't belong to any active network interface.
    */
-  public static InetAddress getLocalIpAddress(String listenAddress, String listenInterface, boolean preferIPv6) {
+  public static InetAddress getLocalIpAddress(
+      String listenAddress, String listenInterface, boolean preferIPv6) {
     InetAddress ipAddress;
     if (isNotEmpty(listenAddress) && isNotEmpty(listenInterface)) {
-      throw new IllegalArgumentException("Not allowed to set both listenAddress and listenInterface, choose one");
+      throw new IllegalArgumentException(
+          "Not allowed to set both listenAddress and listenInterface, choose one");
     } else if (isNotEmpty(listenAddress)) {
       try {
         ipAddress = InetAddress.getByName(listenAddress);
@@ -45,7 +46,8 @@ public final class Addressing {
       }
       // account that 0.0.0.0 is not allowed
       if (ipAddress.isAnyLocalAddress()) {
-        throw new IllegalArgumentException("listenAddress: " + listenAddress + " cannot be a wildcard address");
+        throw new IllegalArgumentException(
+            "listenAddress: " + listenAddress + " cannot be a wildcard address");
       }
       // ensure address is valid
       if (!isValidLocalIpAddress(ipAddress)) {
@@ -62,11 +64,11 @@ public final class Addressing {
   }
 
   /**
-   * Getting local IP address by the address of local host. <b>NOTE:</b> returned IP address is expected to be a
-   * publicly visible IP address.
+   * Getting local IP address by the address of local host. <b>NOTE:</b> returned IP address is
+   * expected to be a publicly visible IP address.
    *
-   * @throws RuntimeException wrapped {@link UnknownHostException} in case when local host name couldn't be resolved
-   *         into an address.
+   * @throws RuntimeException wrapped {@link UnknownHostException} in case when local host name
+   *     couldn't be resolved into an address.
    */
   public static InetAddress getLocalIpAddress() {
     try {
@@ -77,22 +79,27 @@ public final class Addressing {
   }
 
   /**
-   * @return {@link InetAddress} by network interface name and a flag indicating whether returned IP address will be
-   *         IPv4 or IPv6.
+   * @return {@link InetAddress} by network interface name and a flag indicating whether returned IP
+   *     address will be IPv4 or IPv6.
    */
-  private static InetAddress getNetworkInterfaceIpAddress(String listenInterface, boolean preferIPv6) {
+  private static InetAddress getNetworkInterfaceIpAddress(
+      String listenInterface, boolean preferIPv6) {
     try {
       NetworkInterface ni = NetworkInterface.getByName(listenInterface);
       if (ni == null) {
-        throw new IllegalArgumentException("Configured network interface: " + listenInterface + " could not be found");
+        throw new IllegalArgumentException(
+            "Configured network interface: " + listenInterface + " could not be found");
       }
       if (!ni.isUp()) {
-        throw new IllegalArgumentException("Configured network interface: " + listenInterface + " is not active");
+        throw new IllegalArgumentException(
+            "Configured network interface: " + listenInterface + " is not active");
       }
       Enumeration<InetAddress> addrs = ni.getInetAddresses();
       if (!addrs.hasMoreElements()) {
         throw new IllegalArgumentException(
-            "Configured network interface: " + listenInterface + " was found, but had no addresses");
+            "Configured network interface: "
+                + listenInterface
+                + " was found, but had no addresses");
       }
       // try to return the first address of the preferred type, otherwise return the first address
       InetAddress result = null;
@@ -115,9 +122,7 @@ public final class Addressing {
     }
   }
 
-  /**
-   * @return boolean indicating whether given address belongs to any active network interface.
-   */
+  /** @return boolean indicating whether given address belongs to any active network interface. */
   private static boolean isValidLocalIpAddress(InetAddress listenAddress) {
     List<NetworkInterface> networkInterfaces;
     try {

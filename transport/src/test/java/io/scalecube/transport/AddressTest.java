@@ -1,8 +1,8 @@
 package io.scalecube.transport;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class AddressTest extends BaseTest {
 
@@ -25,5 +25,4 @@ public class AddressTest extends BaseTest {
     assertEquals(1111, address.port());
     assertEquals("host", address.host());
   }
-
 }

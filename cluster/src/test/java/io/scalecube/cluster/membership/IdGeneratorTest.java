@@ -1,14 +1,14 @@
 package io.scalecube.cluster.membership;
 
-import org.junit.Assert;
-import org.junit.Test;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.util.HashMap;
 import java.util.Map;
+import org.junit.jupiter.api.Test;
 
 public class IdGeneratorTest {
 
-  private final static int ATTEMPTS = (int) 2e+6;
+  private static final int ATTEMPTS = (int) 2e+6;
 
   @Test
   public void generatorUniquenessTest() {
@@ -17,8 +17,13 @@ public class IdGeneratorTest {
     for (int attemptNumber = 0; attemptNumber < ATTEMPTS; attemptNumber++) {
       String id = generateId();
       if (previds.containsKey(id)) {
-        Assert.fail("Found key duplication on attempt " + attemptNumber +
-            " same id = " + id + " as at attempt " + previds.get(id));
+        fail(
+            "Found key duplication on attempt "
+                + attemptNumber
+                + " same id = "
+                + id
+                + " as at attempt "
+                + previds.get(id));
       } else {
         previds.put(id, attemptNumber);
       }

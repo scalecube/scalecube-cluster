@@ -1,19 +1,18 @@
 package io.scalecube.transport;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Network Emulator is allowing to control link quality between endpoints in order to allow testing of message loss,
- * message delay, cluster partitions cluster recovery and other network related conditions.
- *
+ * Network Emulator is allowing to control link quality between endpoints in order to allow testing
+ * of message loss, message delay, cluster partitions cluster recovery and other network related
+ * conditions.
  */
 public final class NetworkEmulator {
 
@@ -47,7 +46,7 @@ public final class NetworkEmulator {
 
   /**
    * Returns link settings applied to the given destination.
-   * 
+   *
    * @param destination address of target endpoint
    * @return network settings
    */
@@ -57,7 +56,7 @@ public final class NetworkEmulator {
 
   /**
    * Returns link settings applied to the given destination.
-   * 
+   *
    * @param address socket address of target endpoint
    * @return network settings
    */
@@ -79,43 +78,49 @@ public final class NetworkEmulator {
   }
 
   /**
-   * Sets given network emulator settings for specific link. If network emulator is disabled do nothing.
-   * 
+   * Sets given network emulator settings for specific link. If network emulator is disabled do
+   * nothing.
+   *
    * @param destination address of target endpoint
    * @param lossPercent loss in percents
    * @param meanDelay mean delay
    */
   public void setLinkSettings(Address destination, int lossPercent, int meanDelay) {
     if (!enabled) {
-      LOGGER.warn("Can't set network settings (loss={}%, mean={}ms) from {} to {} since network emulator is disabled",
+      LOGGER.warn(
+          "Can't set network settings (loss={}%, mean={}ms) from {} to {} since network emulator is disabled",
           lossPercent, meanDelay, address, destination);
       return;
     }
     NetworkLinkSettings settings = new NetworkLinkSettings(lossPercent, meanDelay);
     customLinkSettings.put(destination, settings);
-    LOGGER.info("Set network settings (loss={}%, mean={}ms) from {} to {}",
+    LOGGER.info(
+        "Set network settings (loss={}%, mean={}ms) from {} to {}",
         lossPercent, meanDelay, address, destination);
   }
 
   /**
    * Sets default network emulator settings. If network emulator is disabled do nothing.
-   * 
+   *
    * @param lossPercent loss in percents
    * @param meanDelay mean delay
    */
   public void setDefaultLinkSettings(int lossPercent, int meanDelay) {
     if (!enabled) {
-      LOGGER.warn("Can't set default network settings (loss={}%, mean={}ms) for {} since network emulator is disabled",
+      LOGGER.warn(
+          "Can't set default network settings (loss={}%, mean={}ms) for {} since network emulator is disabled",
           lossPercent, meanDelay, address);
       return;
     }
     defaultLinkSettings = new NetworkLinkSettings(lossPercent, meanDelay);
-    LOGGER.info("Set default network settings (loss={}%, mean={}ms) for {}", lossPercent, meanDelay, address);
+    LOGGER.info(
+        "Set default network settings (loss={}%, mean={}ms) for {}",
+        lossPercent, meanDelay, address);
   }
 
   /**
    * Blocks messages to the given destinations. If network emulator is disabled do nothing.
-   * 
+   *
    * @param destinations collection of target endpoints where to apply
    */
   public void block(Address... destinations) {
@@ -124,7 +129,7 @@ public final class NetworkEmulator {
 
   /**
    * Blocks messages to the given destinations. If network emulator is disabled do nothing.
-   * 
+   *
    * @param destinations collection of target endpoints where to apply
    */
   public void block(Collection<Address> destinations) {
@@ -140,7 +145,7 @@ public final class NetworkEmulator {
 
   /**
    * Unblocks messages to given destinations. If network emulator is disabled do nothing.
-   * 
+   *
    * @param destinations collection of target endpoints where to apply
    */
   public void unblock(Address... destinations) {
@@ -149,12 +154,15 @@ public final class NetworkEmulator {
 
   /**
    * Unblocks messages to given destinations. If network emulator is disabled do nothing.
-   * 
+   *
    * @param destinations collection of target endpoints where to apply
    */
   public void unblock(Collection<Address> destinations) {
     if (!enabled) {
-      LOGGER.warn("Can't unblock network from {} to {} since network emulator is disabled", address, destinations);
+      LOGGER.warn(
+          "Can't unblock network from {} to {} since network emulator is disabled",
+          address,
+          destinations);
       return;
     }
     for (Address destination : destinations) {
@@ -163,9 +171,7 @@ public final class NetworkEmulator {
     LOGGER.info("Unblocked network from {} to {}", address, destinations);
   }
 
-  /**
-   * Unblock messages to all destinations. If network emulator is disabled do nothing.
-   */
+  /** Unblock messages to all destinations. If network emulator is disabled do nothing. */
   public void unblockAll() {
     if (!enabled) {
       LOGGER.warn("Can't unblock network from {} since network emulator is disabled", address);
@@ -176,26 +182,30 @@ public final class NetworkEmulator {
   }
 
   /**
-   * Returns total message sent count computed by network emulator. If network emulator is disabled returns zero.
-   * 
+   * Returns total message sent count computed by network emulator. If network emulator is disabled
+   * returns zero.
+   *
    * @return total message sent
    */
   public long totalMessageSentCount() {
     if (!enabled) {
-      LOGGER.warn("Can't compute total messages sent from {} since network emulator is disabled", address);
+      LOGGER.warn(
+          "Can't compute total messages sent from {} since network emulator is disabled", address);
       return 0;
     }
     return totalMessageSentCount.get();
   }
 
   /**
-   * Returns total message lost count computed by network emulator. If network emulator is disabled returns zero.
-   * 
+   * Returns total message lost count computed by network emulator. If network emulator is disabled
+   * returns zero.
+   *
    * @return total message lost
    */
   public long totalMessageLostCount() {
     if (!enabled) {
-      LOGGER.warn("Can't compute total messages lost from {} since network emulator is disabled", address);
+      LOGGER.warn(
+          "Can't compute total messages lost from {} since network emulator is disabled", address);
       return 0;
     }
     return totalMessageLostCount.get();
@@ -218,5 +228,4 @@ public final class NetworkEmulator {
     }
     totalMessageLostCount.incrementAndGet();
   }
-
 }

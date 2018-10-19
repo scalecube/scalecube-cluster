@@ -3,14 +3,14 @@ package io.scalecube.cluster.membership;
 import static io.scalecube.cluster.membership.MemberStatus.ALIVE;
 import static io.scalecube.cluster.membership.MemberStatus.DEAD;
 import static io.scalecube.cluster.membership.MemberStatus.SUSPECT;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.scalecube.cluster.BaseTest;
 import io.scalecube.cluster.Member;
 import io.scalecube.transport.Address;
-
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class MembershipRecordTest extends BaseTest {
 
@@ -31,12 +31,16 @@ public class MembershipRecordTest extends BaseTest {
   private final MembershipRecord r0_dead_1 = new MembershipRecord(member, DEAD, 1);
   private final MembershipRecord r0_dead_2 = new MembershipRecord(member, DEAD, 2);
 
-  @Test(expected = IllegalArgumentException.class)
+  @Test
   public void testCantCompareDifferentMembers() {
-    MembershipRecord r0 = new MembershipRecord(member, ALIVE, 0);
-    MembershipRecord r1 = new MembershipRecord(anotherMember, ALIVE, 0);
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> {
+          MembershipRecord r0 = new MembershipRecord(member, ALIVE, 0);
+          MembershipRecord r1 = new MembershipRecord(anotherMember, ALIVE, 0);
 
-    r1.isOverrides(r0); // throws exception
+          r1.isOverrides(r0); // throws exception
+        });
   }
 
   @Test
@@ -102,5 +106,4 @@ public class MembershipRecordTest extends BaseTest {
     assertFalse(r0_suspect_1.isOverrides(r0_suspect_1));
     assertFalse(r0_dead_1.isOverrides(r0_dead_1));
   }
-
 }

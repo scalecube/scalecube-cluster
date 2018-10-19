@@ -12,5 +12,4 @@ public final class MessageSerializerHandler extends MessageToByteEncoder<Message
   protected void encode(ChannelHandlerContext ctx, Message msg, ByteBuf out) throws Exception {
     MessageCodec.serialize(msg, out);
   }
-
 }

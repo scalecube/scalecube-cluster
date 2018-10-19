@@ -1,12 +1,9 @@
 package io.scalecube.cluster.gossip;
 
 import io.scalecube.transport.Message;
-
 import java.util.Objects;
 
-/**
- * Data model for gossip, include gossip id, qualifier and object need to disseminate.
- */
+/** Data model for gossip, include gossip id, qualifier and object need to disseminate. */
 final class Gossip {
 
   private final String gossipId;
@@ -34,8 +31,7 @@ final class Gossip {
       return false;
     }
     Gossip gossip = (Gossip) that;
-    return Objects.equals(gossipId, gossip.gossipId)
-        && Objects.equals(message, gossip.message);
+    return Objects.equals(gossipId, gossip.gossipId) && Objects.equals(message, gossip.message);
   }
 
   @Override

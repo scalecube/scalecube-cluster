@@ -16,15 +16,6 @@ import io.netty.handler.codec.MessageToByteEncoder;
 import io.netty.handler.codec.MessageToMessageDecoder;
 import io.netty.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
 import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import reactor.core.publisher.DirectProcessor;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxProcessor;
-import reactor.core.publisher.FluxSink;
-
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -32,18 +23,26 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import reactor.core.publisher.DirectProcessor;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxProcessor;
+import reactor.core.publisher.FluxSink;
 
 final class TransportImpl implements Transport {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(TransportImpl.class);
 
-  private static final CompletableFuture<Void> COMPLETED_PROMISE = CompletableFuture.completedFuture(null);
+  private static final CompletableFuture<Void> COMPLETED_PROMISE =
+      CompletableFuture.completedFuture(null);
 
   private final TransportConfig config;
 
   // SUbject
 
-  private final FluxProcessor<Message, Message> incomingMessagesSubject = DirectProcessor.<Message>create().serialize();
+  private final FluxProcessor<Message, Message> incomingMessagesSubject =
+      DirectProcessor.<Message>create().serialize();
 
   private final FluxSink<Message> messageSink = incomingMessagesSubject.sink();
 
@@ -51,7 +50,8 @@ final class TransportImpl implements Transport {
 
   // Pipeline
   private final BootstrapFactory bootstrapFactory;
-  private final IncomingChannelInitializer incomingChannelInitializer = new IncomingChannelInitializer();
+  private final IncomingChannelInitializer incomingChannelInitializer =
+      new IncomingChannelInitializer();
   private final ExceptionHandler exceptionHandler = new ExceptionHandler();
   private final MessageToByteEncoder<Message> serializerHandler;
   private final MessageToMessageDecoder<ByteBuf> deserializerHandler;
@@ -74,15 +74,15 @@ final class TransportImpl implements Transport {
     this.bootstrapFactory = new BootstrapFactory(config);
   }
 
-  /**
-   * Starts to accept connections on local address.
-   */
+  /** Starts to accept connections on local address. */
   public CompletableFuture<Transport> bind0() {
-    ServerBootstrap server = bootstrapFactory.serverBootstrap().childHandler(incomingChannelInitializer);
+    ServerBootstrap server =
+        bootstrapFactory.serverBootstrap().childHandler(incomingChannelInitializer);
 
     // Resolve listen IP address
-    InetAddress listenAddress = Addressing.getLocalIpAddress(config.getListenAddress(),
-        config.getListenInterface(), config.isPreferIPv6());
+    InetAddress listenAddress =
+        Addressing.getLocalIpAddress(
+            config.getListenAddress(), config.getListenInterface(), config.isPreferIPv6());
 
     // Listen port
     int bindPort = config.getPort();
@@ -91,30 +91,37 @@ final class TransportImpl implements Transport {
   }
 
   /**
-   * Helper bind method to start accepting connections on {@code listenAddress} and {@code bindPort}.
+   * Helper bind method to start accepting connections on {@code listenAddress} and {@code
+   * bindPort}.
    *
    * @param listenAddress listen address of cluster transport.
    * @param bindPort listen port of cluster transport.
    * @param server a server bootstrap.
    */
-  private CompletableFuture<Transport> bind0(ServerBootstrap server, InetAddress listenAddress, int bindPort) {
+  private CompletableFuture<Transport> bind0(
+      ServerBootstrap server, InetAddress listenAddress, int bindPort) {
     final CompletableFuture<Transport> result = new CompletableFuture<>();
     // Get address object and bind
     ChannelFuture bindFuture = server.bind(listenAddress, bindPort);
-    bindFuture.addListener((ChannelFutureListener) channelFuture -> {
-      if (channelFuture.isSuccess()) {
-        serverChannel = (ServerChannel) channelFuture.channel();
-        address = toAddress(serverChannel.localAddress());
-        networkEmulator = new NetworkEmulator(address, config.isUseNetworkEmulator());
-        networkEmulatorHandler = config.isUseNetworkEmulator() ? new NetworkEmulatorHandler(networkEmulator) : null;
-        LOGGER.info("Bound to: {}", address);
-        result.complete(TransportImpl.this);
-      } else {
-        Throwable cause = channelFuture.cause();
-        LOGGER.error("Failed to bind to: {}, cause: {}", listenAddress, cause);
-        result.completeExceptionally(cause);
-      }
-    });
+    bindFuture.addListener(
+        (ChannelFutureListener)
+            channelFuture -> {
+              if (channelFuture.isSuccess()) {
+                serverChannel = (ServerChannel) channelFuture.channel();
+                address = toAddress(serverChannel.localAddress());
+                networkEmulator = new NetworkEmulator(address, config.isUseNetworkEmulator());
+                networkEmulatorHandler =
+                    config.isUseNetworkEmulator()
+                        ? new NetworkEmulatorHandler(networkEmulator)
+                        : null;
+                LOGGER.info("Bound to: {}", address);
+                result.complete(TransportImpl.this);
+              } else {
+                Throwable cause = channelFuture.cause();
+                LOGGER.error("Failed to bind to: {}, cause: {}", listenAddress, cause);
+                result.completeExceptionally(cause);
+              }
+            });
     return result;
   }
 
@@ -175,7 +182,6 @@ final class TransportImpl implements Transport {
     bootstrapFactory.shutdown();
   }
 
-
   @Override
   public final Flux<Message> listen() {
     if (stopped) {
@@ -190,8 +196,7 @@ final class TransportImpl implements Transport {
   }
 
   @Override
-  public void send(Address address, Message message,
-      CompletableFuture<Void> promise) {
+  public void send(Address address, Message message, CompletableFuture<Void> promise) {
     if (stopped) {
       throw new IllegalStateException("Transport is stopped");
     }
@@ -205,13 +210,14 @@ final class TransportImpl implements Transport {
     if (channelFuture.isSuccess()) {
       send(channelFuture.channel(), message, promise);
     } else {
-      channelFuture.addListener((ChannelFuture chFuture) -> {
-        if (chFuture.isSuccess()) {
-          send(channelFuture.channel(), message, promise);
-        } else {
-          promise.completeExceptionally(chFuture.cause());
-        }
-      });
+      channelFuture.addListener(
+          (ChannelFuture chFuture) -> {
+            if (chFuture.isSuccess()) {
+              send(channelFuture.channel(), message, promise);
+            } else {
+              promise.completeExceptionally(chFuture.cause());
+            }
+          });
     }
   }
 
@@ -230,13 +236,14 @@ final class TransportImpl implements Transport {
    * @param promise future; can be null
    */
   private void composeFutures(ChannelFuture channelFuture, final CompletableFuture<Void> promise) {
-    channelFuture.addListener((ChannelFuture future) -> {
-      if (channelFuture.isSuccess()) {
-        promise.complete(channelFuture.get());
-      } else {
-        promise.completeExceptionally(channelFuture.cause());
-      }
-    });
+    channelFuture.addListener(
+        (ChannelFuture future) -> {
+          if (channelFuture.isSuccess()) {
+            promise.complete(channelFuture.get());
+          } else {
+            promise.completeExceptionally(channelFuture.cause());
+          }
+        });
   }
 
   private ChannelFuture connect(Address address) {
@@ -245,14 +252,20 @@ final class TransportImpl implements Transport {
     ChannelFuture connectFuture = client.connect(address.host(), address.port());
 
     // Register logger and cleanup listener
-    connectFuture.addListener((ChannelFutureListener) channelFuture -> {
-      if (channelFuture.isSuccess()) {
-        LOGGER.debug("Connected from {} to {}: {}", TransportImpl.this.address, address, channelFuture.channel());
-      } else {
-        LOGGER.warn("Failed to connect from {} to {}", TransportImpl.this.address, address);
-        outgoingChannels.remove(address);
-      }
-    });
+    connectFuture.addListener(
+        (ChannelFutureListener)
+            channelFuture -> {
+              if (channelFuture.isSuccess()) {
+                LOGGER.debug(
+                    "Connected from {} to {}: {}",
+                    TransportImpl.this.address,
+                    address,
+                    channelFuture.channel());
+              } else {
+                LOGGER.warn("Failed to connect from {} to {}", TransportImpl.this.address, address);
+                outgoingChannels.remove(address);
+              }
+            });
     return connectFuture;
   }
 
@@ -279,14 +292,15 @@ final class TransportImpl implements Transport {
     @Override
     protected void initChannel(Channel channel) throws Exception {
       ChannelPipeline pipeline = channel.pipeline();
-      pipeline.addLast(new ChannelDuplexHandler() {
-        @Override
-        public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-          LOGGER.debug("Disconnected from: {} {}", address, ctx.channel());
-          outgoingChannels.remove(address);
-          super.channelInactive(ctx);
-        }
-      });
+      pipeline.addLast(
+          new ChannelDuplexHandler() {
+            @Override
+            public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+              LOGGER.debug("Disconnected from: {} {}", address, ctx.channel());
+              outgoingChannels.remove(address);
+              super.channelInactive(ctx);
+            }
+          });
       pipeline.addLast(new ProtobufVarint32LengthFieldPrepender());
       pipeline.addLast(serializerHandler);
       if (networkEmulatorHandler != null) {

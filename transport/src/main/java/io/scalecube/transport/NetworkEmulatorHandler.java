@@ -5,14 +5,12 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.net.InetSocketAddress;
 import java.util.concurrent.Callable;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @ChannelHandler.Sharable
 final class NetworkEmulatorHandler extends ChannelOutboundHandlerAdapter {
@@ -26,7 +24,8 @@ final class NetworkEmulatorHandler extends ChannelOutboundHandlerAdapter {
   }
 
   @Override
-  public void write(final ChannelHandlerContext ctx, final Object msg, final ChannelPromise promise) throws Exception {
+  public void write(final ChannelHandlerContext ctx, final Object msg, final ChannelPromise promise)
+      throws Exception {
     NetworkLinkSettings networkSettings = resolveNetworkSettings(ctx.channel());
     networkEmulator.incrementMessageSentCount();
 
@@ -44,10 +43,16 @@ final class NetworkEmulatorHandler extends ChannelOutboundHandlerAdapter {
     int delay = (int) networkSettings.evaluateDelay();
     if (delay > 0) {
       try {
-        ctx.channel().eventLoop().schedule((Callable<Void>) () -> {
-          ctx.writeAndFlush(msg, promise);
-          return null;
-        }, delay, TimeUnit.MILLISECONDS);
+        ctx.channel()
+            .eventLoop()
+            .schedule(
+                (Callable<Void>)
+                    () -> {
+                      ctx.writeAndFlush(msg, promise);
+                      return null;
+                    },
+                delay,
+                TimeUnit.MILLISECONDS);
       } catch (RejectedExecutionException e) {
         String warn = "Rejected " + msg + " on " + ctx.channel();
         LOGGER.warn(warn, e);

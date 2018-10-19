@@ -1,10 +1,9 @@
 package io.scalecube.transport;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class TransportTestUtils {
 
@@ -17,10 +16,8 @@ public final class TransportTestUtils {
   }
 
   public static Transport createTransport() {
-    TransportConfig config = TransportConfig.builder()
-        .connectTimeout(CONNECT_TIMEOUT)
-        .useNetworkEmulator(true)
-        .build();
+    TransportConfig config =
+        TransportConfig.builder().connectTimeout(CONNECT_TIMEOUT).useNetworkEmulator(true).build();
     return Transport.bindAwait(config);
   }
 
@@ -38,15 +35,21 @@ public final class TransportTestUtils {
 
   public static void send(final Transport from, final Address to, final Message msg) {
     final CompletableFuture<Void> promise = new CompletableFuture<>();
-    promise.thenAccept(aVoid -> {
-      if (promise.isDone()) {
-        try {
-          promise.get();
-        } catch (Exception e) {
-          LOGGER.error("Failed to send {} to {} from transport: {}, cause: {}", msg, to, from, e.getCause());
-        }
-      }
-    });
+    promise.thenAccept(
+        aVoid -> {
+          if (promise.isDone()) {
+            try {
+              promise.get();
+            } catch (Exception e) {
+              LOGGER.error(
+                  "Failed to send {} to {} from transport: {}, cause: {}",
+                  msg,
+                  to,
+                  from,
+                  e.getCause());
+            }
+          }
+        });
     from.send(to, msg, promise);
   }
 }

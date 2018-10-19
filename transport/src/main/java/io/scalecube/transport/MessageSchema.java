@@ -8,10 +8,6 @@ import io.protostuff.Output;
 import io.protostuff.ProtostuffIOUtil;
 import io.protostuff.Schema;
 import io.protostuff.runtime.RuntimeSchema;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -21,11 +17,10 @@ import java.util.ListIterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Protostuff schema for {@link Message}.
- * 
- */
+/** Protostuff schema for {@link Message}. */
 final class MessageSchema implements Schema<Message> {
   private static final Logger LOGGER = LoggerFactory.getLogger(MessageSchema.class);
 
@@ -153,7 +148,8 @@ final class MessageSchema implements Schema<Message> {
       if (dataType == null) {
         data = dataBytes;
       } else {
-        Optional<Class> optionalDataClass = classCache.computeIfAbsent(dataType, this::classForName);
+        Optional<Class> optionalDataClass =
+            classCache.computeIfAbsent(dataType, this::classForName);
         if (optionalDataClass.isPresent()) {
           headers.remove(Message.HEADER_DATA_TYPE);
           Class<?> dataClass = optionalDataClass.get();

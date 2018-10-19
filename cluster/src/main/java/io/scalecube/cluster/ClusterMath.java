@@ -1,21 +1,20 @@
 package io.scalecube.cluster;
 
-/**
- * Utility class which contains math computation on cluster properties.
- *
- */
+/** Utility class which contains math computation on cluster properties. */
 public final class ClusterMath {
 
   private ClusterMath() {
     // Do not instantiate
   }
 
-  public static double gossipConvergencePercent(int fanout, int repeatMult, int clusterSize, double lossPercent) {
+  public static double gossipConvergencePercent(
+      int fanout, int repeatMult, int clusterSize, double lossPercent) {
     double msgLossProb = lossPercent / 100.0;
     return gossipConvergenceProbability(fanout, repeatMult, clusterSize, msgLossProb) * 100;
   }
 
-  public static double gossipConvergenceProbability(int fanout, int repeatMult, int clusterSize, double loss) {
+  public static double gossipConvergenceProbability(
+      int fanout, int repeatMult, int clusterSize, double loss) {
     double fanoutWithLoss = (1.0 - loss) * fanout;
     double spreadSize = clusterSize - Math.pow(clusterSize, -(fanoutWithLoss * repeatMult - 2));
     return spreadSize / clusterSize;
@@ -50,9 +49,7 @@ public final class ClusterMath {
     return suspicionMult * ceilLog2(clusterSize) * pingInterval;
   }
 
-  /**
-   * Returns ceil(log2(n + 1)).
-   */
+  /** Returns ceil(log2(n + 1)). */
   public static int ceilLog2(int num) {
     return 32 - Integer.numberOfLeadingZeros(num);
   }

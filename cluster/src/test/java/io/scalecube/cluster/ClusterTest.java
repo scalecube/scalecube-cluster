@@ -1,12 +1,9 @@
 package io.scalecube.cluster;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.scalecube.cluster.membership.MembershipEvent;
-
-import org.junit.Test;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -17,6 +14,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.Test;
 
 public class ClusterTest extends BaseTest {
 
@@ -76,10 +74,11 @@ public class ClusterTest extends BaseTest {
       for (Cluster node : otherNodes) {
         node.listenMembership()
             .filter(MembershipEvent::isUpdated)
-            .subscribe(event -> {
-              LOGGER.info("Received membership update event: {}", event);
-              updateLatch.countDown();
-            });
+            .subscribe(
+                event -> {
+                  LOGGER.info("Received membership update event: {}", event);
+                  updateLatch.countDown();
+                });
       }
 
       // Update metadata
@@ -138,10 +137,11 @@ public class ClusterTest extends BaseTest {
       for (Cluster node : otherNodes) {
         node.listenMembership()
             .filter(MembershipEvent::isUpdated)
-            .subscribe(event -> {
-              LOGGER.info("Received membership update event: {}", event);
-              updateLatch.countDown();
-            });
+            .subscribe(
+                event -> {
+                  LOGGER.info("Received membership update event: {}", event);
+                  updateLatch.countDown();
+                });
       }
 
       // Update metadata
@@ -179,9 +179,12 @@ public class ClusterTest extends BaseTest {
     Cluster node3 = Cluster.joinAwait(seedNode.address());
 
     CountDownLatch leave = new CountDownLatch(1);
-    node2.shutdown().whenComplete((done, error) -> {
-      leave.countDown();
-    });
+    node2
+        .shutdown()
+        .whenComplete(
+            (done, error) -> {
+              leave.countDown();
+            });
 
     leave.await(5, TimeUnit.SECONDS);
     assertTrue(!seedNode.members().contains(node2.member()));
