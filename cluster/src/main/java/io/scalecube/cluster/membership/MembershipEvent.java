@@ -1,18 +1,18 @@
 package io.scalecube.cluster.membership;
 
 import io.scalecube.cluster.Member;
-
 import java.util.Objects;
 
 /**
- * Event which is emitted on cluster membership changes when new member added or removed from cluster.
- *
+ * Event which is emitted on cluster membership changes when new member added or removed from
+ * cluster.
  */
-
 public final class MembershipEvent {
 
   public enum Type {
-    ADDED, REMOVED, UPDATED
+    ADDED,
+    REMOVED,
+    UPDATED
   }
 
   private final Type type;
@@ -67,9 +67,12 @@ public final class MembershipEvent {
 
   @Override
   public String toString() {
-    return "MembershipEvent{type=" + type
-        + ", newMember=" + newMember
-        + ", oldMember=" + oldMember
+    return "MembershipEvent{type="
+        + type
+        + ", newMember="
+        + newMember
+        + ", oldMember="
+        + oldMember
         + '}';
   }
 }

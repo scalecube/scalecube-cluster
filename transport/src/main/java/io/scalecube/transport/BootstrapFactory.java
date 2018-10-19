@@ -15,12 +15,10 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.internal.SystemPropertyUtil;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.Locale;
 import java.util.concurrent.ThreadFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 final class BootstrapFactory {
 
@@ -39,9 +37,11 @@ final class BootstrapFactory {
         envSupportEpoll = true;
         LOGGER.info("Use epoll transport");
       } catch (Throwable t) {
-        LOGGER
-            .warn("Tried to use epoll transport, but it's not supported by host OS (or no corresponding libs included) "
-                + "using NIO instead, cause: " + getRootCause(t));
+        LOGGER.warn(
+            "Tried to use epoll transport, "
+                + "but it's not supported by host OS (or no corresponding libs included) "
+                + "using NIO instead, cause: "
+                + getRootCause(t));
         envSupportEpoll = false;
       }
     }
@@ -51,15 +51,28 @@ final class BootstrapFactory {
   private final EventLoopGroup bossGroup;
   private final EventLoopGroup workerGroup;
 
+  /**
+   * Construictor for bootstrap factory.
+   *
+   * @param config transport config
+   */
   public BootstrapFactory(TransportConfig config) {
     this.config = config;
-    this.bossGroup = createEventLoopGroup(config.getBossThreads(), new DefaultThreadFactory("sc-boss", true));
-    this.workerGroup = createEventLoopGroup(config.getWorkerThreads(), new DefaultThreadFactory("sc-io", true));
+    this.bossGroup =
+        createEventLoopGroup(config.getBossThreads(), new DefaultThreadFactory("sc-boss", true));
+    this.workerGroup =
+        createEventLoopGroup(config.getWorkerThreads(), new DefaultThreadFactory("sc-io", true));
   }
 
+  /**
+   * Creates netty server bootstrap.
+   *
+   * @return server bootstrap
+   */
   public ServerBootstrap serverBootstrap() {
     ServerBootstrap bootstrap = new ServerBootstrap();
-    bootstrap.group(bossGroup, workerGroup)
+    bootstrap
+        .group(bossGroup, workerGroup)
         .channel(serverChannelClass())
         .childOption(ChannelOption.TCP_NODELAY, true)
         .childOption(ChannelOption.SO_KEEPALIVE, true)
@@ -68,9 +81,15 @@ final class BootstrapFactory {
     return bootstrap;
   }
 
+  /**
+   * Creates netty client bootstrap.
+   *
+   * @return client bootstrap
+   */
   public Bootstrap clientBootstrap() {
     Bootstrap bootstrap = new Bootstrap();
-    bootstrap.group(workerGroup)
+    bootstrap
+        .group(workerGroup)
         .channel(channelClass())
         .option(ChannelOption.TCP_NODELAY, true)
         .option(ChannelOption.SO_KEEPALIVE, true)
@@ -81,7 +100,12 @@ final class BootstrapFactory {
   }
 
   /**
-   * @return {@link EpollEventLoopGroup} or {@link NioEventLoopGroup} object dep on {@link #isEpollSupported()} call.
+   * Creates event loop group with given thread num and thread factory.
+   *
+   * @param threadNum thread number
+   * @param threadFactory thread factory
+   * @return {@link EpollEventLoopGroup} or {@link NioEventLoopGroup} object dep on {@link
+   *     #isEpollSupported()} call.
    */
   private EventLoopGroup createEventLoopGroup(int threadNum, ThreadFactory threadFactory) {
     return isEpollSupported()

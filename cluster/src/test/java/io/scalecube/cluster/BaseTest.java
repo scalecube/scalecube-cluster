@@ -1,31 +1,25 @@
 package io.scalecube.cluster;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.rules.TestName;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Base test class.
- * 
- */
+/** Base test class. */
 public class BaseTest {
 
   protected static final Logger LOGGER = LoggerFactory.getLogger(BaseTest.class);
 
-  @Rule
-  public final TestName testName = new TestName();
-
-  @Before
-  public final void baseSetUp() throws Exception {
-    LOGGER.info("***** Test started  : " + getClass().getSimpleName() + "." + testName.getMethodName() + " *****");
+  /** Setup. */
+  @BeforeEach
+  public final void baseSetUp(TestInfo testInfo) {
+    LOGGER.info("***** Test started  : " + testInfo.getDisplayName() + " *****");
   }
 
-  @After
-  public final void baseTearDown() throws Exception {
-    LOGGER.info("***** Test finished : " + getClass().getSimpleName() + "." + testName.getMethodName() + " *****");
+  /** Tear down. */
+  @AfterEach
+  public final void baseTearDown(TestInfo testInfo) {
+    LOGGER.info("***** Test finished : " + testInfo.getDisplayName() + " *****");
   }
-
 }

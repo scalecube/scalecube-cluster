@@ -7,5 +7,4 @@ public interface GossipConfig {
   long getGossipInterval();
 
   int getGossipRepeatMult();
-
 }

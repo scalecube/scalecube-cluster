@@ -1,12 +1,9 @@
 package io.scalecube.cluster;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.scalecube.cluster.membership.MembershipEvent;
-
-import org.junit.Test;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -17,11 +14,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.Test;
 
 public class ClusterTest extends BaseTest {
 
   @Test
-  public void testJoinDynamicPort() throws Exception {
+  public void testJoinDynamicPort() {
     // Start seed node
     Cluster seedNode = Cluster.joinAwait();
 
@@ -65,10 +63,10 @@ public class ClusterTest extends BaseTest {
 
       // Check all test members know valid metadata
       for (Cluster node : otherNodes) {
-        Optional<Member> mNodeOpt = node.member(metadataNode.member().id());
-        assertTrue(mNodeOpt.isPresent());
-        Member mNode = mNodeOpt.get();
-        assertEquals(metadata, mNode.metadata());
+        Optional<Member> memberOptional = node.member(metadataNode.member().id());
+        assertTrue(memberOptional.isPresent());
+        Member member = memberOptional.get();
+        assertEquals(metadata, member.metadata());
       }
 
       // Subscribe for membership update event all nodes
@@ -76,10 +74,11 @@ public class ClusterTest extends BaseTest {
       for (Cluster node : otherNodes) {
         node.listenMembership()
             .filter(MembershipEvent::isUpdated)
-            .subscribe(event -> {
-              LOGGER.info("Received membership update event: {}", event);
-              updateLatch.countDown();
-            });
+            .subscribe(
+                event -> {
+                  LOGGER.info("Received membership update event: {}", event);
+                  updateLatch.countDown();
+                });
       }
 
       // Update metadata
@@ -91,10 +90,10 @@ public class ClusterTest extends BaseTest {
 
       // Check all nodes had updated metadata member
       for (Cluster node : otherNodes) {
-        Optional<Member> mNodeOpt = node.member(metadataNode.member().id());
-        assertTrue(mNodeOpt.isPresent());
-        Member mNode = mNodeOpt.get();
-        assertEquals(updatedMetadata, mNode.metadata());
+        Optional<Member> memberOptional = node.member(metadataNode.member().id());
+        assertTrue(memberOptional.isPresent());
+        Member member = memberOptional.get();
+        assertEquals(updatedMetadata, member.metadata());
       }
     } finally {
       // Shutdown all nodes
@@ -127,10 +126,10 @@ public class ClusterTest extends BaseTest {
 
       // Check all test members know valid metadata
       for (Cluster node : otherNodes) {
-        Optional<Member> mNodeOpt = node.member(metadataNode.member().id());
-        assertTrue(mNodeOpt.isPresent());
-        Member mNode = mNodeOpt.get();
-        assertEquals(metadata, mNode.metadata());
+        Optional<Member> memberOptional = node.member(metadataNode.member().id());
+        assertTrue(memberOptional.isPresent());
+        Member member = memberOptional.get();
+        assertEquals(metadata, member.metadata());
       }
 
       // Subscribe for membership update event all nodes
@@ -138,10 +137,11 @@ public class ClusterTest extends BaseTest {
       for (Cluster node : otherNodes) {
         node.listenMembership()
             .filter(MembershipEvent::isUpdated)
-            .subscribe(event -> {
-              LOGGER.info("Received membership update event: {}", event);
-              updateLatch.countDown();
-            });
+            .subscribe(
+                event -> {
+                  LOGGER.info("Received membership update event: {}", event);
+                  updateLatch.countDown();
+                });
       }
 
       // Update metadata
@@ -152,13 +152,13 @@ public class ClusterTest extends BaseTest {
 
       // Check all nodes had updated metadata member
       for (Cluster node : otherNodes) {
-        Optional<Member> mNodeOpt = node.member(metadataNode.member().id());
-        assertTrue(mNodeOpt.isPresent());
-        Member mNode = mNodeOpt.get();
-        Map<String, String> mNodeMetadata = mNode.metadata();
-        assertEquals(2, mNode.metadata().size());
-        assertEquals("value1", mNodeMetadata.get("key1"));
-        assertEquals("value3", mNodeMetadata.get("key2"));
+        Optional<Member> memberOptional = node.member(metadataNode.member().id());
+        assertTrue(memberOptional.isPresent());
+        Member member = memberOptional.get();
+        Map<String, String> mnodemetadata = member.metadata();
+        assertEquals(2, member.metadata().size());
+        assertEquals("value1", mnodemetadata.get("key1"));
+        assertEquals("value3", mnodemetadata.get("key2"));
       }
     } finally {
       // Shutdown all nodes
@@ -171,17 +171,15 @@ public class ClusterTest extends BaseTest {
   @Test
   public void testShutdownCluster() throws Exception {
     // Start seed member
-    Cluster seedNode = Cluster.joinAwait();
+    final Cluster seedNode = Cluster.joinAwait();
 
     // Start nodes
-    Cluster node1 = Cluster.joinAwait(seedNode.address());
-    Cluster node2 = Cluster.joinAwait(seedNode.address());
-    Cluster node3 = Cluster.joinAwait(seedNode.address());
+    final Cluster node1 = Cluster.joinAwait(seedNode.address());
+    final Cluster node2 = Cluster.joinAwait(seedNode.address());
+    final Cluster node3 = Cluster.joinAwait(seedNode.address());
 
     CountDownLatch leave = new CountDownLatch(1);
-    node2.shutdown().whenComplete((done, error) -> {
-      leave.countDown();
-    });
+    node2.shutdown().whenComplete((done, error) -> leave.countDown());
 
     leave.await(5, TimeUnit.SECONDS);
     assertTrue(!seedNode.members().contains(node2.member()));

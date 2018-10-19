@@ -18,8 +18,9 @@ public final class Address {
   }
 
   /**
-   * Parses given string to create address instance. For localhost variant host may come in: {@code 127.0.0.1},
-   * {@code localhost}; when localhost case detected then node's public IP address would be resolved.
+   * Parses given string to create address instance. For localhost variant host may come in: {@code
+   * 127.0.0.1}, {@code localhost}; when localhost case detected then node's public IP address would
+   * be resolved.
    *
    * @param hostAndPort must come in form {@code host:port}
    */
@@ -34,28 +35,24 @@ public final class Address {
     String host = matcher.group(1);
     requireNonEmpty(host);
     String host1 =
-        "localhost".equals(host) || "127.0.0.1".equals(host) ? Addressing.getLocalIpAddress().getHostAddress() : host;
+        "localhost".equals(host) || "127.0.0.1".equals(host)
+            ? Addressing.getLocalIpAddress().getHostAddress()
+            : host;
     int port = Integer.parseInt(matcher.group(2));
     return new Address(host1, port);
   }
 
-  /**
-   * Creates address from host and port.
-   */
+  /** Creates address from host and port. */
   public static Address create(String host, int port) {
     return new Address(host, port);
   }
 
-  /**
-   * Host address.
-   */
+  /** Host address. */
   public String host() {
     return host;
   }
 
-  /**
-   * Port.
-   */
+  /** Port. */
   public int port() {
     return port;
   }

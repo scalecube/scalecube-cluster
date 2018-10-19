@@ -1,7 +1,6 @@
 package io.scalecube.cluster;
 
 import io.scalecube.transport.Address;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -9,9 +8,7 @@ import java.util.Objects;
 
 /**
  * Cluster member which represents node in the cluster and contains its id, address and metadata.
- *
  */
-
 public final class Member {
 
   private final String id;

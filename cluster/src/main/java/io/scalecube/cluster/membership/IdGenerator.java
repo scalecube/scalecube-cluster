@@ -11,7 +11,8 @@ public final class IdGenerator {
 
   public static final String DEFAULT_ALGORITHM = "MD5";
 
-  public static final ThreadLocal<MessageDigest> DIGEST_HOLDER = ThreadLocal.withInitial(IdGenerator::getDigest);
+  public static final ThreadLocal<MessageDigest> DIGEST_HOLDER =
+      ThreadLocal.withInitial(IdGenerator::getDigest);
 
   private IdGenerator() {
     // Do not instantiate
@@ -57,8 +58,8 @@ public final class IdGenerator {
   }
 
   /**
-   * Return the MessageDigest object to be used for calculating session identifiers. If none has been created yet,
-   * initialize one the first time this method is called.
+   * Return the MessageDigest object to be used for calculating session identifiers. If none has
+   * been created yet, initialize one the first time this method is called.
    *
    * @return The hashing algorithm
    */
@@ -66,7 +67,8 @@ public final class IdGenerator {
     try {
       return MessageDigest.getInstance(DEFAULT_ALGORITHM);
     } catch (NoSuchAlgorithmException e) {
-      throw new IllegalStateException("NoSuchAlgorithmException at getting instance for " + DEFAULT_ALGORITHM);
+      throw new IllegalStateException(
+          "NoSuchAlgorithmException at getting instance for " + DEFAULT_ALGORITHM);
     }
   }
 }

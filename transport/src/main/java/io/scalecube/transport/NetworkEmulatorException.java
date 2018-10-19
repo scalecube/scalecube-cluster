@@ -1,9 +1,6 @@
 package io.scalecube.transport;
 
-/**
- * Exception which is thrown by network emulator on message loss.
- *
- */
+/** Exception which is thrown by network emulator on message loss. */
 public final class NetworkEmulatorException extends RuntimeException {
 
   public NetworkEmulatorException(String message) {
@@ -11,7 +8,8 @@ public final class NetworkEmulatorException extends RuntimeException {
   }
 
   /**
-   * No need for stack trace since those exceptions are not really an exceptions, but checked error conditions.
+   * No need for stack trace since those exceptions are not really an exceptions, but checked error
+   * conditions.
    */
   @Override
   public synchronized Throwable fillInStackTrace() {

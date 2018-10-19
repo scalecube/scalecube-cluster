@@ -1,8 +1,7 @@
 package io.scalecube.cluster.fdetector;
 
-import io.scalecube.cluster.Member;
-
 import io.protostuff.Tag;
+import io.scalecube.cluster.Member;
 
 /** DTO class. Supports FailureDetector messages (Ping, Ack, PingReq). */
 final class PingData {
@@ -42,8 +41,10 @@ final class PingData {
 
   @Override
   public String toString() {
-    return "PingData{from=" + from
-        + ", to=" + to
+    return "PingData{from="
+        + from
+        + ", to="
+        + to
         + (originalIssuer != null ? ", originalIssuer=" + originalIssuer : "")
         + '}';
   }

@@ -1,13 +1,11 @@
 package io.scalecube.transport;
 
-/**
- * Encapsulate transport settings.
- * 
- */
+/** Encapsulate transport settings. */
 public final class TransportConfig {
 
   public static final String DEFAULT_LISTEN_ADDRESS = null;
-  public static final String DEFAULT_LISTEN_INTERFACE = null; // Default listen settings fallback to getLocalHost
+  public static final String DEFAULT_LISTEN_INTERFACE =
+      null; // Default listen settings fallback to getLocalHost
   public static final boolean DEFAULT_PREFER_IP6 = false;
   public static final int DEFAULT_PORT = 0;
   public static final int DEFAULT_CONNECT_TIMEOUT = 3000;
@@ -84,15 +82,24 @@ public final class TransportConfig {
 
   @Override
   public String toString() {
-    return "TransportConfig{listenAddress=" + listenAddress
-        + ", listenInterface=" + listenInterface
-        + ", preferIPv6=" + preferIPv6
-        + ", port=" + port
-        + ", connectTimeout=" + connectTimeout
-        + ", useNetworkEmulator=" + useNetworkEmulator
-        + ", enableEpoll=" + enableEpoll
-        + ", bossThreads=" + bossThreads
-        + ", workerThreads=" + workerThreads
+    return "TransportConfig{listenAddress="
+        + listenAddress
+        + ", listenInterface="
+        + listenInterface
+        + ", preferIPv6="
+        + preferIPv6
+        + ", port="
+        + port
+        + ", connectTimeout="
+        + connectTimeout
+        + ", useNetworkEmulator="
+        + useNetworkEmulator
+        + ", enableEpoll="
+        + enableEpoll
+        + ", bossThreads="
+        + bossThreads
+        + ", workerThreads="
+        + workerThreads
         + '}';
   }
 

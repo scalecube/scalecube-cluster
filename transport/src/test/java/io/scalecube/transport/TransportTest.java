@@ -3,14 +3,12 @@ package io.scalecube.transport;
 import static io.scalecube.transport.TransportTestUtils.createTransport;
 import static io.scalecube.transport.TransportTestUtils.destroyTransport;
 import static io.scalecube.transport.TransportTestUtils.send;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
-import org.junit.After;
-import org.junit.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.IOException;
 import java.net.BindException;
@@ -21,6 +19,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
 
 public class TransportTest extends BaseTest {
 
@@ -28,43 +29,60 @@ public class TransportTest extends BaseTest {
   private Transport client;
   private Transport server;
 
-  @After
+  /** Tear down. */
+  @AfterEach
   public final void tearDown() {
     destroyTransport(client);
     destroyTransport(server);
   }
 
-  @Test(expected = IllegalArgumentException.class)
+  @Test
   public void testInvalidListenConfig() {
-    Transport transport = null;
-    try {
-      TransportConfig config = TransportConfig.builder().listenInterface("eth0").listenAddress("10.10.10.10").build();
-      transport = Transport.bindAwait(config);
-    } finally {
-      destroyTransport(transport);
-    }
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> {
+          Transport transport = null;
+          try {
+            TransportConfig config =
+                TransportConfig.builder()
+                    .listenInterface("eth0")
+                    .listenAddress("10.10.10.10")
+                    .build();
+            transport = Transport.bindAwait(config);
+          } finally {
+            destroyTransport(transport);
+          }
+        });
   }
 
-  @Test(expected = IllegalArgumentException.class)
+  @Test
   public void testInvalidListenInterface() {
-    Transport transport = null;
-    try {
-      TransportConfig config = TransportConfig.builder().listenInterface("yadayada").build();
-      transport = Transport.bindAwait(config);
-    } finally {
-      destroyTransport(transport);
-    }
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> {
+          Transport transport = null;
+          try {
+            TransportConfig config = TransportConfig.builder().listenInterface("yadayada").build();
+            transport = Transport.bindAwait(config);
+          } finally {
+            destroyTransport(transport);
+          }
+        });
   }
 
-  @Test(expected = IllegalArgumentException.class)
+  @Test
   public void testInvalidListenAddress() {
-    Transport transport = null;
-    try {
-      TransportConfig config = TransportConfig.builder().listenAddress("0.0.0.0").build();
-      transport = Transport.bindAwait(config);
-    } finally {
-      destroyTransport(transport);
-    }
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> {
+          Transport transport = null;
+          try {
+            TransportConfig config = TransportConfig.builder().listenAddress("0.0.0.0").build();
+            transport = Transport.bindAwait(config);
+          } finally {
+            destroyTransport(transport);
+          }
+        });
   }
 
   @Test
@@ -78,7 +96,9 @@ public class TransportTest extends BaseTest {
       fail("Didn't get expected bind exception");
     } catch (Throwable throwable) {
       // Check that get address already in use exception
-      assertTrue(throwable instanceof BindException || throwable.getMessage().contains("Address already in use"));
+      assertTrue(
+          throwable instanceof BindException
+              || throwable.getMessage().contains("Address already in use"));
     } finally {
       destroyTransport(transport1);
       destroyTransport(transport2);
@@ -108,15 +128,15 @@ public class TransportTest extends BaseTest {
     } catch (ExecutionException e) {
       Throwable cause = e.getCause();
       assertNotNull(cause);
-      assertEquals("Unexpected exception class", UnknownHostException.class, cause.getClass());
+      assertEquals(UnknownHostException.class, cause.getClass(), "Unexpected exception class");
     }
   }
 
   @Test
-  public void testInteractWithNoConnection() throws Exception {
+  public void testInteractWithNoConnection(TestInfo testInfo) throws Exception {
     Address serverAddress = Address.from("localhost:49255");
     for (int i = 0; i < 10; i++) {
-      LOGGER.info("####### {} : iteration = {}", testName.getMethodName(), i);
+      LOGGER.info("####### {} : iteration = {}", testInfo.getDisplayName(), i);
 
       client = createTransport();
 
@@ -129,7 +149,7 @@ public class TransportTest extends BaseTest {
       } catch (ExecutionException e) {
         Throwable cause = e.getCause();
         assertNotNull(cause);
-        assertTrue("Unexpected exception type (expects IOException)", cause instanceof IOException);
+        assertTrue(cause instanceof IOException, "Unexpected exception type (expects IOException)");
       }
 
       // send second message: no connection yet and it's clear that there's no connection
@@ -141,7 +161,7 @@ public class TransportTest extends BaseTest {
       } catch (ExecutionException e) {
         Throwable cause = e.getCause();
         assertNotNull(cause);
-        assertTrue("Unexpected exception type (expects IOException)", cause instanceof IOException);
+        assertTrue(cause instanceof IOException, "Unexpected exception type (expects IOException)");
       }
 
       destroyTransport(client);
@@ -149,15 +169,18 @@ public class TransportTest extends BaseTest {
   }
 
   @Test
-  public void testPingPongClientTFListenAndServerTFListen() throws Exception {
+  public void testPingPongClientTfListenAndServerTfListen() throws Exception {
     client = createTransport();
     server = createTransport();
 
-    server.listen().subscribe(message -> {
-      Address address = message.sender();
-      assertEquals("Expected clientAddress", client.address(), address);
-      send(server, address, Message.fromQualifier("hi client"));
-    });
+    server
+        .listen()
+        .subscribe(
+            message -> {
+              Address address = message.sender();
+              assertEquals(client.address(), address, "Expected clientAddress");
+              send(server, address, Message.fromQualifier("hi client"));
+            });
 
     CompletableFuture<Message> messageFuture = new CompletableFuture<>();
     client.listen().subscribe(messageFuture::complete);
@@ -165,7 +188,7 @@ public class TransportTest extends BaseTest {
     send(client, server.address(), Message.fromQualifier("hello server"));
 
     Message result = messageFuture.get(3, TimeUnit.SECONDS);
-    assertNotNull("No response from serverAddress", result);
+    assertNotNull(result, "No response from serverAddress");
     assertEquals("hi client", result.qualifier());
   }
 
@@ -188,9 +211,10 @@ public class TransportTest extends BaseTest {
 
     Thread.sleep(1000);
 
-    int expectedMax = total / 100 * lostPercent + total / 100 * 5; // +5% for maximum possible lost messages
+    int expectedMax =
+        total / 100 * lostPercent + total / 100 * 5; // +5% for maximum possible lost messages
     int size = serverMessageList.size();
-    assertTrue("expectedMax=" + expectedMax + ", actual size=" + size, size < expectedMax);
+    assertTrue(size < expectedMax, "expectedMax=" + expectedMax + ", actual size=" + size);
   }
 
   @Test
@@ -198,12 +222,16 @@ public class TransportTest extends BaseTest {
     server = createTransport();
     client = createTransport();
 
-    server.listen().buffer(2).subscribe(messages -> {
-      for (Message message : messages) {
-        Message echo = Message.fromData("echo/" + message.qualifier());
-        server.send(message.sender(), echo);
-      }
-    });
+    server
+        .listen()
+        .buffer(2)
+        .subscribe(
+            messages -> {
+              for (Message message : messages) {
+                Message echo = Message.fromData("echo/" + message.qualifier());
+                server.send(message.sender(), echo);
+              }
+            });
 
     final CompletableFuture<List<Message>> targetFuture = new CompletableFuture<>();
     client.listen().buffer(2).subscribe(targetFuture::complete);
@@ -221,12 +249,16 @@ public class TransportTest extends BaseTest {
     server = createTransport();
     client = createTransport();
 
-    server.listen().buffer(2).subscribe(messages -> {
-      for (Message message : messages) {
-        Message echo = Message.fromData("echo/" + message.qualifier());
-        server.send(message.sender(), echo);
-      }
-    });
+    server
+        .listen()
+        .buffer(2)
+        .subscribe(
+            messages -> {
+              for (Message message : messages) {
+                Message echo = Message.fromData("echo/" + message.qualifier());
+                server.send(message.sender(), echo);
+              }
+            });
 
     final CompletableFuture<List<Message>> targetFuture = new CompletableFuture<>();
     client.listen().buffer(2).subscribe(targetFuture::complete);
@@ -247,10 +279,14 @@ public class TransportTest extends BaseTest {
     final CompletableFuture<Boolean> completeLatch = new CompletableFuture<>();
     final CompletableFuture<Message> messageLatch = new CompletableFuture<>();
 
-    server.listen().subscribe(messageLatch::complete,
-        errorConsumer -> {
-        },
-        () -> completeLatch.complete(true));
+    server
+        .listen()
+        .subscribe(
+            messageLatch::complete,
+            errorConsumer -> {
+              // no-op
+            },
+            () -> completeLatch.complete(true));
 
     CompletableFuture<Void> send = new CompletableFuture<>();
     client.send(server.address(), Message.fromData("q"), send);
@@ -270,16 +306,20 @@ public class TransportTest extends BaseTest {
     server = createTransport();
     client = createTransport();
 
-    server.listen().subscribe(message -> {
-      String qualifier = message.data();
-      if (qualifier.startsWith("throw")) {
-        throw new RuntimeException("" + message);
-      }
-      if (qualifier.startsWith("q")) {
-        Message echo = Message.fromData("echo/" + message.qualifier());
-        server.send(message.sender(), echo);
-      }
-    }, Throwable::printStackTrace);
+    server
+        .listen()
+        .subscribe(
+            message -> {
+              String qualifier = message.data();
+              if (qualifier.startsWith("throw")) {
+                throw new RuntimeException("" + message);
+              }
+              if (qualifier.startsWith("q")) {
+                Message echo = Message.fromData("echo/" + message.qualifier());
+                server.send(message.sender(), echo);
+              }
+            },
+            Throwable::printStackTrace);
 
     // send "throw" and raise exception on server subscriber
     final CompletableFuture<Message> messageFuture0 = new CompletableFuture<>();
@@ -328,5 +368,4 @@ public class TransportTest extends BaseTest {
     assertEquals(1, resp.size());
     assertEquals("q/unblocked", resp.get(0).qualifier());
   }
-
 }
