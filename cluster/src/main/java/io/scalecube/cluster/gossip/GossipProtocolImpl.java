@@ -1,15 +1,27 @@
 package io.scalecube.cluster.gossip;
 
-import static io.scalecube.Preconditions.checkArgument;
-
-import io.scalecube.ThreadFactoryBuilder;
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipProtocol;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.Transport;
-
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
 import reactor.core.publisher.DirectProcessor;
@@ -18,23 +30,6 @@ import reactor.core.publisher.FluxProcessor;
 import reactor.core.publisher.FluxSink;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 public final class GossipProtocolImpl implements GossipProtocol {
 
@@ -84,53 +79,61 @@ public final class GossipProtocolImpl implements GossipProtocol {
    * @param membership membership protocol
    * @param config gossip protocol settings
    */
-  public GossipProtocolImpl(Transport transport, MembershipProtocol membership, GossipConfig config) {
-    checkArgument(transport != null);
-    checkArgument(membership != null);
-    checkArgument(config != null);
-    this.transport = transport;
-    this.membership = membership;
-    this.config = config;
+  public GossipProtocolImpl(
+      Transport transport, MembershipProtocol membership, GossipConfig config) {
+    this.transport = Objects.requireNonNull(transport);
+    this.membership = Objects.requireNonNull(membership);
+    this.config = Objects.requireNonNull(config);
     String nameFormat = "sc-gossip-" + Integer.toString(membership.member().address().port());
-    this.executor = Executors.newSingleThreadScheduledExecutor(
-        new ThreadFactoryBuilder().setNameFormat(nameFormat).setDaemon(true).build());
+    this.executor =
+        Executors.newSingleThreadScheduledExecutor(
+            r -> {
+              Thread thread = new Thread(r);
+              thread.setName(nameFormat);
+              thread.setDaemon(true);
+              return thread;
+            });
     this.scheduler = Schedulers.fromExecutorService(executor);
   }
 
-  /**
-   * <b>NOTE:</b> this method is for testing purpose only.
-   */
+  /** <b>NOTE:</b> this method is for testing purpose only. */
   Transport getTransport() {
     return transport;
   }
 
-  /**
-   * <b>NOTE:</b> this method is for testing purpose only.
-   */
+  /** <b>NOTE:</b> this method is for testing purpose only. */
   Member getMember() {
     return membership.member();
   }
 
   @Override
   public void start() {
-    actionsDisposables.addAll(Arrays.asList(
-        membership.listen()
-            .publishOn(scheduler)
-            .filter(MembershipEvent::isAdded)
-            .map(MembershipEvent::member)
-            .subscribe(remoteMembers::add, this::onError),
-        membership.listen()
-            .publishOn(scheduler)
-            .filter(MembershipEvent::isRemoved)
-            .map(MembershipEvent::member)
-            .subscribe(remoteMembers::remove, this::onError),
-        transport.listen()
-            .publishOn(scheduler)
-            .filter(this::isGossipReq)
-            .subscribe(this::onGossipReq, this::onError)));
+    actionsDisposables.addAll(
+        Arrays.asList(
+            membership
+                .listen()
+                .publishOn(scheduler)
+                .filter(MembershipEvent::isAdded)
+                .map(MembershipEvent::member)
+                .subscribe(remoteMembers::add, this::onError),
+            membership
+                .listen()
+                .publishOn(scheduler)
+                .filter(MembershipEvent::isRemoved)
+                .map(MembershipEvent::member)
+                .subscribe(remoteMembers::remove, this::onError),
+            transport
+                .listen()
+                .publishOn(scheduler)
+                .filter(this::isGossipReq)
+                .subscribe(this::onGossipReq, this::onError)));
 
-    spreadGossipTask = executor.scheduleWithFixedDelay(this::doSpreadGossip,
-        config.getGossipInterval(), config.getGossipInterval(), TimeUnit.MILLISECONDS);
+    spreadGossipTask =
+        executor.scheduleWithFixedDelay(
+            this::doSpreadGossip,
+            config.getGossipInterval(),
+            config.getGossipInterval(),
+            TimeUnit.MILLISECONDS);
   }
 
   private void onError(Throwable throwable) {
@@ -187,7 +190,8 @@ public final class GossipProtocolImpl implements GossipProtocol {
       // Sweep gossips
       sweepGossips();
     } catch (Exception cause) {
-      LOGGER.error("Exception on sending GossipReq[{}] exception: {}", period, cause.getMessage(), cause);
+      LOGGER.error(
+          "Exception on sending GossipReq[{}] exception: {}", period, cause.getMessage(), cause);
     }
   }
 
@@ -242,8 +246,11 @@ public final class GossipProtocolImpl implements GossipProtocol {
   private List<Gossip> selectGossipsToSend(Member member) {
     int periodsToSpread =
         ClusterMath.gossipPeriodsToSpread(config.getGossipRepeatMult(), remoteMembers.size() + 1);
-    return gossips.values().stream()
-        .filter(gossipState -> gossipState.infectionPeriod() + periodsToSpread >= period) // max rounds
+    return gossips
+        .values()
+        .stream()
+        .filter(
+            gossipState -> gossipState.infectionPeriod() + periodsToSpread >= period) // max rounds
         .filter(gossipState -> !gossipState.isInfected(member.id())) // already infected
         .map(GossipState::gossip)
         .collect(Collectors.toList());
@@ -261,9 +268,10 @@ public final class GossipProtocolImpl implements GossipProtocol {
       }
 
       // Select members
-      List<Member> selectedMembers = gossipFanout == 1
-          ? Collections.singletonList(remoteMembers.get(remoteMembersIndex))
-          : remoteMembers.subList(remoteMembersIndex, remoteMembersIndex + gossipFanout);
+      List<Member> selectedMembers =
+          gossipFanout == 1
+              ? Collections.singletonList(remoteMembers.get(remoteMembersIndex))
+              : remoteMembers.subList(remoteMembersIndex, remoteMembersIndex + gossipFanout);
 
       // Increment index and return result
       remoteMembersIndex += gossipFanout;
@@ -278,10 +286,14 @@ public final class GossipProtocolImpl implements GossipProtocol {
 
   private void sweepGossips() {
     // Select gossips to sweep
-    int periodsToSweep = ClusterMath.gossipPeriodsToSweep(config.getGossipRepeatMult(), remoteMembers.size() + 1);
-    Set<GossipState> gossipsToRemove = gossips.values().stream()
-        .filter(gossipState -> period > gossipState.infectionPeriod() + periodsToSweep)
-        .collect(Collectors.toSet());
+    int periodsToSweep =
+        ClusterMath.gossipPeriodsToSweep(config.getGossipRepeatMult(), remoteMembers.size() + 1);
+    Set<GossipState> gossipsToRemove =
+        gossips
+            .values()
+            .stream()
+            .filter(gossipState -> period > gossipState.infectionPeriod() + periodsToSweep)
+            .collect(Collectors.toSet());
 
     // Check if anything selected
     if (gossipsToRemove.isEmpty()) {

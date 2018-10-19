@@ -1,6 +1,5 @@
 package io.scalecube.cluster;
 
-import static io.scalecube.Preconditions.checkNotNull;
 import static io.scalecube.cluster.fdetector.FailureDetectorImpl.PING;
 import static io.scalecube.cluster.fdetector.FailureDetectorImpl.PING_ACK;
 import static io.scalecube.cluster.fdetector.FailureDetectorImpl.PING_REQ;
@@ -17,16 +16,11 @@ import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.NetworkEmulator;
 import io.scalecube.transport.Transport;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import reactor.core.publisher.Flux;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -34,18 +28,19 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Flux;
 
-/**
- * Cluster implementation.
- * 
- */
+/** Cluster implementation. */
 final class ClusterImpl implements Cluster {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ClusterImpl.class);
 
   private static final Set<String> SYSTEM_MESSAGES =
-      Collections.unmodifiableSet(Stream.of(PING, PING_REQ, PING_ACK, SYNC, SYNC_ACK, GOSSIP_REQ)
-          .collect(Collectors.toSet()));
+      Collections.unmodifiableSet(
+          Stream.of(PING, PING_REQ, PING_ACK, SYNC, SYNC_ACK, GOSSIP_REQ)
+              .collect(Collectors.toSet()));
 
   private static final Set<String> SYSTEM_GOSSIPS = Collections.singleton(MEMBERSHIP_GOSSIP);
 
@@ -64,45 +59,59 @@ final class ClusterImpl implements Cluster {
   private Flux<Message> gossipObservable;
 
   public ClusterImpl(ClusterConfig config) {
-    checkNotNull(config);
-    this.config = config;
+    this.config = Objects.requireNonNull(config);
   }
 
   public CompletableFuture<Cluster> join0() {
     CompletableFuture<Transport> transportFuture = Transport.bind(config.getTransportConfig());
-    CompletableFuture<Void> clusterFuture = transportFuture.thenCompose(boundTransport -> {
-      transport = boundTransport;
-      messageObservable = transport.listen()
-          .filter(msg -> !SYSTEM_MESSAGES.contains(msg.qualifier())); // filter out system gossips
+    CompletableFuture<Void> clusterFuture =
+        transportFuture.thenCompose(
+            boundTransport -> {
+              transport = boundTransport;
+              messageObservable =
+                  transport
+                      .listen()
+                      .filter(
+                          msg ->
+                              !SYSTEM_MESSAGES.contains(
+                                  msg.qualifier())); // filter out system gossips
 
-      membership = new MembershipProtocolImpl(transport, config);
-      gossip = new GossipProtocolImpl(transport, membership, config);
-      failureDetector = new FailureDetectorImpl(transport, membership, config);
-      membership.setFailureDetector(failureDetector);
-      membership.setGossipProtocol(gossip);
+              membership = new MembershipProtocolImpl(transport, config);
+              gossip = new GossipProtocolImpl(transport, membership, config);
+              failureDetector = new FailureDetectorImpl(transport, membership, config);
+              membership.setFailureDetector(failureDetector);
+              membership.setGossipProtocol(gossip);
 
-      Member localMember = membership.member();
-      onMemberAdded(localMember);
-      membership.listen()
-          .filter(MembershipEvent::isAdded)
-          .map(MembershipEvent::member)
-          .subscribe(this::onMemberAdded, this::onError);
-      membership.listen()
-          .filter(MembershipEvent::isRemoved)
-          .map(MembershipEvent::member)
-          .subscribe(this::onMemberRemoved, this::onError);
-      membership.listen()
-          .filter(MembershipEvent::isUpdated)
-          .map(MembershipEvent::member)
-          .subscribe(this::onMemberUpdated, this::onError);
+              Member localMember = membership.member();
+              onMemberAdded(localMember);
+              membership
+                  .listen()
+                  .filter(MembershipEvent::isAdded)
+                  .map(MembershipEvent::member)
+                  .subscribe(this::onMemberAdded, this::onError);
+              membership
+                  .listen()
+                  .filter(MembershipEvent::isRemoved)
+                  .map(MembershipEvent::member)
+                  .subscribe(this::onMemberRemoved, this::onError);
+              membership
+                  .listen()
+                  .filter(MembershipEvent::isUpdated)
+                  .map(MembershipEvent::member)
+                  .subscribe(this::onMemberUpdated, this::onError);
 
-      failureDetector.start();
-      gossip.start();
-      gossipObservable = gossip.listen()
-          .filter(msg -> !SYSTEM_GOSSIPS.contains(msg.qualifier())); // filter out system gossips
-      return membership.start();
-    });
-    return clusterFuture.thenApply(aVoid -> ClusterImpl.this);
+              failureDetector.start();
+              gossip.start();
+              gossipObservable =
+                  gossip
+                      .listen()
+                      .filter(
+                          msg ->
+                              !SYSTEM_GOSSIPS.contains(
+                                  msg.qualifier())); // filter out system gossips
+              return membership.start();
+            });
+    return clusterFuture.thenApply(avoid -> ClusterImpl.this);
   }
 
   private void onError(Throwable throwable) {
@@ -210,20 +219,24 @@ final class ClusterImpl implements Cluster {
   public CompletableFuture<Void> shutdown() {
     LOGGER.info("Cluster member {} is shutting down...", membership.member());
     CompletableFuture<Void> transportStoppedFuture = new CompletableFuture<>();
-    membership.leave()
-        .whenComplete((gossipId, error) -> {
-          LOGGER.info("Cluster member notified about his leaving and shutting down... {}", membership.member());
+    membership
+        .leave()
+        .whenComplete(
+            (gossipId, error) -> {
+              LOGGER.info(
+                  "Cluster member notified about his leaving and shutting down... {}",
+                  membership.member());
 
-          // stop algorithms
-          membership.stop();
-          gossip.stop();
-          failureDetector.stop();
+              // stop algorithms
+              membership.stop();
+              gossip.stop();
+              failureDetector.stop();
 
-          // stop transport
-          transport.stop(transportStoppedFuture);
+              // stop transport
+              transport.stop(transportStoppedFuture);
 
-          LOGGER.info("Cluster member has shut down... {}", membership.member());
-        });
+              LOGGER.info("Cluster member has shut down... {}", membership.member());
+            });
     return transportStoppedFuture;
   }
 

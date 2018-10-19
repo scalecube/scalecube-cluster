@@ -1,9 +1,5 @@
 package io.scalecube.transport;
 
-import static io.scalecube.Preconditions.checkArgument;
-
-import io.scalecube.Strings;
-
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -16,19 +12,20 @@ public final class Address {
   private final int port;
 
   private Address(String host, int port) {
-    checkArgument(!Strings.isNullOrEmpty(host));
+    requireNonEmpty(host);
     this.host = host;
     this.port = port;
   }
 
   /**
-   * Parses given string to create address instance. For localhost variant host may come in: {@code 127.0.0.1},
-   * {@code localhost}; when localhost case detected then node's public IP address would be resolved.
+   * Parses given string to create address instance. For localhost variant host may come in: {@code
+   * 127.0.0.1}, {@code localhost}; when localhost case detected then node's public IP address would
+   * be resolved.
    *
    * @param hostAndPort must come in form {@code host:port}
    */
   public static Address from(String hostAndPort) {
-    checkArgument(!Strings.isNullOrEmpty(hostAndPort));
+    requireNonEmpty(hostAndPort);
 
     Matcher matcher = ADDRESS_FORMAT.matcher(hostAndPort);
     if (!matcher.find()) {
@@ -36,30 +33,26 @@ public final class Address {
     }
 
     String host = matcher.group(1);
-    checkArgument(!Strings.isNullOrEmpty(host));
+    requireNonEmpty(host);
     String host1 =
-        "localhost".equals(host) || "127.0.0.1".equals(host) ? Addressing.getLocalIpAddress().getHostAddress() : host;
+        "localhost".equals(host) || "127.0.0.1".equals(host)
+            ? Addressing.getLocalIpAddress().getHostAddress()
+            : host;
     int port = Integer.parseInt(matcher.group(2));
     return new Address(host1, port);
   }
 
-  /**
-   * Creates address from host and port.
-   */
+  /** Creates address from host and port. */
   public static Address create(String host, int port) {
     return new Address(host, port);
   }
 
-  /**
-   * Host address.
-   */
+  /** Host address. */
   public String host() {
     return host;
   }
 
-  /**
-   * Port.
-   */
+  /** Port. */
   public int port() {
     return port;
   }
@@ -84,5 +77,11 @@ public final class Address {
   @Override
   public String toString() {
     return host + ":" + port;
+  }
+
+  private static void requireNonEmpty(String string) {
+    if (string == null || string.length() == 0) {
+      throw new IllegalArgumentException();
+    }
   }
 }

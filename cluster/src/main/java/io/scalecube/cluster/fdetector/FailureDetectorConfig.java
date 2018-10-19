@@ -7,5 +7,4 @@ public interface FailureDetectorConfig {
   int getPingTimeout();
 
   int getPingReqMembers();
-
 }

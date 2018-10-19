@@ -3,13 +3,14 @@ package io.scalecube.transport;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * This class contains settings for the network link and computations to evaluate message loss and message delay.
- * Following parameters is present:
+ * This class contains settings for the network link and computations to evaluate message loss and
+ * message delay. Following parameters is present:
+ *
  * <ul>
- * <li>Percent of losing messages</li>
- * <li>Mean network delays in milliseconds. Delays are emulated using exponential distribution of probabilities</li>
+ *   <li>Percent of losing messages
+ *   <li>Mean network delays in milliseconds. Delays are emulated using exponential distribution of
+ *       probabilities
  * </ul>
- * 
  */
 public final class NetworkLinkSettings {
 
@@ -18,7 +19,7 @@ public final class NetworkLinkSettings {
 
   /**
    * Constructor for link settings.
-   * 
+   *
    * @param lossPercent loss in percent
    * @param mean mean dealy
    */
@@ -29,7 +30,7 @@ public final class NetworkLinkSettings {
 
   /**
    * Returns probability of message loss in percents.
-   * 
+   *
    * @return loss in percents
    */
   public int lossPercent() {
@@ -38,7 +39,7 @@ public final class NetworkLinkSettings {
 
   /**
    * Returns mean network delay for message in milliseconds.
-   * 
+   *
    * @return mean delay
    */
   public int meanDelay() {
@@ -51,17 +52,19 @@ public final class NetworkLinkSettings {
    * @return boolean indicating would loss occur
    */
   public boolean evaluateLoss() {
-    return lossPercent > 0 && (lossPercent >= 100 || ThreadLocalRandom.current().nextInt(100) < lossPercent);
+    return lossPercent > 0
+        && (lossPercent >= 100 || ThreadLocalRandom.current().nextInt(100) < lossPercent);
   }
 
   /**
    * Evaluates network delay according to exponential distribution of probabilities.
-   * 
+   *
    * @return delay
    */
   public long evaluateDelay() {
     if (meanDelay > 0) {
-      // Network delays (network delays). Delays should be emulated using exponential distribution of probabilities.
+      // Network delays (network delays). Delays should be emulated using exponential distribution
+      // of probabilities.
       // log(1-x)/(1/mean)
       Double x0 = ThreadLocalRandom.current().nextDouble();
       Double y0 = -Math.log(1 - x0) * meanDelay;

@@ -1,13 +1,10 @@
 package io.scalecube.cluster.gossip;
 
 import io.protostuff.Tag;
-
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Gossip request which be transmitted through the network, contains list of gossips.
- */
+/** Gossip request which be transmitted through the network, contains list of gossips. */
 final class GossipRequest {
   @Tag(1)
   private final List<Gossip> gossips;

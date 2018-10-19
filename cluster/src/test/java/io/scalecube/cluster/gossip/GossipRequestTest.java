@@ -2,26 +2,22 @@ package io.scalecube.cluster.gossip;
 
 import static io.netty.buffer.Unpooled.buffer;
 import static io.netty.buffer.Unpooled.copiedBuffer;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.netty.buffer.ByteBuf;
+import io.scalecube.cluster.BaseTest;
 import io.scalecube.cluster.Member;
-import io.scalecube.testlib.BaseTest;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.MessageCodec;
-
-import io.netty.buffer.ByteBuf;
-
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 public class GossipRequestTest extends BaseTest {
 
@@ -29,7 +25,8 @@ public class GossipRequestTest extends BaseTest {
 
   private TestData testData;
 
-  @Before
+  /** Setup. */
+  @BeforeEach
   public void init() throws Throwable {
     Map<String, String> properties = new HashMap<>();
     properties.put("key", "123");
@@ -43,7 +40,8 @@ public class GossipRequestTest extends BaseTest {
 
     Member from = new Member("0", Address.from("localhost:1234"));
     List<Gossip> gossips = getGossips();
-    Message message = Message.withData(new GossipRequest(gossips, from.id())).correlationId("CORR_ID").build();
+    Message message =
+        Message.withData(new GossipRequest(gossips, from.id())).correlationId("CORR_ID").build();
 
     ByteBuf bb = buffer();
     MessageCodec.serialize(message, bb);
@@ -55,8 +53,8 @@ public class GossipRequestTest extends BaseTest {
     Message deserializedMessage = MessageCodec.deserialize(input);
 
     assertNotNull(deserializedMessage);
-    Assert.assertEquals(deserializedMessage.data().getClass(), GossipRequest.class);
-    Assert.assertEquals("CORR_ID", deserializedMessage.correlationId());
+    assertEquals(deserializedMessage.data().getClass(), GossipRequest.class);
+    assertEquals("CORR_ID", deserializedMessage.correlationId());
 
     GossipRequest gossipRequest = deserializedMessage.data();
     assertNotNull(gossipRequest);
@@ -65,13 +63,15 @@ public class GossipRequestTest extends BaseTest {
 
     Object msgData = gossipRequest.gossips().get(0).message().data();
     assertNotNull(msgData);
-    assertTrue(msgData.toString(), msgData instanceof TestData);
+    assertTrue(msgData instanceof TestData, msgData.toString());
     assertEquals(testData.getProperties(), ((TestData) msgData).getProperties());
   }
 
   private List<Gossip> getGossips() {
-    Gossip request = new Gossip("idGossip", Message.withData(testData).qualifier(testDataQualifier).build());
-    Gossip request2 = new Gossip("idGossip2", Message.withData(testData).qualifier(testDataQualifier).build());
+    Gossip request =
+        new Gossip("idGossip", Message.withData(testData).qualifier(testDataQualifier).build());
+    Gossip request2 =
+        new Gossip("idGossip2", Message.withData(testData).qualifier(testDataQualifier).build());
     List<Gossip> gossips = new ArrayList<>(2);
     gossips.add(request);
     gossips.add(request2);
@@ -92,5 +92,4 @@ public class GossipRequestTest extends BaseTest {
       this.properties = properties;
     }
   }
-
 }

@@ -1,24 +1,17 @@
 package io.scalecube.cluster.gossip;
 
-import static io.scalecube.Preconditions.checkArgument;
-
 import io.scalecube.transport.Message;
-
 import java.util.Objects;
 
-/**
- * Data model for gossip, include gossip id, qualifier and object need to disseminate.
- */
+/** Data model for gossip, include gossip id, qualifier and object need to disseminate. */
 final class Gossip {
 
   private final String gossipId;
   private final Message message;
 
   public Gossip(String gossipId, Message message) {
-    checkArgument(gossipId != null);
-    checkArgument(message != null);
-    this.gossipId = gossipId;
-    this.message = message;
+    this.gossipId = Objects.requireNonNull(gossipId);
+    this.message = Objects.requireNonNull(message);
   }
 
   public String gossipId() {
@@ -38,8 +31,7 @@ final class Gossip {
       return false;
     }
     Gossip gossip = (Gossip) that;
-    return Objects.equals(gossipId, gossip.gossipId)
-        && Objects.equals(message, gossip.message);
+    return Objects.equals(gossipId, gossip.gossipId) && Objects.equals(message, gossip.message);
   }
 
   @Override

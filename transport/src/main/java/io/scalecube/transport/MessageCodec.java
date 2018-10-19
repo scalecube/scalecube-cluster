@@ -9,10 +9,7 @@ import io.protostuff.ProtostuffIOUtil;
 import io.protostuff.Schema;
 import io.protostuff.runtime.RuntimeSchema;
 
-/**
- * Contains static methods for message serializing/deserializing logic.
- *
- */
+/** Contains static methods for message serializing/deserializing logic. */
 public final class MessageCodec {
 
   private static final RecyclableLinkedBuffer recyclableLinkedBuffer = new RecyclableLinkedBuffer();
@@ -61,5 +58,4 @@ public final class MessageCodec {
       }
     }
   }
-
 }

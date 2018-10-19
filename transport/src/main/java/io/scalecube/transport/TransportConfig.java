@@ -1,18 +1,13 @@
 package io.scalecube.transport;
 
-/**
- * Encapsulate transport settings.
- * 
- */
-
+/** Encapsulate transport settings. */
 public final class TransportConfig {
 
   public static final String DEFAULT_LISTEN_ADDRESS = null;
-  public static final String DEFAULT_LISTEN_INTERFACE = null; // Default listen settings fallback to getLocalHost
+  public static final String DEFAULT_LISTEN_INTERFACE =
+      null; // Default listen settings fallback to getLocalHost
   public static final boolean DEFAULT_PREFER_IP6 = false;
-  public static final int DEFAULT_PORT = 4801;
-  public static final int DEFAULT_PORT_COUNT = 100;
-  public static final boolean DEFAULT_PORT_AUTO_INCREMENT = true;
+  public static final int DEFAULT_PORT = 0;
   public static final int DEFAULT_CONNECT_TIMEOUT = 3000;
   public static final boolean DEFAULT_USE_NETWORK_EMULATOR = false;
   public static final boolean DEFAULT_ENABLE_EPOLL = true;
@@ -23,8 +18,6 @@ public final class TransportConfig {
   private final String listenInterface;
   private final boolean preferIPv6;
   private final int port;
-  private final int portCount;
-  private final boolean portAutoIncrement;
   private final int connectTimeout;
   private final boolean useNetworkEmulator;
   private final boolean enableEpoll;
@@ -36,8 +29,6 @@ public final class TransportConfig {
     this.listenInterface = builder.listenInterface;
     this.preferIPv6 = builder.preferIPv6;
     this.port = builder.port;
-    this.portCount = builder.portCount;
-    this.portAutoIncrement = builder.portAutoIncrement;
     this.connectTimeout = builder.connectTimeout;
     this.useNetworkEmulator = builder.useNetworkEmulator;
     this.enableEpoll = builder.enableEpoll;
@@ -69,14 +60,6 @@ public final class TransportConfig {
     return port;
   }
 
-  public int getPortCount() {
-    return portCount;
-  }
-
-  public boolean isPortAutoIncrement() {
-    return portAutoIncrement;
-  }
-
   public int getConnectTimeout() {
     return connectTimeout;
   }
@@ -99,17 +82,24 @@ public final class TransportConfig {
 
   @Override
   public String toString() {
-    return "TransportConfig{listenAddress=" + listenAddress
-        + ", listenInterface=" + listenInterface
-        + ", preferIPv6=" + preferIPv6
-        + ", port=" + port
-        + ", portCount=" + portCount
-        + ", portAutoIncrement=" + portAutoIncrement
-        + ", connectTimeout=" + connectTimeout
-        + ", useNetworkEmulator=" + useNetworkEmulator
-        + ", enableEpoll=" + enableEpoll
-        + ", bossThreads=" + bossThreads
-        + ", workerThreads=" + workerThreads
+    return "TransportConfig{listenAddress="
+        + listenAddress
+        + ", listenInterface="
+        + listenInterface
+        + ", preferIPv6="
+        + preferIPv6
+        + ", port="
+        + port
+        + ", connectTimeout="
+        + connectTimeout
+        + ", useNetworkEmulator="
+        + useNetworkEmulator
+        + ", enableEpoll="
+        + enableEpoll
+        + ", bossThreads="
+        + bossThreads
+        + ", workerThreads="
+        + workerThreads
         + '}';
   }
 
@@ -119,8 +109,6 @@ public final class TransportConfig {
     private String listenInterface = DEFAULT_LISTEN_INTERFACE;
     private boolean preferIPv6 = DEFAULT_PREFER_IP6;
     private int port = DEFAULT_PORT;
-    private int portCount = DEFAULT_PORT_COUNT;
-    private boolean portAutoIncrement = DEFAULT_PORT_AUTO_INCREMENT;
     private boolean useNetworkEmulator = DEFAULT_USE_NETWORK_EMULATOR;
     private int connectTimeout = DEFAULT_CONNECT_TIMEOUT;
     private boolean enableEpoll = DEFAULT_ENABLE_EPOLL;
@@ -139,8 +127,6 @@ public final class TransportConfig {
       this.listenInterface = config.listenInterface;
       this.preferIPv6 = config.preferIPv6;
       this.port = config.port;
-      this.portCount = config.portCount;
-      this.portAutoIncrement = config.portAutoIncrement;
       this.connectTimeout = config.connectTimeout;
       this.useNetworkEmulator = config.useNetworkEmulator;
       this.enableEpoll = config.enableEpoll;
@@ -166,16 +152,6 @@ public final class TransportConfig {
 
     public Builder port(int port) {
       this.port = port;
-      return this;
-    }
-
-    public Builder portCount(int portCount) {
-      this.portCount = portCount;
-      return this;
-    }
-
-    public Builder portAutoIncrement(boolean portAutoIncrement) {
-      this.portAutoIncrement = portAutoIncrement;
       return this;
     }
 
