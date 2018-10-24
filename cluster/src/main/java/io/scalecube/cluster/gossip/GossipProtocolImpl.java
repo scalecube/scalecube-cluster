@@ -110,18 +110,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
   public void start() {
     actionsDisposables.addAll(
         Arrays.asList(
-            membership
-                .listen()
-                .publishOn(scheduler)
-                .filter(MembershipEvent::isAdded)
-                .map(MembershipEvent::member)
-                .subscribe(remoteMembers::add, this::onError),
-            membership
-                .listen()
-                .publishOn(scheduler)
-                .filter(MembershipEvent::isRemoved)
-                .map(MembershipEvent::member)
-                .subscribe(remoteMembers::remove, this::onError),
+            membership.listen().publishOn(scheduler).subscribe(this::onEvent, this::onError),
             transport
                 .listen()
                 .publishOn(scheduler)
@@ -134,6 +123,16 @@ public final class GossipProtocolImpl implements GossipProtocol {
             config.getGossipInterval(),
             config.getGossipInterval(),
             TimeUnit.MILLISECONDS);
+  }
+
+  private void onEvent(MembershipEvent event) {
+    Member member = event.member();
+    if (event.isRemoved()) {
+      remoteMembers.removeIf(that -> that.id().equals(member.id()));
+    }
+    if (event.isAdded()) {
+      remoteMembers.add(member);
+    }
   }
 
   private void onError(Throwable throwable) {
