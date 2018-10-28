@@ -12,9 +12,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
@@ -61,9 +58,8 @@ public final class FailureDetectorImpl implements FailureDetector {
   private final FluxSink<FailureDetectorEvent> sink = subject.sink();
 
   // Scheduled
-  private final ScheduledExecutorService executor;
   private final Scheduler scheduler;
-  private ScheduledFuture<?> pingTask;
+  private Disposable pingTask;
 
   /**
    * Creates new instance of failure detector with given transport and settings.
@@ -78,15 +74,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     this.membership = Objects.requireNonNull(membership);
     this.config = Objects.requireNonNull(config);
     String nameFormat = "sc-fdetector-" + Integer.toString(membership.member().address().port());
-    this.executor =
-        Executors.newSingleThreadScheduledExecutor(
-            r -> {
-              Thread thread = new Thread(r);
-              thread.setName(nameFormat);
-              thread.setDaemon(true);
-              return thread;
-            });
-    this.scheduler = Schedulers.fromExecutorService(executor);
+    this.scheduler = Schedulers.newSingle(nameFormat, true);
   }
 
   /** <b>NOTE:</b> this method is for testing purpose only. */
@@ -132,7 +120,7 @@ public final class FailureDetectorImpl implements FailureDetector {
                 .subscribe(this::onTransitPingAck, this::onError)));
 
     pingTask =
-        executor.scheduleWithFixedDelay(
+        scheduler.schedulePeriodically(
             this::doPing,
             config.getPingInterval(),
             config.getPingInterval(),
@@ -145,12 +133,12 @@ public final class FailureDetectorImpl implements FailureDetector {
     actionDisposables.dispose();
 
     // Stop sending pings
-    if (pingTask != null) {
-      pingTask.cancel(true);
+    if (pingTask != null && !pingTask.isDisposed()) {
+      pingTask.dispose();
     }
 
     // Shutdown executor
-    executor.shutdown();
+    scheduler.dispose();
 
     // Stop publishing events
     sink.complete();
