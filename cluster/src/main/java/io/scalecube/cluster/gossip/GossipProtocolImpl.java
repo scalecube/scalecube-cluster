@@ -15,9 +15,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -68,9 +65,8 @@ public final class GossipProtocolImpl implements GossipProtocol {
 
   // Scheduled
 
-  private final ScheduledExecutorService executor;
   private final Scheduler scheduler;
-  private ScheduledFuture<?> spreadGossipTask;
+  private Disposable spreadGossipTask;
 
   /**
    * Creates new instance of gossip protocol with given memberId, transport and settings.
@@ -85,15 +81,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
     this.membership = Objects.requireNonNull(membership);
     this.config = Objects.requireNonNull(config);
     String nameFormat = "sc-gossip-" + Integer.toString(membership.member().address().port());
-    this.executor =
-        Executors.newSingleThreadScheduledExecutor(
-            r -> {
-              Thread thread = new Thread(r);
-              thread.setName(nameFormat);
-              thread.setDaemon(true);
-              return thread;
-            });
-    this.scheduler = Schedulers.fromExecutorService(executor);
+    this.scheduler = Schedulers.newSingle(nameFormat, true);
   }
 
   /** <b>NOTE:</b> this method is for testing purpose only. */
@@ -118,7 +106,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
                 .subscribe(this::onGossipReq, this::onError)));
 
     spreadGossipTask =
-        executor.scheduleWithFixedDelay(
+        scheduler.schedulePeriodically(
             this::doSpreadGossip,
             config.getGossipInterval(),
             config.getGossipInterval(),
@@ -145,13 +133,13 @@ public final class GossipProtocolImpl implements GossipProtocol {
     actionsDisposables.dispose();
 
     // Stop spreading gossips
-    if (spreadGossipTask != null) {
-      spreadGossipTask.cancel(true);
+    if (spreadGossipTask != null && !spreadGossipTask.isDisposed()) {
+      spreadGossipTask.dispose();
     }
 
     // Shutdown executor
     // TODO AK: Consider to await termination ?!
-    executor.shutdown();
+    scheduler.dispose();
 
     // Stop publishing events
     sink.complete();
@@ -160,7 +148,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
   @Override
   public CompletableFuture<String> spread(Message message) {
     CompletableFuture<String> future = new CompletableFuture<>();
-    executor.execute(() -> futures.put(onSpreadGossip(message), future));
+    scheduler.schedule(() -> futures.put(onSpreadGossip(message), future));
     return future;
   }
 

@@ -23,9 +23,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -83,9 +80,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   // Scheduled
   private final Scheduler scheduler;
-  private final ScheduledExecutorService executor;
-  private final Map<String, ScheduledFuture<?>> suspicionTimeoutTasks = new HashMap<>();
-  private ScheduledFuture<?> syncTask;
+  private final Map<String, Disposable> suspicionTimeoutTasks = new HashMap<>();
+  private Disposable syncTask;
 
   /**
    * Creates new instantiates of cluster membership protocol with given transport and config.
@@ -102,15 +98,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     this.memberRef = new AtomicReference<>(member);
 
     String nameFormat = "sc-membership-" + Integer.toString(address.port());
-    this.executor =
-        Executors.newSingleThreadScheduledExecutor(
-            r -> {
-              Thread thread = new Thread(r);
-              thread.setName(nameFormat);
-              thread.setDaemon(true);
-              return thread;
-            });
-    this.scheduler = Schedulers.fromExecutorService(executor);
+    this.scheduler = Schedulers.newSingle(nameFormat, true);
     this.seedMembers = cleanUpSeedMembers(config.getSeedMembers());
   }
 
@@ -179,18 +167,18 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   @Override
   public void updateMetadata(Map<String, String> metadata) {
-    executor.execute(() -> onUpdateMetadata(metadata));
+    scheduler.schedule(() -> onUpdateMetadata(metadata));
   }
 
   @Override
   public void updateMetadataProperty(String key, String value) {
-    executor.execute(() -> onUpdateMetadataProperty(key, value));
+    scheduler.schedule(() -> onUpdateMetadataProperty(key, value));
   }
 
   /** Spreads leave notification to other cluster members. */
   public CompletableFuture<String> leave() {
     CompletableFuture<String> future = new CompletableFuture<>();
-    executor.execute(
+    scheduler.schedule(
         () -> {
           CompletableFuture<String> leaveFuture = onLeave();
           leaveFuture.whenComplete(
@@ -257,21 +245,21 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     actionsDisposables.dispose();
 
     // Stop sending sync
-    if (syncTask != null) {
-      syncTask.cancel(true);
+    if (syncTask != null && !syncTask.isDisposed()) {
+      syncTask.dispose();
     }
 
     // Cancel remove members tasks
     for (String memberId : suspicionTimeoutTasks.keySet()) {
-      ScheduledFuture<?> future = suspicionTimeoutTasks.get(memberId);
-      if (future != null) {
-        future.cancel(true);
+      Disposable future = suspicionTimeoutTasks.get(memberId);
+      if (future != null && !future.isDisposed()) {
+        future.dispose();
       }
     }
     suspicionTimeoutTasks.clear();
 
     // Shutdown executor
-    executor.shutdown();
+    scheduler.dispose();
 
     // Stop publishing events
     sink.complete();
@@ -432,7 +420,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private void schedulePeriodicSync() {
     int syncInterval = config.getSyncInterval();
     syncTask =
-        executor.scheduleWithFixedDelay(
+        scheduler.schedulePeriodically(
             this::doSync, syncInterval, syncInterval, TimeUnit.MILLISECONDS);
   }
 
@@ -511,9 +499,9 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   }
 
   private void cancelSuspicionTimeoutTask(String memberId) {
-    ScheduledFuture<?> future = suspicionTimeoutTasks.remove(memberId);
-    if (future != null) {
-      future.cancel(true);
+    Disposable future = suspicionTimeoutTasks.remove(memberId);
+    if (future != null && !future.isDisposed()) {
+      future.dispose();
     }
   }
 
@@ -524,7 +512,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     suspicionTimeoutTasks.computeIfAbsent(
         record.id(),
         id ->
-            executor.schedule(
+            scheduler.schedule(
                 () -> onSuspicionTimeout(id), suspicionTimeout, TimeUnit.MILLISECONDS));
   }
 
