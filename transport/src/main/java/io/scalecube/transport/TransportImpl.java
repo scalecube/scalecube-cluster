@@ -28,6 +28,7 @@ import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxProcessor;
 import reactor.core.publisher.FluxSink;
+import reactor.core.publisher.Mono;
 
 /**
  * Default transport implementation based on tcp netty client and server implementation and protobuf
@@ -141,45 +142,42 @@ final class TransportImpl implements Transport {
   }
 
   @Override
-  public final void stop() {
-    stop(COMPLETED_PROMISE);
-  }
+  public final Mono<Void> stop() {
+    return Mono.fromRunnable(
+        () -> {
+          if (stopped) {
+            throw new IllegalStateException("Transport is stopped");
+          }
+          stopped = true;
+          // Complete incoming messages observable
+          try {
+            messageSink.complete();
+          } catch (Exception ignore) {
+            // ignore
+          }
 
-  @Override
-  public final void stop(CompletableFuture<Void> promise) {
-    if (stopped) {
-      throw new IllegalStateException("Transport is stopped");
-    }
-    Objects.requireNonNull(promise);
-    stopped = true;
-    // Complete incoming messages observable
-    try {
-      messageSink.complete();
-    } catch (Exception ignore) {
-      // ignore
-    }
+          // close connected channels
+          for (Address address : outgoingChannels.keySet()) {
+            ChannelFuture channelFuture = outgoingChannels.get(address);
+            if (channelFuture == null) {
+              continue;
+            }
+            if (channelFuture.isSuccess()) {
+              channelFuture.channel().close();
+            } else {
+              channelFuture.addListener(ChannelFutureListener.CLOSE);
+            }
+          }
+          outgoingChannels.clear();
 
-    // close connected channels
-    for (Address address : outgoingChannels.keySet()) {
-      ChannelFuture channelFuture = outgoingChannels.get(address);
-      if (channelFuture == null) {
-        continue;
-      }
-      if (channelFuture.isSuccess()) {
-        channelFuture.channel().close();
-      } else {
-        channelFuture.addListener(ChannelFutureListener.CLOSE);
-      }
-    }
-    outgoingChannels.clear();
+          // close server channel
+          if (serverChannel != null) {
+            serverChannel.close().awaitUninterruptibly(); // TODO [AV]: check this
+          }
 
-    // close server channel
-    if (serverChannel != null) {
-      composeFutures(serverChannel.close(), promise);
-    }
-
-    // TODO [AK]: shutdown boss/worker threads and listen for their futures
-    bootstrapFactory.shutdown();
+          // TODO [AK]: shutdown boss/worker threads and listen for their futures
+          bootstrapFactory.shutdown();
+        });
   }
 
   @Override

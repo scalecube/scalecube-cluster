@@ -18,12 +18,12 @@ import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.Transport;
 import io.scalecube.transport.TransportConfig;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.LongSummaryStatistics;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
@@ -35,6 +35,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Mono;
 
 class GossipProtocolTest extends BaseTest {
 
@@ -86,8 +87,7 @@ class GossipProtocolTest extends BaseTest {
 
   @ParameterizedTest(name = "N={0}, Ploss={1}%, Tmean={2}ms")
   @MethodSource("experiment")
-  void testGossipProtocol(int membersNum, int lossPercent, int meanDelay)
-      throws Exception {
+  void testGossipProtocol(int membersNum, int lossPercent, int meanDelay) throws Exception {
     // Init gossip protocol instances
     List<GossipProtocolImpl> gossipProtocols =
         initGossipProtocols(membersNum, lossPercent, meanDelay);
@@ -126,7 +126,7 @@ class GossipProtocolTest extends BaseTest {
 
       // Spread gossip, measure and verify delivery metrics
       long start = System.currentTimeMillis();
-      gossipProtocols.get(0).spread(Message.fromData(gossipData));
+      gossipProtocols.get(0).spread(Message.fromData(gossipData)).subscribe();
       latch.await(2 * gossipTimeout, TimeUnit.MILLISECONDS); // Await for double gossip timeout
       disseminationTime = System.currentTimeMillis() - start;
       messageSentStatsDissemination = computeMessageSentStats(gossipProtocols);
@@ -252,15 +252,13 @@ class GossipProtocolTest extends BaseTest {
     }
 
     // Stop all transports
-    List<CompletableFuture<Void>> futures = new ArrayList<>();
+    List<Mono<Void>> futures = new ArrayList<>();
     for (GossipProtocolImpl gossipProtocol : gossipProtocols) {
-      CompletableFuture<Void> close = new CompletableFuture<>();
-      gossipProtocol.getTransport().stop(close);
-      futures.add(close);
+      futures.add(gossipProtocol.getTransport().stop());
     }
+
     try {
-      CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]))
-          .get(30, TimeUnit.SECONDS);
+      Mono.when(futures).block(Duration.ofSeconds(30));
     } catch (Exception ignore) {
       LOGGER.warn("Failed to await transport termination");
     }

@@ -11,6 +11,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 /** Facade cluster interface which provides API to interact with cluster members. */
 public interface Cluster {
@@ -109,7 +110,7 @@ public interface Cluster {
    * @param message message to disseminate.
    * @return result future
    */
-  CompletableFuture<String> spreadGossip(Message message);
+  Mono<String> spreadGossip(Message message);
 
   /**
    * Listens for gossips from other cluster members.
@@ -189,7 +190,7 @@ public interface Cluster {
    *
    * @return Listenable future which is completed once graceful shutdown is finished.
    */
-  CompletableFuture<Void> shutdown();
+  Mono<Void> shutdown();
 
   /**
    * Check if cluster instance has been shut down.

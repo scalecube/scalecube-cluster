@@ -31,6 +31,7 @@ import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 /** Cluster implementation. */
 final class ClusterImpl implements Cluster {
@@ -163,7 +164,7 @@ final class ClusterImpl implements Cluster {
   }
 
   @Override
-  public CompletableFuture<String> spreadGossip(Message message) {
+  public Mono<String> spreadGossip(Message message) {
     return gossip.spread(message);
   }
 
@@ -216,15 +217,14 @@ final class ClusterImpl implements Cluster {
   }
 
   @Override
-  public CompletableFuture<Void> shutdown() {
-    LOGGER.info("Cluster member {} is shutting down...", membership.member());
-    CompletableFuture<Void> transportStoppedFuture = new CompletableFuture<>();
-    membership
+  public Mono<Void> shutdown() {
+    return membership
         .leave()
-        .whenComplete(
-            (gossipId, error) -> {
+        .doOnSubscribe(s -> LOGGER.info("Cluster member {} is shutting down", membership.member()))
+        .flatMap(
+            gossipId -> {
               LOGGER.info(
-                  "Cluster member notified about his leaving and shutting down... {}",
+                  "Cluster member notified about his leaving and shutting down {}",
                   membership.member());
 
               // stop algorithms
@@ -233,11 +233,9 @@ final class ClusterImpl implements Cluster {
               failureDetector.stop();
 
               // stop transport
-              transport.stop(transportStoppedFuture);
-
-              LOGGER.info("Cluster member has shut down... {}", membership.member());
-            });
-    return transportStoppedFuture;
+              return transport.stop();
+            })
+        .doOnSuccess(s -> LOGGER.info("Cluster member has shut down {}", membership.member()));
   }
 
   @Override
@@ -247,6 +245,6 @@ final class ClusterImpl implements Cluster {
 
   @Override
   public boolean isShutdown() {
-    return this.transport.isStopped(); // since transport is the last component stopped on shutdown
+    return transport.isStopped(); // since transport is the last component stopped on shutdown
   }
 }

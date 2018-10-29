@@ -12,10 +12,10 @@ import io.scalecube.transport.Address;
 import io.scalecube.transport.Transport;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
@@ -532,7 +532,7 @@ public class MembershipProtocolTest extends BaseTest {
     try {
       TimeUnit.SECONDS.sleep(seconds);
     } catch (InterruptedException e) {
-      Exceptions.propagate(e);
+      throw Exceptions.propagate(e);
     }
   }
 
@@ -571,7 +571,7 @@ public class MembershipProtocolTest extends BaseTest {
       gossipProtocol.start();
       membership.start().get();
     } catch (Exception ex) {
-      Exceptions.propagate(ex);
+      throw Exceptions.propagate(ex);
     }
 
     return membership;
@@ -589,12 +589,8 @@ public class MembershipProtocolTest extends BaseTest {
     membership.stop();
     membership.getGossipProtocol().stop();
     membership.getFailureDetector().stop();
-
-    Transport transport = membership.getTransport();
-    CompletableFuture<Void> close = new CompletableFuture<>();
-    transport.stop(close);
     try {
-      close.get(1, TimeUnit.SECONDS);
+      membership.getTransport().stop().block(Duration.ofSeconds(1));
     } catch (Exception ignore) {
       // ignore
     }

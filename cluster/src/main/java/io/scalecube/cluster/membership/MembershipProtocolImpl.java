@@ -34,6 +34,7 @@ import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxProcessor;
 import reactor.core.publisher.FluxSink;
+import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
@@ -176,17 +177,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   }
 
   /** Spreads leave notification to other cluster members. */
-  public CompletableFuture<String> leave() {
-    CompletableFuture<String> future = new CompletableFuture<>();
-    scheduler.schedule(
-        () -> {
-          CompletableFuture<String> leaveFuture = onLeave();
-          leaveFuture.whenComplete(
-              (gossipId, error) -> {
-                future.complete(gossipId);
-              });
-        });
-    return future;
+  public Mono<String> leave() {
+    return onLeave();
   }
 
   /**
@@ -352,7 +344,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     sink.next(MembershipEvent.createUpdated(curMember, newMember));
 
     // Spread new membership record over the cluster
-    spreadMembershipGossip(newRecord);
+    spreadMembershipGossip(newRecord).subscribe();
   }
 
   private void onSyncAck(Message syncAckMsg) {
@@ -464,7 +456,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       MembershipRecord r2 = new MembershipRecord(localMember, r0.status(), currentIncarnation + 1);
       membershipTable.put(localMember.id(), r2);
       LOGGER.debug("Local membership record r0={}, but received r1={}, spread r2={}", r0, r1, r2);
-      spreadMembershipGossip(r2);
+      spreadMembershipGossip(r2).subscribe();
       return;
     }
 
@@ -527,18 +519,21 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     }
   }
 
-  private CompletableFuture<String> onLeave() {
-    Member curMember = memberRef.get();
-    String memberId = curMember.id();
-    MembershipRecord curRecord = membershipTable.get(memberId);
-    MembershipRecord newRecord =
-        new MembershipRecord(this.member(), DEAD, curRecord.incarnation() + 1);
-    membershipTable.put(memberId, newRecord);
-    return spreadMembershipGossip(newRecord);
+  private Mono<String> onLeave() {
+    return Mono.defer(
+        () -> {
+          Member curMember = memberRef.get();
+          String memberId = curMember.id();
+          MembershipRecord curRecord = membershipTable.get(memberId);
+          MembershipRecord newRecord =
+              new MembershipRecord(this.member(), DEAD, curRecord.incarnation() + 1);
+          membershipTable.put(memberId, newRecord);
+          return spreadMembershipGossip(newRecord);
+        });
   }
 
-  private CompletableFuture<String> spreadMembershipGossip(MembershipRecord record) {
-    Message membershipMsg = Message.withData(record).qualifier(MEMBERSHIP_GOSSIP).build();
-    return gossipProtocol.spread(membershipMsg);
+  private Mono<String> spreadMembershipGossip(MembershipRecord record) {
+    return Mono.defer(
+        () -> gossipProtocol.spread(Message.withData(record).qualifier(MEMBERSHIP_GOSSIP).build()));
   }
 }

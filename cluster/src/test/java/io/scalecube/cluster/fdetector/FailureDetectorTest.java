@@ -14,6 +14,7 @@ import io.scalecube.cluster.membership.MembershipProtocol;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Transport;
 import io.scalecube.transport.TransportConfig;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -400,10 +401,8 @@ public class FailureDetectorTest extends BaseTest {
     if (transport == null || transport.isStopped()) {
       return;
     }
-    CompletableFuture<Void> close = new CompletableFuture<>();
-    transport.stop(close);
     try {
-      close.get(1, TimeUnit.SECONDS);
+      transport.stop().block(Duration.ofSeconds(1));
     } catch (Exception ignore) {
       // no-op
     }

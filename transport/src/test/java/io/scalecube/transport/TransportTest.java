@@ -294,9 +294,7 @@ public class TransportTest extends BaseTest {
 
     assertNotNull(messageLatch.get(1, TimeUnit.SECONDS));
 
-    CompletableFuture<Void> close = new CompletableFuture<>();
-    server.stop(close);
-    close.get();
+    server.stop().block();
 
     assertTrue(completeLatch.get(1, TimeUnit.SECONDS));
   }

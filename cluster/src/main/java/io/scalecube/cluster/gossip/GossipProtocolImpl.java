@@ -14,7 +14,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -25,6 +24,8 @@ import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxProcessor;
 import reactor.core.publisher.FluxSink;
+import reactor.core.publisher.Mono;
+import reactor.core.publisher.MonoSink;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
@@ -47,7 +48,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
   private long period = 0;
   private long gossipCounter = 0;
   private Map<String, GossipState> gossips = new HashMap<>();
-  private Map<String, CompletableFuture<String>> futures = new HashMap<>();
+  private Map<String, MonoSink<String>> futures = new HashMap<>();
 
   private List<Member> remoteMembers = new ArrayList<>();
   private int remoteMembersIndex = -1;
@@ -146,10 +147,9 @@ public final class GossipProtocolImpl implements GossipProtocol {
   }
 
   @Override
-  public CompletableFuture<String> spread(Message message) {
-    CompletableFuture<String> future = new CompletableFuture<>();
-    scheduler.schedule(() -> futures.put(onSpreadGossip(message), future));
-    return future;
+  public Mono<String> spread(Message message) {
+    return Mono.create(
+        sink -> scheduler.schedule(() -> futures.put(createAndPutGossip(message), sink)));
   }
 
   @Override
@@ -186,7 +186,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
   // ============== Event Listeners =================
   // ================================================
 
-  private String onSpreadGossip(Message message) {
+  private String createAndPutGossip(Message message) {
     Gossip gossip = new Gossip(generateGossipId(), message);
     GossipState gossipState = new GossipState(gossip, period);
     gossips.put(gossip.gossipId(), gossipState);
@@ -291,9 +291,9 @@ public final class GossipProtocolImpl implements GossipProtocol {
     LOGGER.debug("Sweep gossips: {}", gossipsToRemove);
     for (GossipState gossipState : gossipsToRemove) {
       gossips.remove(gossipState.gossip().gossipId());
-      CompletableFuture<String> future = futures.remove(gossipState.gossip().gossipId());
-      if (future != null) {
-        future.complete(gossipState.gossip().gossipId());
+      MonoSink<String> sink = futures.remove(gossipState.gossip().gossipId());
+      if (sink != null) {
+        sink.success(gossipState.gossip().gossipId());
       }
     }
   }
