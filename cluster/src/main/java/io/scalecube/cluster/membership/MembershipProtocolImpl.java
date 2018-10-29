@@ -486,7 +486,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     // Spread gossip (unless already gossiped)
     if (reason != MembershipUpdateReason.MEMBERSHIP_GOSSIP
         && reason != MembershipUpdateReason.INITIAL_SYNC) {
-      spreadMembershipGossip(r1);
+      spreadMembershipGossip(r1).subscribe();
     }
   }
 
