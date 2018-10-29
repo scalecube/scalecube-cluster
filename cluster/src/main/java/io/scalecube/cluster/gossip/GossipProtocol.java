@@ -1,8 +1,8 @@
 package io.scalecube.cluster.gossip;
 
 import io.scalecube.transport.Message;
-import java.util.concurrent.CompletableFuture;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 /**
  * Gossip Protocol component responsible for spreading information (gossips) over the cluster
@@ -22,7 +22,7 @@ public interface GossipProtocol {
    *
    * @return future result with gossip id once gossip fully spread.
    */
-  CompletableFuture<String> spread(Message message);
+  Mono<String> spread(Message message);
 
   /** Listens for gossips from other cluster members. */
   Flux<Message> listen();

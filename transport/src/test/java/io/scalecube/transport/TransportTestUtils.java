@@ -1,7 +1,7 @@
 package io.scalecube.transport;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,10 +34,8 @@ public final class TransportTestUtils {
    */
   public static void destroyTransport(Transport transport) {
     if (transport != null && !transport.isStopped()) {
-      CompletableFuture<Void> close = new CompletableFuture<>();
-      transport.stop(close);
       try {
-        close.get(1, TimeUnit.SECONDS);
+        transport.stop().block(Duration.ofSeconds(1));
       } catch (Exception ignore) {
         LOGGER.warn("Failed to await transport termination");
       }

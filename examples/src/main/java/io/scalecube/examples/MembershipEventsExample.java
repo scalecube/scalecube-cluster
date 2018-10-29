@@ -6,7 +6,6 @@ import io.scalecube.cluster.ClusterMath;
 import java.text.SimpleDateFormat;
 import java.util.Collections;
 import java.util.Date;
-import java.util.concurrent.Future;
 
 /**
  * Example of subscribing and listening for cluster membership events which is emmited when new
@@ -43,8 +42,7 @@ public class MembershipEventsExample {
         .subscribe(event -> System.out.println(now() + " Carol received: " + event));
 
     // Bob leave cluster
-    Future<Void> shutdownFuture = bob.shutdown();
-    shutdownFuture.get();
+    bob.shutdown().block();
 
     // Avoid exit main thread immediately ]:->
     long pingInterval = ClusterConfig.DEFAULT_PING_INTERVAL;
