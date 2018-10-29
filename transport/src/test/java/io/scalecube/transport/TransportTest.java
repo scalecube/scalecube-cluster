@@ -344,12 +344,12 @@ public class TransportTest extends BaseTest {
     client.listen().subscribe(resp::add);
 
     // test at unblocked transport
-    send(client, server.address(), Message.fromQualifier("q/unblocked"));
+    send(client, server.address(), Message.fromQualifier("q/unblocked")).subscribe();
 
     // then block client->server messages
     Thread.sleep(1000);
     client.networkEmulator().block(server.address());
-    send(client, server.address(), Message.fromQualifier("q/blocked"));
+    send(client, server.address(), Message.fromQualifier("q/blocked")).subscribe();
 
     Thread.sleep(1000);
     assertEquals(1, resp.size());
