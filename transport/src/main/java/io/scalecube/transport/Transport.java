@@ -1,6 +1,5 @@
 package io.scalecube.transport;
 
-import java.util.concurrent.CompletableFuture;
 import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -94,20 +93,10 @@ public interface Transport {
    *
    * @param address address where message will be sent
    * @param message message to send
+   * @return promise which will be completed with result of sending (void or exception)
    * @throws IllegalArgumentException if {@code message} or {@code address} is null
    */
-  void send(Address address, Message message);
-
-  /**
-   * Sends message to the given address. It will issue connect in case if no transport channel by
-   * given {@code address} exists already. Send is an async operation, if result of operation is not
-   * needed use {@link Transport#send(Address, Message)}, otherwise pass {@link CompletableFuture}.
-   *
-   * @param message message to send
-   * @param promise promise will be completed with result of sending (void or exception)
-   * @throws IllegalArgumentException if {@code message} or {@code address} is null
-   */
-  void send(Address address, Message message, CompletableFuture<Void> promise);
+  Mono<Void> send(Address address, Message message);
 
   /**
    * Returns stream of received messages. For each observers subscribed to the returned observable:
