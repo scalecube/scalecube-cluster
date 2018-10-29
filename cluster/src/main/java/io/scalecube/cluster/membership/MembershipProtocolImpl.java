@@ -261,14 +261,15 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   // ================================================
 
   private Mono<Void> doInitialSync() {
-    // In case no members at the moment just schedule periodic sync
-    if (seedMembers.isEmpty()) {
-      schedulePeriodicSync();
-      return Mono.empty();
-    }
-
     return Mono.create(
         sink -> {
+          // In case no members at the moment just schedule periodic sync
+          if (seedMembers.isEmpty()) {
+            schedulePeriodicSync();
+            sink.success();
+            return;
+          }
+
           LOGGER.debug("Making initial Sync to all seed members: {}", seedMembers);
 
           // Listen initial Sync Ack
