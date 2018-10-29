@@ -39,7 +39,7 @@ public interface Transport {
    */
   static Transport bindAwait(TransportConfig config) {
     try {
-      return bind(config).get();
+      return bind(config).block();
     } catch (Exception e) {
       throw Exceptions.propagate(e.getCause() != null ? e.getCause() : e);
     }
@@ -51,7 +51,7 @@ public interface Transport {
    *
    * @return promise for bind operation
    */
-  static CompletableFuture<Transport> bind() {
+  static Mono<Transport> bind() {
     return bind(TransportConfig.defaultConfig());
   }
 
@@ -62,7 +62,7 @@ public interface Transport {
    * @param config transport config
    * @return promise for bind operation
    */
-  static CompletableFuture<Transport> bind(TransportConfig config) {
+  static Mono<Transport> bind(TransportConfig config) {
     return new TransportImpl(config).bind0();
   }
 

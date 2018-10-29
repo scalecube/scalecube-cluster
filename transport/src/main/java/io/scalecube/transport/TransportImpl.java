@@ -79,19 +79,22 @@ final class TransportImpl implements Transport {
   }
 
   /** Starts to accept connections on local address. */
-  public CompletableFuture<Transport> bind0() {
-    ServerBootstrap server =
-        bootstrapFactory.serverBootstrap().childHandler(incomingChannelInitializer);
+  public Mono<Transport> bind0() {
+    return Mono.defer(
+        () -> {
+          ServerBootstrap server =
+              bootstrapFactory.serverBootstrap().childHandler(incomingChannelInitializer);
 
-    // Resolve listen IP address
-    InetAddress listenAddress =
-        Addressing.getLocalIpAddress(
-            config.getListenAddress(), config.getListenInterface(), config.isPreferIPv6());
+          // Resolve listen IP address
+          InetAddress listenAddress =
+              Addressing.getLocalIpAddress(
+                  config.getListenAddress(), config.getListenInterface(), config.isPreferIPv6());
 
-    // Listen port
-    int bindPort = config.getPort();
+          // Listen port
+          int bindPort = config.getPort();
 
-    return bind0(server, listenAddress, bindPort);
+          return bind0(server, listenAddress, bindPort);
+        });
   }
 
   /**
@@ -102,28 +105,31 @@ final class TransportImpl implements Transport {
    * @param bindPort listen port of cluster transport.
    * @param server a server bootstrap.
    */
-  private CompletableFuture<Transport> bind0(
-      ServerBootstrap server, InetAddress listenAddress, int bindPort) {
-    final CompletableFuture<Transport> result = new CompletableFuture<>();
-    // Get address object and bind
-    ChannelFuture bindFuture = server.bind(listenAddress, bindPort);
-    bindFuture.addListener(
-        channelFuture -> {
-          if (channelFuture.isSuccess()) {
-            serverChannel = (ServerChannel) ((ChannelFuture) channelFuture).channel();
-            address = toAddress(serverChannel.localAddress());
-            networkEmulator = new NetworkEmulator(address, config.isUseNetworkEmulator());
-            networkEmulatorHandler =
-                config.isUseNetworkEmulator() ? new NetworkEmulatorHandler(networkEmulator) : null;
-            LOGGER.info("Bound to: {}", address);
-            result.complete(TransportImpl.this);
-          } else {
-            Throwable cause = channelFuture.cause();
-            LOGGER.error("Failed to bind to: {}, cause: {}", listenAddress, cause);
-            result.completeExceptionally(cause);
-          }
+  private Mono<Transport> bind0(ServerBootstrap server, InetAddress listenAddress, int bindPort) {
+    return Mono.create(
+        sink -> {
+          // Get address object and bind
+          server
+              .bind(listenAddress, bindPort)
+              .addListener(
+                  channelFuture -> {
+                    if (channelFuture.isSuccess()) {
+                      serverChannel = (ServerChannel) ((ChannelFuture) channelFuture).channel();
+                      address = toAddress(serverChannel.localAddress());
+                      networkEmulator = new NetworkEmulator(address, config.isUseNetworkEmulator());
+                      networkEmulatorHandler =
+                          config.isUseNetworkEmulator()
+                              ? new NetworkEmulatorHandler(networkEmulator)
+                              : null;
+                      LOGGER.info("Bound to: {}", address);
+                      sink.success(TransportImpl.this);
+                    } else {
+                      Throwable cause = channelFuture.cause();
+                      LOGGER.error("Failed to bind to: {}, cause: {}", listenAddress, cause);
+                      sink.error(cause);
+                    }
+                  });
         });
-    return result;
   }
 
   @Override

@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -185,7 +184,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
    * Starts running cluster membership protocol. After started it begins to receive and send cluster
    * membership messages
    */
-  public CompletableFuture<Void> start() {
+  public Mono<Void> start() {
     // Init membership table with local member record
     Member member = memberRef.get();
     MembershipRecord localMemberRecord = new MembershipRecord(member, ALIVE, 0);
@@ -261,44 +260,49 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   // ============== Action Methods ==================
   // ================================================
 
-  private CompletableFuture<Void> doInitialSync() {
-    LOGGER.debug("Making initial Sync to all seed members: {}", seedMembers);
+  private Mono<Void> doInitialSync() {
+    // In case no members at the moment just schedule periodic sync
     if (seedMembers.isEmpty()) {
       schedulePeriodicSync();
-      return CompletableFuture.completedFuture(null);
+      return Mono.empty();
     }
 
-    CompletableFuture<Void> syncResponseFuture = new CompletableFuture<>();
+    return Mono.create(
+        sink -> {
+          LOGGER.debug("Making initial Sync to all seed members: {}", seedMembers);
 
-    // Listen initial Sync Ack
-    String cid = memberRef.get().id();
-    transport
-        .listen()
-        .publishOn(scheduler)
-        .filter(msg -> SYNC_ACK.equals(msg.qualifier()))
-        .filter(msg -> cid.equals(msg.correlationId()))
-        .filter(this::checkSyncGroup)
-        .take(1)
-        .timeout(Duration.ofMillis(config.getSyncTimeout()), scheduler)
-        .subscribe(
-            message -> {
-              SyncData syncData = message.data();
-              LOGGER.info(
-                  "Joined cluster '{}': {}", syncData.getSyncGroup(), syncData.getMembership());
-              onSyncAck(message, true);
-              schedulePeriodicSync();
-              syncResponseFuture.complete(null);
-            },
-            throwable -> {
-              LOGGER.info("Timeout getting initial SyncAck from seed members: {}", seedMembers);
-              schedulePeriodicSync();
-              syncResponseFuture.complete(null);
-            });
+          // Listen initial Sync Ack
+          String cid = memberRef.get().id();
+          transport
+              .listen()
+              .publishOn(scheduler)
+              .filter(msg -> SYNC_ACK.equals(msg.qualifier()))
+              .filter(msg -> cid.equals(msg.correlationId()))
+              .filter(this::checkSyncGroup)
+              .take(1)
+              .timeout(Duration.ofMillis(config.getSyncTimeout()), scheduler)
+              .subscribe(
+                  message -> {
+                    SyncData syncData = message.data();
+                    String syncGroup = syncData.getSyncGroup();
+                    Collection<MembershipRecord> membership = syncData.getMembership();
+                    LOGGER.info("Joined cluster '{}': {}", syncGroup, membership);
 
-    Message syncMsg = prepareSyncDataMsg(SYNC, cid);
-    seedMembers.forEach(address -> transport.send(address, syncMsg));
+                    onSyncAck(message, true);
+                    schedulePeriodicSync();
+                    sink.success();
+                  },
+                  throwable -> {
+                    LOGGER.info(
+                        "Timeout getting initial SyncAck from seed members: {}", seedMembers);
 
-    return syncResponseFuture;
+                    schedulePeriodicSync();
+                    sink.success();
+                  });
+
+          Message syncMsg = prepareSyncDataMsg(SYNC, cid);
+          seedMembers.forEach(address -> transport.send(address, syncMsg));
+        });
   }
 
   private void doSync() {

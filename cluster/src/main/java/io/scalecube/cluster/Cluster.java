@@ -19,7 +19,7 @@ public interface Cluster {
   /** Init cluster instance and join cluster synchronously. */
   static Cluster joinAwait() {
     try {
-      return join().get();
+      return join().block();
     } catch (Exception e) {
       throw Exceptions.propagate(e.getCause() != null ? e.getCause() : e);
     }
@@ -28,7 +28,7 @@ public interface Cluster {
   /** Init cluster instance with the given seed members and join cluster synchronously. */
   static Cluster joinAwait(Address... seedMembers) {
     try {
-      return join(seedMembers).get();
+      return join(seedMembers).block();
     } catch (Exception e) {
       throw Exceptions.propagate(e.getCause() != null ? e.getCause() : e);
     }
@@ -39,7 +39,7 @@ public interface Cluster {
    */
   static Cluster joinAwait(Map<String, String> metadata, Address... seedMembers) {
     try {
-      return join(metadata, seedMembers).get();
+      return join(metadata, seedMembers).block();
     } catch (Exception e) {
       throw Exceptions.propagate(e.getCause() != null ? e.getCause() : e);
     }
@@ -48,19 +48,19 @@ public interface Cluster {
   /** Init cluster instance with the given configuration and join cluster synchronously. */
   static Cluster joinAwait(ClusterConfig config) {
     try {
-      return join(config).get();
+      return join(config).block();
     } catch (Exception e) {
       throw Exceptions.propagate(e.getCause() != null ? e.getCause() : e);
     }
   }
 
   /** Init cluster instance and join cluster asynchronously. */
-  static CompletableFuture<Cluster> join() {
+  static Mono<Cluster> join() {
     return join(ClusterConfig.defaultConfig());
   }
 
   /** Init cluster instance with the given seed members and join cluster asynchronously. */
-  static CompletableFuture<Cluster> join(Address... seedMembers) {
+  static Mono<Cluster> join(Address... seedMembers) {
     ClusterConfig config = ClusterConfig.builder().seedMembers(seedMembers).build();
     return join(config);
   }
@@ -71,7 +71,7 @@ public interface Cluster {
    * @param metadata metadata
    * @param seedMembers seed members
    */
-  static CompletableFuture<Cluster> join(Map<String, String> metadata, Address... seedMembers) {
+  static Mono<Cluster> join(Map<String, String> metadata, Address... seedMembers) {
     ClusterConfig config =
         ClusterConfig.builder().seedMembers(Arrays.asList(seedMembers)).metadata(metadata).build();
     return join(config);
@@ -83,7 +83,7 @@ public interface Cluster {
    * @param config cluster config
    * @return result future
    */
-  static CompletableFuture<Cluster> join(final ClusterConfig config) {
+  static Mono<Cluster> join(final ClusterConfig config) {
     return new ClusterImpl(config).join0();
   }
 

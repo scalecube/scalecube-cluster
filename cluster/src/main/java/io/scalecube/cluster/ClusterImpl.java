@@ -56,26 +56,15 @@ final class ClusterImpl implements Cluster {
   private GossipProtocolImpl gossip;
   private MembershipProtocolImpl membership;
 
-  private Flux<Message> messageObservable;
-  private Flux<Message> gossipObservable;
-
   public ClusterImpl(ClusterConfig config) {
     this.config = Objects.requireNonNull(config);
   }
 
-  public CompletableFuture<Cluster> join0() {
-    CompletableFuture<Transport> transportFuture = Transport.bind(config.getTransportConfig());
-    CompletableFuture<Void> clusterFuture =
-        transportFuture.thenCompose(
+  public Mono<Cluster> join0() {
+    return Transport.bind(config.getTransportConfig())
+        .flatMap(
             boundTransport -> {
               transport = boundTransport;
-              messageObservable =
-                  transport
-                      .listen()
-                      .filter(
-                          msg ->
-                              !SYSTEM_MESSAGES.contains(
-                                  msg.qualifier())); // filter out system gossips
 
               membership = new MembershipProtocolImpl(transport, config);
               gossip = new GossipProtocolImpl(transport, membership, config);
@@ -83,8 +72,8 @@ final class ClusterImpl implements Cluster {
               membership.setFailureDetector(failureDetector);
               membership.setGossipProtocol(gossip);
 
-              Member localMember = membership.member();
-              onMemberAdded(localMember);
+              onMemberAdded(membership.member()); // store local member at this phase
+
               membership
                   .listen()
                   .filter(MembershipEvent::isAdded)
@@ -103,16 +92,9 @@ final class ClusterImpl implements Cluster {
 
               failureDetector.start();
               gossip.start();
-              gossipObservable =
-                  gossip
-                      .listen()
-                      .filter(
-                          msg ->
-                              !SYSTEM_GOSSIPS.contains(
-                                  msg.qualifier())); // filter out system gossips
               return membership.start();
-            });
-    return clusterFuture.thenApply(avoid -> ClusterImpl.this);
+            })
+        .then(Mono.just(ClusterImpl.this));
   }
 
   private void onError(Throwable throwable) {
@@ -160,7 +142,9 @@ final class ClusterImpl implements Cluster {
 
   @Override
   public Flux<Message> listen() {
-    return messageObservable;
+    return transport
+        .listen()
+        .filter(msg -> !SYSTEM_MESSAGES.contains(msg.qualifier())); // filter out system messages
   }
 
   @Override
@@ -170,7 +154,9 @@ final class ClusterImpl implements Cluster {
 
   @Override
   public Flux<Message> listenGossips() {
-    return gossipObservable;
+    return gossip
+        .listen()
+        .filter(msg -> !SYSTEM_GOSSIPS.contains(msg.qualifier())); // filter out system gossips
   }
 
   @Override
