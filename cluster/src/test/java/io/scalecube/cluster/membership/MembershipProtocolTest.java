@@ -569,7 +569,7 @@ public class MembershipProtocolTest extends BaseTest {
     try {
       failureDetector.start();
       gossipProtocol.start();
-      membership.start().get();
+      membership.start().block();
     } catch (Exception ex) {
       throw Exceptions.propagate(ex);
     }
