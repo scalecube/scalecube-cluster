@@ -75,7 +75,6 @@ final class BootstrapFactory {
         .group(bossGroup, workerGroup)
         .channel(serverChannelClass())
         .childOption(ChannelOption.TCP_NODELAY, true)
-        .childOption(ChannelOption.SO_LINGER, 0)
         .childOption(ChannelOption.SO_KEEPALIVE, true)
         .childOption(ChannelOption.SO_REUSEADDR, true)
         .childOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
@@ -93,7 +92,6 @@ final class BootstrapFactory {
         .group(workerGroup)
         .channel(channelClass())
         .option(ChannelOption.TCP_NODELAY, true)
-        .option(ChannelOption.SO_LINGER, 0)
         .option(ChannelOption.SO_KEEPALIVE, true)
         .option(ChannelOption.SO_REUSEADDR, true)
         .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.getConnectTimeout())
