@@ -19,7 +19,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -394,12 +393,12 @@ public class FailureDetectorTest extends BaseTest {
   private FailureDetectorImpl createFd(
       Transport transport, List<Address> addresses, FailureDetectorConfig config) {
 
-    Member localMember = new Member(UUID.randomUUID().toString(), transport.address());
+    Member localMember = new Member("member-" + transport.address().port(), transport.address());
 
     Flux<MembershipEvent> membershipFlux =
         Flux.fromIterable(addresses)
             .filter(address -> !transport.address().equals(address))
-            .map(address -> new Member(UUID.randomUUID().toString(), address))
+            .map(address -> new Member("member-" + address.port(), address))
             .map(MembershipEvent::createAdded);
 
     return new FailureDetectorImpl(() -> localMember, transport, membershipFlux, config);
