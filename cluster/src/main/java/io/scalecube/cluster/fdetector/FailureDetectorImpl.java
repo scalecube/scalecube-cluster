@@ -3,7 +3,6 @@ package io.scalecube.cluster.fdetector;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.membership.MemberStatus;
 import io.scalecube.cluster.membership.MembershipEvent;
-import io.scalecube.cluster.membership.MembershipProtocol;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.Transport;
 import java.time.Duration;
@@ -38,8 +37,8 @@ public final class FailureDetectorImpl implements FailureDetector {
   // Injected
 
   private final Transport transport;
-  private final MembershipProtocol membership;
   private final FailureDetectorConfig config;
+  private final Member localMember;
 
   // State
 
@@ -49,7 +48,7 @@ public final class FailureDetectorImpl implements FailureDetector {
 
   // Disposables
 
-  private final Disposable.Composite actionDisposables = Disposables.composite();
+  private final Disposable.Composite actionsDisposables = Disposables.composite();
 
   // Subject
   private final FluxProcessor<FailureDetectorEvent, FailureDetectorEvent> subject =
@@ -64,42 +63,37 @@ public final class FailureDetectorImpl implements FailureDetector {
   /**
    * Creates new instance of failure detector with given transport and settings.
    *
-   * @param transport transport
-   * @param membership membership protocol
+   * @param localMember local cluster member
+   * @param transport cluster transport
+   * @param membershipProcessor membership event processor
    * @param config failure detector settings
    */
   public FailureDetectorImpl(
-      Transport transport, MembershipProtocol membership, FailureDetectorConfig config) {
+      Member localMember,
+      Transport transport,
+      Flux<MembershipEvent> membershipProcessor,
+      FailureDetectorConfig config) {
+    this.localMember = Objects.requireNonNull(localMember);
     this.transport = Objects.requireNonNull(transport);
-    this.membership = Objects.requireNonNull(membership);
     this.config = Objects.requireNonNull(config);
-    String nameFormat = "sc-fdetector-" + Integer.toString(membership.member().address().port());
+
+    String nameFormat = "sc-fdetector-" + Integer.toString(localMember.address().port());
     this.scheduler = Schedulers.newSingle(nameFormat, true);
-  }
 
-  /** <b>NOTE:</b> this method is for testing purpose only. */
-  Transport getTransport() {
-    return transport;
-  }
-
-  @Override
-  public void start() {
-    actionDisposables.addAll(
+    // Subscribe
+    actionsDisposables.addAll(
         Arrays.asList(
-            membership
-                .listen()
+            membershipProcessor
                 .publishOn(scheduler)
                 .filter(MembershipEvent::isAdded)
                 .map(MembershipEvent::member)
                 .subscribe(this::onMemberAdded, this::onError),
-            membership
-                .listen()
+            membershipProcessor
                 .publishOn(scheduler)
                 .filter(MembershipEvent::isRemoved)
                 .map(MembershipEvent::member)
                 .subscribe(this::onMemberRemoved, this::onError),
-            membership
-                .listen()
+            membershipProcessor
                 .publishOn(scheduler)
                 .filter(MembershipEvent::isUpdated)
                 .subscribe(this::onMemberUpdated, this::onError),
@@ -118,7 +112,19 @@ public final class FailureDetectorImpl implements FailureDetector {
                 .publishOn(scheduler)
                 .filter(this::isTransitPingAck)
                 .subscribe(this::onTransitPingAck, this::onError)));
+  }
 
+  /**
+   * <b>NOTE:</b> this method is for testing purpose only.
+   *
+   * @return transport
+   */
+  Transport getTransport() {
+    return transport;
+  }
+
+  @Override
+  public void start() {
     pingTask =
         scheduler.schedulePeriodically(
             this::doPing,
@@ -130,7 +136,7 @@ public final class FailureDetectorImpl implements FailureDetector {
   @Override
   public void stop() {
     // Stop accepting requests
-    actionDisposables.dispose();
+    actionsDisposables.dispose();
 
     // Stop sending pings
     if (pingTask != null && !pingTask.isDisposed()) {
@@ -164,7 +170,6 @@ public final class FailureDetectorImpl implements FailureDetector {
     }
 
     // Send ping
-    Member localMember = membership.member();
     String cid = localMember.id() + "-" + Long.toString(period);
     PingData pingData = new PingData(localMember, pingMember);
     Message pingMsg = Message.withData(pingData).qualifier(PING).correlationId(cid).build();
@@ -216,7 +221,6 @@ public final class FailureDetectorImpl implements FailureDetector {
       return;
     }
 
-    Member localMember = membership.member();
     transport
         .listen()
         .publishOn(scheduler)
@@ -279,7 +283,6 @@ public final class FailureDetectorImpl implements FailureDetector {
   private void onPing(Message message) {
     LOGGER.trace("Received Ping: {}", message);
     PingData data = message.data();
-    Member localMember = membership.member();
     if (!data.getTo().id().equals(localMember.id())) {
       LOGGER.warn("Received Ping to {}, but local member is {}", data.getTo(), localMember);
       return;
@@ -298,7 +301,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     Member target = data.getTo();
     Member originalIssuer = data.getFrom();
     String correlationId = message.correlationId();
-    PingData pingReqData = new PingData(membership.member(), target, originalIssuer);
+    PingData pingReqData = new PingData(localMember, target, originalIssuer);
     Message pingMessage =
         Message.withData(pingReqData).qualifier(PING).correlationId(correlationId).build();
     LOGGER.trace("Send transit Ping to {}", target.address());

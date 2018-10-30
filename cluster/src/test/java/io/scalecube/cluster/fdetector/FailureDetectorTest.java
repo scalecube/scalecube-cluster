@@ -8,9 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.scalecube.cluster.BaseTest;
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.Member;
-import io.scalecube.cluster.membership.DummyMembershipProtocol;
 import io.scalecube.cluster.membership.MemberStatus;
-import io.scalecube.cluster.membership.MembershipProtocol;
+import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Transport;
 import io.scalecube.transport.TransportConfig;
@@ -20,11 +19,13 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
+import reactor.core.publisher.Flux;
 
 public class FailureDetectorTest extends BaseTest {
 
@@ -392,9 +393,16 @@ public class FailureDetectorTest extends BaseTest {
 
   private FailureDetectorImpl createFd(
       Transport transport, List<Address> addresses, FailureDetectorConfig config) {
-    MembershipProtocol dummyMembership =
-        new DummyMembershipProtocol(transport.address(), addresses);
-    return new FailureDetectorImpl(transport, dummyMembership, config);
+
+    Member localMember = new Member(UUID.randomUUID().toString(), transport.address());
+
+    Flux<MembershipEvent> membershipFlux =
+        Flux.fromIterable(addresses)
+            .filter(address -> !transport.address().equals(address))
+            .map(address -> new Member(UUID.randomUUID().toString(), address))
+            .map(MembershipEvent::createAdded);
+
+    return new FailureDetectorImpl(localMember, transport, membershipFlux, config);
   }
 
   private void destroyTransport(Transport transport) {

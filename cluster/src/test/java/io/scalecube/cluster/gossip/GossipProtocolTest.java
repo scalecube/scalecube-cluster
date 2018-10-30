@@ -12,8 +12,7 @@ import io.scalecube.cluster.BaseTest;
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.Member;
-import io.scalecube.cluster.membership.DummyMembershipProtocol;
-import io.scalecube.cluster.membership.MembershipProtocol;
+import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.Transport;
@@ -24,6 +23,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.LongSummaryStatistics;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
@@ -35,6 +35,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 class GossipProtocolTest extends BaseTest {
@@ -232,15 +233,22 @@ class GossipProtocolTest extends BaseTest {
   }
 
   private GossipProtocolImpl initGossipProtocol(Transport transport, List<Address> members) {
-    MembershipProtocol dummyMembership = new DummyMembershipProtocol(transport.address(), members);
     GossipConfig gossipConfig =
         ClusterConfig.builder()
             .gossipFanout(gossipFanout)
             .gossipInterval(gossipInterval)
             .gossipRepeatMult(gossipRepeatMultiplier)
             .build();
+
+    Member localMember = new Member(UUID.randomUUID().toString(), transport.address());
+    Flux<MembershipEvent> membershipFlux =
+        Flux.fromIterable(members)
+            .filter(address -> !transport.address().equals(address))
+            .map(address -> new Member(UUID.randomUUID().toString(), address))
+            .map(MembershipEvent::createAdded);
+
     GossipProtocolImpl gossipProtocol =
-        new GossipProtocolImpl(transport, dummyMembership, gossipConfig);
+        new GossipProtocolImpl(localMember, transport, membershipFlux, gossipConfig);
     gossipProtocol.start();
     return gossipProtocol;
   }

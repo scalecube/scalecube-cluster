@@ -10,6 +10,7 @@ import static io.scalecube.cluster.membership.MembershipProtocolImpl.SYNC_ACK;
 
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
+import io.scalecube.cluster.membership.IdGenerator;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipProtocolImpl;
 import io.scalecube.transport.Address;
@@ -17,6 +18,7 @@ import io.scalecube.transport.Message;
 import io.scalecube.transport.NetworkEmulator;
 import io.scalecube.transport.Transport;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
@@ -29,7 +31,11 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.Disposable;
+import reactor.core.Disposables;
+import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 
 /** Cluster implementation. */
@@ -49,6 +55,9 @@ final class ClusterImpl implements Cluster {
   private final ConcurrentMap<String, Member> members = new ConcurrentHashMap<>();
   private final ConcurrentMap<Address, String> memberAddressIndex = new ConcurrentHashMap<>();
 
+  // Disposables
+  private final Disposable.Composite actionsDisposables = Disposables.composite();
+
   // Cluster components
   private Transport transport;
   private FailureDetectorImpl failureDetector;
@@ -65,32 +74,49 @@ final class ClusterImpl implements Cluster {
             boundTransport -> {
               transport = boundTransport;
 
-              membership = new MembershipProtocolImpl(transport, config);
-              gossip = new GossipProtocolImpl(transport, membership, config);
-              failureDetector = new FailureDetectorImpl(transport, membership, config);
-              membership.setFailureDetector(failureDetector);
-              membership.setGossipProtocol(gossip);
+              Member localMember =
+                  new Member(
+                      IdGenerator.generateId(),
+                      MembershipProtocolImpl.memberAddress(transport, config),
+                      config.getMetadata());
 
-              onMemberAdded(membership.member()); // store local member at this phase
+              onMemberAdded(localMember); // store local member at this phase
 
-              membership
-                  .listen()
-                  .filter(MembershipEvent::isAdded)
-                  .map(MembershipEvent::member)
-                  .subscribe(this::onMemberAdded, this::onError);
-              membership
-                  .listen()
-                  .filter(MembershipEvent::isRemoved)
-                  .map(MembershipEvent::member)
-                  .subscribe(this::onMemberRemoved, this::onError);
-              membership
-                  .listen()
-                  .filter(MembershipEvent::isUpdated)
-                  .map(MembershipEvent::member)
-                  .subscribe(this::onMemberUpdated, this::onError);
+              final DirectProcessor<MembershipEvent> membershipProcessor = DirectProcessor.create();
+              final FluxSink<MembershipEvent> membershipSink = membershipProcessor.sink();
+
+              failureDetector =
+                  new FailureDetectorImpl(localMember, transport, membershipProcessor, config);
+              gossip = //
+                  new GossipProtocolImpl(localMember, transport, membershipProcessor, config);
+              membership =
+                  new MembershipProtocolImpl(
+                      localMember, transport, failureDetector, gossip, config);
+
+              actionsDisposables.addAll(
+                  Arrays.asList(
+                      membership //
+                          .listen()
+                          .subscribe(membershipSink::next, this::onError),
+                      membership
+                          .listen()
+                          .filter(MembershipEvent::isAdded)
+                          .map(MembershipEvent::member)
+                          .subscribe(this::onMemberAdded, this::onError),
+                      membership
+                          .listen()
+                          .filter(MembershipEvent::isRemoved)
+                          .map(MembershipEvent::member)
+                          .subscribe(this::onMemberRemoved, this::onError),
+                      membership
+                          .listen()
+                          .filter(MembershipEvent::isUpdated)
+                          .map(MembershipEvent::member)
+                          .subscribe(this::onMemberUpdated, this::onError)));
 
               failureDetector.start();
               gossip.start();
+
               return membership.start();
             })
         .then(Mono.just(ClusterImpl.this));
@@ -131,9 +157,8 @@ final class ClusterImpl implements Cluster {
 
   @Override
   public Flux<Message> listen() {
-    return transport
-        .listen()
-        .filter(msg -> !SYSTEM_MESSAGES.contains(msg.qualifier())); // filter out system messages
+    // filter out system messages
+    return transport.listen().filter(msg -> !SYSTEM_MESSAGES.contains(msg.qualifier()));
   }
 
   @Override
@@ -143,9 +168,8 @@ final class ClusterImpl implements Cluster {
 
   @Override
   public Flux<Message> listenGossips() {
-    return gossip
-        .listen()
-        .filter(msg -> !SYSTEM_GOSSIPS.contains(msg.qualifier())); // filter out system gossips
+    // filter out system gossips
+    return gossip.listen().filter(msg -> !SYSTEM_GOSSIPS.contains(msg.qualifier()));
   }
 
   @Override
@@ -201,6 +225,9 @@ final class ClusterImpl implements Cluster {
               LOGGER.info(
                   "Cluster member notified about his leaving and shutting down {}",
                   membership.member());
+
+              // Stop accepting requests
+              actionsDisposables.dispose();
 
               // stop algorithms
               membership.stop();
