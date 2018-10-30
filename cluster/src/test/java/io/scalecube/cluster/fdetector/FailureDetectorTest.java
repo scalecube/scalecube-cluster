@@ -402,7 +402,7 @@ public class FailureDetectorTest extends BaseTest {
             .map(address -> new Member(UUID.randomUUID().toString(), address))
             .map(MembershipEvent::createAdded);
 
-    return new FailureDetectorImpl(localMember, transport, membershipFlux, config);
+    return new FailureDetectorImpl(() -> localMember, transport, membershipFlux, config);
   }
 
   private void destroyTransport(Transport transport) {

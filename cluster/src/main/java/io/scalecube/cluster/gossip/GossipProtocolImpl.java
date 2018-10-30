@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,8 +40,8 @@ public final class GossipProtocolImpl implements GossipProtocol {
   // Injected
 
   private final Transport transport;
+  private final Supplier<Member> memberSupplier;
   private final GossipConfig config;
-  private final Member localMember;
 
   // Local State
 
@@ -71,21 +72,21 @@ public final class GossipProtocolImpl implements GossipProtocol {
   /**
    * Creates new instance of gossip protocol with given memberId, transport and settings.
    *
+   * @param memberSupplier local cluster member provider
    * @param transport cluster transport
-   * @param localMember local cluster member
    * @param membershipProcessor membership event processor
    * @param config gossip protocol settings
    */
   public GossipProtocolImpl(
-      Member localMember,
+      Supplier<Member> memberSupplier,
       Transport transport,
       Flux<MembershipEvent> membershipProcessor,
       GossipConfig config) {
     this.transport = Objects.requireNonNull(transport);
     this.config = Objects.requireNonNull(config);
-    this.localMember = Objects.requireNonNull(localMember);
+    this.memberSupplier = Objects.requireNonNull(memberSupplier);
 
-    String nameFormat = "sc-gossip-" + Integer.toString(localMember.address().port());
+    String nameFormat = "sc-gossip-" + Integer.toString(memberSupplier.get().address().port());
     this.scheduler = Schedulers.newSingle(nameFormat, true);
 
     // Subscribe
@@ -212,7 +213,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
   }
 
   private String generateGossipId() {
-    return localMember.id() + "-" + gossipCounter++;
+    return memberSupplier.get().id() + "-" + gossipCounter++;
   }
 
   private void spreadGossipsTo(Member member) {
@@ -264,7 +265,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
   }
 
   private Message buildGossipRequestMessage(List<Gossip> gossipsToSend) {
-    GossipRequest gossipReqData = new GossipRequest(gossipsToSend, localMember.id());
+    GossipRequest gossipReqData = new GossipRequest(gossipsToSend, memberSupplier.get().id());
     return Message.withData(gossipReqData).qualifier(GOSSIP_REQ).build();
   }
 
@@ -310,6 +311,6 @@ public final class GossipProtocolImpl implements GossipProtocol {
    * @return local member
    */
   Member getMember() {
-    return localMember;
+    return memberSupplier.get();
   }
 }

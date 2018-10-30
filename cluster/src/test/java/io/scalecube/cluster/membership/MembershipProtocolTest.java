@@ -19,6 +19,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import reactor.core.Exceptions;
@@ -563,18 +564,18 @@ public class MembershipProtocolTest extends BaseTest {
   }
 
   private MembershipProtocolImpl createMembership(Transport transport, ClusterConfig config) {
-    // Create components
     Member localMember = new Member(UUID.randomUUID().toString(), transport.address());
+    AtomicReference<Member> memberRef = new AtomicReference<>(localMember);
 
     DirectProcessor<MembershipEvent> membershipProcessor = DirectProcessor.create();
     FluxSink<MembershipEvent> membershipSink = membershipProcessor.sink();
 
-    FailureDetectorImpl failureDetector = //
-        new FailureDetectorImpl(localMember, transport, membershipProcessor, config);
-    GossipProtocolImpl gossipProtocol = //
-        new GossipProtocolImpl(localMember, transport, membershipProcessor, config);
-    MembershipProtocolImpl membership = //
-        new MembershipProtocolImpl(localMember, transport, failureDetector, gossipProtocol, config);
+    FailureDetectorImpl failureDetector =
+        new FailureDetectorImpl(memberRef::get, transport, membershipProcessor, config);
+    GossipProtocolImpl gossipProtocol =
+        new GossipProtocolImpl(memberRef::get, transport, membershipProcessor, config);
+    MembershipProtocolImpl membership =
+        new MembershipProtocolImpl(memberRef, transport, failureDetector, gossipProtocol, config);
 
     membership.listen().subscribe(membershipSink::next);
 

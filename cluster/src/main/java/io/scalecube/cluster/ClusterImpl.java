@@ -27,6 +27,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
@@ -85,13 +86,15 @@ final class ClusterImpl implements Cluster {
               final DirectProcessor<MembershipEvent> membershipProcessor = DirectProcessor.create();
               final FluxSink<MembershipEvent> membershipSink = membershipProcessor.sink();
 
+              AtomicReference<Member> memberRef = new AtomicReference<>(localMember);
+
               failureDetector =
-                  new FailureDetectorImpl(localMember, transport, membershipProcessor, config);
-              gossip = //
-                  new GossipProtocolImpl(localMember, transport, membershipProcessor, config);
+                  new FailureDetectorImpl(memberRef::get, transport, membershipProcessor, config);
+              gossip =
+                  new GossipProtocolImpl(memberRef::get, transport, membershipProcessor, config);
+
               membership =
-                  new MembershipProtocolImpl(
-                      localMember, transport, failureDetector, gossip, config);
+                  new MembershipProtocolImpl(memberRef, transport, failureDetector, gossip, config);
 
               actionsDisposables.addAll(
                   Arrays.asList(

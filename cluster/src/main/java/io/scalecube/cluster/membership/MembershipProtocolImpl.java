@@ -57,7 +57,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   // Injected
 
-  private final AtomicReference<Member> localMemberRef;
+  private final AtomicReference<Member> memberRef;
   private final Transport transport;
   private final MembershipConfig config;
   private final List<Address> seedMembers;
@@ -86,14 +86,14 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   /**
    * Creates new instantiates of cluster membership protocol with given transport and config.
    *
-   * @param localMember local cluster member
+   * @param memberRef local cluster member reference
    * @param transport cluster transport
    * @param failureDetector failure detector
    * @param gossipProtocol gossip protocol
    * @param config membership config parameters
    */
   public MembershipProtocolImpl(
-      Member localMember,
+      AtomicReference<Member> memberRef,
       Transport transport,
       FailureDetector failureDetector,
       GossipProtocol gossipProtocol,
@@ -102,17 +102,18 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     this.config = Objects.requireNonNull(config);
     this.failureDetector = Objects.requireNonNull(failureDetector);
     this.gossipProtocol = Objects.requireNonNull(gossipProtocol);
+    this.memberRef = Objects.requireNonNull(memberRef);
 
-    this.localMemberRef = new AtomicReference<>(localMember);
-
-    String nameFormat = "sc-membership-" + Integer.toString(localMember.address().port());
+    Member member = memberRef.get();
+    String nameFormat = "sc-membership-" + Integer.toString(member.address().port());
     this.scheduler = Schedulers.newSingle(nameFormat, true);
 
     // Prepare seeds
     this.seedMembers = cleanUpSeedMembers(config.getSeedMembers());
 
     // Init membership table with local member record
-    this.membershipTable.put(localMember.id(), new MembershipRecord(localMember, ALIVE, 0));
+    MembershipRecord localMemberRecord = new MembershipRecord(member, ALIVE, 0);
+    this.membershipTable.put(member.id(), localMemberRecord);
 
     actionsDisposables.addAll(
         Arrays.asList(
@@ -179,7 +180,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   @Override
   public Member member() {
-    return localMemberRef.get();
+    return memberRef.get();
   }
 
   @Override
@@ -215,7 +216,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           LOGGER.debug("Making initial Sync to all seed members: {}", seedMembers);
 
           // Listen initial Sync Ack
-          String cid = localMemberRef.get().id();
+          String cid = memberRef.get().id();
           transport
               .listen()
               .publishOn(scheduler)
@@ -304,7 +305,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   private void onUpdateMetadataProperty(String key, String value) {
     // Update local member reference
-    Member curMember = localMemberRef.get();
+    Member curMember = memberRef.get();
     Map<String, String> metadata = new HashMap<>(curMember.metadata());
     metadata.put(key, value);
     onUpdateMetadata(metadata);
@@ -312,10 +313,10 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   private void onUpdateMetadata(Map<String, String> metadata) {
     // Update local member reference
-    Member curMember = localMemberRef.get();
+    Member curMember = memberRef.get();
     String memberId = curMember.id();
     Member newMember = new Member(memberId, curMember.address(), metadata);
-    localMemberRef.set(newMember);
+    memberRef.set(newMember);
 
     // Update membership table
     MembershipRecord curRecord = membershipTable.get(memberId);
@@ -433,7 +434,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     }
 
     // If received updated for local member then increase incarnation number and spread Alive gossip
-    Member localMember = localMemberRef.get();
+    Member localMember = memberRef.get();
     if (r1.member().id().equals(localMember.id())) {
       int currentIncarnation = Math.max(r0.incarnation(), r1.incarnation());
       MembershipRecord r2 = new MembershipRecord(localMember, r0.status(), currentIncarnation + 1);
@@ -505,7 +506,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private Mono<String> onLeave() {
     return Mono.defer(
         () -> {
-          Member curMember = localMemberRef.get();
+          Member curMember = memberRef.get();
           String memberId = curMember.id();
           MembershipRecord curRecord = membershipTable.get(memberId);
           MembershipRecord newRecord =

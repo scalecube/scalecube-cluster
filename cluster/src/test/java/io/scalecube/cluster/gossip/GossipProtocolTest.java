@@ -248,7 +248,7 @@ class GossipProtocolTest extends BaseTest {
             .map(MembershipEvent::createAdded);
 
     GossipProtocolImpl gossipProtocol =
-        new GossipProtocolImpl(localMember, transport, membershipFlux, gossipConfig);
+        new GossipProtocolImpl(() -> localMember, transport, membershipFlux, gossipConfig);
     gossipProtocol.start();
     return gossipProtocol;
   }
