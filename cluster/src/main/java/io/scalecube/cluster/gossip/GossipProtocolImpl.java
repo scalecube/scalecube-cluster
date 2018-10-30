@@ -227,7 +227,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
 
     // Send gossip request
     Message gossipReqMsg = buildGossipRequestMessage(gossipsToSend);
-    transport.send(member.address(), gossipReqMsg);
+    transport.send(member.address(), gossipReqMsg).subscribe();
   }
 
   private List<Gossip> selectGossipsToSend(Member member) {

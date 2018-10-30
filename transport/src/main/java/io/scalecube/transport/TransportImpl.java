@@ -8,6 +8,7 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelOutboundInvoker;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ServerChannel;
 import io.netty.handler.codec.MessageToByteEncoder;
@@ -17,8 +18,11 @@ import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -145,7 +149,7 @@ final class TransportImpl implements Transport {
 
   @Override
   public final Mono<Void> stop() {
-    return Mono.fromRunnable(
+    return Mono.defer(
         () -> {
           if (stopped) {
             throw new IllegalStateException("Transport is stopped");
@@ -158,29 +162,29 @@ final class TransportImpl implements Transport {
             // ignore
           }
 
-          /*
+          List<Mono<Void>> stopList = new ArrayList<>();
+
+          // close server channel
+          Optional.ofNullable(serverChannel)
+              .map(ChannelOutboundInvoker::close)
+              .map(TransportImpl::toMono)
+              .ifPresent(stopList::add);
+
           // close connected channels
           for (Address address : outgoingChannels.keySet()) {
-            ChannelFuture channelFuture = outgoingChannels.get(address);
-            if (channelFuture == null) {
-              continue;
-            }
-            if (channelFuture.isSuccess()) {
-              channelFuture.channel().close();
-            } else {
-              channelFuture.addListener(ChannelFutureListener.CLOSE);
-            }
+            Optional.ofNullable(outgoingChannels.get(address))
+                .ifPresent(
+                    channelMono ->
+                        channelMono
+                            .map(ChannelOutboundInvoker::close)
+                            .map(TransportImpl::toMono)
+                            .subscribe(stopList::add));
           }
           outgoingChannels.clear();
 
-          // close server channel
-          if (serverChannel != null) {
-            serverChannel.close().awaitUninterruptibly(); // TODO [AV]: check this
-          }
-          */
-
-          // TODO [AK]: shutdown boss/worker threads and listen for their futures
           bootstrapFactory.shutdown();
+
+          return Mono.when(stopList);
         });
   }
 
@@ -221,34 +225,28 @@ final class TransportImpl implements Transport {
   }
 
   private Mono<Channel> connect(Address address) {
-    return Mono.<Channel>create(
-            sink -> {
-              // Register logger and cleanup listener
-              bootstrapFactory
-                  .clientBootstrap()
-                  .handler(new OutgoingChannelInitializer(address))
-                  .connect(address.host(), address.port())
-                  .addListener(
-                      future -> {
-                        if (future.isSuccess()) {
-                          Channel channel = ((ChannelFuture) future).channel();
-                          LOGGER.debug(
-                              "Connected from {} to {}: {}",
-                              TransportImpl.this.address,
-                              address,
-                              channel);
-                          sink.success(channel);
-                        } else {
-                          LOGGER.warn(
-                              "Failed to connect from {} to {}",
-                              TransportImpl.this.address,
-                              address);
-                          outgoingChannels.remove(address);
-                          sink.error(future.cause());
-                        }
-                      });
-            })
-        .cache();
+    return Mono.<Channel>create(sink -> connect0(address, sink)).cache();
+  }
+
+  private void connect0(Address address, MonoSink<Channel> sink) {
+    // Register logger and cleanup listener
+    bootstrapFactory
+        .clientBootstrap()
+        .handler(new OutgoingChannelInitializer(address))
+        .connect(address.host(), address.port())
+        .addListener(
+            future -> {
+              if (future.isSuccess()) {
+                Channel channel = ((ChannelFuture) future).channel();
+                LOGGER.debug(
+                    "Connected from {} to {}: {}", TransportImpl.this.address, address, channel);
+                sink.success(channel);
+              } else {
+                LOGGER.warn("Failed to connect from {} to {}", TransportImpl.this.address, address);
+                outgoingChannels.remove(address);
+                sink.error(future.cause());
+              }
+            });
   }
 
   @ChannelHandler.Sharable
@@ -295,5 +293,18 @@ final class TransportImpl implements Transport {
   private static Address toAddress(SocketAddress address) {
     InetSocketAddress inetAddress = ((InetSocketAddress) address);
     return Address.create(inetAddress.getHostString(), inetAddress.getPort());
+  }
+
+  private static Mono<Void> toMono(ChannelFuture channelFuture) {
+    return Mono.create(
+        sink ->
+            channelFuture.addListener(
+                future -> {
+                  if (future.isSuccess()) {
+                    sink.success();
+                  } else {
+                    sink.error(future.cause());
+                  }
+                }));
   }
 }

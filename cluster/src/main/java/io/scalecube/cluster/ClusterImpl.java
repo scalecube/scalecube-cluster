@@ -23,7 +23,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
@@ -121,23 +120,13 @@ final class ClusterImpl implements Cluster {
   }
 
   @Override
-  public void send(Member member, Message message) {
-    transport.send(member.address(), message);
+  public Mono<Void> send(Member member, Message message) {
+    return send(member.address(), message);
   }
 
   @Override
-  public void send(Address address, Message message) {
-    transport.send(address, message);
-  }
-
-  @Override
-  public void send(Member member, Message message, CompletableFuture<Void> promise) {
-    transport.send(member.address(), message, promise);
-  }
-
-  @Override
-  public void send(Address address, Message message, CompletableFuture<Void> promise) {
-    transport.send(address, message, promise);
+  public Mono<Void> send(Address address, Message message) {
+    return transport.send(address, message);
   }
 
   @Override

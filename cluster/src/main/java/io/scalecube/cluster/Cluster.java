@@ -8,7 +8,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -94,14 +93,29 @@ public interface Cluster {
    */
   Address address();
 
-  void send(Member member, Message message);
+  /**
+   * Send a msg from this member (src) to target member (specified in parameters).
+   *
+   * @param member target member
+   * @param message msg
+   * @return promise telling success or failure
+   */
+  Mono<Void> send(Member member, Message message);
 
-  void send(Member member, Message message, CompletableFuture<Void> promise);
+  /**
+   * Send a msg from this member (src) to target member (specified in parameters).
+   *
+   * @param address target address
+   * @param message msg
+   * @return promise telling success or failure
+   */
+  Mono<Void> send(Address address, Message message);
 
-  void send(Address address, Message message);
-
-  void send(Address address, Message message, CompletableFuture<Void> promise);
-
+  /**
+   * Subscription point for listening incoming messages.
+   *
+   * @return stream of incoming messages
+   */
   Flux<Message> listen();
 
   /**
