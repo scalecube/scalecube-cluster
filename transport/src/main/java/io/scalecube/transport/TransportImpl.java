@@ -5,10 +5,10 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelOutboundInvoker;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ServerChannel;
 import io.netty.handler.codec.MessageToByteEncoder;
@@ -18,9 +18,11 @@ import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +31,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxProcessor;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.MonoSink;
 
 /**
  * Default transport implementation based on tcp netty client and server implementation and protobuf
@@ -37,9 +40,6 @@ import reactor.core.publisher.Mono;
 final class TransportImpl implements Transport {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(TransportImpl.class);
-
-  private static final CompletableFuture<Void> COMPLETED_PROMISE =
-      CompletableFuture.completedFuture(null);
 
   private final TransportConfig config;
 
@@ -50,7 +50,7 @@ final class TransportImpl implements Transport {
 
   private final FluxSink<Message> messageSink = incomingMessagesSubject.sink();
 
-  private final Map<Address, ChannelFuture> outgoingChannels = new ConcurrentHashMap<>();
+  private final Map<Address, Mono<Channel>> outgoingChannels = new ConcurrentHashMap<>();
 
   // Pipeline
   private final BootstrapFactory bootstrapFactory;
@@ -149,7 +149,7 @@ final class TransportImpl implements Transport {
 
   @Override
   public final Mono<Void> stop() {
-    return Mono.fromRunnable(
+    return Mono.defer(
         () -> {
           if (stopped) {
             throw new IllegalStateException("Transport is stopped");
@@ -162,111 +162,89 @@ final class TransportImpl implements Transport {
             // ignore
           }
 
+          List<Mono<Void>> stopList = new ArrayList<>();
+
+          // close server channel
+          Optional.ofNullable(serverChannel)
+              .map(ChannelOutboundInvoker::close)
+              .map(TransportImpl::toMono)
+              .ifPresent(stopList::add);
+
           // close connected channels
           for (Address address : outgoingChannels.keySet()) {
-            ChannelFuture channelFuture = outgoingChannels.get(address);
-            if (channelFuture == null) {
-              continue;
-            }
-            if (channelFuture.isSuccess()) {
-              channelFuture.channel().close();
-            } else {
-              channelFuture.addListener(ChannelFutureListener.CLOSE);
-            }
+            Optional.ofNullable(outgoingChannels.get(address))
+                .ifPresent(
+                    channelMono ->
+                        channelMono
+                            .map(ChannelOutboundInvoker::close)
+                            .map(TransportImpl::toMono)
+                            .subscribe(stopList::add));
           }
           outgoingChannels.clear();
 
-          // close server channel
-          if (serverChannel != null) {
-            serverChannel.close().awaitUninterruptibly(); // TODO [AV]: check this
-          }
-
-          // TODO [AK]: shutdown boss/worker threads and listen for their futures
           bootstrapFactory.shutdown();
+
+          return Mono.when(stopList);
         });
   }
 
   @Override
   public final Flux<Message> listen() {
-    if (stopped) {
-      throw new IllegalStateException("Transport is stopped");
-    }
     return incomingMessagesSubject.onBackpressureBuffer();
   }
 
   @Override
-  public void send(Address address, Message message) {
-    send(address, message, COMPLETED_PROMISE);
-  }
-
-  @Override
-  public void send(Address address, Message message, CompletableFuture<Void> promise) {
-    if (stopped) {
-      throw new IllegalStateException("Transport is stopped");
-    }
-    Objects.requireNonNull(address);
-    Objects.requireNonNull(message);
-    Objects.requireNonNull(promise);
-    message.setSender(this.address);
-
-    final ChannelFuture channelFuture = outgoingChannels.computeIfAbsent(address, this::connect);
-
-    if (channelFuture.isSuccess()) {
-      send(channelFuture.channel(), message, promise);
-    } else {
-      channelFuture.addListener(
-          (ChannelFuture chFuture) -> {
-            if (chFuture.isSuccess()) {
-              send(channelFuture.channel(), message, promise);
-            } else {
-              promise.completeExceptionally(chFuture.cause());
-            }
-          });
-    }
-  }
-
-  private void send(Channel channel, Message message, CompletableFuture<Void> promise) {
-    if (promise.equals(COMPLETED_PROMISE)) {
-      channel.writeAndFlush(message, channel.voidPromise());
-    } else {
-      composeFutures(channel.writeAndFlush(message), promise);
-    }
-  }
-
-  /**
-   * Converts netty {@link ChannelFuture} to the given {@link CompletableFuture}.
-   *
-   * @param channelFuture netty channel future
-   * @param promise future; can be null
-   */
-  private void composeFutures(ChannelFuture channelFuture, final CompletableFuture<Void> promise) {
-    channelFuture.addListener(
-        (ChannelFuture future) -> {
-          if (channelFuture.isSuccess()) {
-            promise.complete(channelFuture.get());
-          } else {
-            promise.completeExceptionally(channelFuture.cause());
+  public Mono<Void> send(Address address, Message message) {
+    return Mono.create(
+        sink -> {
+          if (stopped) {
+            throw new IllegalStateException("Transport is stopped");
           }
+          Objects.requireNonNull(address);
+          Objects.requireNonNull(message);
+
+          message.setSender(this.address); // set local address as outgoing address
+
+          outgoingChannels
+              .computeIfAbsent(address, this::connect)
+              .subscribe(channel -> send(channel, message, sink), sink::error);
         });
   }
 
-  private ChannelFuture connect(Address address) {
+  private void send(Channel channel, Message message, MonoSink<Void> sink) {
+    channel
+        .writeAndFlush(message)
+        .addListener(
+            future -> {
+              if (future.isSuccess()) {
+                sink.success();
+              } else {
+                sink.error(future.cause());
+              }
+            });
+  }
+
+  private Mono<Channel> connect(Address address) {
+    return Mono.<Channel>create(sink -> connect0(address, sink)).cache();
+  }
+
+  private void connect0(Address address, MonoSink<Channel> sink) {
     // Register logger and cleanup listener
-    return bootstrapFactory
+    bootstrapFactory
         .clientBootstrap()
         .handler(new OutgoingChannelInitializer(address))
         .connect(address.host(), address.port())
         .addListener(
-            channelFuture -> {
-              if (channelFuture.isSuccess()) {
+            future -> {
+              if (future.isSuccess()) {
+                Channel channel = ((ChannelFuture) future).channel();
                 LOGGER.debug(
-                    "Connected from {} to {}: {}",
-                    TransportImpl.this.address,
-                    address,
-                    ((ChannelFuture) channelFuture).channel());
+                    "Connected from {} to {}: {}", TransportImpl.this.address, address, channel);
+                sink.success(channel);
               } else {
                 LOGGER.warn("Failed to connect from {} to {}", TransportImpl.this.address, address);
                 outgoingChannels.remove(address);
+                sink.error(future.cause());
               }
             });
   }
@@ -315,5 +293,18 @@ final class TransportImpl implements Transport {
   private static Address toAddress(SocketAddress address) {
     InetSocketAddress inetAddress = ((InetSocketAddress) address);
     return Address.create(inetAddress.getHostString(), inetAddress.getPort());
+  }
+
+  private static Mono<Void> toMono(ChannelFuture channelFuture) {
+    return Mono.create(
+        sink ->
+            channelFuture.addListener(
+                future -> {
+                  if (future.isSuccess()) {
+                    sink.success();
+                  } else {
+                    sink.error(future.cause());
+                  }
+                }));
   }
 }

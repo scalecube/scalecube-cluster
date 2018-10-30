@@ -13,10 +13,10 @@ import static org.junit.jupiter.api.Assertions.fail;
 import java.io.IOException;
 import java.net.BindException;
 import java.net.UnknownHostException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.AfterEach;
@@ -120,15 +120,14 @@ public class TransportTest extends BaseTest {
   public void testUnresolvedHostConnection() throws Exception {
     client = createTransport();
     // create transport with wrong host
-    CompletableFuture<Void> sendPromise0 = new CompletableFuture<>();
-    client.send(Address.from("wronghost:49255"), Message.fromData("q"), sendPromise0);
     try {
-      sendPromise0.get(5, TimeUnit.SECONDS);
+      client
+          .send(Address.from("wronghost:49255"), Message.fromData("q"))
+          .block(Duration.ofSeconds(5));
       fail();
-    } catch (ExecutionException e) {
-      Throwable cause = e.getCause();
-      assertNotNull(cause);
-      assertEquals(UnknownHostException.class, cause.getClass(), "Unexpected exception class");
+    } catch (Exception e) {
+      assertEquals(
+          UnknownHostException.class, e.getCause().getClass(), "Unexpected exception class");
     }
   }
 
@@ -141,27 +140,19 @@ public class TransportTest extends BaseTest {
       client = createTransport();
 
       // create transport and don't wait just send message
-      CompletableFuture<Void> sendPromise0 = new CompletableFuture<>();
-      client.send(serverAddress, Message.fromData("q"), sendPromise0);
       try {
-        sendPromise0.get(3, TimeUnit.SECONDS);
+        client.send(serverAddress, Message.fromData("q")).block(Duration.ofSeconds(3));
         fail();
-      } catch (ExecutionException e) {
-        Throwable cause = e.getCause();
-        assertNotNull(cause);
-        assertTrue(cause instanceof IOException, "Unexpected exception type (expects IOException)");
+      } catch (Exception e) {
+        assertTrue(e.getCause() instanceof IOException, "Unexpected exception type: " + e);
       }
 
       // send second message: no connection yet and it's clear that there's no connection
-      CompletableFuture<Void> sendPromise1 = new CompletableFuture<>();
-      client.send(serverAddress, Message.fromData("q"), sendPromise1);
       try {
-        sendPromise1.get(3, TimeUnit.SECONDS);
+        client.send(serverAddress, Message.fromData("q")).block(Duration.ofSeconds(3));
         fail();
-      } catch (ExecutionException e) {
-        Throwable cause = e.getCause();
-        assertNotNull(cause);
-        assertTrue(cause instanceof IOException, "Unexpected exception type (expects IOException)");
+      } catch (Exception e) {
+        assertTrue(e.getCause() instanceof IOException, "Unexpected exception type: " + e);
       }
 
       destroyTransport(client);
@@ -179,13 +170,13 @@ public class TransportTest extends BaseTest {
             message -> {
               Address address = message.sender();
               assertEquals(client.address(), address, "Expected clientAddress");
-              send(server, address, Message.fromQualifier("hi client"));
+              send(server, address, Message.fromQualifier("hi client")).subscribe();
             });
 
     CompletableFuture<Message> messageFuture = new CompletableFuture<>();
     client.listen().subscribe(messageFuture::complete);
 
-    send(client, server.address(), Message.fromQualifier("hello server"));
+    send(client, server.address(), Message.fromQualifier("hello server")).subscribe();
 
     Message result = messageFuture.get(3, TimeUnit.SECONDS);
     assertNotNull(result, "No response from serverAddress");
@@ -206,7 +197,7 @@ public class TransportTest extends BaseTest {
 
     int total = 1000;
     for (int i = 0; i < total; i++) {
-      client.send(server.address(), Message.fromData("q" + i));
+      client.send(server.address(), Message.fromData("q" + i)).subscribe();
     }
 
     Thread.sleep(1000);
@@ -229,15 +220,15 @@ public class TransportTest extends BaseTest {
             messages -> {
               for (Message message : messages) {
                 Message echo = Message.fromData("echo/" + message.qualifier());
-                server.send(message.sender(), echo);
+                server.send(message.sender(), echo).subscribe();
               }
             });
 
     final CompletableFuture<List<Message>> targetFuture = new CompletableFuture<>();
     client.listen().buffer(2).subscribe(targetFuture::complete);
 
-    client.send(server.address(), Message.fromData("q1"));
-    client.send(server.address(), Message.fromData("q2"));
+    client.send(server.address(), Message.fromData("q1")).subscribe();
+    client.send(server.address(), Message.fromData("q2")).subscribe();
 
     List<Message> target = targetFuture.get(1, TimeUnit.SECONDS);
     assertNotNull(target);
@@ -256,15 +247,15 @@ public class TransportTest extends BaseTest {
             messages -> {
               for (Message message : messages) {
                 Message echo = Message.fromData("echo/" + message.qualifier());
-                server.send(message.sender(), echo);
+                server.send(message.sender(), echo).subscribe();
               }
             });
 
     final CompletableFuture<List<Message>> targetFuture = new CompletableFuture<>();
     client.listen().buffer(2).subscribe(targetFuture::complete);
 
-    client.send(server.address(), Message.fromData("q1"));
-    client.send(server.address(), Message.fromData("q2"));
+    client.send(server.address(), Message.fromData("q1")).subscribe();
+    client.send(server.address(), Message.fromData("q2")).subscribe();
 
     List<Message> target = targetFuture.get(1, TimeUnit.SECONDS);
     assertNotNull(target);
@@ -288,9 +279,7 @@ public class TransportTest extends BaseTest {
             },
             () -> completeLatch.complete(true));
 
-    CompletableFuture<Void> send = new CompletableFuture<>();
-    client.send(server.address(), Message.fromData("q"), send);
-    send.get(1, TimeUnit.SECONDS);
+    client.send(server.address(), Message.fromData("q")).block(Duration.ofSeconds(1));
 
     assertNotNull(messageLatch.get(1, TimeUnit.SECONDS));
 
@@ -314,7 +303,7 @@ public class TransportTest extends BaseTest {
               }
               if (qualifier.startsWith("q")) {
                 Message echo = Message.fromData("echo/" + message.qualifier());
-                server.send(message.sender(), echo);
+                server.send(message.sender(), echo).subscribe();
               }
             },
             Throwable::printStackTrace);
@@ -322,7 +311,7 @@ public class TransportTest extends BaseTest {
     // send "throw" and raise exception on server subscriber
     final CompletableFuture<Message> messageFuture0 = new CompletableFuture<>();
     client.listen().subscribe(messageFuture0::complete);
-    client.send(server.address(), Message.fromData("throw"));
+    client.send(server.address(), Message.fromData("throw")).subscribe();
     Message message0 = null;
     try {
       message0 = messageFuture0.get(1, TimeUnit.SECONDS);
@@ -349,18 +338,18 @@ public class TransportTest extends BaseTest {
     client = createTransport();
     server = createTransport();
 
-    server.listen().subscribe(message -> server.send(message.sender(), message));
+    server.listen().subscribe(message -> server.send(message.sender(), message).subscribe());
 
     final List<Message> resp = new ArrayList<>();
     client.listen().subscribe(resp::add);
 
     // test at unblocked transport
-    send(client, server.address(), Message.fromQualifier("q/unblocked"));
+    send(client, server.address(), Message.fromQualifier("q/unblocked")).subscribe();
 
     // then block client->server messages
     Thread.sleep(1000);
     client.networkEmulator().block(server.address());
-    send(client, server.address(), Message.fromQualifier("q/blocked"));
+    send(client, server.address(), Message.fromQualifier("q/blocked")).subscribe();
 
     Thread.sleep(1000);
     assertEquals(1, resp.size());

@@ -261,14 +261,15 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   // ================================================
 
   private Mono<Void> doInitialSync() {
-    // In case no members at the moment just schedule periodic sync
-    if (seedMembers.isEmpty()) {
-      schedulePeriodicSync();
-      return Mono.empty();
-    }
-
     return Mono.create(
         sink -> {
+          // In case no members at the moment just schedule periodic sync
+          if (seedMembers.isEmpty()) {
+            schedulePeriodicSync();
+            sink.success();
+            return;
+          }
+
           LOGGER.debug("Making initial Sync to all seed members: {}", seedMembers);
 
           // Listen initial Sync Ack
@@ -301,7 +302,9 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                   });
 
           Message syncMsg = prepareSyncDataMsg(SYNC, cid);
-          seedMembers.forEach(address -> transport.send(address, syncMsg));
+          Flux.fromIterable(seedMembers)
+              .flatMap(address -> transport.send(address, syncMsg))
+              .subscribe();
         });
   }
 
@@ -312,7 +315,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
         return;
       }
       Message syncMsg = prepareSyncDataMsg(SYNC, null);
-      transport.send(syncMember, syncMsg);
+      transport.send(syncMember, syncMsg).subscribe();
       LOGGER.debug("Send Sync to {}: {}", syncMember, syncMsg);
     } catch (Exception cause) {
       LOGGER.error("Unhandled exception: {}", cause, cause);
@@ -365,7 +368,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     LOGGER.debug("Received Sync: {}", syncMsg);
     syncMembership(syncMsg.data(), false);
     Message syncAckMsg = prepareSyncDataMsg(SYNC_ACK, syncMsg.correlationId());
-    transport.send(syncMsg.sender(), syncAckMsg);
+    transport.send(syncMsg.sender(), syncAckMsg).subscribe();
   }
 
   /** Merges FD updates and processes them. */
@@ -383,7 +386,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       // Alive won't override SUSPECT so issue instead extra sync with member to force it spread
       // alive with inc + 1
       Message syncMsg = prepareSyncDataMsg(SYNC, null);
-      transport.send(fdEvent.member().address(), syncMsg);
+      transport.send(fdEvent.member().address(), syncMsg).subscribe();
     } else {
       MembershipRecord r1 = new MembershipRecord(r0.member(), fdEvent.status(), r0.incarnation());
       updateMembership(r1, MembershipUpdateReason.FAILURE_DETECTOR_EVENT);

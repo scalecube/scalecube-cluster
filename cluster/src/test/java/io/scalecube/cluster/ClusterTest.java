@@ -181,7 +181,7 @@ public class ClusterTest extends BaseTest {
     final Cluster node2 = Cluster.joinAwait(seedNode.address());
     final Cluster node3 = Cluster.joinAwait(seedNode.address());
 
-    node2.shutdown().block(Duration.ofSeconds(5));
+    node2.shutdown().block(Duration.ofSeconds(30));
 
     assertTrue(!seedNode.members().contains(node2.member()));
     assertTrue(!node1.members().contains(node2.member()));

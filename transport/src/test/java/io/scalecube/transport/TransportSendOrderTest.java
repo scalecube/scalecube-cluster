@@ -4,13 +4,13 @@ import static io.scalecube.transport.TransportTestUtils.createTransport;
 import static io.scalecube.transport.TransportTestUtils.destroyTransport;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.LongSummaryStatistics;
 import java.util.Map;
 import java.util.concurrent.Callable;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -61,7 +61,7 @@ public class TransportSendOrderTest extends BaseTest {
 
       long startAt = System.currentTimeMillis();
       for (int j = 0; j < sentPerIteration; j++) {
-        client.send(server.address(), Message.fromQualifier("q" + j));
+        client.send(server.address(), Message.fromQualifier("q" + j)).subscribe();
       }
       latch.await(20, TimeUnit.SECONDS);
       long iterationTime = System.currentTimeMillis() - startAt;
@@ -108,21 +108,16 @@ public class TransportSendOrderTest extends BaseTest {
 
       long startAt = System.currentTimeMillis();
       for (int j = 0; j < sentPerIteration; j++) {
-        CompletableFuture<Void> sendPromise = new CompletableFuture<>();
         long sentAt = System.currentTimeMillis();
-        client.send(server.address(), Message.fromQualifier("q" + j), sendPromise);
-        sendPromise.whenComplete(
-            (avoid, exception) -> {
-              if (exception == null) {
-                long sentTime = System.currentTimeMillis() - sentAt;
-                iterSentTimeSeries.add(sentTime);
-              } else {
-                LOGGER.error(
-                    "Failed to send message in {} ms",
-                    System.currentTimeMillis() - sentAt,
-                    exception);
-              }
-            });
+        client
+            .send(server.address(), Message.fromQualifier("q" + j))
+            .subscribe(
+                avoid -> iterSentTimeSeries.add(System.currentTimeMillis() - sentAt),
+                th ->
+                    LOGGER.error(
+                        "Failed to send message in {} ms",
+                        System.currentTimeMillis() - sentAt,
+                        th));
       }
 
       latch.await(20, TimeUnit.SECONDS);
@@ -224,11 +219,10 @@ public class TransportSendOrderTest extends BaseTest {
     return () -> {
       for (int j = 0; j < total; j++) {
         String correlationId = id + "/" + j;
-        CompletableFuture<Void> sendPromise = new CompletableFuture<>();
-        client.send(
-            address, Message.withQualifier("q").correlationId(correlationId).build(), sendPromise);
         try {
-          sendPromise.get(3, TimeUnit.SECONDS);
+          client
+              .send(address, Message.withQualifier("q").correlationId(correlationId).build())
+              .block(Duration.ofSeconds(3));
         } catch (Exception e) {
           LOGGER.error("Failed to send message: j = {} id = {}", j, id, e);
           throw Exceptions.propagate(e);

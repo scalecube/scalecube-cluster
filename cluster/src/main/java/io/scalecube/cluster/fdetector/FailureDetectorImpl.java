@@ -190,7 +190,7 @@ public final class FailureDetectorImpl implements FailureDetector {
                     config.getPingTimeout());
                 doPingReq(pingMember, cid);
               });
-      transport.send(pingMember.address(), pingMsg);
+      transport.send(pingMember.address(), pingMsg).subscribe();
     } catch (Exception cause) {
       LOGGER.error(
           "Exception on sending Ping[{}] to {}: {}", period, pingMember, cause.getMessage(), cause);
@@ -247,9 +247,10 @@ public final class FailureDetectorImpl implements FailureDetector {
     Message pingReqMsg =
         Message.withData(pingReqData).qualifier(PING_REQ).correlationId(cid).build();
     LOGGER.trace("Send PingReq[{}] to {} for {}", period, pingReqMembers, pingMember);
-    for (Member pingReqMember : pingReqMembers) {
-      transport.send(pingReqMember.address(), pingReqMsg);
-    }
+
+    Flux.fromIterable(pingReqMembers)
+        .flatMap(member -> transport.send(member.address(), pingReqMsg))
+        .subscribe();
   }
 
   // ================================================
@@ -287,7 +288,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     Message ackMessage =
         Message.withData(data).qualifier(PING_ACK).correlationId(correlationId).build();
     LOGGER.trace("Send PingAck to {}", data.getFrom().address());
-    transport.send(data.getFrom().address(), ackMessage);
+    transport.send(data.getFrom().address(), ackMessage).subscribe();
   }
 
   /** Listens to PING_REQ message and sends PING to requested cluster member. */
@@ -301,7 +302,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     Message pingMessage =
         Message.withData(pingReqData).qualifier(PING).correlationId(correlationId).build();
     LOGGER.trace("Send transit Ping to {}", target.address());
-    transport.send(target.address(), pingMessage);
+    transport.send(target.address(), pingMessage).subscribe();
   }
 
   /**
@@ -317,7 +318,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     Message originalAckMessage =
         Message.withData(originalAckData).qualifier(PING_ACK).correlationId(correlationId).build();
     LOGGER.trace("Resend transit PingAck to {}", target.address());
-    transport.send(target.address(), originalAckMessage);
+    transport.send(target.address(), originalAckMessage).subscribe();
   }
 
   private void onError(Throwable throwable) {
