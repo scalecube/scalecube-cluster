@@ -141,7 +141,7 @@ public final class FailureDetectorImpl implements FailureDetector {
 
   @Override
   public Flux<FailureDetectorEvent> listen() {
-    return subject.onBackpressureDrop();
+    return subject.onBackpressureBuffer();
   }
 
   // ================================================

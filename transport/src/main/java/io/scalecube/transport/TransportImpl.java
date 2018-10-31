@@ -211,7 +211,7 @@ final class TransportImpl implements Transport {
             })
         .doOnError(
             th ->
-                LOGGER.warn(
+                LOGGER.debug(
                     "Failed to send {} from {} to {}, cause: {}",
                     message,
                     TransportImpl.this.address,

@@ -79,7 +79,7 @@ final class ClusterImpl implements Cluster {
               transport = boundTransport;
 
               // Prepare local cluster member
-              Member localMember =
+              final Member localMember =
                   new Member(
                       IdGenerator.generateId(),
                       MembershipProtocolImpl.memberAddress(transport, config),
