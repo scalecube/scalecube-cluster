@@ -92,7 +92,6 @@ final class ClusterImpl implements Cluster {
                   new FailureDetectorImpl(memberRef::get, transport, membershipProcessor, config);
               gossip =
                   new GossipProtocolImpl(memberRef::get, transport, membershipProcessor, config);
-
               membership =
                   new MembershipProtocolImpl(memberRef, transport, failureDetector, gossip, config);
 
