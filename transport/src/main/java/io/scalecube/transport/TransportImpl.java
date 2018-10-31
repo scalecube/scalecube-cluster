@@ -15,6 +15,7 @@ import io.netty.handler.codec.MessageToByteEncoder;
 import io.netty.handler.codec.MessageToMessageDecoder;
 import io.netty.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
 import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
+import io.netty.util.concurrent.Future;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -195,41 +196,34 @@ final class TransportImpl implements Transport {
 
   @Override
   public Mono<Void> send(Address address, Message message) {
-    return Mono.<Void>create(
-            sink -> {
-              if (stopped) {
-                throw new IllegalStateException("Transport is stopped");
-              }
-              Objects.requireNonNull(address);
-              Objects.requireNonNull(message);
-
-              message.setSender(this.address); // set local address as outgoing address
-
-              outgoingChannels
-                  .computeIfAbsent(address, this::connect)
-                  .subscribe(channel -> send0(channel, message, sink), sink::error);
-            })
+    return Mono.<Void>create(sink -> send0(address, message, sink))
         .doOnError(
-            th ->
+            ex ->
                 LOGGER.debug(
                     "Failed to send {} from {} to {}, cause: {}",
                     message,
-                    TransportImpl.this.address,
+                    this.address,
                     address,
-                    th));
+                    ex));
   }
 
-  private void send0(Channel channel, Message message, MonoSink<Void> sink) {
-    channel
-        .writeAndFlush(message)
-        .addListener(
-            future -> {
-              if (future.isSuccess()) {
-                sink.success();
-              } else {
-                sink.error(future.cause());
-              }
-            });
+  private void send0(Address address, Message message, MonoSink<Void> sink) {
+    if (stopped) {
+      throw new IllegalStateException("Transport is stopped");
+    }
+    Objects.requireNonNull(address);
+    Objects.requireNonNull(message);
+
+    message.setSender(this.address); // set local address as outgoing address
+
+    outgoingChannels
+        .computeIfAbsent(address, this::connect)
+        .subscribe(
+            channel ->
+                channel //
+                    .writeAndFlush(message)
+                    .addListener(future -> futureToSink(future, sink)),
+            sink::error);
   }
 
   private Mono<Channel> connect(Address address) {
@@ -243,23 +237,11 @@ final class TransportImpl implements Transport {
   }
 
   private void connect0(Address address, MonoSink<Channel> sink) {
-    // Register logger and cleanup listener
     bootstrapFactory
         .clientBootstrap()
         .handler(new OutgoingChannelInitializer(address))
         .connect(address.host(), address.port())
-        .addListener(
-            future -> {
-              if (future.isSuccess()) {
-                sink.success(((ChannelFuture) future).channel());
-              } else {
-                try {
-                  sink.error(future.cause());
-                } catch (Exception ex) {
-                  // prevent onErrorDroppedEception if sink was already disposed
-                }
-              }
-            });
+        .addListener(future -> futureToSink(future, sink));
   }
 
   @ChannelHandler.Sharable
@@ -309,15 +291,23 @@ final class TransportImpl implements Transport {
   }
 
   private static Mono<Void> toMono(ChannelFuture channelFuture) {
-    return Mono.create(
-        sink ->
-            channelFuture.addListener(
-                future -> {
-                  if (future.isSuccess()) {
-                    sink.success();
-                  } else {
-                    sink.error(future.cause());
-                  }
-                }));
+    return Mono.create(sink -> futureToSink(channelFuture, sink));
+  }
+
+  private static void futureToSink(Future<? super Void> future, MonoSink sink) {
+    if (future.isSuccess()) {
+      if (future instanceof ChannelFuture) {
+        //noinspection unchecked
+        sink.success(((ChannelFuture) future).channel());
+      } else {
+        sink.success();
+      }
+    } else {
+      try {
+        sink.error(future.cause());
+      } catch (Exception ex) {
+        // prevent onErrorDroppedEception if sink was already disposed
+      }
+    }
   }
 }
