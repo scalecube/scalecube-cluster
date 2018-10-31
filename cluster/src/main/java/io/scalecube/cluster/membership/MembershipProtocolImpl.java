@@ -35,7 +35,6 @@ import reactor.core.publisher.FluxProcessor;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
-import reactor.core.scheduler.Schedulers;
 
 public final class MembershipProtocolImpl implements MembershipProtocol {
 
@@ -91,27 +90,28 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
    * @param failureDetector failure detector
    * @param gossipProtocol gossip protocol
    * @param config membership config parameters
+   * @param scheduler scheduler
    */
   public MembershipProtocolImpl(
       AtomicReference<Member> memberRef,
       Transport transport,
       FailureDetector failureDetector,
       GossipProtocol gossipProtocol,
-      MembershipConfig config) {
+      MembershipConfig config,
+      Scheduler scheduler) {
+
     this.transport = Objects.requireNonNull(transport);
     this.config = Objects.requireNonNull(config);
     this.failureDetector = Objects.requireNonNull(failureDetector);
     this.gossipProtocol = Objects.requireNonNull(gossipProtocol);
     this.memberRef = Objects.requireNonNull(memberRef);
-
-    Member member = memberRef.get();
-    String nameFormat = "sc-membership-" + Integer.toString(member.address().port());
-    this.scheduler = Schedulers.newSingle(nameFormat, true);
+    this.scheduler = Objects.requireNonNull(scheduler);
 
     // Prepare seeds
     this.seedMembers = cleanUpSeedMembers(config.getSeedMembers());
 
     // Init membership table with local member record
+    Member member = memberRef.get();
     MembershipRecord localMemberRecord = new MembershipRecord(member, ALIVE, 0);
     this.membershipTable.put(member.id(), localMemberRecord);
 
@@ -273,9 +273,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       }
     }
     suspicionTimeoutTasks.clear();
-
-    // Shutdown executor
-    scheduler.dispose();
 
     // Stop publishing events
     sink.complete();

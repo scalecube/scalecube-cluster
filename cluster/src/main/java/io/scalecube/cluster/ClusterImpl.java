@@ -38,6 +38,8 @@ import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
 
 /** Cluster implementation. */
 final class ClusterImpl implements Cluster {
@@ -64,6 +66,7 @@ final class ClusterImpl implements Cluster {
   private FailureDetectorImpl failureDetector;
   private GossipProtocolImpl gossip;
   private MembershipProtocolImpl membership;
+  private Scheduler scheduler;
 
   public ClusterImpl(ClusterConfig config) {
     this.config = Objects.requireNonNull(config);
@@ -75,6 +78,7 @@ final class ClusterImpl implements Cluster {
             boundTransport -> {
               transport = boundTransport;
 
+              // Prepare local cluster member
               Member localMember =
                   new Member(
                       IdGenerator.generateId(),
@@ -86,34 +90,51 @@ final class ClusterImpl implements Cluster {
               final DirectProcessor<MembershipEvent> membershipEvents = DirectProcessor.create();
               final FluxSink<MembershipEvent> membershipSink = membershipEvents.sink();
 
-              AtomicReference<Member> memberRef = new AtomicReference<>(localMember);
+              final AtomicReference<Member> memberRef = new AtomicReference<>(localMember);
+
+              scheduler = Schedulers.newSingle("sc-cluster-" + localMember.address().port(), true);
 
               failureDetector =
                   new FailureDetectorImpl(
-                      memberRef::get, transport, membershipEvents.onBackpressureBuffer(), config);
+                      memberRef::get,
+                      transport,
+                      membershipEvents.onBackpressureBuffer(),
+                      config,
+                      scheduler);
+
               gossip =
                   new GossipProtocolImpl(
-                      memberRef::get, transport, membershipEvents.onBackpressureBuffer(), config);
+                      memberRef::get,
+                      transport,
+                      membershipEvents.onBackpressureBuffer(),
+                      config,
+                      scheduler);
+
               membership =
-                  new MembershipProtocolImpl(memberRef, transport, failureDetector, gossip, config);
+                  new MembershipProtocolImpl(
+                      memberRef, transport, failureDetector, gossip, config, scheduler);
 
               actionsDisposables.addAll(
                   Arrays.asList(
                       membership //
                           .listen()
+                          .publishOn(scheduler)
                           .subscribe(membershipSink::next, this::onError),
                       membership
                           .listen()
+                          .publishOn(scheduler)
                           .filter(MembershipEvent::isAdded)
                           .map(MembershipEvent::member)
                           .subscribe(this::onMemberAdded, this::onError),
                       membership
                           .listen()
+                          .publishOn(scheduler)
                           .filter(MembershipEvent::isRemoved)
                           .map(MembershipEvent::member)
                           .subscribe(this::onMemberRemoved, this::onError),
                       membership
                           .listen()
+                          .publishOn(scheduler)
                           .filter(MembershipEvent::isUpdated)
                           .map(MembershipEvent::member)
                           .subscribe(this::onMemberUpdated, this::onError)));
@@ -237,6 +258,9 @@ final class ClusterImpl implements Cluster {
               membership.stop();
               gossip.stop();
               failureDetector.stop();
+
+              // stop scheduler
+              scheduler.dispose();
 
               // stop transport
               return transport.stop();

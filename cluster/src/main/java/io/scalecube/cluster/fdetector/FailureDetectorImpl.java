@@ -23,7 +23,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxProcessor;
 import reactor.core.publisher.FluxSink;
 import reactor.core.scheduler.Scheduler;
-import reactor.core.scheduler.Schedulers;
 
 public final class FailureDetectorImpl implements FailureDetector {
 
@@ -68,18 +67,19 @@ public final class FailureDetectorImpl implements FailureDetector {
    * @param transport cluster transport
    * @param membershipProcessor membership event processor
    * @param config failure detector settings
+   * @param scheduler scheduler
    */
   public FailureDetectorImpl(
       Supplier<Member> memberSupplier,
       Transport transport,
       Flux<MembershipEvent> membershipProcessor,
-      FailureDetectorConfig config) {
+      FailureDetectorConfig config,
+      Scheduler scheduler) {
+
     this.memberSupplier = Objects.requireNonNull(memberSupplier);
     this.transport = Objects.requireNonNull(transport);
     this.config = Objects.requireNonNull(config);
-
-    String nameFormat = "sc-fdetector-" + Integer.toString(memberSupplier.get().address().port());
-    this.scheduler = Schedulers.newSingle(nameFormat, true);
+    this.scheduler = Objects.requireNonNull(scheduler);
 
     // Subscribe
     actionsDisposables.addAll(
@@ -134,9 +134,6 @@ public final class FailureDetectorImpl implements FailureDetector {
     if (pingTask != null && !pingTask.isDisposed()) {
       pingTask.dispose();
     }
-
-    // Shutdown executor
-    scheduler.dispose();
 
     // Stop publishing events
     sink.complete();

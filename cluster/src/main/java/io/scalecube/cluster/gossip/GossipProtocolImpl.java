@@ -27,7 +27,6 @@ import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
 import reactor.core.scheduler.Scheduler;
-import reactor.core.scheduler.Schedulers;
 
 public final class GossipProtocolImpl implements GossipProtocol {
 
@@ -76,18 +75,19 @@ public final class GossipProtocolImpl implements GossipProtocol {
    * @param transport cluster transport
    * @param membershipProcessor membership event processor
    * @param config gossip protocol settings
+   * @param scheduler scheduler
    */
   public GossipProtocolImpl(
       Supplier<Member> memberSupplier,
       Transport transport,
       Flux<MembershipEvent> membershipProcessor,
-      GossipConfig config) {
+      GossipConfig config,
+      Scheduler scheduler) {
+
     this.transport = Objects.requireNonNull(transport);
     this.config = Objects.requireNonNull(config);
     this.memberSupplier = Objects.requireNonNull(memberSupplier);
-
-    String nameFormat = "sc-gossip-" + Integer.toString(memberSupplier.get().address().port());
-    this.scheduler = Schedulers.newSingle(nameFormat, true);
+    this.scheduler = Objects.requireNonNull(scheduler);
 
     // Subscribe
     actionsDisposables.addAll(
@@ -135,10 +135,6 @@ public final class GossipProtocolImpl implements GossipProtocol {
     if (spreadGossipTask != null && !spreadGossipTask.isDisposed()) {
       spreadGossipTask.dispose();
     }
-
-    // Shutdown executor
-    // TODO AK: Consider to await termination ?!
-    scheduler.dispose();
 
     // Stop publishing events
     sink.complete();

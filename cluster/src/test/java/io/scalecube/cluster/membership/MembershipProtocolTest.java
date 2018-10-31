@@ -21,14 +21,33 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
 import reactor.core.Exceptions;
 import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.FluxSink;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
 
 public class MembershipProtocolTest extends BaseTest {
 
   private static final int TEST_PING_INTERVAL = 200;
+
+  private Scheduler scheduler;
+
+  @BeforeEach
+  void setUp(TestInfo testInfo) {
+    scheduler = Schedulers.newSingle(testInfo.getDisplayName().replaceAll(" ", "_"), true);
+  }
+
+  @AfterEach
+  void tearDown() {
+    if (scheduler != null) {
+      scheduler.dispose();
+    }
+  }
 
   @Test
   public void testInitialPhaseOk() {
@@ -571,11 +590,12 @@ public class MembershipProtocolTest extends BaseTest {
     FluxSink<MembershipEvent> membershipSink = membershipProcessor.sink();
 
     FailureDetectorImpl failureDetector =
-        new FailureDetectorImpl(memberRef::get, transport, membershipProcessor, config);
+        new FailureDetectorImpl(memberRef::get, transport, membershipProcessor, config, scheduler);
     GossipProtocolImpl gossipProtocol =
-        new GossipProtocolImpl(memberRef::get, transport, membershipProcessor, config);
+        new GossipProtocolImpl(memberRef::get, transport, membershipProcessor, config, scheduler);
     MembershipProtocolImpl membership =
-        new MembershipProtocolImpl(memberRef, transport, failureDetector, gossipProtocol, config);
+        new MembershipProtocolImpl(
+            memberRef, transport, failureDetector, gossipProtocol, config, scheduler);
 
     membership.listen().subscribe(membershipSink::next);
 
