@@ -23,7 +23,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.LongSummaryStatistics;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
@@ -240,11 +239,12 @@ class GossipProtocolTest extends BaseTest {
             .gossipRepeatMult(gossipRepeatMultiplier)
             .build();
 
-    Member localMember = new Member(UUID.randomUUID().toString(), transport.address());
+    Member localMember = new Member("member-" + transport.address().port(), transport.address());
+
     Flux<MembershipEvent> membershipFlux =
         Flux.fromIterable(members)
             .filter(address -> !transport.address().equals(address))
-            .map(address -> new Member(UUID.randomUUID().toString(), address))
+            .map(address -> new Member("member-" + address.port(), address))
             .map(MembershipEvent::createAdded);
 
     GossipProtocolImpl gossipProtocol =
