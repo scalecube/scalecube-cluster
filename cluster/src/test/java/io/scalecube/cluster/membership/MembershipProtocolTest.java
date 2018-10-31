@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.scalecube.cluster.BaseTest;
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterMath;
+import io.scalecube.cluster.Member;
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
 import io.scalecube.transport.Address;
@@ -16,10 +17,14 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import reactor.core.Exceptions;
+import reactor.core.publisher.DirectProcessor;
+import reactor.core.publisher.FluxSink;
 
 public class MembershipProtocolTest extends BaseTest {
 
@@ -559,12 +564,20 @@ public class MembershipProtocolTest extends BaseTest {
   }
 
   private MembershipProtocolImpl createMembership(Transport transport, ClusterConfig config) {
-    // Create components
-    MembershipProtocolImpl membership = new MembershipProtocolImpl(transport, config);
-    FailureDetectorImpl failureDetector = new FailureDetectorImpl(transport, membership, config);
-    GossipProtocolImpl gossipProtocol = new GossipProtocolImpl(transport, membership, config);
-    membership.setGossipProtocol(gossipProtocol);
-    membership.setFailureDetector(failureDetector);
+    Member localMember = new Member(UUID.randomUUID().toString(), transport.address());
+    AtomicReference<Member> memberRef = new AtomicReference<>(localMember);
+
+    DirectProcessor<MembershipEvent> membershipProcessor = DirectProcessor.create();
+    FluxSink<MembershipEvent> membershipSink = membershipProcessor.sink();
+
+    FailureDetectorImpl failureDetector =
+        new FailureDetectorImpl(memberRef::get, transport, membershipProcessor, config);
+    GossipProtocolImpl gossipProtocol =
+        new GossipProtocolImpl(memberRef::get, transport, membershipProcessor, config);
+    MembershipProtocolImpl membership =
+        new MembershipProtocolImpl(memberRef, transport, failureDetector, gossipProtocol, config);
+
+    membership.listen().subscribe(membershipSink::next);
 
     try {
       failureDetector.start();
