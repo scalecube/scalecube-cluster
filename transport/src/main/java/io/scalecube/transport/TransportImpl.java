@@ -195,23 +195,31 @@ final class TransportImpl implements Transport {
 
   @Override
   public Mono<Void> send(Address address, Message message) {
-    return Mono.create(
-        sink -> {
-          if (stopped) {
-            throw new IllegalStateException("Transport is stopped");
-          }
-          Objects.requireNonNull(address);
-          Objects.requireNonNull(message);
+    return Mono.<Void>create(
+            sink -> {
+              if (stopped) {
+                throw new IllegalStateException("Transport is stopped");
+              }
+              Objects.requireNonNull(address);
+              Objects.requireNonNull(message);
 
-          message.setSender(this.address); // set local address as outgoing address
+              message.setSender(this.address); // set local address as outgoing address
 
-          outgoingChannels
-              .computeIfAbsent(address, this::connect)
-              .subscribe(channel -> send(channel, message, sink), sink::error);
-        });
+              outgoingChannels
+                  .computeIfAbsent(address, this::connect)
+                  .subscribe(channel -> send0(channel, message, sink), sink::error);
+            })
+        .doOnError(
+            th ->
+                LOGGER.warn(
+                    "Failed to send {} from {} to {}, cause: {}",
+                    message,
+                    TransportImpl.this.address,
+                    address,
+                    th));
   }
 
-  private void send(Channel channel, Message message, MonoSink<Void> sink) {
+  private void send0(Channel channel, Message message, MonoSink<Void> sink) {
     channel
         .writeAndFlush(message)
         .addListener(
@@ -225,7 +233,13 @@ final class TransportImpl implements Transport {
   }
 
   private Mono<Channel> connect(Address address) {
-    return Mono.<Channel>create(sink -> connect0(address, sink)).cache();
+    return Mono.<Channel>create(sink -> connect0(address, sink))
+        .doOnSuccess(
+            channel ->
+                LOGGER.debug(
+                    "Connected from {} to {}: {}", TransportImpl.this.address, address, channel))
+        .doOnError(throwable -> outgoingChannels.remove(address))
+        .cache();
   }
 
   private void connect0(Address address, MonoSink<Channel> sink) {
@@ -237,14 +251,13 @@ final class TransportImpl implements Transport {
         .addListener(
             future -> {
               if (future.isSuccess()) {
-                Channel channel = ((ChannelFuture) future).channel();
-                LOGGER.debug(
-                    "Connected from {} to {}: {}", TransportImpl.this.address, address, channel);
-                sink.success(channel);
+                sink.success(((ChannelFuture) future).channel());
               } else {
-                LOGGER.warn("Failed to connect from {} to {}", TransportImpl.this.address, address);
-                outgoingChannels.remove(address);
-                sink.error(future.cause());
+                try {
+                  sink.error(future.cause());
+                } catch (Exception ex) {
+                  // prevent onErrorDroppedEception if sink was already disposed
+                }
               }
             });
   }
