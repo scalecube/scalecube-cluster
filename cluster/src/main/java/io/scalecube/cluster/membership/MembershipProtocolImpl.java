@@ -175,7 +175,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   @Override
   public Flux<MembershipEvent> listen() {
-    return Flux.from(subject);
+    return subject.onBackpressureBuffer();
   }
 
   @Override

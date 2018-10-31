@@ -83,15 +83,17 @@ final class ClusterImpl implements Cluster {
 
               onMemberAdded(localMember); // store local member at this phase
 
-              final DirectProcessor<MembershipEvent> membershipProcessor = DirectProcessor.create();
-              final FluxSink<MembershipEvent> membershipSink = membershipProcessor.sink();
+              final DirectProcessor<MembershipEvent> membershipEvents = DirectProcessor.create();
+              final FluxSink<MembershipEvent> membershipSink = membershipEvents.sink();
 
               AtomicReference<Member> memberRef = new AtomicReference<>(localMember);
 
               failureDetector =
-                  new FailureDetectorImpl(memberRef::get, transport, membershipProcessor, config);
+                  new FailureDetectorImpl(
+                      memberRef::get, transport, membershipEvents.onBackpressureBuffer(), config);
               gossip =
-                  new GossipProtocolImpl(memberRef::get, transport, membershipProcessor, config);
+                  new GossipProtocolImpl(
+                      memberRef::get, transport, membershipEvents.onBackpressureBuffer(), config);
               membership =
                   new MembershipProtocolImpl(memberRef, transport, failureDetector, gossip, config);
 
