@@ -227,7 +227,7 @@ final class TransportImpl implements Transport {
   }
 
   private Mono<Channel> connect(Address address) {
-    return Mono.<Channel>create(sink -> connect0(address, sink))
+    return connect0(address)
         .doOnSuccess(
             channel ->
                 LOGGER.debug(
@@ -236,12 +236,14 @@ final class TransportImpl implements Transport {
         .cache();
   }
 
-  private void connect0(Address address, MonoSink<Channel> sink) {
-    bootstrapFactory
-        .clientBootstrap()
-        .handler(new OutgoingChannelInitializer(address))
-        .connect(address.host(), address.port())
-        .addListener(future -> channelFutureToSink((ChannelFuture) future, sink));
+  private Mono<Channel> connect0(Address address) {
+    return Mono.create(
+        sink ->
+            bootstrapFactory
+                .clientBootstrap()
+                .handler(new OutgoingChannelInitializer(address))
+                .connect(address.host(), address.port())
+                .addListener(future -> channelFutureToSink((ChannelFuture) future, sink)));
   }
 
   @ChannelHandler.Sharable
