@@ -15,6 +15,7 @@ import io.netty.handler.codec.MessageToByteEncoder;
 import io.netty.handler.codec.MessageToMessageDecoder;
 import io.netty.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
 import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
+import io.netty.util.concurrent.Future;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -167,7 +168,7 @@ final class TransportImpl implements Transport {
           // close server channel
           Optional.ofNullable(serverChannel)
               .map(ChannelOutboundInvoker::close)
-              .map(TransportImpl::toMono)
+              .map(TransportImpl::toMonoVoid)
               .ifPresent(stopList::add);
 
           // close connected channels
@@ -177,7 +178,7 @@ final class TransportImpl implements Transport {
                     channelMono ->
                         channelMono
                             .map(ChannelOutboundInvoker::close)
-                            .map(TransportImpl::toMono)
+                            .map(TransportImpl::toMonoVoid)
                             .subscribe(stopList::add));
           }
           outgoingChannels.clear();
@@ -195,8 +196,8 @@ final class TransportImpl implements Transport {
 
   @Override
   public Mono<Void> send(Address address, Message message) {
-    return Mono.create(
-        sink -> {
+    return Mono.defer(
+        () -> {
           if (stopped) {
             throw new IllegalStateException("Transport is stopped");
           }
@@ -205,48 +206,48 @@ final class TransportImpl implements Transport {
 
           message.setSender(this.address); // set local address as outgoing address
 
-          outgoingChannels
-              .computeIfAbsent(address, this::connect)
-              .subscribe(channel -> send(channel, message, sink), sink::error);
+          return getOrConnect(address)
+              .flatMap(
+                  channel ->
+                      Mono.<Void>create(
+                          sink -> voidFutureToSink(channel.writeAndFlush(message), sink)))
+              .doOnError(
+                  ex ->
+                      LOGGER.debug(
+                          "Failed to send {} from {} to {}, cause: {}",
+                          message,
+                          this.address,
+                          address,
+                          ex));
         });
   }
 
-  private void send(Channel channel, Message message, MonoSink<Void> sink) {
-    channel
-        .writeAndFlush(message)
-        .addListener(
-            future -> {
-              if (future.isSuccess()) {
-                sink.success();
-              } else {
-                sink.error(future.cause());
-              }
-            });
+  private Mono<Channel> getOrConnect(Address address) {
+    return Mono.create(
+        sink ->
+            outgoingChannels
+                .computeIfAbsent(address, this::connect0)
+                .subscribe(sink::success, sink::error));
   }
 
-  private Mono<Channel> connect(Address address) {
-    return Mono.<Channel>create(sink -> connect0(address, sink)).cache();
-  }
-
-  private void connect0(Address address, MonoSink<Channel> sink) {
-    // Register logger and cleanup listener
-    bootstrapFactory
-        .clientBootstrap()
-        .handler(new OutgoingChannelInitializer(address))
-        .connect(address.host(), address.port())
-        .addListener(
-            future -> {
-              if (future.isSuccess()) {
-                Channel channel = ((ChannelFuture) future).channel();
+  private Mono<Channel> connect0(Address address) {
+    return connect1(address)
+        .doOnSuccess(
+            channel ->
                 LOGGER.debug(
-                    "Connected from {} to {}: {}", TransportImpl.this.address, address, channel);
-                sink.success(channel);
-              } else {
-                LOGGER.warn("Failed to connect from {} to {}", TransportImpl.this.address, address);
-                outgoingChannels.remove(address);
-                sink.error(future.cause());
-              }
-            });
+                    "Connected from {} to {}: {}", TransportImpl.this.address, address, channel))
+        .doOnError(throwable -> outgoingChannels.remove(address))
+        .cache();
+  }
+
+  private Mono<Channel> connect1(Address address) {
+    return Mono.create(
+        sink ->
+            bootstrapFactory
+                .clientBootstrap()
+                .handler(new OutgoingChannelInitializer(address))
+                .connect(address.host(), address.port())
+                .addListener(future -> channelFutureToSink((ChannelFuture) future, sink)));
   }
 
   @ChannelHandler.Sharable
@@ -295,16 +296,31 @@ final class TransportImpl implements Transport {
     return Address.create(inetAddress.getHostString(), inetAddress.getPort());
   }
 
-  private static Mono<Void> toMono(ChannelFuture channelFuture) {
-    return Mono.create(
-        sink ->
-            channelFuture.addListener(
-                future -> {
-                  if (future.isSuccess()) {
-                    sink.success();
-                  } else {
-                    sink.error(future.cause());
-                  }
-                }));
+  private static Mono<Void> toMonoVoid(ChannelFuture channelFuture) {
+    return Mono.create(sink -> voidFutureToSink(channelFuture, sink));
+  }
+
+  private static void voidFutureToSink(Future<? super Void> future, MonoSink<Void> sink) {
+    if (future.isSuccess()) {
+      sink.success();
+    } else {
+      try {
+        sink.error(future.cause());
+      } catch (Exception ex) {
+        // prevent onErrorDroppedEception if sink was already disposed
+      }
+    }
+  }
+
+  private static void channelFutureToSink(ChannelFuture future, MonoSink<Channel> sink) {
+    if (future.isSuccess()) {
+      sink.success(future.channel());
+    } else {
+      try {
+        sink.error(future.cause());
+      } catch (Exception ex) {
+        // prevent onErrorDroppedEception if sink was already disposed
+      }
+    }
   }
 }

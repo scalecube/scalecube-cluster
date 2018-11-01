@@ -179,7 +179,7 @@ public interface Cluster {
    *
    * @param metadata new metadata
    */
-  void updateMetadata(Map<String, String> metadata);
+  Mono<Void> updateMetadata(Map<String, String> metadata);
 
   /**
    * Updates single key-value pair of local member's metadata. This is a shortcut method and anyway
@@ -189,7 +189,7 @@ public interface Cluster {
    * @param key metadata key to update
    * @param value metadata value to update
    */
-  void updateMetadataProperty(String key, String value);
+  Mono<Void> updateMetadataProperty(String key, String value);
 
   /**
    * Listen changes in cluster membership.

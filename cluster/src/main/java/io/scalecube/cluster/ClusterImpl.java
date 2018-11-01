@@ -18,9 +18,9 @@ import io.scalecube.transport.Message;
 import io.scalecube.transport.NetworkEmulator;
 import io.scalecube.transport.Transport;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -38,6 +38,8 @@ import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
 
 /** Cluster implementation. */
 final class ClusterImpl implements Cluster {
@@ -64,6 +66,7 @@ final class ClusterImpl implements Cluster {
   private FailureDetectorImpl failureDetector;
   private GossipProtocolImpl gossip;
   private MembershipProtocolImpl membership;
+  private Scheduler scheduler;
 
   public ClusterImpl(ClusterConfig config) {
     this.config = Objects.requireNonNull(config);
@@ -75,7 +78,8 @@ final class ClusterImpl implements Cluster {
             boundTransport -> {
               transport = boundTransport;
 
-              Member localMember =
+              // Prepare local cluster member
+              final Member localMember =
                   new Member(
                       IdGenerator.generateId(),
                       MembershipProtocolImpl.memberAddress(transport, config),
@@ -86,37 +90,37 @@ final class ClusterImpl implements Cluster {
               final DirectProcessor<MembershipEvent> membershipEvents = DirectProcessor.create();
               final FluxSink<MembershipEvent> membershipSink = membershipEvents.sink();
 
-              AtomicReference<Member> memberRef = new AtomicReference<>(localMember);
+              final AtomicReference<Member> memberRef = new AtomicReference<>(localMember);
+
+              scheduler = Schedulers.newSingle("sc-cluster-" + localMember.address().port(), true);
 
               failureDetector =
                   new FailureDetectorImpl(
-                      memberRef::get, transport, membershipEvents.onBackpressureBuffer(), config);
+                      memberRef::get,
+                      transport,
+                      membershipEvents.onBackpressureBuffer(),
+                      config,
+                      scheduler);
+
               gossip =
                   new GossipProtocolImpl(
-                      memberRef::get, transport, membershipEvents.onBackpressureBuffer(), config);
+                      memberRef::get,
+                      transport,
+                      membershipEvents.onBackpressureBuffer(),
+                      config,
+                      scheduler);
+
               membership =
-                  new MembershipProtocolImpl(memberRef, transport, failureDetector, gossip, config);
+                  new MembershipProtocolImpl(
+                      memberRef, transport, failureDetector, gossip, config, scheduler);
 
               actionsDisposables.addAll(
-                  Arrays.asList(
-                      membership //
-                          .listen()
-                          .subscribe(membershipSink::next, this::onError),
+                  Collections.singletonList(
                       membership
                           .listen()
-                          .filter(MembershipEvent::isAdded)
-                          .map(MembershipEvent::member)
-                          .subscribe(this::onMemberAdded, this::onError),
-                      membership
-                          .listen()
-                          .filter(MembershipEvent::isRemoved)
-                          .map(MembershipEvent::member)
-                          .subscribe(this::onMemberRemoved, this::onError),
-                      membership
-                          .listen()
-                          .filter(MembershipEvent::isUpdated)
-                          .map(MembershipEvent::member)
-                          .subscribe(this::onMemberUpdated, this::onError)));
+                          .publishOn(scheduler)
+                          .subscribe(
+                              event -> onMemberEvent(event, membershipSink), this::onError)));
 
               failureDetector.start();
               gossip.start();
@@ -126,8 +130,23 @@ final class ClusterImpl implements Cluster {
         .then(Mono.just(ClusterImpl.this));
   }
 
-  private void onError(Throwable throwable) {
-    LOGGER.error("Received unexpected error: ", throwable);
+  private void onMemberEvent(MembershipEvent event, FluxSink<MembershipEvent> membershipSink) {
+    Member member = event.member();
+    if (event.isAdded()) {
+      onMemberAdded(member);
+    }
+
+    if (event.isRemoved()) {
+      members.remove(member.id());
+      memberAddressIndex.remove(member.address());
+    }
+
+    if (event.isUpdated()) {
+      members.put(member.id(), member);
+    }
+
+    // forward membershipevent to downstream components
+    membershipSink.next(event);
   }
 
   private void onMemberAdded(Member member) {
@@ -135,13 +154,8 @@ final class ClusterImpl implements Cluster {
     members.put(member.id(), member);
   }
 
-  private void onMemberRemoved(Member member) {
-    members.remove(member.id());
-    memberAddressIndex.remove(member.address());
-  }
-
-  private void onMemberUpdated(Member member) {
-    members.put(member.id(), member);
+  private void onError(Throwable throwable) {
+    LOGGER.error("Received unexpected error: ", throwable);
   }
 
   @Override
@@ -205,13 +219,19 @@ final class ClusterImpl implements Cluster {
   }
 
   @Override
-  public void updateMetadata(Map<String, String> metadata) {
-    membership.updateMetadata(metadata);
+  public Mono<Void> updateMetadata(Map<String, String> metadata) {
+    return membership.updateMetadata(metadata);
   }
 
   @Override
-  public void updateMetadataProperty(String key, String value) {
-    membership.updateMetadataProperty(key, value);
+  public Mono<Void> updateMetadataProperty(String key, String value) {
+    return Mono.defer(
+        () -> {
+          Member curMember = membership.member();
+          Map<String, String> metadata = new HashMap<>(curMember.metadata());
+          metadata.put(key, value);
+          return membership.updateMetadata(metadata);
+        });
   }
 
   @Override
@@ -237,6 +257,9 @@ final class ClusterImpl implements Cluster {
               membership.stop();
               gossip.stop();
               failureDetector.stop();
+
+              // stop scheduler
+              scheduler.dispose();
 
               // stop transport
               return transport.stop();

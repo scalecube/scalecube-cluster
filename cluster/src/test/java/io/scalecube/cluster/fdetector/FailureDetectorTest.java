@@ -23,10 +23,29 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
 import reactor.core.publisher.Flux;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
 
 public class FailureDetectorTest extends BaseTest {
+
+  private Scheduler scheduler;
+
+  @BeforeEach
+  void setUp(TestInfo testInfo) {
+    scheduler = Schedulers.newSingle(testInfo.getDisplayName().replaceAll(" ", "_"), true);
+  }
+
+  @AfterEach
+  void tearDown() {
+    if (scheduler != null) {
+      scheduler.dispose();
+    }
+  }
 
   @Test
   public void testTrusted() {
@@ -401,7 +420,7 @@ public class FailureDetectorTest extends BaseTest {
             .map(address -> new Member("member-" + address.port(), address))
             .map(MembershipEvent::createAdded);
 
-    return new FailureDetectorImpl(() -> localMember, transport, membershipFlux, config);
+    return new FailureDetectorImpl(() -> localMember, transport, membershipFlux, config, scheduler);
   }
 
   private void destroyTransport(Transport transport) {

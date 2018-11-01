@@ -23,7 +23,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxProcessor;
 import reactor.core.publisher.FluxSink;
 import reactor.core.scheduler.Scheduler;
-import reactor.core.scheduler.Schedulers;
 
 public final class FailureDetectorImpl implements FailureDetector {
 
@@ -68,36 +67,26 @@ public final class FailureDetectorImpl implements FailureDetector {
    * @param transport cluster transport
    * @param membershipProcessor membership event processor
    * @param config failure detector settings
+   * @param scheduler scheduler
    */
   public FailureDetectorImpl(
       Supplier<Member> memberSupplier,
       Transport transport,
       Flux<MembershipEvent> membershipProcessor,
-      FailureDetectorConfig config) {
+      FailureDetectorConfig config,
+      Scheduler scheduler) {
+
     this.memberSupplier = Objects.requireNonNull(memberSupplier);
     this.transport = Objects.requireNonNull(transport);
     this.config = Objects.requireNonNull(config);
-
-    String nameFormat = "sc-fdetector-" + Integer.toString(memberSupplier.get().address().port());
-    this.scheduler = Schedulers.newSingle(nameFormat, true);
+    this.scheduler = Objects.requireNonNull(scheduler);
 
     // Subscribe
     actionsDisposables.addAll(
         Arrays.asList(
-            membershipProcessor
+            membershipProcessor //
                 .publishOn(scheduler)
-                .filter(MembershipEvent::isAdded)
-                .map(MembershipEvent::member)
-                .subscribe(this::onMemberAdded, this::onError),
-            membershipProcessor
-                .publishOn(scheduler)
-                .filter(MembershipEvent::isRemoved)
-                .map(MembershipEvent::member)
-                .subscribe(this::onMemberRemoved, this::onError),
-            membershipProcessor
-                .publishOn(scheduler)
-                .filter(MembershipEvent::isUpdated)
-                .subscribe(this::onMemberUpdated, this::onError),
+                .subscribe(this::onMemberEvent, this::onError),
             transport
                 .listen()
                 .publishOn(scheduler)
@@ -135,16 +124,13 @@ public final class FailureDetectorImpl implements FailureDetector {
       pingTask.dispose();
     }
 
-    // Shutdown executor
-    scheduler.dispose();
-
     // Stop publishing events
     sink.complete();
   }
 
   @Override
   public Flux<FailureDetectorEvent> listen() {
-    return subject.onBackpressureDrop();
+    return subject.onBackpressureBuffer();
   }
 
   // ================================================
@@ -255,24 +241,6 @@ public final class FailureDetectorImpl implements FailureDetector {
   // ============== Event Listeners =================
   // ================================================
 
-  private void onMemberAdded(Member member) {
-    // insert member into random positions
-    int size = pingMembers.size();
-    int index = size > 0 ? ThreadLocalRandom.current().nextInt(size) : 0;
-    pingMembers.add(index, member);
-  }
-
-  private void onMemberRemoved(Member member) {
-    pingMembers.remove(member);
-  }
-
-  private void onMemberUpdated(MembershipEvent membershipEvent) {
-    int index = pingMembers.indexOf(membershipEvent.oldMember());
-    if (index != -1) { // except local
-      pingMembers.set(index, membershipEvent.newMember());
-    }
-  }
-
   /** Listens to PING message and answers with ACK. */
   private void onPing(Message message) {
     LOGGER.trace("Received Ping: {}", message);
@@ -321,6 +289,27 @@ public final class FailureDetectorImpl implements FailureDetector {
 
   private void onError(Throwable throwable) {
     LOGGER.error("Received unexpected error: ", throwable);
+  }
+
+  private void onMemberEvent(MembershipEvent event) {
+    Member member = event.member();
+    if (event.isRemoved()) {
+      pingMembers.removeIf(that -> that.id().equals(member.id()));
+    }
+
+    if (event.isAdded()) {
+      // insert member into random positions
+      int size = pingMembers.size();
+      int index = size > 0 ? ThreadLocalRandom.current().nextInt(size) : 0;
+      pingMembers.add(index, member);
+    }
+
+    if (event.isUpdated()) {
+      int index = pingMembers.indexOf(event.oldMember());
+      if (index != -1) { // except local
+        pingMembers.set(index, event.newMember());
+      }
+    }
   }
 
   // ================================================

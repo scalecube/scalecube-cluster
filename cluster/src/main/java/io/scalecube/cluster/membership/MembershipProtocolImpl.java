@@ -35,7 +35,6 @@ import reactor.core.publisher.FluxProcessor;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
-import reactor.core.scheduler.Schedulers;
 
 public final class MembershipProtocolImpl implements MembershipProtocol {
 
@@ -91,27 +90,28 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
    * @param failureDetector failure detector
    * @param gossipProtocol gossip protocol
    * @param config membership config parameters
+   * @param scheduler scheduler
    */
   public MembershipProtocolImpl(
       AtomicReference<Member> memberRef,
       Transport transport,
       FailureDetector failureDetector,
       GossipProtocol gossipProtocol,
-      MembershipConfig config) {
+      MembershipConfig config,
+      Scheduler scheduler) {
+
     this.transport = Objects.requireNonNull(transport);
     this.config = Objects.requireNonNull(config);
     this.failureDetector = Objects.requireNonNull(failureDetector);
     this.gossipProtocol = Objects.requireNonNull(gossipProtocol);
     this.memberRef = Objects.requireNonNull(memberRef);
-
-    Member member = memberRef.get();
-    String nameFormat = "sc-membership-" + Integer.toString(member.address().port());
-    this.scheduler = Schedulers.newSingle(nameFormat, true);
+    this.scheduler = Objects.requireNonNull(scheduler);
 
     // Prepare seeds
     this.seedMembers = cleanUpSeedMembers(config.getSeedMembers());
 
     // Init membership table with local member record
+    Member member = memberRef.get();
     MembershipRecord localMemberRecord = new MembershipRecord(member, ALIVE, 0);
     this.membershipTable.put(member.id(), localMemberRecord);
 
@@ -184,13 +184,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   }
 
   @Override
-  public void updateMetadata(Map<String, String> metadata) {
-    scheduler.schedule(() -> onUpdateMetadata(metadata));
-  }
-
-  @Override
-  public void updateMetadataProperty(String key, String value) {
-    scheduler.schedule(() -> onUpdateMetadataProperty(key, value));
+  public Mono<Void> updateMetadata(Map<String, String> metadata) {
+    return Mono.just(metadata).publishOn(scheduler).flatMap(this::onUpdateMetadata);
   }
 
   /** Spreads leave notification to other cluster members. */
@@ -274,9 +269,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     }
     suspicionTimeoutTasks.clear();
 
-    // Shutdown executor
-    scheduler.dispose();
-
     // Stop publishing events
     sink.complete();
   }
@@ -303,32 +295,27 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   // ============== Event Listeners =================
   // ================================================
 
-  private void onUpdateMetadataProperty(String key, String value) {
-    // Update local member reference
-    Member curMember = memberRef.get();
-    Map<String, String> metadata = new HashMap<>(curMember.metadata());
-    metadata.put(key, value);
-    onUpdateMetadata(metadata);
-  }
+  private Mono<Void> onUpdateMetadata(Map<String, String> metadata) {
+    return Mono.defer(
+        () -> {
+          // Update local member reference
+          Member curMember = memberRef.get();
+          String memberId = curMember.id();
+          Member newMember = new Member(memberId, curMember.address(), metadata);
+          memberRef.set(newMember);
 
-  private void onUpdateMetadata(Map<String, String> metadata) {
-    // Update local member reference
-    Member curMember = memberRef.get();
-    String memberId = curMember.id();
-    Member newMember = new Member(memberId, curMember.address(), metadata);
-    memberRef.set(newMember);
+          // Update membership table
+          MembershipRecord curRecord = membershipTable.get(memberId);
+          MembershipRecord newRecord =
+              new MembershipRecord(newMember, ALIVE, curRecord.incarnation() + 1);
+          membershipTable.put(memberId, newRecord);
 
-    // Update membership table
-    MembershipRecord curRecord = membershipTable.get(memberId);
-    MembershipRecord newRecord =
-        new MembershipRecord(newMember, ALIVE, curRecord.incarnation() + 1);
-    membershipTable.put(memberId, newRecord);
+          // Emit membership updated event
+          sink.next(MembershipEvent.createUpdated(curMember, newMember));
 
-    // Emit membership updated event
-    sink.next(MembershipEvent.createUpdated(curMember, newMember));
-
-    // Spread new membership record over the cluster
-    spreadMembershipGossip(newRecord).subscribe();
+          // Spread new membership record over the cluster
+          return spreadMembershipGossip(newRecord).then();
+        });
   }
 
   private void onSyncAck(Message syncAckMsg) {

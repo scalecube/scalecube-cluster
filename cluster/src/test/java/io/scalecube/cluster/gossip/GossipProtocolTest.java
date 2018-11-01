@@ -29,6 +29,9 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -36,6 +39,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
 
 class GossipProtocolTest extends BaseTest {
 
@@ -83,6 +88,20 @@ class GossipProtocolTest extends BaseTest {
 
   static Stream<Arguments> experiment() {
     return experiments.stream().map(objects -> Arguments.of(objects[0], objects[1], objects[2]));
+  }
+
+  private Scheduler scheduler;
+
+  @BeforeEach
+  void setUp(TestInfo testInfo) {
+    scheduler = Schedulers.newSingle(testInfo.getDisplayName().replaceAll(" ", "_"), true);
+  }
+
+  @AfterEach
+  void tearDown() {
+    if (scheduler != null) {
+      scheduler.dispose();
+    }
   }
 
   @ParameterizedTest(name = "N={0}, Ploss={1}%, Tmean={2}ms")
@@ -248,7 +267,8 @@ class GossipProtocolTest extends BaseTest {
             .map(MembershipEvent::createAdded);
 
     GossipProtocolImpl gossipProtocol =
-        new GossipProtocolImpl(() -> localMember, transport, membershipFlux, gossipConfig);
+        new GossipProtocolImpl(
+            () -> localMember, transport, membershipFlux, gossipConfig, scheduler);
     gossipProtocol.start();
     return gossipProtocol;
   }
