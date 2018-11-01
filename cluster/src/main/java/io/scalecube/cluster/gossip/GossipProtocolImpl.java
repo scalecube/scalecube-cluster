@@ -112,20 +112,6 @@ public final class GossipProtocolImpl implements GossipProtocol {
             TimeUnit.MILLISECONDS);
   }
 
-  private void onMemberEvent(MembershipEvent event) {
-    Member member = event.member();
-    if (event.isRemoved()) {
-      remoteMembers.removeIf(that -> that.id().equals(member.id()));
-    }
-    if (event.isAdded()) {
-      remoteMembers.add(member);
-    }
-  }
-
-  private void onError(Throwable throwable) {
-    LOGGER.error("Received unexpected error: ", throwable);
-  }
-
   @Override
   public void stop() {
     // Stop accepting gossip requests
@@ -198,6 +184,20 @@ public final class GossipProtocolImpl implements GossipProtocol {
       }
       gossipState.addToInfected(gossipRequest.from());
     }
+  }
+
+  private void onMemberEvent(MembershipEvent event) {
+    Member member = event.member();
+    if (event.isRemoved()) {
+      remoteMembers.removeIf(that -> that.id().equals(member.id()));
+    }
+    if (event.isAdded()) {
+      remoteMembers.add(member);
+    }
+  }
+
+  private void onError(Throwable throwable) {
+    LOGGER.error("Received unexpected error: ", throwable);
   }
 
   // ================================================

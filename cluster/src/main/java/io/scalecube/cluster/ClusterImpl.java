@@ -123,21 +123,7 @@ final class ClusterImpl implements Cluster {
                       membership
                           .listen()
                           .publishOn(scheduler)
-                          .filter(MembershipEvent::isAdded)
-                          .map(MembershipEvent::member)
-                          .subscribe(this::onMemberAdded, this::onError),
-                      membership
-                          .listen()
-                          .publishOn(scheduler)
-                          .filter(MembershipEvent::isRemoved)
-                          .map(MembershipEvent::member)
-                          .subscribe(this::onMemberRemoved, this::onError),
-                      membership
-                          .listen()
-                          .publishOn(scheduler)
-                          .filter(MembershipEvent::isUpdated)
-                          .map(MembershipEvent::member)
-                          .subscribe(this::onMemberUpdated, this::onError)));
+                          .subscribe(this::onMemberEvent, this::onError)));
 
               failureDetector.start();
               gossip.start();
@@ -147,8 +133,20 @@ final class ClusterImpl implements Cluster {
         .then(Mono.just(ClusterImpl.this));
   }
 
-  private void onError(Throwable throwable) {
-    LOGGER.error("Received unexpected error: ", throwable);
+  private void onMemberEvent(MembershipEvent event) {
+    Member member = event.member();
+    if (event.isAdded()) {
+      onMemberAdded(member);
+    }
+
+    if (event.isRemoved()) {
+      members.remove(member.id());
+      memberAddressIndex.remove(member.address());
+    }
+
+    if (event.isUpdated()) {
+      members.put(member.id(), member);
+    }
   }
 
   private void onMemberAdded(Member member) {
@@ -156,13 +154,8 @@ final class ClusterImpl implements Cluster {
     members.put(member.id(), member);
   }
 
-  private void onMemberRemoved(Member member) {
-    members.remove(member.id());
-    memberAddressIndex.remove(member.address());
-  }
-
-  private void onMemberUpdated(Member member) {
-    members.put(member.id(), member);
+  private void onError(Throwable throwable) {
+    LOGGER.error("Received unexpected error: ", throwable);
   }
 
   @Override

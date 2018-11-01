@@ -84,20 +84,9 @@ public final class FailureDetectorImpl implements FailureDetector {
     // Subscribe
     actionsDisposables.addAll(
         Arrays.asList(
-            membershipProcessor
+            membershipProcessor //
                 .publishOn(scheduler)
-                .filter(MembershipEvent::isAdded)
-                .map(MembershipEvent::member)
-                .subscribe(this::onMemberAdded, this::onError),
-            membershipProcessor
-                .publishOn(scheduler)
-                .filter(MembershipEvent::isRemoved)
-                .map(MembershipEvent::member)
-                .subscribe(this::onMemberRemoved, this::onError),
-            membershipProcessor
-                .publishOn(scheduler)
-                .filter(MembershipEvent::isUpdated)
-                .subscribe(this::onMemberUpdated, this::onError),
+                .subscribe(this::onMemberEvent, this::onError),
             transport
                 .listen()
                 .publishOn(scheduler)
@@ -252,24 +241,6 @@ public final class FailureDetectorImpl implements FailureDetector {
   // ============== Event Listeners =================
   // ================================================
 
-  private void onMemberAdded(Member member) {
-    // insert member into random positions
-    int size = pingMembers.size();
-    int index = size > 0 ? ThreadLocalRandom.current().nextInt(size) : 0;
-    pingMembers.add(index, member);
-  }
-
-  private void onMemberRemoved(Member member) {
-    pingMembers.remove(member);
-  }
-
-  private void onMemberUpdated(MembershipEvent membershipEvent) {
-    int index = pingMembers.indexOf(membershipEvent.oldMember());
-    if (index != -1) { // except local
-      pingMembers.set(index, membershipEvent.newMember());
-    }
-  }
-
   /** Listens to PING message and answers with ACK. */
   private void onPing(Message message) {
     LOGGER.trace("Received Ping: {}", message);
@@ -318,6 +289,27 @@ public final class FailureDetectorImpl implements FailureDetector {
 
   private void onError(Throwable throwable) {
     LOGGER.error("Received unexpected error: ", throwable);
+  }
+
+  private void onMemberEvent(MembershipEvent event) {
+    Member member = event.member();
+    if (event.isRemoved()) {
+      pingMembers.removeIf(that -> that.id().equals(member.id()));
+    }
+
+    if (event.isAdded()) {
+      // insert member into random positions
+      int size = pingMembers.size();
+      int index = size > 0 ? ThreadLocalRandom.current().nextInt(size) : 0;
+      pingMembers.add(index, member);
+    }
+
+    if (event.isUpdated()) {
+      int index = pingMembers.indexOf(event.oldMember());
+      if (index != -1) { // except local
+        pingMembers.set(index, event.newMember());
+      }
+    }
   }
 
   // ================================================
