@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -219,13 +220,19 @@ final class ClusterImpl implements Cluster {
   }
 
   @Override
-  public void updateMetadata(Map<String, String> metadata) {
-    membership.updateMetadata(metadata);
+  public Mono<Void> updateMetadata(Map<String, String> metadata) {
+    return membership.updateMetadata(metadata);
   }
 
   @Override
-  public void updateMetadataProperty(String key, String value) {
-    membership.updateMetadataProperty(key, value);
+  public Mono<Void> updateMetadataProperty(String key, String value) {
+    return Mono.defer(
+        () -> {
+          Member curMember = membership.member();
+          Map<String, String> metadata = new HashMap<>(curMember.metadata());
+          metadata.put(key, value);
+          return membership.updateMetadata(metadata);
+        });
   }
 
   @Override

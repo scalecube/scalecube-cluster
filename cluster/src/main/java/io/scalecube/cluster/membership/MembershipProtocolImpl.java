@@ -184,13 +184,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   }
 
   @Override
-  public void updateMetadata(Map<String, String> metadata) {
-    scheduler.schedule(() -> onUpdateMetadata(metadata));
-  }
-
-  @Override
-  public void updateMetadataProperty(String key, String value) {
-    scheduler.schedule(() -> onUpdateMetadataProperty(key, value));
+  public Mono<Void> updateMetadata(Map<String, String> metadata) {
+    return Mono.just(metadata).publishOn(scheduler).flatMap(this::onUpdateMetadata);
   }
 
   /** Spreads leave notification to other cluster members. */
@@ -300,32 +295,27 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   // ============== Event Listeners =================
   // ================================================
 
-  private void onUpdateMetadataProperty(String key, String value) {
-    // Update local member reference
-    Member curMember = memberRef.get();
-    Map<String, String> metadata = new HashMap<>(curMember.metadata());
-    metadata.put(key, value);
-    onUpdateMetadata(metadata);
-  }
+  private Mono<Void> onUpdateMetadata(Map<String, String> metadata) {
+    return Mono.defer(
+        () -> {
+          // Update local member reference
+          Member curMember = memberRef.get();
+          String memberId = curMember.id();
+          Member newMember = new Member(memberId, curMember.address(), metadata);
+          memberRef.set(newMember);
 
-  private void onUpdateMetadata(Map<String, String> metadata) {
-    // Update local member reference
-    Member curMember = memberRef.get();
-    String memberId = curMember.id();
-    Member newMember = new Member(memberId, curMember.address(), metadata);
-    memberRef.set(newMember);
+          // Update membership table
+          MembershipRecord curRecord = membershipTable.get(memberId);
+          MembershipRecord newRecord =
+              new MembershipRecord(newMember, ALIVE, curRecord.incarnation() + 1);
+          membershipTable.put(memberId, newRecord);
 
-    // Update membership table
-    MembershipRecord curRecord = membershipTable.get(memberId);
-    MembershipRecord newRecord =
-        new MembershipRecord(newMember, ALIVE, curRecord.incarnation() + 1);
-    membershipTable.put(memberId, newRecord);
+          // Emit membership updated event
+          sink.next(MembershipEvent.createUpdated(curMember, newMember));
 
-    // Emit membership updated event
-    sink.next(MembershipEvent.createUpdated(curMember, newMember));
-
-    // Spread new membership record over the cluster
-    spreadMembershipGossip(newRecord).subscribe();
+          // Spread new membership record over the cluster
+          return spreadMembershipGossip(newRecord).then();
+        });
   }
 
   private void onSyncAck(Message syncAckMsg) {
