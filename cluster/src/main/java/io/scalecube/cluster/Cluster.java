@@ -185,7 +185,8 @@ public interface Cluster {
    * Updates single key-value pair of local member's metadata. This is a shortcut method and anyway
    * update will result in a full metadata update. In case if you need to update several metadata
    * property together it is recommended to use {@link #updateMetadata(Map)}.
-   *  @param key metadata key to update
+   *
+   * @param key metadata key to update
    * @param value metadata value to update
    */
   Mono<Void> updateMetadataProperty(String key, String value);
