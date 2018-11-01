@@ -1,9 +1,9 @@
 package io.scalecube.transport;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Mono;
 
 /** Transport test utility class. */
 public final class TransportTestUtils {
@@ -34,10 +34,8 @@ public final class TransportTestUtils {
    */
   public static void destroyTransport(Transport transport) {
     if (transport != null && !transport.isStopped()) {
-      CompletableFuture<Void> close = new CompletableFuture<>();
-      transport.stop(close);
       try {
-        close.get(1, TimeUnit.SECONDS);
+        transport.stop().block(Duration.ofSeconds(1));
       } catch (Exception ignore) {
         LOGGER.warn("Failed to await transport termination");
       }
@@ -51,23 +49,15 @@ public final class TransportTestUtils {
    * @param to destination
    * @param msg request
    */
-  public static void send(final Transport from, final Address to, final Message msg) {
-    final CompletableFuture<Void> promise = new CompletableFuture<>();
-    promise.thenAccept(
-        avoid -> {
-          if (promise.isDone()) {
-            try {
-              promise.get();
-            } catch (Exception e) {
-              LOGGER.error(
-                  "Failed to send {} to {} from transport: {}, cause: {}",
-                  msg,
-                  to,
-                  from,
-                  e.getCause());
-            }
-          }
-        });
-    from.send(to, msg, promise);
+  public static Mono<Void> send(final Transport from, final Address to, final Message msg) {
+    return from.send(to, msg)
+        .doOnError(
+            th ->
+                LOGGER.error(
+                    "Failed to send {} to {} from transport: {}, cause: {}",
+                    msg,
+                    to,
+                    from,
+                    th.getCause()));
   }
 }

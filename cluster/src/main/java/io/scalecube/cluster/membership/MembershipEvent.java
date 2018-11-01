@@ -25,15 +25,15 @@ public final class MembershipEvent {
     this.newMember = newMember;
   }
 
-  static MembershipEvent createRemoved(Member member) {
+  public static MembershipEvent createRemoved(Member member) {
     return new MembershipEvent(Type.REMOVED, member, null);
   }
 
-  static MembershipEvent createAdded(Member member) {
+  public static MembershipEvent createAdded(Member member) {
     return new MembershipEvent(Type.ADDED, null, member);
   }
 
-  static MembershipEvent createUpdated(Member oldMember, Member newMember) {
+  public static MembershipEvent createUpdated(Member oldMember, Member newMember) {
     return new MembershipEvent(Type.UPDATED, oldMember, newMember);
   }
 

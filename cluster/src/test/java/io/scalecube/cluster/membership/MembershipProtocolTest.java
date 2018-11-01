@@ -6,24 +6,48 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.scalecube.cluster.BaseTest;
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterMath;
+import io.scalecube.cluster.Member;
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Transport;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
 import reactor.core.Exceptions;
+import reactor.core.publisher.DirectProcessor;
+import reactor.core.publisher.FluxSink;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
 
 public class MembershipProtocolTest extends BaseTest {
 
   private static final int TEST_PING_INTERVAL = 200;
+
+  private Scheduler scheduler;
+
+  @BeforeEach
+  void setUp(TestInfo testInfo) {
+    scheduler = Schedulers.newSingle(testInfo.getDisplayName().replaceAll(" ", "_"), true);
+  }
+
+  @AfterEach
+  void tearDown() {
+    if (scheduler != null) {
+      scheduler.dispose();
+    }
+  }
 
   @Test
   public void testInitialPhaseOk() {
@@ -532,7 +556,7 @@ public class MembershipProtocolTest extends BaseTest {
     try {
       TimeUnit.SECONDS.sleep(seconds);
     } catch (InterruptedException e) {
-      Exceptions.propagate(e);
+      throw Exceptions.propagate(e);
     }
   }
 
@@ -559,19 +583,28 @@ public class MembershipProtocolTest extends BaseTest {
   }
 
   private MembershipProtocolImpl createMembership(Transport transport, ClusterConfig config) {
-    // Create components
-    MembershipProtocolImpl membership = new MembershipProtocolImpl(transport, config);
-    FailureDetectorImpl failureDetector = new FailureDetectorImpl(transport, membership, config);
-    GossipProtocolImpl gossipProtocol = new GossipProtocolImpl(transport, membership, config);
-    membership.setGossipProtocol(gossipProtocol);
-    membership.setFailureDetector(failureDetector);
+    Member localMember = new Member(UUID.randomUUID().toString(), transport.address());
+    AtomicReference<Member> memberRef = new AtomicReference<>(localMember);
+
+    DirectProcessor<MembershipEvent> membershipProcessor = DirectProcessor.create();
+    FluxSink<MembershipEvent> membershipSink = membershipProcessor.sink();
+
+    FailureDetectorImpl failureDetector =
+        new FailureDetectorImpl(memberRef::get, transport, membershipProcessor, config, scheduler);
+    GossipProtocolImpl gossipProtocol =
+        new GossipProtocolImpl(memberRef::get, transport, membershipProcessor, config, scheduler);
+    MembershipProtocolImpl membership =
+        new MembershipProtocolImpl(
+            memberRef, transport, failureDetector, gossipProtocol, config, scheduler);
+
+    membership.listen().subscribe(membershipSink::next);
 
     try {
       failureDetector.start();
       gossipProtocol.start();
-      membership.start().get();
+      membership.start().block();
     } catch (Exception ex) {
-      Exceptions.propagate(ex);
+      throw Exceptions.propagate(ex);
     }
 
     return membership;
@@ -589,12 +622,8 @@ public class MembershipProtocolTest extends BaseTest {
     membership.stop();
     membership.getGossipProtocol().stop();
     membership.getFailureDetector().stop();
-
-    Transport transport = membership.getTransport();
-    CompletableFuture<Void> close = new CompletableFuture<>();
-    transport.stop(close);
     try {
-      close.get(1, TimeUnit.SECONDS);
+      membership.getTransport().stop().block(Duration.ofSeconds(1));
     } catch (Exception ignore) {
       // ignore
     }

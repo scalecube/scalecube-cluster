@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.scalecube.cluster.membership.MembershipEvent;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -15,6 +16,8 @@ import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 public class ClusterTest extends BaseTest {
 
@@ -57,16 +60,18 @@ public class ClusterTest extends BaseTest {
       metadataNode = Cluster.joinAwait(metadata, seedNode.address());
 
       // Start other test members
-      for (int i = 0; i < testMembersNum; i++) {
-        otherNodes.add(Cluster.joinAwait(seedNode.address()));
-      }
+      Flux.range(0, testMembersNum)
+          .flatMap(integer -> Cluster.join(seedNode.address()))
+          .doOnNext(otherNodes::add)
+          .blockLast();
+
+      TimeUnit.SECONDS.sleep(3);
 
       // Check all test members know valid metadata
       for (Cluster node : otherNodes) {
         Optional<Member> memberOptional = node.member(metadataNode.member().id());
         assertTrue(memberOptional.isPresent());
-        Member member = memberOptional.get();
-        assertEquals(metadata, member.metadata());
+        assertEquals(metadata, memberOptional.get().metadata());
       }
 
       // Subscribe for membership update event all nodes
@@ -83,10 +88,7 @@ public class ClusterTest extends BaseTest {
 
       // Update metadata
       Map<String, String> updatedMetadata = Collections.singletonMap("key1", "value3");
-      metadataNode.updateMetadata(updatedMetadata);
-
-      // Await latch
-      updateLatch.await(10, TimeUnit.SECONDS);
+      metadataNode.updateMetadata(updatedMetadata).block();
 
       // Check all nodes had updated metadata member
       for (Cluster node : otherNodes) {
@@ -120,16 +122,18 @@ public class ClusterTest extends BaseTest {
       metadataNode = Cluster.joinAwait(metadata, seedNode.address());
 
       // Start other test members
-      for (int i = 0; i < testMembersNum; i++) {
-        otherNodes.add(Cluster.joinAwait(seedNode.address()));
-      }
+      Flux.range(0, testMembersNum)
+          .flatMap(integer -> Cluster.join(seedNode.address()))
+          .doOnNext(otherNodes::add)
+          .blockLast();
+
+      TimeUnit.SECONDS.sleep(3);
 
       // Check all test members know valid metadata
       for (Cluster node : otherNodes) {
         Optional<Member> memberOptional = node.member(metadataNode.member().id());
         assertTrue(memberOptional.isPresent());
-        Member member = memberOptional.get();
-        assertEquals(metadata, member.metadata());
+        assertEquals(metadata, memberOptional.get().metadata());
       }
 
       // Subscribe for membership update event all nodes
@@ -145,10 +149,7 @@ public class ClusterTest extends BaseTest {
       }
 
       // Update metadata
-      metadataNode.updateMetadataProperty("key2", "value3");
-
-      // Await latch
-      updateLatch.await(10, TimeUnit.SECONDS);
+      metadataNode.updateMetadataProperty("key2", "value3").block();
 
       // Check all nodes had updated metadata member
       for (Cluster node : otherNodes) {
@@ -178,18 +179,14 @@ public class ClusterTest extends BaseTest {
     final Cluster node2 = Cluster.joinAwait(seedNode.address());
     final Cluster node3 = Cluster.joinAwait(seedNode.address());
 
-    CountDownLatch leave = new CountDownLatch(1);
-    node2.shutdown().whenComplete((done, error) -> leave.countDown());
+    node2.shutdown().block(Duration.ofSeconds(30));
 
-    leave.await(5, TimeUnit.SECONDS);
     assertTrue(!seedNode.members().contains(node2.member()));
     assertTrue(!node1.members().contains(node2.member()));
     assertTrue(!node3.members().contains(node2.member()));
     assertTrue(node2.isShutdown());
 
-    seedNode.shutdown();
-    node1.shutdown();
-    node3.shutdown();
+    Mono.when(seedNode.shutdown(), node1.shutdown(), node3.shutdown()).block();
   }
 
   private void shutdown(Cluster... nodes) {
@@ -197,12 +194,10 @@ public class ClusterTest extends BaseTest {
   }
 
   private void shutdown(Collection<Cluster> nodes) {
-    for (Cluster node : nodes) {
-      try {
-        node.shutdown().get();
-      } catch (Exception ex) {
-        LOGGER.error("Exception on cluster shutdown", ex);
-      }
+    try {
+      Flux.fromIterable(nodes).flatMap(Cluster::shutdown).blockLast();
+    } catch (Exception ex) {
+      LOGGER.error("Exception on cluster shutdown", ex);
     }
   }
 }

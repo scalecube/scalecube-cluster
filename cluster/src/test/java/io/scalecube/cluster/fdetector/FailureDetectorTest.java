@@ -8,12 +8,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.scalecube.cluster.BaseTest;
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.Member;
-import io.scalecube.cluster.membership.DummyMembershipProtocol;
 import io.scalecube.cluster.membership.MemberStatus;
-import io.scalecube.cluster.membership.MembershipProtocol;
+import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Transport;
 import io.scalecube.transport.TransportConfig;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -23,9 +23,29 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
+import reactor.core.publisher.Flux;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
 
 public class FailureDetectorTest extends BaseTest {
+
+  private Scheduler scheduler;
+
+  @BeforeEach
+  void setUp(TestInfo testInfo) {
+    scheduler = Schedulers.newSingle(testInfo.getDisplayName().replaceAll(" ", "_"), true);
+  }
+
+  @AfterEach
+  void tearDown() {
+    if (scheduler != null) {
+      scheduler.dispose();
+    }
+  }
 
   @Test
   public void testTrusted() {
@@ -391,19 +411,24 @@ public class FailureDetectorTest extends BaseTest {
 
   private FailureDetectorImpl createFd(
       Transport transport, List<Address> addresses, FailureDetectorConfig config) {
-    MembershipProtocol dummyMembership =
-        new DummyMembershipProtocol(transport.address(), addresses);
-    return new FailureDetectorImpl(transport, dummyMembership, config);
+
+    Member localMember = new Member("member-" + transport.address().port(), transport.address());
+
+    Flux<MembershipEvent> membershipFlux =
+        Flux.fromIterable(addresses)
+            .filter(address -> !transport.address().equals(address))
+            .map(address -> new Member("member-" + address.port(), address))
+            .map(MembershipEvent::createAdded);
+
+    return new FailureDetectorImpl(() -> localMember, transport, membershipFlux, config, scheduler);
   }
 
   private void destroyTransport(Transport transport) {
     if (transport == null || transport.isStopped()) {
       return;
     }
-    CompletableFuture<Void> close = new CompletableFuture<>();
-    transport.stop(close);
     try {
-      close.get(1, TimeUnit.SECONDS);
+      transport.stop().block(Duration.ofSeconds(1));
     } catch (Exception ignore) {
       // no-op
     }

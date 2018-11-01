@@ -1,8 +1,8 @@
 package io.scalecube.transport;
 
-import java.util.concurrent.CompletableFuture;
 import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 /**
  * Transport is responsible for maintaining existing p2p connections to/from other transports. It
@@ -38,7 +38,7 @@ public interface Transport {
    */
   static Transport bindAwait(TransportConfig config) {
     try {
-      return bind(config).get();
+      return bind(config).block();
     } catch (Exception e) {
       throw Exceptions.propagate(e.getCause() != null ? e.getCause() : e);
     }
@@ -50,7 +50,7 @@ public interface Transport {
    *
    * @return promise for bind operation
    */
-  static CompletableFuture<Transport> bind() {
+  static Mono<Transport> bind() {
     return bind(TransportConfig.defaultConfig());
   }
 
@@ -61,7 +61,7 @@ public interface Transport {
    * @param config transport config
    * @return promise for bind operation
    */
-  static CompletableFuture<Transport> bind(TransportConfig config) {
+  static Mono<Transport> bind(TransportConfig config) {
     return new TransportImpl(config).bind0();
   }
 
@@ -78,18 +78,7 @@ public interface Transport {
    * transport. After transport is stopped it can't be used again. Observable returned from method
    * {@link #listen()} will immediately emit onComplete event for all subscribers.
    */
-  void stop();
-
-  /**
-   * Stop transport, disconnect all connections and release all resources which belong to this
-   * transport. After transport is stopped it can't be opened again. Observable returned from method
-   * {@link #listen()} will immediately emit onComplete event for all subscribers. Stop is async
-   * operation, if result of operation is not needed use {@link Transport#stop}, otherwise pass
-   * {@link CompletableFuture}.
-   *
-   * @param promise promise will be completed with result of closing (void or exception)
-   */
-  void stop(CompletableFuture<Void> promise);
+  Mono<Void> stop();
 
   /**
    * Return transport's stopped state.
@@ -104,20 +93,10 @@ public interface Transport {
    *
    * @param address address where message will be sent
    * @param message message to send
+   * @return promise which will be completed with result of sending (void or exception)
    * @throws IllegalArgumentException if {@code message} or {@code address} is null
    */
-  void send(Address address, Message message);
-
-  /**
-   * Sends message to the given address. It will issue connect in case if no transport channel by
-   * given {@code address} exists already. Send is an async operation, if result of operation is not
-   * needed use {@link Transport#send(Address, Message)}, otherwise pass {@link CompletableFuture}.
-   *
-   * @param message message to send
-   * @param promise promise will be completed with result of sending (void or exception)
-   * @throws IllegalArgumentException if {@code message} or {@code address} is null
-   */
-  void send(Address address, Message message, CompletableFuture<Void> promise);
+  Mono<Void> send(Address address, Message message);
 
   /**
    * Returns stream of received messages. For each observers subscribed to the returned observable:

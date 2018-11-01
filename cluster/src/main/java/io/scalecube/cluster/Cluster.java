@@ -8,9 +8,9 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 /** Facade cluster interface which provides API to interact with cluster members. */
 public interface Cluster {
@@ -18,7 +18,7 @@ public interface Cluster {
   /** Init cluster instance and join cluster synchronously. */
   static Cluster joinAwait() {
     try {
-      return join().get();
+      return join().block();
     } catch (Exception e) {
       throw Exceptions.propagate(e.getCause() != null ? e.getCause() : e);
     }
@@ -27,7 +27,7 @@ public interface Cluster {
   /** Init cluster instance with the given seed members and join cluster synchronously. */
   static Cluster joinAwait(Address... seedMembers) {
     try {
-      return join(seedMembers).get();
+      return join(seedMembers).block();
     } catch (Exception e) {
       throw Exceptions.propagate(e.getCause() != null ? e.getCause() : e);
     }
@@ -38,7 +38,7 @@ public interface Cluster {
    */
   static Cluster joinAwait(Map<String, String> metadata, Address... seedMembers) {
     try {
-      return join(metadata, seedMembers).get();
+      return join(metadata, seedMembers).block();
     } catch (Exception e) {
       throw Exceptions.propagate(e.getCause() != null ? e.getCause() : e);
     }
@@ -47,19 +47,19 @@ public interface Cluster {
   /** Init cluster instance with the given configuration and join cluster synchronously. */
   static Cluster joinAwait(ClusterConfig config) {
     try {
-      return join(config).get();
+      return join(config).block();
     } catch (Exception e) {
       throw Exceptions.propagate(e.getCause() != null ? e.getCause() : e);
     }
   }
 
   /** Init cluster instance and join cluster asynchronously. */
-  static CompletableFuture<Cluster> join() {
+  static Mono<Cluster> join() {
     return join(ClusterConfig.defaultConfig());
   }
 
   /** Init cluster instance with the given seed members and join cluster asynchronously. */
-  static CompletableFuture<Cluster> join(Address... seedMembers) {
+  static Mono<Cluster> join(Address... seedMembers) {
     ClusterConfig config = ClusterConfig.builder().seedMembers(seedMembers).build();
     return join(config);
   }
@@ -70,7 +70,7 @@ public interface Cluster {
    * @param metadata metadata
    * @param seedMembers seed members
    */
-  static CompletableFuture<Cluster> join(Map<String, String> metadata, Address... seedMembers) {
+  static Mono<Cluster> join(Map<String, String> metadata, Address... seedMembers) {
     ClusterConfig config =
         ClusterConfig.builder().seedMembers(Arrays.asList(seedMembers)).metadata(metadata).build();
     return join(config);
@@ -82,7 +82,7 @@ public interface Cluster {
    * @param config cluster config
    * @return result future
    */
-  static CompletableFuture<Cluster> join(final ClusterConfig config) {
+  static Mono<Cluster> join(final ClusterConfig config) {
     return new ClusterImpl(config).join0();
   }
 
@@ -93,14 +93,29 @@ public interface Cluster {
    */
   Address address();
 
-  void send(Member member, Message message);
+  /**
+   * Send a msg from this member (src) to target member (specified in parameters).
+   *
+   * @param member target member
+   * @param message msg
+   * @return promise telling success or failure
+   */
+  Mono<Void> send(Member member, Message message);
 
-  void send(Member member, Message message, CompletableFuture<Void> promise);
+  /**
+   * Send a msg from this member (src) to target member (specified in parameters).
+   *
+   * @param address target address
+   * @param message msg
+   * @return promise telling success or failure
+   */
+  Mono<Void> send(Address address, Message message);
 
-  void send(Address address, Message message);
-
-  void send(Address address, Message message, CompletableFuture<Void> promise);
-
+  /**
+   * Subscription point for listening incoming messages.
+   *
+   * @return stream of incoming messages
+   */
   Flux<Message> listen();
 
   /**
@@ -109,7 +124,7 @@ public interface Cluster {
    * @param message message to disseminate.
    * @return result future
    */
-  CompletableFuture<String> spreadGossip(Message message);
+  Mono<String> spreadGossip(Message message);
 
   /**
    * Listens for gossips from other cluster members.
@@ -164,7 +179,7 @@ public interface Cluster {
    *
    * @param metadata new metadata
    */
-  void updateMetadata(Map<String, String> metadata);
+  Mono<Void> updateMetadata(Map<String, String> metadata);
 
   /**
    * Updates single key-value pair of local member's metadata. This is a shortcut method and anyway
@@ -174,7 +189,7 @@ public interface Cluster {
    * @param key metadata key to update
    * @param value metadata value to update
    */
-  void updateMetadataProperty(String key, String value);
+  Mono<Void> updateMetadataProperty(String key, String value);
 
   /**
    * Listen changes in cluster membership.
@@ -189,7 +204,7 @@ public interface Cluster {
    *
    * @return Listenable future which is completed once graceful shutdown is finished.
    */
-  CompletableFuture<Void> shutdown();
+  Mono<Void> shutdown();
 
   /**
    * Check if cluster instance has been shut down.

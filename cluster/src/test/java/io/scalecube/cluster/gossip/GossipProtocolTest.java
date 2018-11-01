@@ -12,29 +12,35 @@ import io.scalecube.cluster.BaseTest;
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.Member;
-import io.scalecube.cluster.membership.DummyMembershipProtocol;
-import io.scalecube.cluster.membership.MembershipProtocol;
+import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.Transport;
 import io.scalecube.transport.TransportConfig;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.LongSummaryStatistics;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
 
 class GossipProtocolTest extends BaseTest {
 
@@ -84,10 +90,23 @@ class GossipProtocolTest extends BaseTest {
     return experiments.stream().map(objects -> Arguments.of(objects[0], objects[1], objects[2]));
   }
 
+  private Scheduler scheduler;
+
+  @BeforeEach
+  void setUp(TestInfo testInfo) {
+    scheduler = Schedulers.newSingle(testInfo.getDisplayName().replaceAll(" ", "_"), true);
+  }
+
+  @AfterEach
+  void tearDown() {
+    if (scheduler != null) {
+      scheduler.dispose();
+    }
+  }
+
   @ParameterizedTest(name = "N={0}, Ploss={1}%, Tmean={2}ms")
   @MethodSource("experiment")
-  void testGossipProtocol(int membersNum, int lossPercent, int meanDelay)
-      throws Exception {
+  void testGossipProtocol(int membersNum, int lossPercent, int meanDelay) throws Exception {
     // Init gossip protocol instances
     List<GossipProtocolImpl> gossipProtocols =
         initGossipProtocols(membersNum, lossPercent, meanDelay);
@@ -126,7 +145,7 @@ class GossipProtocolTest extends BaseTest {
 
       // Spread gossip, measure and verify delivery metrics
       long start = System.currentTimeMillis();
-      gossipProtocols.get(0).spread(Message.fromData(gossipData));
+      gossipProtocols.get(0).spread(Message.fromData(gossipData)).subscribe();
       latch.await(2 * gossipTimeout, TimeUnit.MILLISECONDS); // Await for double gossip timeout
       disseminationTime = System.currentTimeMillis() - start;
       messageSentStatsDissemination = computeMessageSentStats(gossipProtocols);
@@ -232,15 +251,24 @@ class GossipProtocolTest extends BaseTest {
   }
 
   private GossipProtocolImpl initGossipProtocol(Transport transport, List<Address> members) {
-    MembershipProtocol dummyMembership = new DummyMembershipProtocol(transport.address(), members);
     GossipConfig gossipConfig =
         ClusterConfig.builder()
             .gossipFanout(gossipFanout)
             .gossipInterval(gossipInterval)
             .gossipRepeatMult(gossipRepeatMultiplier)
             .build();
+
+    Member localMember = new Member("member-" + transport.address().port(), transport.address());
+
+    Flux<MembershipEvent> membershipFlux =
+        Flux.fromIterable(members)
+            .filter(address -> !transport.address().equals(address))
+            .map(address -> new Member("member-" + address.port(), address))
+            .map(MembershipEvent::createAdded);
+
     GossipProtocolImpl gossipProtocol =
-        new GossipProtocolImpl(transport, dummyMembership, gossipConfig);
+        new GossipProtocolImpl(
+            () -> localMember, transport, membershipFlux, gossipConfig, scheduler);
     gossipProtocol.start();
     return gossipProtocol;
   }
@@ -252,15 +280,13 @@ class GossipProtocolTest extends BaseTest {
     }
 
     // Stop all transports
-    List<CompletableFuture<Void>> futures = new ArrayList<>();
+    List<Mono<Void>> futures = new ArrayList<>();
     for (GossipProtocolImpl gossipProtocol : gossipProtocols) {
-      CompletableFuture<Void> close = new CompletableFuture<>();
-      gossipProtocol.getTransport().stop(close);
-      futures.add(close);
+      futures.add(gossipProtocol.getTransport().stop());
     }
+
     try {
-      CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]))
-          .get(30, TimeUnit.SECONDS);
+      Mono.when(futures).block(Duration.ofSeconds(30));
     } catch (Exception ignore) {
       LOGGER.warn("Failed to await transport termination");
     }

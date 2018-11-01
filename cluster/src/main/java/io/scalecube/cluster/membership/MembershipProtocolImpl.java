@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -34,8 +33,8 @@ import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxProcessor;
 import reactor.core.publisher.FluxSink;
+import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
-import reactor.core.scheduler.Schedulers;
 
 public final class MembershipProtocolImpl implements MembershipProtocol {
 
@@ -61,8 +60,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private final Transport transport;
   private final MembershipConfig config;
   private final List<Address> seedMembers;
-  private FailureDetector failureDetector;
-  private GossipProtocol gossipProtocol;
+  private final FailureDetector failureDetector;
+  private final GossipProtocol gossipProtocol;
 
   // State
 
@@ -86,122 +85,39 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   /**
    * Creates new instantiates of cluster membership protocol with given transport and config.
    *
-   * @param transport transport
+   * @param memberRef local cluster member reference
+   * @param transport cluster transport
+   * @param failureDetector failure detector
+   * @param gossipProtocol gossip protocol
    * @param config membership config parameters
+   * @param scheduler scheduler
    */
-  public MembershipProtocolImpl(Transport transport, MembershipConfig config) {
-    this.transport = transport;
-    this.config = config;
+  public MembershipProtocolImpl(
+      AtomicReference<Member> memberRef,
+      Transport transport,
+      FailureDetector failureDetector,
+      GossipProtocol gossipProtocol,
+      MembershipConfig config,
+      Scheduler scheduler) {
 
-    Address address = memberAddress(transport, config);
-    Member member = new Member(IdGenerator.generateId(), address, config.getMetadata());
-    this.memberRef = new AtomicReference<>(member);
+    this.transport = Objects.requireNonNull(transport);
+    this.config = Objects.requireNonNull(config);
+    this.failureDetector = Objects.requireNonNull(failureDetector);
+    this.gossipProtocol = Objects.requireNonNull(gossipProtocol);
+    this.memberRef = Objects.requireNonNull(memberRef);
+    this.scheduler = Objects.requireNonNull(scheduler);
 
-    String nameFormat = "sc-membership-" + Integer.toString(address.port());
-    this.scheduler = Schedulers.newSingle(nameFormat, true);
+    // Prepare seeds
     this.seedMembers = cleanUpSeedMembers(config.getSeedMembers());
-  }
 
-  /**
-   * Returns the accessible member address, either from the transport or the overridden variables.
-   *
-   * @param transport transport
-   * @param config membership config parameters
-   * @return Accessible member address
-   */
-  protected static Address memberAddress(Transport transport, MembershipConfig config) {
-    Address memberAddress = transport.address();
-    if (config.getMemberHost() != null) {
-      int memberPort =
-          config.getMemberPort() != null ? config.getMemberPort() : memberAddress.port();
-      memberAddress = Address.create(config.getMemberHost(), memberPort);
-    }
-
-    return memberAddress;
-  }
-
-  // Remove duplicates and local address
-  private List<Address> cleanUpSeedMembers(Collection<Address> seedMembers) {
-    Set<Address> seedMembersSet = new HashSet<>(seedMembers); // remove duplicates
-    seedMembersSet.remove(member().address()); // remove local address
-    return Collections.unmodifiableList(new ArrayList<>(seedMembersSet));
-  }
-
-  public void setFailureDetector(FailureDetector failureDetector) {
-    this.failureDetector = failureDetector;
-  }
-
-  public void setGossipProtocol(GossipProtocol gossipProtocol) {
-    this.gossipProtocol = gossipProtocol;
-  }
-
-  /** <b>NOTE:</b> this method is for testing purpose only. */
-  FailureDetector getFailureDetector() {
-    return failureDetector;
-  }
-
-  /** <b>NOTE:</b> this method is for testing purpose only. */
-  GossipProtocol getGossipProtocol() {
-    return gossipProtocol;
-  }
-
-  /** <b>NOTE:</b> this method is for testing purpose only. */
-  Transport getTransport() {
-    return transport;
-  }
-
-  /** <b>NOTE:</b> this method is for testing purpose only. */
-  List<MembershipRecord> getMembershipRecords() {
-    return Collections.unmodifiableList(new ArrayList<>(membershipTable.values()));
-  }
-
-  @Override
-  public Flux<MembershipEvent> listen() {
-    return Flux.from(subject);
-  }
-
-  @Override
-  public Member member() {
-    return memberRef.get();
-  }
-
-  @Override
-  public void updateMetadata(Map<String, String> metadata) {
-    scheduler.schedule(() -> onUpdateMetadata(metadata));
-  }
-
-  @Override
-  public void updateMetadataProperty(String key, String value) {
-    scheduler.schedule(() -> onUpdateMetadataProperty(key, value));
-  }
-
-  /** Spreads leave notification to other cluster members. */
-  public CompletableFuture<String> leave() {
-    CompletableFuture<String> future = new CompletableFuture<>();
-    scheduler.schedule(
-        () -> {
-          CompletableFuture<String> leaveFuture = onLeave();
-          leaveFuture.whenComplete(
-              (gossipId, error) -> {
-                future.complete(gossipId);
-              });
-        });
-    return future;
-  }
-
-  /**
-   * Starts running cluster membership protocol. After started it begins to receive and send cluster
-   * membership messages
-   */
-  public CompletableFuture<Void> start() {
     // Init membership table with local member record
     Member member = memberRef.get();
     MembershipRecord localMemberRecord = new MembershipRecord(member, ALIVE, 0);
-    membershipTable.put(member.id(), localMemberRecord);
+    this.membershipTable.put(member.id(), localMemberRecord);
 
-    // Listen to incoming SYNC requests from other members
     actionsDisposables.addAll(
         Arrays.asList(
+            // Listen to incoming SYNC requests from other members
             transport
                 .listen()
                 .publishOn(scheduler)
@@ -230,9 +146,104 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                 .publishOn(scheduler)
                 .filter(msg -> MEMBERSHIP_GOSSIP.equals(msg.qualifier()))
                 .subscribe(this::onMembershipGossip, this::onError)));
+  }
 
+  /**
+   * Returns the accessible member address, either from the transport or the overridden variables.
+   *
+   * @param transport transport
+   * @param config membership config parameters
+   * @return Accessible member address
+   */
+  public static Address memberAddress(Transport transport, MembershipConfig config) {
+    Address memberAddress = transport.address();
+    if (config.getMemberHost() != null) {
+      int memberPort =
+          config.getMemberPort() != null ? config.getMemberPort() : memberAddress.port();
+      memberAddress = Address.create(config.getMemberHost(), memberPort);
+    }
+
+    return memberAddress;
+  }
+
+  // Remove duplicates and local address
+  private List<Address> cleanUpSeedMembers(Collection<Address> seedMembers) {
+    Set<Address> seedMembersSet = new HashSet<>(seedMembers); // remove duplicates
+    seedMembersSet.remove(member().address()); // remove local address
+    return Collections.unmodifiableList(new ArrayList<>(seedMembersSet));
+  }
+
+  @Override
+  public Flux<MembershipEvent> listen() {
+    return subject.onBackpressureBuffer();
+  }
+
+  @Override
+  public Member member() {
+    return memberRef.get();
+  }
+
+  @Override
+  public Mono<Void> updateMetadata(Map<String, String> metadata) {
+    return Mono.just(metadata).publishOn(scheduler).flatMap(this::onUpdateMetadata);
+  }
+
+  /** Spreads leave notification to other cluster members. */
+  public Mono<String> leave() {
+    return onLeave();
+  }
+
+  /**
+   * Starts running cluster membership protocol. After started it begins to receive and send cluster
+   * membership messages
+   */
+  public Mono<Void> start() {
     // Make initial sync with all seed members
-    return doInitialSync();
+    return Mono.create(
+        sink -> {
+          // In case no members at the moment just schedule periodic sync
+          if (seedMembers.isEmpty()) {
+            schedulePeriodicSync();
+            sink.success();
+            return;
+          }
+
+          LOGGER.debug("Making initial Sync to all seed members: {}", seedMembers);
+
+          // Listen initial Sync Ack
+          String cid = memberRef.get().id();
+          transport
+              .listen()
+              .publishOn(scheduler)
+              .filter(msg -> SYNC_ACK.equals(msg.qualifier()))
+              .filter(msg -> cid.equals(msg.correlationId()))
+              .filter(this::checkSyncGroup)
+              .take(1)
+              .timeout(Duration.ofMillis(config.getSyncTimeout()), scheduler)
+              .subscribe(
+                  message -> {
+                    SyncData syncData = message.data();
+                    String syncGroup = syncData.getSyncGroup();
+                    Collection<MembershipRecord> membership = syncData.getMembership();
+                    LOGGER.info("Joined cluster '{}': {}", syncGroup, membership);
+
+                    onSyncAck(message, true);
+                    schedulePeriodicSync();
+                    sink.success();
+                  },
+                  throwable -> {
+                    LOGGER.info(
+                        "Timeout getting initial SyncAck from seed members: {}", seedMembers);
+
+                    schedulePeriodicSync();
+                    sink.success();
+                  });
+
+          Message syncMsg = prepareSyncDataMsg(SYNC, cid);
+          Flux.fromIterable(seedMembers)
+              .flatMap(address -> transport.send(address, syncMsg))
+              .subscribe();
+        });
   }
 
   private void onError(Throwable throwable) {
@@ -258,9 +269,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     }
     suspicionTimeoutTasks.clear();
 
-    // Shutdown executor
-    scheduler.dispose();
-
     // Stop publishing events
     sink.complete();
   }
@@ -269,46 +277,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   // ============== Action Methods ==================
   // ================================================
 
-  private CompletableFuture<Void> doInitialSync() {
-    LOGGER.debug("Making initial Sync to all seed members: {}", seedMembers);
-    if (seedMembers.isEmpty()) {
-      schedulePeriodicSync();
-      return CompletableFuture.completedFuture(null);
-    }
-
-    CompletableFuture<Void> syncResponseFuture = new CompletableFuture<>();
-
-    // Listen initial Sync Ack
-    String cid = memberRef.get().id();
-    transport
-        .listen()
-        .publishOn(scheduler)
-        .filter(msg -> SYNC_ACK.equals(msg.qualifier()))
-        .filter(msg -> cid.equals(msg.correlationId()))
-        .filter(this::checkSyncGroup)
-        .take(1)
-        .timeout(Duration.ofMillis(config.getSyncTimeout()), scheduler)
-        .subscribe(
-            message -> {
-              SyncData syncData = message.data();
-              LOGGER.info(
-                  "Joined cluster '{}': {}", syncData.getSyncGroup(), syncData.getMembership());
-              onSyncAck(message, true);
-              schedulePeriodicSync();
-              syncResponseFuture.complete(null);
-            },
-            throwable -> {
-              LOGGER.info("Timeout getting initial SyncAck from seed members: {}", seedMembers);
-              schedulePeriodicSync();
-              syncResponseFuture.complete(null);
-            });
-
-    Message syncMsg = prepareSyncDataMsg(SYNC, cid);
-    seedMembers.forEach(address -> transport.send(address, syncMsg));
-
-    return syncResponseFuture;
-  }
-
   private void doSync() {
     try {
       Address syncMember = selectSyncAddress();
@@ -316,7 +284,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
         return;
       }
       Message syncMsg = prepareSyncDataMsg(SYNC, null);
-      transport.send(syncMember, syncMsg);
+      transport.send(syncMember, syncMsg).subscribe();
       LOGGER.debug("Send Sync to {}: {}", syncMember, syncMsg);
     } catch (Exception cause) {
       LOGGER.error("Unhandled exception: {}", cause, cause);
@@ -327,32 +295,27 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   // ============== Event Listeners =================
   // ================================================
 
-  private void onUpdateMetadataProperty(String key, String value) {
-    // Update local member reference
-    Member curMember = memberRef.get();
-    Map<String, String> metadata = new HashMap<>(curMember.metadata());
-    metadata.put(key, value);
-    onUpdateMetadata(metadata);
-  }
+  private Mono<Void> onUpdateMetadata(Map<String, String> metadata) {
+    return Mono.defer(
+        () -> {
+          // Update local member reference
+          Member curMember = memberRef.get();
+          String memberId = curMember.id();
+          Member newMember = new Member(memberId, curMember.address(), metadata);
+          memberRef.set(newMember);
 
-  private void onUpdateMetadata(Map<String, String> metadata) {
-    // Update local member reference
-    Member curMember = memberRef.get();
-    String memberId = curMember.id();
-    Member newMember = new Member(memberId, curMember.address(), metadata);
-    memberRef.set(newMember);
+          // Update membership table
+          MembershipRecord curRecord = membershipTable.get(memberId);
+          MembershipRecord newRecord =
+              new MembershipRecord(newMember, ALIVE, curRecord.incarnation() + 1);
+          membershipTable.put(memberId, newRecord);
 
-    // Update membership table
-    MembershipRecord curRecord = membershipTable.get(memberId);
-    MembershipRecord newRecord =
-        new MembershipRecord(newMember, ALIVE, curRecord.incarnation() + 1);
-    membershipTable.put(memberId, newRecord);
+          // Emit membership updated event
+          sink.next(MembershipEvent.createUpdated(curMember, newMember));
 
-    // Emit membership updated event
-    sink.next(MembershipEvent.createUpdated(curMember, newMember));
-
-    // Spread new membership record over the cluster
-    spreadMembershipGossip(newRecord);
+          // Spread new membership record over the cluster
+          return spreadMembershipGossip(newRecord).then();
+        });
   }
 
   private void onSyncAck(Message syncAckMsg) {
@@ -369,7 +332,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     LOGGER.debug("Received Sync: {}", syncMsg);
     syncMembership(syncMsg.data(), false);
     Message syncAckMsg = prepareSyncDataMsg(SYNC_ACK, syncMsg.correlationId());
-    transport.send(syncMsg.sender(), syncAckMsg);
+    transport.send(syncMsg.sender(), syncAckMsg).subscribe();
   }
 
   /** Merges FD updates and processes them. */
@@ -387,7 +350,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       // Alive won't override SUSPECT so issue instead extra sync with member to force it spread
       // alive with inc + 1
       Message syncMsg = prepareSyncDataMsg(SYNC, null);
-      transport.send(fdEvent.member().address(), syncMsg);
+      transport.send(fdEvent.member().address(), syncMsg).subscribe();
     } else {
       MembershipRecord r1 = new MembershipRecord(r0.member(), fdEvent.status(), r0.incarnation());
       updateMembership(r1, MembershipUpdateReason.FAILURE_DETECTOR_EVENT);
@@ -464,7 +427,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       MembershipRecord r2 = new MembershipRecord(localMember, r0.status(), currentIncarnation + 1);
       membershipTable.put(localMember.id(), r2);
       LOGGER.debug("Local membership record r0={}, but received r1={}, spread r2={}", r0, r1, r2);
-      spreadMembershipGossip(r2);
+      spreadMembershipGossip(r2).subscribe();
       return;
     }
 
@@ -494,7 +457,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     // Spread gossip (unless already gossiped)
     if (reason != MembershipUpdateReason.MEMBERSHIP_GOSSIP
         && reason != MembershipUpdateReason.INITIAL_SYNC) {
-      spreadMembershipGossip(r1);
+      spreadMembershipGossip(r1).subscribe();
     }
   }
 
@@ -527,18 +490,57 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     }
   }
 
-  private CompletableFuture<String> onLeave() {
-    Member curMember = memberRef.get();
-    String memberId = curMember.id();
-    MembershipRecord curRecord = membershipTable.get(memberId);
-    MembershipRecord newRecord =
-        new MembershipRecord(this.member(), DEAD, curRecord.incarnation() + 1);
-    membershipTable.put(memberId, newRecord);
-    return spreadMembershipGossip(newRecord);
+  private Mono<String> onLeave() {
+    return Mono.defer(
+        () -> {
+          Member curMember = memberRef.get();
+          String memberId = curMember.id();
+          MembershipRecord curRecord = membershipTable.get(memberId);
+          MembershipRecord newRecord =
+              new MembershipRecord(this.member(), DEAD, curRecord.incarnation() + 1);
+          membershipTable.put(memberId, newRecord);
+          return spreadMembershipGossip(newRecord);
+        });
   }
 
-  private CompletableFuture<String> spreadMembershipGossip(MembershipRecord record) {
-    Message membershipMsg = Message.withData(record).qualifier(MEMBERSHIP_GOSSIP).build();
-    return gossipProtocol.spread(membershipMsg);
+  private Mono<String> spreadMembershipGossip(MembershipRecord record) {
+    return Mono.defer(
+        () -> gossipProtocol.spread(Message.withData(record).qualifier(MEMBERSHIP_GOSSIP).build()));
+  }
+
+  /**
+   * <b>NOTE:</b> this method is for testing purpose only.
+   *
+   * @return failure detector
+   */
+  FailureDetector getFailureDetector() {
+    return failureDetector;
+  }
+
+  /**
+   * <b>NOTE:</b> this method is for testing purpose only.
+   *
+   * @return gossip
+   */
+  GossipProtocol getGossipProtocol() {
+    return gossipProtocol;
+  }
+
+  /**
+   * <b>NOTE:</b> this method is for testing purpose only.
+   *
+   * @return transport
+   */
+  Transport getTransport() {
+    return transport;
+  }
+
+  /**
+   * <b>NOTE:</b> this method is for testing purpose only.
+   *
+   * @return transport
+   */
+  List<MembershipRecord> getMembershipRecords() {
+    return Collections.unmodifiableList(new ArrayList<>(membershipTable.values()));
   }
 }

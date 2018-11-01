@@ -3,6 +3,7 @@ package io.scalecube.cluster.membership;
 import io.scalecube.cluster.Member;
 import java.util.Map;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 /**
  * Cluster Membership Protocol component responsible for managing information about existing members
@@ -14,10 +15,7 @@ public interface MembershipProtocol {
   Member member();
 
   /** Updates local member metadata. */
-  void updateMetadata(Map<String, String> metadata);
-
-  /** Updates local member metadata to set given key and value. */
-  void updateMetadataProperty(String key, String value);
+  Mono<Void> updateMetadata(Map<String, String> metadata);
 
   /** Listen changes in cluster membership. */
   Flux<MembershipEvent> listen();
