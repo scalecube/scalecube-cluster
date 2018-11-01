@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -63,6 +64,8 @@ public class ClusterTest extends BaseTest {
           .flatMap(integer -> Cluster.join(seedNode.address()))
           .doOnNext(otherNodes::add)
           .blockLast();
+
+      TimeUnit.SECONDS.sleep(3);
 
       // Check all test members know valid metadata
       for (Cluster node : otherNodes) {
@@ -123,6 +126,8 @@ public class ClusterTest extends BaseTest {
           .flatMap(integer -> Cluster.join(seedNode.address()))
           .doOnNext(otherNodes::add)
           .blockLast();
+
+      TimeUnit.SECONDS.sleep(3);
 
       // Check all test members know valid metadata
       for (Cluster node : otherNodes) {

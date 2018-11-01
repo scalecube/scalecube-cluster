@@ -18,7 +18,6 @@ import io.scalecube.transport.Message;
 import io.scalecube.transport.NetworkEmulator;
 import io.scalecube.transport.Transport;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -116,15 +115,12 @@ final class ClusterImpl implements Cluster {
                       memberRef, transport, failureDetector, gossip, config, scheduler);
 
               actionsDisposables.addAll(
-                  Arrays.asList(
-                      membership //
-                          .listen()
-                          .publishOn(scheduler)
-                          .subscribe(membershipSink::next, this::onError),
+                  Collections.singletonList(
                       membership
                           .listen()
                           .publishOn(scheduler)
-                          .subscribe(this::onMemberEvent, this::onError)));
+                          .subscribe(
+                              event -> onMemberEvent(event, membershipSink), this::onError)));
 
               failureDetector.start();
               gossip.start();
@@ -134,7 +130,7 @@ final class ClusterImpl implements Cluster {
         .then(Mono.just(ClusterImpl.this));
   }
 
-  private void onMemberEvent(MembershipEvent event) {
+  private void onMemberEvent(MembershipEvent event, FluxSink<MembershipEvent> membershipSink) {
     Member member = event.member();
     if (event.isAdded()) {
       onMemberAdded(member);
@@ -148,6 +144,9 @@ final class ClusterImpl implements Cluster {
     if (event.isUpdated()) {
       members.put(member.id(), member);
     }
+
+    // forward membershipevent to downstream components
+    membershipSink.next(event);
   }
 
   private void onMemberAdded(Member member) {
