@@ -168,7 +168,7 @@ final class TransportImpl implements Transport {
           // close server channel
           Optional.ofNullable(serverChannel)
               .map(ChannelOutboundInvoker::close)
-              .map(TransportImpl::toMono)
+              .map(TransportImpl::toMonoVoid)
               .ifPresent(stopList::add);
 
           // close connected channels
@@ -178,7 +178,7 @@ final class TransportImpl implements Transport {
                     channelMono ->
                         channelMono
                             .map(ChannelOutboundInvoker::close)
-                            .map(TransportImpl::toMono)
+                            .map(TransportImpl::toMonoVoid)
                             .subscribe(stopList::add));
           }
           outgoingChannels.clear();
@@ -222,7 +222,7 @@ final class TransportImpl implements Transport {
             channel ->
                 channel //
                     .writeAndFlush(message)
-                    .addListener(future -> futureToSink(future, sink)),
+                    .addListener(future -> voidFutureToSink(future, sink)),
             sink::error);
   }
 
@@ -241,7 +241,7 @@ final class TransportImpl implements Transport {
         .clientBootstrap()
         .handler(new OutgoingChannelInitializer(address))
         .connect(address.host(), address.port())
-        .addListener(future -> futureToSink(future, sink));
+        .addListener(future -> channelFutureToSink((ChannelFuture) future, sink));
   }
 
   @ChannelHandler.Sharable
@@ -290,18 +290,26 @@ final class TransportImpl implements Transport {
     return Address.create(inetAddress.getHostString(), inetAddress.getPort());
   }
 
-  private static Mono<Void> toMono(ChannelFuture channelFuture) {
-    return Mono.create(sink -> futureToSink(channelFuture, sink));
+  private static Mono<Void> toMonoVoid(ChannelFuture channelFuture) {
+    return Mono.create(sink -> voidFutureToSink(channelFuture, sink));
   }
 
-  private static void futureToSink(Future<? super Void> future, MonoSink sink) {
+  private static void voidFutureToSink(Future<? super Void> future, MonoSink<Void> sink) {
     if (future.isSuccess()) {
-      if (future instanceof ChannelFuture) {
-        //noinspection unchecked
-        sink.success(((ChannelFuture) future).channel());
-      } else {
-        sink.success();
+      sink.success();
+    } else {
+      try {
+        sink.error(future.cause());
+      } catch (Exception ex) {
+        // prevent onErrorDroppedEception if sink was already disposed
       }
+    }
+  }
+
+  private static void channelFutureToSink(ChannelFuture future, MonoSink<Channel> sink) {
+    if (future.isSuccess()) {
+      //noinspection unchecked
+      sink.success(future.channel());
     } else {
       try {
         sink.error(future.cause());
