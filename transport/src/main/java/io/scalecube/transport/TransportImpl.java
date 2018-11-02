@@ -1,6 +1,5 @@
 package io.scalecube.transport;
 
-import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
@@ -16,7 +15,6 @@ import io.netty.handler.codec.MessageToByteEncoder;
 import io.netty.handler.codec.MessageToMessageDecoder;
 import io.netty.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
 import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.ArrayList;
@@ -79,58 +77,39 @@ final class TransportImpl implements Transport {
     this.bootstrapFactory = new BootstrapFactory(config);
   }
 
-  /** Starts to accept connections on local address. */
+  /**
+   * Starts to accept connections on local address.
+   *
+   * @return mono transport
+   */
   public Mono<Transport> bind0() {
-    return Mono.defer(
-        () -> {
-          ServerBootstrap server =
-              bootstrapFactory.serverBootstrap().childHandler(incomingChannelInitializer);
-
-          // Resolve listen IP address
-          InetAddress listenAddress =
-              Addressing.getLocalIpAddress(
-                  config.getListenAddress(), config.getListenInterface(), config.isPreferIPv6());
-
-          // Listen port
-          int bindPort = config.getPort();
-
-          return bind0(server, listenAddress, bindPort);
-        });
+    return Mono.defer(() -> bind0(config.getPort()));
   }
 
-  /**
-   * Helper bind method to start accepting connections on {@code listenAddress} and {@code
-   * bindPort}.
-   *
-   * @param listenAddress listen address of cluster transport.
-   * @param bindPort listen port of cluster transport.
-   * @param server a server bootstrap.
-   */
-  private Mono<Transport> bind0(ServerBootstrap server, InetAddress listenAddress, int bindPort) {
-    return Mono.create(
-        sink -> {
-          // Get address object and bind
-          server
-              .bind(listenAddress, bindPort)
-              .addListener(
-                  channelFuture -> {
-                    if (channelFuture.isSuccess()) {
-                      serverChannel = (ServerChannel) ((ChannelFuture) channelFuture).channel();
+  private Mono<Transport> bind0(int port) {
+    return Mono.defer(
+        () ->
+            toMono(
+                    bootstrapFactory
+                        .serverBootstrap()
+                        .childHandler(incomingChannelInitializer)
+                        .bind(port))
+                .doOnSuccess(
+                    channel -> {
+                      serverChannel = (ServerChannel) channel;
                       address = toAddress(serverChannel.localAddress());
                       networkEmulator = new NetworkEmulator(address, config.isUseNetworkEmulator());
                       networkEmulatorHandler =
                           config.isUseNetworkEmulator()
                               ? new NetworkEmulatorHandler(networkEmulator)
                               : null;
-                      LOGGER.info("Bound to: {}", address);
-                      sink.success(TransportImpl.this);
-                    } else {
-                      Throwable cause = channelFuture.cause();
-                      LOGGER.error("Failed to bind to: {}, cause: {}", listenAddress, cause);
-                      sink.error(cause);
-                    }
-                  });
-        });
+                      LOGGER.info("Bound cluster transport on: {}", address);
+                    })
+                .doOnError(
+                    cause ->
+                        LOGGER.error(
+                            "Failed to bind cluster transport on port={}, cause: {}", port, cause))
+                .thenReturn(TransportImpl.this));
   }
 
   @Override
