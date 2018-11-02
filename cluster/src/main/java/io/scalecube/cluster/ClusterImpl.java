@@ -110,10 +110,7 @@ final class ClusterImpl implements Cluster {
               actionsDisposables.addAll(
                   Collections.singletonList(
                       // forward membershipevent to downstream components
-                      membership
-                          .listen()
-                          .publishOn(scheduler)
-                          .subscribe(membershipSink::next, this::onError)));
+                      membership.listen().subscribe(membershipSink::next, this::onError)));
 
               failureDetector.start();
               gossip.start();

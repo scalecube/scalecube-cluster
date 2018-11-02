@@ -195,11 +195,11 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   /**
    * Returns cluster member by id.
    *
-   * @param id cluster member id
+   * @param memberId cluster id
    * @return cluster member
    */
-  public Optional<Member> member(String id) {
-    return Optional.ofNullable(members.get(id));
+  public Optional<Member> member(String memberId) {
+    return Optional.ofNullable(members.get(memberId));
   }
 
   /**
@@ -210,7 +210,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
    */
   public Optional<Member> member(Address address) {
     return Optional.ofNullable(memberAddressIndex.get(address))
-        .flatMap(memberId -> Optional.ofNullable(members.get(memberId)));
+        .flatMap(id -> Optional.ofNullable(members.get(id)));
   }
 
   @Override
@@ -532,9 +532,9 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
             config.getSuspicionMult(), membershipTable.size(), config.getPingInterval());
     suspicionTimeoutTasks.computeIfAbsent(
         record.id(),
-        id ->
+        memberId ->
             scheduler.schedule(
-                () -> onSuspicionTimeout(id), suspicionTimeout, TimeUnit.MILLISECONDS));
+                () -> onSuspicionTimeout(memberId), suspicionTimeout, TimeUnit.MILLISECONDS));
   }
 
   private void onSuspicionTimeout(String memberId) {
@@ -563,7 +563,12 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   private Mono<String> spreadMembershipGossip(MembershipRecord record) {
     return Mono.defer(
-        () -> gossipProtocol.spread(Message.withData(record).qualifier(MEMBERSHIP_GOSSIP).build()));
+        () ->
+            gossipProtocol.spread(
+                Message //
+                    .withData(record)
+                    .qualifier(MEMBERSHIP_GOSSIP)
+                    .build()));
   }
 
   private void onMemberAdded(Member member) {
