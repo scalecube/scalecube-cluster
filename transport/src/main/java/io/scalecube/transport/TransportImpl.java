@@ -5,6 +5,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
@@ -15,7 +16,6 @@ import io.netty.handler.codec.MessageToByteEncoder;
 import io.netty.handler.codec.MessageToMessageDecoder;
 import io.netty.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
 import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
-import io.netty.util.concurrent.Future;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -32,7 +32,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxProcessor;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
-import reactor.core.publisher.MonoSink;
 
 /**
  * Default transport implementation based on tcp netty client and server implementation and protobuf
@@ -168,7 +167,8 @@ final class TransportImpl implements Transport {
           // close server channel
           Optional.ofNullable(serverChannel)
               .map(ChannelOutboundInvoker::close)
-              .map(TransportImpl::toMonoVoid)
+              .map(TransportImpl::toMono)
+              .map(Mono::then)
               .ifPresent(stopList::add);
 
           // close connected channels
@@ -178,7 +178,8 @@ final class TransportImpl implements Transport {
                     channelMono ->
                         channelMono
                             .map(ChannelOutboundInvoker::close)
-                            .map(TransportImpl::toMonoVoid)
+                            .map(TransportImpl::toMono)
+                            .map(Mono::then)
                             .subscribe(stopList::add));
           }
           outgoingChannels.clear();
@@ -207,10 +208,7 @@ final class TransportImpl implements Transport {
           message.setSender(this.address); // set local address as outgoing address
 
           return getOrConnect(address)
-              .flatMap(
-                  channel ->
-                      Mono.<Void>create(
-                          sink -> voidFutureToSink(channel.writeAndFlush(message), sink)))
+              .flatMap(channel -> toMono(channel.writeAndFlush(message)).then())
               .doOnError(
                   ex ->
                       LOGGER.debug(
@@ -247,7 +245,10 @@ final class TransportImpl implements Transport {
                 .clientBootstrap()
                 .handler(new OutgoingChannelInitializer(address))
                 .connect(address.host(), address.port())
-                .addListener(future -> channelFutureToSink((ChannelFuture) future, sink)));
+                .addListener(
+                    future ->
+                        toMono((ChannelFuture) future)
+                            .subscribe(sink::success, sink::error, sink::success)));
   }
 
   @ChannelHandler.Sharable
@@ -296,31 +297,17 @@ final class TransportImpl implements Transport {
     return Address.create(inetAddress.getHostString(), inetAddress.getPort());
   }
 
-  private static Mono<Void> toMonoVoid(ChannelFuture channelFuture) {
-    return Mono.create(sink -> voidFutureToSink(channelFuture, sink));
-  }
-
-  private static void voidFutureToSink(Future<? super Void> future, MonoSink<Void> sink) {
-    if (future.isSuccess()) {
-      sink.success();
-    } else {
-      try {
-        sink.error(future.cause());
-      } catch (Exception ex) {
-        // prevent onErrorDroppedEception if sink was already disposed
-      }
-    }
-  }
-
-  private static void channelFutureToSink(ChannelFuture future, MonoSink<Channel> sink) {
-    if (future.isSuccess()) {
-      sink.success(future.channel());
-    } else {
-      try {
-        sink.error(future.cause());
-      } catch (Exception ex) {
-        // prevent onErrorDroppedEception if sink was already disposed
-      }
-    }
+  private static Mono<Channel> toMono(ChannelFuture channelFuture) {
+    return Mono.create(
+        sink ->
+            channelFuture.addListener(
+                (ChannelFutureListener)
+                    future -> {
+                      if (future.isSuccess()) {
+                        sink.success(future.channel());
+                      } else {
+                        sink.error(future.cause());
+                      }
+                    }));
   }
 }
