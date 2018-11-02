@@ -58,6 +58,10 @@ final class ClusterImpl implements Cluster {
   private final ConcurrentMap<String, Member> members = new ConcurrentHashMap<>();
   private final ConcurrentMap<Address, String> memberAddressIndex = new ConcurrentHashMap<>();
 
+  // Subject
+  private final DirectProcessor<MembershipEvent> membershipEvents = DirectProcessor.create();
+  private final FluxSink<MembershipEvent> membershipSink = membershipEvents.sink();
+
   // Disposables
   private final Disposable.Composite actionsDisposables = Disposables.composite();
 
@@ -86,9 +90,6 @@ final class ClusterImpl implements Cluster {
                       config.getMetadata());
 
               onMemberAdded(localMember); // store local member at this phase
-
-              final DirectProcessor<MembershipEvent> membershipEvents = DirectProcessor.create();
-              final FluxSink<MembershipEvent> membershipSink = membershipEvents.sink();
 
               final AtomicReference<Member> memberRef = new AtomicReference<>(localMember);
 
@@ -236,7 +237,12 @@ final class ClusterImpl implements Cluster {
 
   @Override
   public Flux<MembershipEvent> listenMembership() {
-    return membership.listen();
+    return Flux.defer(
+        () ->
+            Flux.fromIterable(otherMembers())
+                .map(MembershipEvent::createAdded)
+                .concatWith(membershipEvents)
+                .onBackpressureBuffer());
   }
 
   @Override
