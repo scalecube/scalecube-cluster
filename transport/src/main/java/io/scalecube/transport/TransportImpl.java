@@ -32,6 +32,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxProcessor;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.MonoSink;
 
 /**
  * Default transport implementation based on tcp netty client and server implementation and protobuf
@@ -299,15 +300,14 @@ final class TransportImpl implements Transport {
 
   private static Mono<Channel> toMono(ChannelFuture channelFuture) {
     return Mono.create(
-        sink ->
-            channelFuture.addListener(
-                (ChannelFutureListener)
-                    future -> {
-                      if (future.isSuccess()) {
-                        sink.success(future.channel());
-                      } else {
-                        sink.error(future.cause());
-                      }
-                    }));
+        sink -> channelFuture.addListener((ChannelFutureListener) future -> toMono0(sink, future)));
+  }
+
+  private static void toMono0(MonoSink<Channel> sink, ChannelFuture future) {
+    if (future.isSuccess()) {
+      sink.success(future.channel());
+    } else {
+      sink.error(future.cause());
+    }
   }
 }
