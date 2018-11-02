@@ -21,10 +21,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -69,10 +66,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   // State
 
   private final Map<String, MembershipRecord> membershipTable = new HashMap<>();
-
-  private final ConcurrentMap<String, Member> members = new ConcurrentHashMap<>();
-
-  private final ConcurrentMap<Address, String> memberAddressIndex = new ConcurrentHashMap<>();
 
   // Subject
 
@@ -121,8 +114,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     Member member = memberRef.get();
     MembershipRecord localMemberRecord = new MembershipRecord(member, ALIVE, 0);
     this.membershipTable.put(member.id(), localMemberRecord);
-
-    onMemberAdded(member); // store local member
 
     actionsDisposables.addAll(
         Arrays.asList(
@@ -192,27 +183,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     return memberRef.get();
   }
 
-  /**
-   * Returns cluster member by id.
-   *
-   * @param memberId cluster id
-   * @return cluster member
-   */
-  public Optional<Member> member(String memberId) {
-    return Optional.ofNullable(members.get(memberId));
-  }
-
-  /**
-   * Cluster member by member address.
-   *
-   * @param address member address
-   * @return cluster member
-   */
-  public Optional<Member> member(Address address) {
-    return Optional.ofNullable(memberAddressIndex.get(address))
-        .flatMap(id -> Optional.ofNullable(members.get(id)));
-  }
-
   @Override
   public Mono<Void> updateMetadata(Map<String, String> metadata) {
     return Mono.just(metadata).publishOn(scheduler).flatMap(this::onUpdateMetadata);
@@ -225,26 +195,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
    */
   public Mono<String> leave() {
     return onLeave();
-  }
-
-  /**
-   * Returns all cluser memebers in possession at the moment of call (including local one).
-   *
-   * @return cluster members
-   */
-  public Collection<Member> members() {
-    return Collections.unmodifiableCollection(members.values());
-  }
-
-  /**
-   * Returns all cluser memebers in possession at the moment of call (without local one).
-   *
-   * @return cluster members
-   */
-  public Collection<Member> otherMembers() {
-    ArrayList<Member> otherMembers = new ArrayList<>(members.values());
-    otherMembers.remove(member());
-    return Collections.unmodifiableCollection(otherMembers);
   }
 
   /**
@@ -365,7 +315,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           membershipTable.put(memberId, newRecord);
 
           // Emit membership updated event
-          onMemberUpdated(newMember);
           sink.next(MembershipEvent.createUpdated(curMember, newMember));
 
           // Spread new membership record over the cluster
@@ -502,13 +451,10 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
     // Emit membership event
     if (r1.isDead()) {
-      onMemberRemoved(r1.member());
       sink.next(MembershipEvent.createRemoved(r1.member()));
     } else if (r0 == null && r1.isAlive()) {
-      onMemberAdded(r1.member());
       sink.next(MembershipEvent.createAdded(r1.member()));
     } else if (r0 != null && !r0.member().equals(r1.member())) {
-      onMemberUpdated(r1.member());
       sink.next(MembershipEvent.createUpdated(r0.member(), r1.member()));
     }
 
@@ -532,9 +478,9 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
             config.getSuspicionMult(), membershipTable.size(), config.getPingInterval());
     suspicionTimeoutTasks.computeIfAbsent(
         record.id(),
-        memberId ->
+        id ->
             scheduler.schedule(
-                () -> onSuspicionTimeout(memberId), suspicionTimeout, TimeUnit.MILLISECONDS));
+                () -> onSuspicionTimeout(id), suspicionTimeout, TimeUnit.MILLISECONDS));
   }
 
   private void onSuspicionTimeout(String memberId) {
@@ -569,20 +515,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                     .withData(record)
                     .qualifier(MEMBERSHIP_GOSSIP)
                     .build()));
-  }
-
-  private void onMemberAdded(Member member) {
-    memberAddressIndex.put(member.address(), member.id());
-    members.put(member.id(), member);
-  }
-
-  private void onMemberRemoved(Member member) {
-    members.remove(member.id());
-    memberAddressIndex.remove(member.address());
-  }
-
-  private void onMemberUpdated(Member member) {
-    members.put(member.id(), member);
   }
 
   /**
