@@ -6,7 +6,6 @@ import static io.scalecube.transport.TransportTestUtils.send;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -37,55 +36,6 @@ public class TransportTest extends BaseTest {
   }
 
   @Test
-  public void testInvalidListenConfig() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> {
-          Transport transport = null;
-          try {
-            TransportConfig config =
-                TransportConfig.builder()
-                    .listenInterface("eth0")
-                    .listenAddress("10.10.10.10")
-                    .build();
-            transport = Transport.bindAwait(config);
-          } finally {
-            destroyTransport(transport);
-          }
-        });
-  }
-
-  @Test
-  public void testInvalidListenInterface() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> {
-          Transport transport = null;
-          try {
-            TransportConfig config = TransportConfig.builder().listenInterface("yadayada").build();
-            transport = Transport.bindAwait(config);
-          } finally {
-            destroyTransport(transport);
-          }
-        });
-  }
-
-  @Test
-  public void testInvalidListenAddress() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> {
-          Transport transport = null;
-          try {
-            TransportConfig config = TransportConfig.builder().listenAddress("0.0.0.0").build();
-            transport = Transport.bindAwait(config);
-          } finally {
-            destroyTransport(transport);
-          }
-        });
-  }
-
-  @Test
   public void testBindExceptionWithoutPortAutoIncrement() {
     TransportConfig config = TransportConfig.builder().port(6000).build();
     Transport transport1 = null;
@@ -102,17 +52,6 @@ public class TransportTest extends BaseTest {
     } finally {
       destroyTransport(transport1);
       destroyTransport(transport2);
-    }
-  }
-
-  @Test
-  public void testValidListenAddress() {
-    Transport transport = null;
-    try {
-      TransportConfig config = TransportConfig.builder().listenAddress("127.0.0.1").build();
-      transport = Transport.bindAwait(config);
-    } finally {
-      destroyTransport(transport);
     }
   }
 
