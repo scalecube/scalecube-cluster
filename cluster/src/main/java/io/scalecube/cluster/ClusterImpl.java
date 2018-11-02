@@ -17,6 +17,7 @@ import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.NetworkEmulator;
 import io.scalecube.transport.Transport;
+import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -84,11 +85,7 @@ final class ClusterImpl implements Cluster {
               transport = boundTransport;
 
               // Prepare local cluster member
-              final Member localMember =
-                  new Member(
-                      IdGenerator.generateId(),
-                      MembershipProtocolImpl.memberAddress(transport, config),
-                      config.getMetadata());
+              final Member localMember = createLocalMember();
 
               onMemberAdded(localMember); // store local member at this phase
 
@@ -116,12 +113,10 @@ final class ClusterImpl implements Cluster {
                   new MembershipProtocolImpl(
                       memberRef, transport, failureDetector, gossip, config, scheduler);
 
-              actionsDisposables.addAll(
-                  Collections.singletonList(
-                      membership
-                          .listen()
-                          .subscribe(
-                              event -> onMemberEvent(event, membershipSink), this::onError)));
+              actionsDisposables.add(
+                  membership
+                      .listen()
+                      .subscribe(event -> onMemberEvent(event, membershipSink), this::onError));
 
               failureDetector.start();
               gossip.start();
@@ -131,6 +126,37 @@ final class ClusterImpl implements Cluster {
         .then(Mono.just(ClusterImpl.this));
   }
 
+  /**
+   * Creates and prepares local cluster member. An address of member that's being constructed may be
+   * overriden from config variables. See {@link io.scalecube.cluster.ClusterConfig#memberHost},
+   * {@link ClusterConfig#memberPort}.
+   *
+   * @return local cluster member with cluster address and cluster member id
+   */
+  private Member createLocalMember() {
+    String id = IdGenerator.generateId();
+
+    InetAddress listenAddress = Address.getLocalIpAddress();
+    int listenPort = transport.address().port();
+
+    String memberHost = config.getMemberHost();
+    Integer memberPort = config.getMemberPort();
+
+    Address memberAddress =
+        Optional.ofNullable(memberHost)
+            .map(host -> Address.create(host, Optional.ofNullable(memberPort).orElse(listenPort)))
+            .orElseGet(() -> Address.create(listenAddress.getHostAddress(), listenPort));
+
+    return new Member(id, memberAddress, config.getMetadata());
+  }
+
+  /**
+   * Handler for membership events. Reacts on events and updates {@link #members} {@link
+   * #memberAddressIndex} hashmaps.
+   *
+   * @param event membership event
+   * @param membershipSink membership events sink
+   */
   private void onMemberEvent(MembershipEvent event, FluxSink<MembershipEvent> membershipSink) {
     Member member = event.member();
     if (event.isAdded()) {

@@ -56,17 +56,6 @@ public class TransportTest extends BaseTest {
   }
 
   @Test
-  public void testValidListenAddress() {
-    Transport transport = null;
-    try {
-      TransportConfig config = TransportConfig.builder().listenAddress("127.0.0.1").build();
-      transport = Transport.bindAwait(config);
-    } finally {
-      destroyTransport(transport);
-    }
-  }
-
-  @Test
   public void testUnresolvedHostConnection() throws Exception {
     client = createTransport();
     // create transport with wrong host

@@ -1,5 +1,0 @@
-//          // Resolve listen IP address
-//          InetAddress listenAddress =
-//              Addressing.getLocalIpAddress(
-//                  config.getListenAddress(), config.getListenInterface(),
-// config.isPreferIPv6());

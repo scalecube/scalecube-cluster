@@ -335,16 +335,6 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
       return this;
     }
 
-    public Builder listenAddress(String listenAddress) {
-      this.transportConfigBuilder.listenAddress(listenAddress);
-      return this;
-    }
-
-    public Builder listenInterface(String listenInterface) {
-      this.transportConfigBuilder.listenInterface(listenInterface);
-      return this;
-    }
-
     public Builder port(int port) {
       this.transportConfigBuilder.port(port);
       return this;

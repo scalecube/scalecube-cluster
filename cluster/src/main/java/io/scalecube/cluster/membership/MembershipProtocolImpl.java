@@ -148,24 +148,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                 .subscribe(this::onMembershipGossip, this::onError)));
   }
 
-  /**
-   * Returns the accessible member address, either from the transport or the overridden variables.
-   *
-   * @param transport transport
-   * @param config membership config parameters
-   * @return Accessible member address
-   */
-  public static Address memberAddress(Transport transport, MembershipConfig config) {
-    Address memberAddress = transport.address();
-    if (config.getMemberHost() != null) {
-      int memberPort =
-          config.getMemberPort() != null ? config.getMemberPort() : memberAddress.port();
-      memberAddress = Address.create(config.getMemberHost(), memberPort);
-    }
-
-    return memberAddress;
-  }
-
   // Remove duplicates and local address
   private List<Address> cleanUpSeedMembers(Collection<Address> seedMembers) {
     Set<Address> seedMembersSet = new HashSet<>(seedMembers); // remove duplicates

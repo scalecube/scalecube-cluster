@@ -1,8 +1,11 @@
 package io.scalecube.transport;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import reactor.core.Exceptions;
 
 public final class Address {
 
@@ -36,7 +39,7 @@ public final class Address {
     requireNonEmpty(host);
     String host1 =
         "localhost".equals(host) || "127.0.0.1".equals(host)
-            ? Addressing.getLocalIpAddress().getHostAddress()
+            ? getLocalIpAddress().getHostAddress()
             : host;
     int port = Integer.parseInt(matcher.group(2));
     return new Address(host1, port);
@@ -45,6 +48,21 @@ public final class Address {
   /** Creates address from host and port. */
   public static Address create(String host, int port) {
     return new Address(host, port);
+  }
+
+  /**
+   * Getting local IP address by the address of local host. <b>NOTE:</b> returned IP address is
+   * expected to be a publicly visible IP address.
+   *
+   * @throws RuntimeException wrapped {@link UnknownHostException} in case when local host name
+   *     couldn't be resolved into an address.
+   */
+  public static InetAddress getLocalIpAddress() {
+    try {
+      return InetAddress.getLocalHost();
+    } catch (UnknownHostException e) {
+      throw Exceptions.propagate(e);
+    }
   }
 
   /** Host address. */

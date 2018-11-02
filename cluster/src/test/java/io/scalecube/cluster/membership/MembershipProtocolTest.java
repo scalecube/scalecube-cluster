@@ -523,48 +523,12 @@ public class MembershipProtocolTest extends BaseTest {
     }
   }
 
-  @Test
-  public void testMemberAddressOverrides() {
-    Transport t = Transport.bindAwait(true);
-    String host = "host1";
-
-    // Default behavior
-    Address address =
-        MembershipProtocolImpl.memberAddress(t, testConfig(Collections.emptyList()).build());
-    assertEquals(t.address(), address);
-
-    // Override host only
-    address =
-        MembershipProtocolImpl.memberAddress(
-            t, testConfig(Collections.emptyList()).memberHost(host).build());
-    assertEquals(Address.create(host, t.address().port()), address);
-
-    // Override host and port
-    address =
-        MembershipProtocolImpl.memberAddress(
-            t, testConfig(Collections.emptyList()).memberHost(host).memberPort(80).build());
-    assertEquals(Address.create(host, 80), address);
-
-    // Override port only (override is ignored)
-    address =
-        MembershipProtocolImpl.memberAddress(
-            t, testConfig(Collections.emptyList()).memberPort(8080).build());
-    assertEquals(t.address(), address);
-  }
-
   private void awaitSeconds(long seconds) {
     try {
       TimeUnit.SECONDS.sleep(seconds);
     } catch (InterruptedException e) {
       throw Exceptions.propagate(e);
     }
-  }
-
-  private ClusterConfig overrideConfig(Address seedAddress, String memberHost) {
-    return testConfig(
-            seedAddress != null ? Collections.singletonList(seedAddress) : Collections.emptyList())
-        .memberHost(memberHost)
-        .build();
   }
 
   private ClusterConfig.Builder testConfig(List<Address> seedAddresses) {
