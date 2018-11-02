@@ -17,7 +17,6 @@ import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.NetworkEmulator;
 import io.scalecube.transport.Transport;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -25,8 +24,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -54,9 +51,6 @@ final class ClusterImpl implements Cluster {
   private static final Set<String> SYSTEM_GOSSIPS = Collections.singleton(MEMBERSHIP_GOSSIP);
 
   private final ClusterConfig config;
-
-  private final ConcurrentMap<String, Member> members = new ConcurrentHashMap<>();
-  private final ConcurrentMap<Address, String> memberAddressIndex = new ConcurrentHashMap<>();
 
   // Subject
   private final DirectProcessor<MembershipEvent> membershipEvents = DirectProcessor.create();
@@ -89,8 +83,6 @@ final class ClusterImpl implements Cluster {
                       MembershipProtocolImpl.memberAddress(transport, config),
                       config.getMetadata());
 
-              onMemberAdded(localMember); // store local member at this phase
-
               final AtomicReference<Member> memberRef = new AtomicReference<>(localMember);
 
               scheduler = Schedulers.newSingle("sc-cluster-" + localMember.address().port(), true);
@@ -117,11 +109,11 @@ final class ClusterImpl implements Cluster {
 
               actionsDisposables.addAll(
                   Collections.singletonList(
+                      // forward membershipevent to downstream components
                       membership
                           .listen()
                           .publishOn(scheduler)
-                          .subscribe(
-                              event -> onMemberEvent(event, membershipSink), this::onError)));
+                          .subscribe(membershipSink::next, this::onError)));
 
               failureDetector.start();
               gossip.start();
@@ -129,30 +121,6 @@ final class ClusterImpl implements Cluster {
               return membership.start();
             })
         .then(Mono.just(ClusterImpl.this));
-  }
-
-  private void onMemberEvent(MembershipEvent event, FluxSink<MembershipEvent> membershipSink) {
-    Member member = event.member();
-    if (event.isAdded()) {
-      onMemberAdded(member);
-    }
-
-    if (event.isRemoved()) {
-      members.remove(member.id());
-      memberAddressIndex.remove(member.address());
-    }
-
-    if (event.isUpdated()) {
-      members.put(member.id(), member);
-    }
-
-    // forward membershipevent to downstream components
-    membershipSink.next(event);
-  }
-
-  private void onMemberAdded(Member member) {
-    memberAddressIndex.put(member.address(), member.id());
-    members.put(member.id(), member);
   }
 
   private void onError(Throwable throwable) {
@@ -193,7 +161,7 @@ final class ClusterImpl implements Cluster {
 
   @Override
   public Collection<Member> members() {
-    return Collections.unmodifiableCollection(members.values());
+    return membership.members();
   }
 
   @Override
@@ -203,20 +171,17 @@ final class ClusterImpl implements Cluster {
 
   @Override
   public Optional<Member> member(String id) {
-    return Optional.ofNullable(members.get(id));
+    return membership.member(id);
   }
 
   @Override
   public Optional<Member> member(Address address) {
-    return Optional.ofNullable(memberAddressIndex.get(address))
-        .flatMap(memberId -> Optional.ofNullable(members.get(memberId)));
+    return membership.member(address);
   }
 
   @Override
   public Collection<Member> otherMembers() {
-    ArrayList<Member> otherMembers = new ArrayList<>(members.values());
-    otherMembers.remove(membership.member());
-    return Collections.unmodifiableCollection(otherMembers);
+    return membership.otherMembers();
   }
 
   @Override
