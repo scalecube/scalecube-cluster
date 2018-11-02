@@ -188,7 +188,11 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     return Mono.just(metadata).publishOn(scheduler).flatMap(this::onUpdateMetadata);
   }
 
-  /** Spreads leave notification to other cluster members. */
+  /**
+   * Spreads leave notification to other cluster members.
+   *
+   * @return mono handler
+   */
   public Mono<String> leave() {
     return onLeave();
   }
@@ -505,7 +509,12 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   private Mono<String> spreadMembershipGossip(MembershipRecord record) {
     return Mono.defer(
-        () -> gossipProtocol.spread(Message.withData(record).qualifier(MEMBERSHIP_GOSSIP).build()));
+        () ->
+            gossipProtocol.spread(
+                Message //
+                    .withData(record)
+                    .qualifier(MEMBERSHIP_GOSSIP)
+                    .build()));
   }
 
   /**
