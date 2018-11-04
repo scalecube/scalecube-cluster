@@ -58,7 +58,6 @@ public final class FailureDetectorImpl implements FailureDetector {
 
   // Scheduled
   private final Scheduler scheduler;
-  private Disposable pingTask;
 
   /**
    * Creates new instance of failure detector with given transport and settings.
@@ -88,41 +87,25 @@ public final class FailureDetectorImpl implements FailureDetector {
                 .publishOn(scheduler)
                 .subscribe(this::onMemberEvent, this::onError),
             transport
-                .listen()
+                .listen() //
                 .publishOn(scheduler)
-                .filter(this::isPing)
-                .subscribe(this::onPing, this::onError),
-            transport
-                .listen()
-                .publishOn(scheduler)
-                .filter(this::isPingReq)
-                .subscribe(this::onPingReq, this::onError),
-            transport
-                .listen()
-                .publishOn(scheduler)
-                .filter(this::isTransitPingAck)
-                .subscribe(this::onTransitPingAck, this::onError)));
+                .subscribe(this::onMessage, this::onError)));
   }
 
   @Override
   public void start() {
-    pingTask =
+    actionsDisposables.add(
         scheduler.schedulePeriodically(
             this::doPing,
             config.getPingInterval(),
             config.getPingInterval(),
-            TimeUnit.MILLISECONDS);
+            TimeUnit.MILLISECONDS));
   }
 
   @Override
   public void stop() {
-    // Stop accepting requests
+    // Stop accepting requests and sending pings
     actionsDisposables.dispose();
-
-    // Stop sending pings
-    if (pingTask != null && !pingTask.isDisposed()) {
-      pingTask.dispose();
-    }
 
     // Stop publishing events
     sink.complete();
@@ -240,6 +223,16 @@ public final class FailureDetectorImpl implements FailureDetector {
   // ================================================
   // ============== Event Listeners =================
   // ================================================
+
+  private void onMessage(Message message) {
+    if (isPing(message)) {
+      onPing(message);
+    } else if (isPingReq(message)) {
+      onPingReq(message);
+    } else if (isTransitPingAck(message)) {
+      onTransitPingAck(message);
+    }
+  }
 
   /** Listens to PING message and answers with ACK. */
   private void onPing(Message message) {
