@@ -66,7 +66,6 @@ public final class GossipProtocolImpl implements GossipProtocol {
   // Scheduled
 
   private final Scheduler scheduler;
-  private Disposable spreadGossipTask;
 
   /**
    * Creates new instance of gossip protocol with given memberId, transport and settings.
@@ -104,23 +103,18 @@ public final class GossipProtocolImpl implements GossipProtocol {
 
   @Override
   public void start() {
-    spreadGossipTask =
+    actionsDisposables.add(
         scheduler.schedulePeriodically(
             this::doSpreadGossip,
             config.getGossipInterval(),
             config.getGossipInterval(),
-            TimeUnit.MILLISECONDS);
+            TimeUnit.MILLISECONDS));
   }
 
   @Override
   public void stop() {
-    // Stop accepting gossip requests
+    // Stop accepting gossip requests and spreading gossips
     actionsDisposables.dispose();
-
-    // Stop spreading gossips
-    if (spreadGossipTask != null && !spreadGossipTask.isDisposed()) {
-      spreadGossipTask.dispose();
-    }
 
     // Stop publishing events
     sink.complete();

@@ -80,7 +80,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   // Scheduled
   private final Scheduler scheduler;
   private final Map<String, Disposable> suspicionTimeoutTasks = new HashMap<>();
-  private Disposable syncTask;
 
   /**
    * Creates new instantiates of cluster membership protocol with given transport and config.
@@ -117,22 +116,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
     actionsDisposables.addAll(
         Arrays.asList(
-            // Listen to incoming SYNC requests from other members
-            transport
-                .listen()
-                .publishOn(scheduler)
-                .filter(msg -> SYNC.equals(msg.qualifier()))
-                .filter(this::checkSyncGroup)
-                .subscribe(this::onSync, this::onError),
-
-            // Listen to incoming SYNC ACK responses from other members
-            transport
-                .listen()
-                .publishOn(scheduler)
-                .filter(msg -> SYNC_ACK.equals(msg.qualifier()))
-                .filter(msg -> msg.correlationId() == null) // filter out initial sync
-                .filter(this::checkSyncGroup)
-                .subscribe(this::onSyncAck, this::onError),
+            // Listen to incoming SYNC and SYNC ACK requests from other members
+            transport.listen().publishOn(scheduler).subscribe(this::onMessage, this::onError),
 
             // Listen to events from failure detector
             failureDetector
@@ -238,13 +223,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   /** Stops running cluster membership protocol and releases occupied resources. */
   public void stop() {
-    // Stop accepting requests and events
+    // Stop accepting requests, events and sending sync
     actionsDisposables.dispose();
-
-    // Stop sending sync
-    if (syncTask != null && !syncTask.isDisposed()) {
-      syncTask.dispose();
-    }
 
     // Cancel remove members tasks
     for (String memberId : suspicionTimeoutTasks.keySet()) {
@@ -304,8 +284,14 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
         });
   }
 
-  private void onSyncAck(Message syncAckMsg) {
-    onSyncAck(syncAckMsg, false);
+  private void onMessage(Message message) {
+    if (SYNC.equals(message.qualifier()) && checkSyncGroup(message)) {
+      onSync(message);
+    } else if (SYNC_ACK.equals(message.qualifier())
+        && message.correlationId() == null // filter out initial sync
+        && checkSyncGroup(message)) {
+      onSyncAck(message, false);
+    }
   }
 
   private void onSyncAck(Message syncAckMsg, boolean initial) {
@@ -368,9 +354,9 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   private void schedulePeriodicSync() {
     int syncInterval = config.getSyncInterval();
-    syncTask =
+    actionsDisposables.add(
         scheduler.schedulePeriodically(
-            this::doSync, syncInterval, syncInterval, TimeUnit.MILLISECONDS);
+            this::doSync, syncInterval, syncInterval, TimeUnit.MILLISECONDS));
   }
 
   private Message prepareSyncDataMsg(String qualifier, String cid) {
