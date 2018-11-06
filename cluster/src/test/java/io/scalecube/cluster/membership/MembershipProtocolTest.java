@@ -35,6 +35,8 @@ public class MembershipProtocolTest extends BaseTest {
 
   private static final int TEST_PING_INTERVAL = 200;
 
+  public static final Duration TIMEOUT = Duration.ofSeconds(10);
+
   private Scheduler scheduler;
 
   @BeforeEach
@@ -566,7 +568,7 @@ public class MembershipProtocolTest extends BaseTest {
     try {
       failureDetector.start();
       gossipProtocol.start();
-      membership.start().block();
+      membership.start().block(TIMEOUT);
     } catch (Exception ex) {
       throw Exceptions.propagate(ex);
     }

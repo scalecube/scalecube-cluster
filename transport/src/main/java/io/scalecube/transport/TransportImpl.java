@@ -286,11 +286,11 @@ final class TransportImpl implements Transport {
                             .map(Mono::then)
                             .subscribe(stopList::add));
           }
-          outgoingChannels.clear();
 
-          bootstrapFactory.shutdown();
-
-          return Mono.when(stopList).then();
+          return Mono.when(stopList)
+              .doOnTerminate(outgoingChannels::clear)
+              .doOnTerminate(bootstrapFactory::shutdown)
+              .then();
         });
   }
 }
