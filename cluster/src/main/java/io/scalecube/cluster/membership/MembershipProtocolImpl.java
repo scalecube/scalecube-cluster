@@ -80,7 +80,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   // Scheduled
   private final Scheduler scheduler;
   private final Map<String, Disposable> suspicionTimeoutTasks = new HashMap<>();
-  private Disposable syncTask;
 
   /**
    * Creates new instantiates of cluster membership protocol with given transport and config.
@@ -117,22 +116,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
     actionsDisposables.addAll(
         Arrays.asList(
-            // Listen to incoming SYNC requests from other members
-            transport
-                .listen()
-                .publishOn(scheduler)
-                .filter(msg -> SYNC.equals(msg.qualifier()))
-                .filter(this::checkSyncGroup)
-                .subscribe(this::onSync, this::onError),
-
-            // Listen to incoming SYNC ACK responses from other members
-            transport
-                .listen()
-                .publishOn(scheduler)
-                .filter(msg -> SYNC_ACK.equals(msg.qualifier()))
-                .filter(msg -> msg.correlationId() == null) // filter out initial sync
-                .filter(this::checkSyncGroup)
-                .subscribe(this::onSyncAck, this::onError),
+            // Listen to incoming SYNC and SYNC ACK requests from other members
+            transport.listen().publishOn(scheduler).subscribe(this::onMessage, this::onError),
 
             // Listen to events from failure detector
             failureDetector
@@ -200,12 +185,12 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           String cid = memberRef.get().id();
           transport
               .listen()
-              .publishOn(scheduler)
               .filter(msg -> SYNC_ACK.equals(msg.qualifier()))
               .filter(msg -> cid.equals(msg.correlationId()))
               .filter(this::checkSyncGroup)
               .take(1)
               .timeout(Duration.ofMillis(config.getSyncTimeout()), scheduler)
+              .publishOn(scheduler)
               .subscribe(
                   message -> {
                     SyncData syncData = message.data();
@@ -228,6 +213,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           Message syncMsg = prepareSyncDataMsg(SYNC, cid);
           Flux.fromIterable(seedMembers)
               .flatMap(address -> transport.send(address, syncMsg))
+              .doOnError(this::onError)
               .subscribe();
         });
   }
@@ -238,13 +224,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   /** Stops running cluster membership protocol and releases occupied resources. */
   public void stop() {
-    // Stop accepting requests and events
+    // Stop accepting requests, events and sending sync
     actionsDisposables.dispose();
-
-    // Stop sending sync
-    if (syncTask != null && !syncTask.isDisposed()) {
-      syncTask.dispose();
-    }
 
     // Cancel remove members tasks
     for (String memberId : suspicionTimeoutTasks.keySet()) {
@@ -270,7 +251,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
         return;
       }
       Message syncMsg = prepareSyncDataMsg(SYNC, null);
-      transport.send(syncMember, syncMsg).subscribe();
+      transport.send(syncMember, syncMsg).doOnError(this::onError).subscribe();
       LOGGER.debug("Send Sync to {}: {}", syncMember, syncMsg);
     } catch (Exception cause) {
       LOGGER.error("Unhandled exception: {}", cause, cause);
@@ -304,8 +285,14 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
         });
   }
 
-  private void onSyncAck(Message syncAckMsg) {
-    onSyncAck(syncAckMsg, false);
+  private void onMessage(Message message) {
+    if (SYNC.equals(message.qualifier()) && checkSyncGroup(message)) {
+      onSync(message);
+    } else if (SYNC_ACK.equals(message.qualifier())
+        && message.correlationId() == null // filter out initial sync
+        && checkSyncGroup(message)) {
+      onSyncAck(message, false);
+    }
   }
 
   private void onSyncAck(Message syncAckMsg, boolean initial) {
@@ -318,7 +305,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     LOGGER.debug("Received Sync: {}", syncMsg);
     syncMembership(syncMsg.data(), false);
     Message syncAckMsg = prepareSyncDataMsg(SYNC_ACK, syncMsg.correlationId());
-    transport.send(syncMsg.sender(), syncAckMsg).subscribe();
+    transport.send(syncMsg.sender(), syncAckMsg).doOnError(this::onError).subscribe();
   }
 
   /** Merges FD updates and processes them. */
@@ -336,7 +323,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       // Alive won't override SUSPECT so issue instead extra sync with member to force it spread
       // alive with inc + 1
       Message syncMsg = prepareSyncDataMsg(SYNC, null);
-      transport.send(fdEvent.member().address(), syncMsg).subscribe();
+      transport.send(fdEvent.member().address(), syncMsg).doOnError(this::onError).subscribe();
     } else {
       MembershipRecord r1 = new MembershipRecord(r0.member(), fdEvent.status(), r0.incarnation());
       updateMembership(r1, MembershipUpdateReason.FAILURE_DETECTOR_EVENT);
@@ -368,9 +355,9 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   private void schedulePeriodicSync() {
     int syncInterval = config.getSyncInterval();
-    syncTask =
+    actionsDisposables.add(
         scheduler.schedulePeriodically(
-            this::doSync, syncInterval, syncInterval, TimeUnit.MILLISECONDS);
+            this::doSync, syncInterval, syncInterval, TimeUnit.MILLISECONDS));
   }
 
   private Message prepareSyncDataMsg(String qualifier, String cid) {
@@ -413,7 +400,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       MembershipRecord r2 = new MembershipRecord(localMember, r0.status(), currentIncarnation + 1);
       membershipTable.put(localMember.id(), r2);
       LOGGER.debug("Local membership record r0={}, but received r1={}, spread r2={}", r0, r1, r2);
-      spreadMembershipGossip(r2).subscribe();
+      spreadMembershipGossip(r2).doOnError(this::onError).subscribe();
       return;
     }
 
@@ -443,7 +430,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     // Spread gossip (unless already gossiped)
     if (reason != MembershipUpdateReason.MEMBERSHIP_GOSSIP
         && reason != MembershipUpdateReason.INITIAL_SYNC) {
-      spreadMembershipGossip(r1).subscribe();
+      spreadMembershipGossip(r1).doOnError(this::onError).subscribe();
     }
   }
 

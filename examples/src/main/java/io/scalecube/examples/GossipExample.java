@@ -28,7 +28,9 @@ public class GossipExample {
 
     // Start cluster node Eve that joins cluster and spreads gossip
     Cluster eve = Cluster.joinAwait(alice.address());
-    eve.spreadGossip(Message.fromData("Gossip from Eve")).subscribe();
+    eve.spreadGossip(Message.fromData("Gossip from Eve"))
+        .doOnError(System.err::println)
+        .subscribe();
 
     // Avoid exit main thread immediately ]:->
     Thread.sleep(1000);
