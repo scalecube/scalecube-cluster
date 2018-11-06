@@ -30,6 +30,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxProcessor;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.MonoProcessor;
 import reactor.core.publisher.MonoSink;
 
 /**
@@ -67,7 +68,7 @@ final class TransportImpl implements Transport {
   private Address address;
   private ServerChannel serverChannel;
 
-  private volatile boolean stopped = false;
+  private final MonoProcessor<Void> onClose = MonoProcessor.create();
 
   public TransportImpl(TransportConfig config) {
     this.config = Objects.requireNonNull(config);
@@ -119,7 +120,7 @@ final class TransportImpl implements Transport {
 
   @Override
   public boolean isStopped() {
-    return stopped;
+    return onClose.isDisposed();
   }
 
   @Override
@@ -131,10 +132,12 @@ final class TransportImpl implements Transport {
   public final Mono<Void> stop() {
     return Mono.defer(
         () -> {
-          if (stopped) {
-            throw new IllegalStateException("Transport is stopped");
+          if (onClose.isDisposed()) {
+            return onClose;
           }
-          stopped = true;
+
+          onClose.onComplete();
+
           // Complete incoming messages observable
           try {
             messageSink.complete();
@@ -166,7 +169,7 @@ final class TransportImpl implements Transport {
 
           bootstrapFactory.shutdown();
 
-          return Mono.when(stopList);
+          return Mono.when(stopList).then();
         });
   }
 
@@ -179,9 +182,6 @@ final class TransportImpl implements Transport {
   public Mono<Void> send(Address address, Message message) {
     return Mono.defer(
         () -> {
-          if (stopped) {
-            throw new IllegalStateException("Transport is stopped");
-          }
           Objects.requireNonNull(address);
           Objects.requireNonNull(message);
 
