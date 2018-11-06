@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.scalecube.cluster.membership.MembershipEvent;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -15,13 +14,14 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
 public class ClusterTest extends BaseTest {
 
-  public static final Duration TIMEOUT = Duration.ofSeconds(10);
+  public static final Duration TIMEOUT = Duration.ofSeconds(30);
 
   @Test
   public void testJoinDynamicPort() {
@@ -41,8 +41,11 @@ public class ClusterTest extends BaseTest {
       LOGGER.info("Cluster nodes: {}", seedNode.members());
     } finally {
       // Shutdown all nodes
-      shutdown(seedNode);
-      shutdown(otherNodes);
+      shutdown(
+          Stream.concat(
+                  Stream.of(seedNode), //
+                  otherNodes.stream())
+              .collect(Collectors.toList()));
     }
   }
 
@@ -101,9 +104,11 @@ public class ClusterTest extends BaseTest {
       }
     } finally {
       // Shutdown all nodes
-      shutdown(seedNode);
-      shutdown(metadataNode);
-      shutdown(otherNodes);
+      shutdown(
+          Stream.concat(
+                  Stream.of(seedNode, metadataNode), //
+                  otherNodes.stream())
+              .collect(Collectors.toList()));
     }
   }
 
@@ -165,9 +170,11 @@ public class ClusterTest extends BaseTest {
       }
     } finally {
       // Shutdown all nodes
-      shutdown(seedNode);
-      shutdown(metadataNode);
-      shutdown(otherNodes);
+      shutdown(
+          Stream.concat(
+                  Stream.of(seedNode, metadataNode), //
+                  otherNodes.stream())
+              .collect(Collectors.toList()));
     }
   }
 
@@ -188,11 +195,7 @@ public class ClusterTest extends BaseTest {
     assertTrue(!node3.members().contains(node2.member()));
     assertTrue(node2.isShutdown());
 
-    Mono.when(seedNode.shutdown(), node1.shutdown(), node3.shutdown()).block(TIMEOUT);
-  }
-
-  private void shutdown(Cluster... nodes) {
-    shutdown(Arrays.asList(nodes));
+    shutdown(Stream.of(seedNode, node1, node3).collect(Collectors.toList()));
   }
 
   private void shutdown(Collection<Cluster> nodes) {
