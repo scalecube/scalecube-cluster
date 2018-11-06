@@ -286,14 +286,7 @@ final class TransportImpl implements Transport {
     if (future.isSuccess()) {
       sink.success(future.channel());
     } else {
-      try {
-        sink.error(future.cause());
-      } catch (Exception ex) {
-        LOGGER.warn(
-            "Exception occured at calling sink.error() with parameter {}, cause: {}",
-            future.cause(),
-            ex);
-      }
+      sink.error(future.cause());
     }
   }
 }
