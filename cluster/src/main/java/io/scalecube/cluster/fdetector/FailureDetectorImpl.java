@@ -135,33 +135,30 @@ public final class FailureDetectorImpl implements FailureDetector {
     String cid = localMember.id() + "-" + Long.toString(period);
     PingData pingData = new PingData(localMember, pingMember);
     Message pingMsg = Message.withData(pingData).qualifier(PING).correlationId(cid).build();
-    try {
-      LOGGER.trace("Send Ping[{}] to {}", period, pingMember);
-      transport
-          .listen()
-          .publishOn(scheduler)
-          .filter(this::isPingAck)
-          .filter(message -> cid.equals(message.correlationId()))
-          .take(1)
-          .timeout(Duration.ofMillis(config.getPingTimeout()), scheduler)
-          .subscribe(
-              message -> {
-                LOGGER.trace("Received PingAck[{}] from {}", period, pingMember);
-                publishPingResult(pingMember, MemberStatus.ALIVE);
-              },
-              throwable -> {
-                LOGGER.trace(
-                    "Timeout getting PingAck[{}] from {} within {} ms",
-                    period,
-                    pingMember,
-                    config.getPingTimeout());
-                doPingReq(pingMember, cid);
-              });
-      transport.send(pingMember.address(), pingMsg).doOnError(this::onError).subscribe();
-    } catch (Exception cause) {
-      LOGGER.error(
-          "Exception on sending Ping[{}] to {}: {}", period, pingMember, cause.getMessage(), cause);
-    }
+
+    transport
+        .listen()
+        .filter(this::isPingAck)
+        .filter(message -> cid.equals(message.correlationId()))
+        .take(1)
+        .timeout(Duration.ofMillis(config.getPingTimeout()), scheduler)
+        .publishOn(scheduler)
+        .subscribe(
+            message -> {
+              LOGGER.trace("Received PingAck[{}] from {}", period, pingMember);
+              publishPingResult(pingMember, MemberStatus.ALIVE);
+            },
+            throwable -> {
+              LOGGER.trace(
+                  "Timeout getting PingAck[{}] from {} within {} ms",
+                  period,
+                  pingMember,
+                  config.getPingTimeout());
+              doPingReq(pingMember, cid);
+            });
+
+    LOGGER.trace("Send Ping[{}] to {}", period, pingMember);
+    transport.send(pingMember.address(), pingMsg).doOnError(this::onError).subscribe();
   }
 
   private void doPingReq(final Member pingMember, String cid) {
@@ -186,11 +183,11 @@ public final class FailureDetectorImpl implements FailureDetector {
     Member localMember = memberSupplier.get();
     transport
         .listen()
-        .publishOn(scheduler)
         .filter(this::isPingAck)
         .filter(message -> cid.equals(message.correlationId()))
         .take(1)
         .timeout(Duration.ofMillis(timeout), scheduler)
+        .publishOn(scheduler)
         .subscribe(
             message -> {
               LOGGER.trace(
