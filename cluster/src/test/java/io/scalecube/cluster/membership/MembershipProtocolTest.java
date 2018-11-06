@@ -35,7 +35,7 @@ public class MembershipProtocolTest extends BaseTest {
 
   private static final int TEST_PING_INTERVAL = 200;
 
-  public static final Duration TIMEOUT = Duration.ofSeconds(5);
+  public static final Duration TIMEOUT = Duration.ofSeconds(10);
 
   private Scheduler scheduler;
 

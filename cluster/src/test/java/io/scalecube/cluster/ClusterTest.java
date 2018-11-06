@@ -21,7 +21,7 @@ import reactor.core.publisher.Mono;
 
 public class ClusterTest extends BaseTest {
 
-  public static final Duration TIMEOUT = Duration.ofSeconds(5);
+  public static final Duration TIMEOUT = Duration.ofSeconds(10);
 
   @Test
   public void testJoinDynamicPort() {

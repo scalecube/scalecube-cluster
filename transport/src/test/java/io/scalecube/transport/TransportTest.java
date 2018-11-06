@@ -24,7 +24,7 @@ import org.junit.jupiter.api.TestInfo;
 
 public class TransportTest extends BaseTest {
 
-  public static final Duration TIMEOUT = Duration.ofSeconds(5);
+  public static final Duration TIMEOUT = Duration.ofSeconds(10);
 
   // Auto-destroyed on tear down
   private Transport client;
