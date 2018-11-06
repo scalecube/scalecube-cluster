@@ -30,6 +30,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxProcessor;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.MonoProcessor;
 import reactor.core.publisher.MonoSink;
 
 /**
@@ -67,7 +68,7 @@ final class TransportImpl implements Transport {
   private Address address;
   private ServerChannel serverChannel;
 
-  private volatile boolean stopped = false;
+  private final MonoProcessor<Void> onClose = MonoProcessor.create();
 
   public TransportImpl(TransportConfig config) {
     this.config = Objects.requireNonNull(config);
@@ -119,7 +120,7 @@ final class TransportImpl implements Transport {
 
   @Override
   public boolean isStopped() {
-    return stopped;
+    return onClose.isDisposed();
   }
 
   @Override
@@ -131,42 +132,10 @@ final class TransportImpl implements Transport {
   public final Mono<Void> stop() {
     return Mono.defer(
         () -> {
-          if (stopped) {
-            throw new IllegalStateException("Transport is stopped");
+          if (!onClose.isDisposed()) {
+            stop0().doOnTerminate(onClose::onComplete).subscribe();
           }
-          stopped = true;
-          // Complete incoming messages observable
-          try {
-            messageSink.complete();
-          } catch (Exception ignore) {
-            // ignore
-          }
-
-          List<Mono<Void>> stopList = new ArrayList<>();
-
-          // close server channel
-          Optional.ofNullable(serverChannel)
-              .map(ChannelOutboundInvoker::close)
-              .map(TransportImpl::toMono)
-              .map(Mono::then)
-              .ifPresent(stopList::add);
-
-          // close connected channels
-          for (Address address : outgoingChannels.keySet()) {
-            Optional.ofNullable(outgoingChannels.get(address))
-                .ifPresent(
-                    channelMono ->
-                        channelMono
-                            .map(ChannelOutboundInvoker::close)
-                            .map(TransportImpl::toMono)
-                            .map(Mono::then)
-                            .subscribe(stopList::add));
-          }
-          outgoingChannels.clear();
-
-          bootstrapFactory.shutdown();
-
-          return Mono.when(stopList);
+          return onClose;
         });
   }
 
@@ -179,9 +148,6 @@ final class TransportImpl implements Transport {
   public Mono<Void> send(Address address, Message message) {
     return Mono.defer(
         () -> {
-          if (stopped) {
-            throw new IllegalStateException("Transport is stopped");
-          }
           Objects.requireNonNull(address);
           Objects.requireNonNull(message);
 
@@ -288,5 +254,43 @@ final class TransportImpl implements Transport {
     } else {
       sink.error(future.cause());
     }
+  }
+
+  private Mono<Void> stop0() {
+    return Mono.defer(
+        () -> {
+          // Complete incoming messages observable
+          try {
+            messageSink.complete();
+          } catch (Exception ignore) {
+            // ignore
+          }
+
+          List<Mono<Void>> stopList = new ArrayList<>();
+
+          // close server channel
+          Optional.ofNullable(serverChannel)
+              .map(ChannelOutboundInvoker::close)
+              .map(TransportImpl::toMono)
+              .map(Mono::then)
+              .ifPresent(stopList::add);
+
+          // close connected channels
+          for (Address address : outgoingChannels.keySet()) {
+            Optional.ofNullable(outgoingChannels.get(address))
+                .ifPresent(
+                    channelMono ->
+                        channelMono
+                            .map(ChannelOutboundInvoker::close)
+                            .map(TransportImpl::toMono)
+                            .map(Mono::then)
+                            .subscribe(stopList::add));
+          }
+          outgoingChannels.clear();
+
+          bootstrapFactory.shutdown();
+
+          return Mono.when(stopList).then();
+        });
   }
 }
