@@ -158,7 +158,7 @@ public final class FailureDetectorImpl implements FailureDetector {
             });
 
     LOGGER.trace("Send Ping[{}] to {}", period, pingMember);
-    transport.send(pingMember.address(), pingMsg).doOnError(this::onError).subscribe();
+    transport.send(pingMember.address(), pingMsg).subscribe();
   }
 
   private void doPingReq(final Member pingMember, String cid) {
@@ -214,7 +214,6 @@ public final class FailureDetectorImpl implements FailureDetector {
 
     Flux.fromIterable(pingReqMembers)
         .flatMap(member -> transport.send(member.address(), pingReqMsg))
-        .doOnError(this::onError)
         .subscribe();
   }
 
@@ -245,7 +244,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     Message ackMessage =
         Message.withData(data).qualifier(PING_ACK).correlationId(correlationId).build();
     LOGGER.trace("Send PingAck to {}", data.getFrom().address());
-    transport.send(data.getFrom().address(), ackMessage).doOnError(this::onError).subscribe();
+    transport.send(data.getFrom().address(), ackMessage).subscribe();
   }
 
   /** Listens to PING_REQ message and sends PING to requested cluster member. */
@@ -259,7 +258,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     Message pingMessage =
         Message.withData(pingReqData).qualifier(PING).correlationId(correlationId).build();
     LOGGER.trace("Send transit Ping to {}", target.address());
-    transport.send(target.address(), pingMessage).doOnError(this::onError).subscribe();
+    transport.send(target.address(), pingMessage).subscribe();
   }
 
   /**
@@ -275,7 +274,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     Message originalAckMessage =
         Message.withData(originalAckData).qualifier(PING_ACK).correlationId(correlationId).build();
     LOGGER.trace("Resend transit PingAck to {}", target.address());
-    transport.send(target.address(), originalAckMessage).doOnError(this::onError).subscribe();
+    transport.send(target.address(), originalAckMessage).subscribe();
   }
 
   private void onError(Throwable throwable) {
