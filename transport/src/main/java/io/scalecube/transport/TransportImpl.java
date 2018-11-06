@@ -132,44 +132,10 @@ final class TransportImpl implements Transport {
   public final Mono<Void> stop() {
     return Mono.defer(
         () -> {
-          if (onClose.isDisposed()) {
-            return onClose;
+          if (!onClose.isDisposed()) {
+            stop0().doOnTerminate(onClose::onComplete).subscribe();
           }
-
-          onClose.onComplete();
-
-          // Complete incoming messages observable
-          try {
-            messageSink.complete();
-          } catch (Exception ignore) {
-            // ignore
-          }
-
-          List<Mono<Void>> stopList = new ArrayList<>();
-
-          // close server channel
-          Optional.ofNullable(serverChannel)
-              .map(ChannelOutboundInvoker::close)
-              .map(TransportImpl::toMono)
-              .map(Mono::then)
-              .ifPresent(stopList::add);
-
-          // close connected channels
-          for (Address address : outgoingChannels.keySet()) {
-            Optional.ofNullable(outgoingChannels.get(address))
-                .ifPresent(
-                    channelMono ->
-                        channelMono
-                            .map(ChannelOutboundInvoker::close)
-                            .map(TransportImpl::toMono)
-                            .map(Mono::then)
-                            .subscribe(stopList::add));
-          }
-          outgoingChannels.clear();
-
-          bootstrapFactory.shutdown();
-
-          return Mono.when(stopList).then();
+          return onClose;
         });
   }
 
@@ -288,5 +254,43 @@ final class TransportImpl implements Transport {
     } else {
       sink.error(future.cause());
     }
+  }
+
+  private Mono<Void> stop0() {
+    return Mono.defer(
+        () -> {
+          // Complete incoming messages observable
+          try {
+            messageSink.complete();
+          } catch (Exception ignore) {
+            // ignore
+          }
+
+          List<Mono<Void>> stopList = new ArrayList<>();
+
+          // close server channel
+          Optional.ofNullable(serverChannel)
+              .map(ChannelOutboundInvoker::close)
+              .map(TransportImpl::toMono)
+              .map(Mono::then)
+              .ifPresent(stopList::add);
+
+          // close connected channels
+          for (Address address : outgoingChannels.keySet()) {
+            Optional.ofNullable(outgoingChannels.get(address))
+                .ifPresent(
+                    channelMono ->
+                        channelMono
+                            .map(ChannelOutboundInvoker::close)
+                            .map(TransportImpl::toMono)
+                            .map(Mono::then)
+                            .subscribe(stopList::add));
+          }
+          outgoingChannels.clear();
+
+          bootstrapFactory.shutdown();
+
+          return Mono.when(stopList).then();
+        });
   }
 }
