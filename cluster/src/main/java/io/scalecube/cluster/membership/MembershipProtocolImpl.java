@@ -213,6 +213,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           Message syncMsg = prepareSyncDataMsg(SYNC, cid);
           Flux.fromIterable(seedMembers)
               .flatMap(address -> transport.send(address, syncMsg))
+              .doOnError(this::onError)
               .subscribe();
         });
   }
@@ -250,7 +251,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
         return;
       }
       Message syncMsg = prepareSyncDataMsg(SYNC, null);
-      transport.send(syncMember, syncMsg).subscribe();
+      transport.send(syncMember, syncMsg).doOnError(this::onError).subscribe();
       LOGGER.debug("Send Sync to {}: {}", syncMember, syncMsg);
     } catch (Exception cause) {
       LOGGER.error("Unhandled exception: {}", cause, cause);
@@ -304,7 +305,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     LOGGER.debug("Received Sync: {}", syncMsg);
     syncMembership(syncMsg.data(), false);
     Message syncAckMsg = prepareSyncDataMsg(SYNC_ACK, syncMsg.correlationId());
-    transport.send(syncMsg.sender(), syncAckMsg).subscribe();
+    transport.send(syncMsg.sender(), syncAckMsg).doOnError(this::onError).subscribe();
   }
 
   /** Merges FD updates and processes them. */
@@ -322,7 +323,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       // Alive won't override SUSPECT so issue instead extra sync with member to force it spread
       // alive with inc + 1
       Message syncMsg = prepareSyncDataMsg(SYNC, null);
-      transport.send(fdEvent.member().address(), syncMsg).subscribe();
+      transport.send(fdEvent.member().address(), syncMsg).doOnError(this::onError).subscribe();
     } else {
       MembershipRecord r1 = new MembershipRecord(r0.member(), fdEvent.status(), r0.incarnation());
       updateMembership(r1, MembershipUpdateReason.FAILURE_DETECTOR_EVENT);
@@ -399,7 +400,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       MembershipRecord r2 = new MembershipRecord(localMember, r0.status(), currentIncarnation + 1);
       membershipTable.put(localMember.id(), r2);
       LOGGER.debug("Local membership record r0={}, but received r1={}, spread r2={}", r0, r1, r2);
-      spreadMembershipGossip(r2).subscribe();
+      spreadMembershipGossip(r2).doOnError(this::onError).subscribe();
       return;
     }
 
@@ -429,7 +430,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     // Spread gossip (unless already gossiped)
     if (reason != MembershipUpdateReason.MEMBERSHIP_GOSSIP
         && reason != MembershipUpdateReason.INITIAL_SYNC) {
-      spreadMembershipGossip(r1).subscribe();
+      spreadMembershipGossip(r1).doOnError(this::onError).subscribe();
     }
   }
 
