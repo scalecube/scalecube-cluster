@@ -21,6 +21,8 @@ import reactor.core.publisher.Mono;
 
 public class ClusterTest extends BaseTest {
 
+  public static final Duration TIMEOUT = Duration.ofSeconds(5);
+
   @Test
   public void testJoinDynamicPort() {
     // Start seed node
@@ -63,7 +65,7 @@ public class ClusterTest extends BaseTest {
       Flux.range(0, testMembersNum)
           .flatMap(integer -> Cluster.join(seedNode.address()))
           .doOnNext(otherNodes::add)
-          .blockLast();
+          .blockLast(TIMEOUT);
 
       TimeUnit.SECONDS.sleep(3);
 
@@ -88,7 +90,7 @@ public class ClusterTest extends BaseTest {
 
       // Update metadata
       Map<String, String> updatedMetadata = Collections.singletonMap("key1", "value3");
-      metadataNode.updateMetadata(updatedMetadata).block();
+      metadataNode.updateMetadata(updatedMetadata).block(TIMEOUT);
 
       // Check all nodes had updated metadata member
       for (Cluster node : otherNodes) {
@@ -125,7 +127,7 @@ public class ClusterTest extends BaseTest {
       Flux.range(0, testMembersNum)
           .flatMap(integer -> Cluster.join(seedNode.address()))
           .doOnNext(otherNodes::add)
-          .blockLast();
+          .blockLast(TIMEOUT);
 
       TimeUnit.SECONDS.sleep(3);
 
@@ -149,7 +151,7 @@ public class ClusterTest extends BaseTest {
       }
 
       // Update metadata
-      metadataNode.updateMetadataProperty("key2", "value3").block();
+      metadataNode.updateMetadataProperty("key2", "value3").block(TIMEOUT);
 
       // Check all nodes had updated metadata member
       for (Cluster node : otherNodes) {
@@ -186,7 +188,7 @@ public class ClusterTest extends BaseTest {
     assertTrue(!node3.members().contains(node2.member()));
     assertTrue(node2.isShutdown());
 
-    Mono.when(seedNode.shutdown(), node1.shutdown(), node3.shutdown()).block();
+    Mono.when(seedNode.shutdown(), node1.shutdown(), node3.shutdown()).block(TIMEOUT);
   }
 
   private void shutdown(Cluster... nodes) {
@@ -195,7 +197,7 @@ public class ClusterTest extends BaseTest {
 
   private void shutdown(Collection<Cluster> nodes) {
     try {
-      Flux.fromIterable(nodes).flatMap(Cluster::shutdown).blockLast();
+      Flux.fromIterable(nodes).flatMap(Cluster::shutdown).blockLast(TIMEOUT);
     } catch (Exception ex) {
       LOGGER.error("Exception on cluster shutdown", ex);
     }

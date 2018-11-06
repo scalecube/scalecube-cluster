@@ -24,6 +24,8 @@ import org.junit.jupiter.api.TestInfo;
 
 public class TransportTest extends BaseTest {
 
+  public static final Duration TIMEOUT = Duration.ofSeconds(5);
+
   // Auto-destroyed on tear down
   private Transport client;
   private Transport server;
@@ -222,7 +224,7 @@ public class TransportTest extends BaseTest {
 
     assertNotNull(messageLatch.get(1, TimeUnit.SECONDS));
 
-    server.stop().block();
+    server.stop().block(TIMEOUT);
 
     assertTrue(completeLatch.get(1, TimeUnit.SECONDS));
   }
