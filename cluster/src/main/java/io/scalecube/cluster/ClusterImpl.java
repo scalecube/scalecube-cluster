@@ -39,6 +39,7 @@ import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.MonoProcessor;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
@@ -73,6 +74,8 @@ final class ClusterImpl implements Cluster {
   private GossipProtocolImpl gossip;
   private MembershipProtocolImpl membership;
   private Scheduler scheduler;
+
+  private final MonoProcessor<Void> onShutdown = MonoProcessor.create();
 
   public ClusterImpl(ClusterConfig config) {
     this.config = Objects.requireNonNull(config);
@@ -273,30 +276,45 @@ final class ClusterImpl implements Cluster {
 
   @Override
   public Mono<Void> shutdown() {
-    return membership
-        .leave()
-        .doOnSubscribe(s -> LOGGER.info("Cluster member {} is shutting down", membership.member()))
-        .flatMap(
-            gossipId -> {
-              LOGGER.info(
-                  "Cluster member notified about his leaving and shutting down {}",
-                  membership.member());
+    return Mono.defer(
+        () -> {
+          if (!onShutdown.isDisposed()) {
+            shutdown0().doOnTerminate(onShutdown::onComplete).subscribe();
+          }
+          return onShutdown;
+        });
+  }
 
-              // Stop accepting requests
-              actionsDisposables.dispose();
+  private Mono<Void> shutdown0() {
+    return Mono.defer(
+        () -> {
+          Member member = membership.member();
+          return membership
+              .leave()
+              .doOnSubscribe(s -> LOGGER.info("Cluster member {} is shutting down", member))
+              .flatMap(
+                  gossipId -> {
+                    LOGGER.info(
+                        "Cluster member notified about his leaving and shutting down {}", member);
 
-              // stop algorithms
-              membership.stop();
-              gossip.stop();
-              failureDetector.stop();
+                    // Stop accepting requests
+                    actionsDisposables.dispose();
 
-              // stop scheduler
-              scheduler.dispose();
+                    // stop algorithms
+                    membership.stop();
+                    gossip.stop();
+                    failureDetector.stop();
 
-              // stop transport
-              return transport.stop();
-            })
-        .doOnSuccess(s -> LOGGER.info("Cluster member has shut down {}", membership.member()));
+                    // stop scheduler
+                    scheduler.dispose();
+
+                    // stop transport
+                    return transport.stop();
+                  })
+              .doOnSuccess(s -> LOGGER.info("Cluster member has shut down {}", member))
+              .doOnError(
+                  th -> LOGGER.warn("Cluster member has shut down {} with error: {}", member, th));
+        });
   }
 
   @Override
@@ -306,6 +324,6 @@ final class ClusterImpl implements Cluster {
 
   @Override
   public boolean isShutdown() {
-    return transport.isStopped(); // since transport is the last component stopped on shutdown
+    return onShutdown.isDisposed();
   }
 }
