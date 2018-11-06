@@ -185,12 +185,12 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           String cid = memberRef.get().id();
           transport
               .listen()
-              .publishOn(scheduler)
               .filter(msg -> SYNC_ACK.equals(msg.qualifier()))
               .filter(msg -> cid.equals(msg.correlationId()))
               .filter(this::checkSyncGroup)
               .take(1)
               .timeout(Duration.ofMillis(config.getSyncTimeout()), scheduler)
+              .publishOn(scheduler)
               .subscribe(
                   message -> {
                     SyncData syncData = message.data();
