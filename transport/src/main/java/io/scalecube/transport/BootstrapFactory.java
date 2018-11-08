@@ -18,7 +18,6 @@ import io.netty.util.concurrent.Future;
 import io.netty.util.internal.SystemPropertyUtil;
 import java.util.Locale;
 import java.util.concurrent.ThreadFactory;
-import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
@@ -128,18 +127,17 @@ final class BootstrapFactory {
     return envSupportEpoll && config.isEnableEpoll();
   }
 
-  public EventLoopGroup getWorkerGroup() {
-    return workerGroup;
+  public Mono<Void> shutdown() {
+    return shutdownEventLoopGroup(bossGroup, "bossGroup")
+        .then(shutdownEventLoopGroup(workerGroup, "workerGroup"));
   }
 
-  public Mono<Void> shutdown() {
-    Supplier<Mono<? extends Void>> shutdownSupplier =
+  private Mono<Void> shutdownEventLoopGroup(EventLoopGroup eventLoopGroup, String name) {
+    return Mono.defer(
         () ->
-            Mono.when(
-                toMono(bossGroup.shutdownGracefully()), toMono(workerGroup.shutdownGracefully()));
-    return Mono.defer(shutdownSupplier)
-        .doOnError(e -> LOGGER.warn("Failed to shutdown", e))
-        .onErrorResume(e -> Mono.empty());
+            toMono(eventLoopGroup.shutdownGracefully())
+                .doOnError(e -> LOGGER.warn("Failed to shutdown {}: {}", name, e))
+                .onErrorResume(e -> Mono.empty()));
   }
 
   private Mono<Void> toMono(Future<?> future) {

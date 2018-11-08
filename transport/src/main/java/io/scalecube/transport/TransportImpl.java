@@ -4,7 +4,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
@@ -249,17 +248,15 @@ final class TransportImpl implements Transport {
 
   private static Mono<Channel> toMono(ChannelFuture channelFuture) {
     return Mono.create(
-        sink -> {
-          ChannelFutureListener futureListener =
-              future -> {
-                if (future.isSuccess()) {
-                  sink.success(future.channel());
-                } else {
-                  sink.error(future.cause());
-                }
-              };
-          channelFuture.addListener(futureListener);
-        });
+        sink ->
+            channelFuture.addListener(
+                future -> {
+                  if (future.isSuccess()) {
+                    sink.success(((ChannelFuture) future).channel());
+                  } else {
+                    sink.error(future.cause());
+                  }
+                }));
   }
 
   private Mono<Void> closeServerChannel() {
@@ -268,7 +265,7 @@ final class TransportImpl implements Transport {
         .map(TransportImpl::toMono)
         .map(Mono::then)
         .orElse(Mono.empty())
-        .doOnError(e -> LOGGER.warn("Failed to close serverChannel", e))
+        .doOnError(e -> LOGGER.warn("Failed to close serverChannel: " + e))
         .onErrorResume(e -> Mono.empty());
   }
 
@@ -284,7 +281,7 @@ final class TransportImpl implements Transport {
                                     .map(TransportImpl::toMono)
                                     .then())
                         .toIterable())
-                .doOnError(e -> LOGGER.warn("Failed to close outgoingChannels", e))
+                .doOnError(e -> LOGGER.warn("Failed to close outgoingChannels: " + e))
                 .onErrorResume(e -> Mono.empty())
                 .doOnTerminate(outgoingChannels::clear));
   }

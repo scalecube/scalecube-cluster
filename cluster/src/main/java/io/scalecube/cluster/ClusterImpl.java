@@ -279,11 +279,12 @@ final class ClusterImpl implements Cluster {
     return Mono.defer(
         () -> {
           if (!onShutdown.isDisposed()) {
-            Member member = membership.member();
+            String member = membership.member().toShortString();
             shutdown0()
                 .doOnTerminate(onShutdown::onComplete)
-                .doOnSuccess(
-                    avoid -> LOGGER.info("Cluster member hasshut down {}", member.toShortString()))
+                .doOnSuccess(avoid -> LOGGER.info("Cluster member has shut down {}", member))
+                .doOnError(
+                    e -> LOGGER.warn("Cluster member has shutdown {} with error: {}", member, e))
                 .subscribe();
           }
           return onShutdown;
@@ -294,12 +295,11 @@ final class ClusterImpl implements Cluster {
     return Mono.defer(
         () -> {
           Member member = membership.member();
-          return membership
-              .leave()
+          return leaveCluster()
               .doOnSubscribe(
                   s -> LOGGER.info("Cluster member {} is shutting down", member.toShortString()))
               .flatMap(
-                  gossipId -> {
+                  avoid -> {
                     LOGGER.info(
                         "Cluster member notified about his leaving and shutting down {}",
                         member.toShortString());
@@ -317,15 +317,17 @@ final class ClusterImpl implements Cluster {
 
                     // stop transport
                     return transport.stop();
-                  })
-              .doOnError(
-                  e ->
-                      LOGGER.warn(
-                          "Cluster member has shutdown {} with error: {}",
-                          member.toShortString(),
-                          e))
-              .onErrorResume(e -> Mono.empty());
+                  });
         });
+  }
+
+  private Mono<Void> leaveCluster() {
+    return membership
+        .leave()
+        .doOnError(
+            e -> LOGGER.warn("Failed to spread leave notification to other cluster members: " + e))
+        .onErrorResume(e -> Mono.empty())
+        .then();
   }
 
   @Override
