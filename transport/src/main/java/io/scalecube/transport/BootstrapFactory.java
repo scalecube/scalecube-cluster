@@ -14,11 +14,13 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import io.netty.util.concurrent.Future;
 import io.netty.util.internal.SystemPropertyUtil;
 import java.util.Locale;
 import java.util.concurrent.ThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Mono;
 
 final class BootstrapFactory {
 
@@ -125,13 +127,30 @@ final class BootstrapFactory {
     return envSupportEpoll && config.isEnableEpoll();
   }
 
-  public EventLoopGroup getWorkerGroup() {
-    return workerGroup;
+  public Mono<Void> shutdown() {
+    return shutdownEventLoopGroup(bossGroup, "bossGroup")
+        .then(shutdownEventLoopGroup(workerGroup, "workerGroup"));
   }
 
-  public void shutdown() {
-    this.bossGroup.shutdownGracefully();
-    this.workerGroup.shutdownGracefully();
+  private Mono<Void> shutdownEventLoopGroup(EventLoopGroup eventLoopGroup, String name) {
+    return Mono.defer(
+        () ->
+            toMono(eventLoopGroup.shutdownGracefully())
+                .doOnError(e -> LOGGER.warn("Failed to shutdown {}: {}", name, e))
+                .onErrorResume(e -> Mono.empty()));
+  }
+
+  private Mono<Void> toMono(Future<?> future) {
+    return Mono.create(
+        sink ->
+            future.addListener(
+                future1 -> {
+                  if (future1.isSuccess()) {
+                    sink.success();
+                  } else {
+                    sink.error(future1.cause());
+                  }
+                }));
   }
 
   private static Throwable getRootCause(Throwable throwable) {

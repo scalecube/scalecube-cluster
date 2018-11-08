@@ -71,6 +71,10 @@ public final class Member {
 
   @Override
   public String toString() {
-    return id + "@" + address + (metadata.isEmpty() ? "" : metadata);
+    return toShortString() + (metadata.isEmpty() ? "" : metadata);
+  }
+
+  public String toShortString() {
+    return id + "@" + address;
   }
 }
