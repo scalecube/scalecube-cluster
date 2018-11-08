@@ -158,7 +158,17 @@ public final class FailureDetectorImpl implements FailureDetector {
             });
 
     LOGGER.trace("Send Ping[{}] to {}", period, pingMember);
-    transport.send(pingMember.address(), pingMsg).subscribe();
+    transport
+        .send(pingMember.address(), pingMsg)
+        .subscribe(
+            null,
+            ex ->
+                LOGGER.debug(
+                    "Failed to send {} from {} to {}, cause: {}",
+                    pingMsg,
+                    transport.address(),
+                    pingMember.address(),
+                    ex));
   }
 
   private void doPingReq(final Member pingMember, String cid) {
@@ -214,7 +224,11 @@ public final class FailureDetectorImpl implements FailureDetector {
 
     Flux.fromIterable(pingReqMembers)
         .flatMap(member -> transport.send(member.address(), pingReqMsg))
-        .subscribe();
+        .subscribe(
+            null,
+            ex ->
+                LOGGER.debug(
+                    "Failed to send {} from {}, cause: {}", pingReqMsg, transport.address(), ex));
   }
 
   // ================================================
@@ -244,7 +258,17 @@ public final class FailureDetectorImpl implements FailureDetector {
     Message ackMessage =
         Message.withData(data).qualifier(PING_ACK).correlationId(correlationId).build();
     LOGGER.trace("Send PingAck to {}", data.getFrom().address());
-    transport.send(data.getFrom().address(), ackMessage).subscribe();
+    transport
+        .send(data.getFrom().address(), ackMessage)
+        .subscribe(
+            null,
+            ex ->
+                LOGGER.debug(
+                    "Failed to send {} from {} to {}, cause: {}",
+                    ackMessage,
+                    transport.address(),
+                    data.getFrom().address(),
+                    ex));
   }
 
   /** Listens to PING_REQ message and sends PING to requested cluster member. */
@@ -258,7 +282,17 @@ public final class FailureDetectorImpl implements FailureDetector {
     Message pingMessage =
         Message.withData(pingReqData).qualifier(PING).correlationId(correlationId).build();
     LOGGER.trace("Send transit Ping to {}", target.address());
-    transport.send(target.address(), pingMessage).subscribe();
+    transport
+        .send(target.address(), pingMessage)
+        .subscribe(
+            null,
+            ex ->
+                LOGGER.debug(
+                    "Failed to send {} from {} to {}, cause: {}",
+                    pingMessage,
+                    transport.address(),
+                    target.address(),
+                    ex));
   }
 
   /**
@@ -274,7 +308,17 @@ public final class FailureDetectorImpl implements FailureDetector {
     Message originalAckMessage =
         Message.withData(originalAckData).qualifier(PING_ACK).correlationId(correlationId).build();
     LOGGER.trace("Resend transit PingAck to {}", target.address());
-    transport.send(target.address(), originalAckMessage).subscribe();
+    transport
+        .send(target.address(), originalAckMessage)
+        .subscribe(
+            null,
+            ex ->
+                LOGGER.debug(
+                    "Failed to send {} from {} to {}, cause: {}",
+                    originalAckMessage,
+                    transport.address(),
+                    target.address(),
+                    ex));
   }
 
   private void onError(Throwable throwable) {

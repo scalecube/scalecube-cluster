@@ -216,7 +216,14 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           Message syncMsg = prepareSyncDataMsg(SYNC, cid);
           Flux.fromIterable(seedMembers)
               .flatMap(address -> transport.send(address, syncMsg))
-              .subscribe();
+              .subscribe(
+                  null,
+                  ex ->
+                      LOGGER.debug(
+                          "Failed to send {} from {}, cause: {}",
+                          syncMsg,
+                          transport.address(),
+                          ex));
         });
   }
 
@@ -247,17 +254,23 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   // ================================================
 
   private void doSync() {
-    try {
-      Address syncMember = selectSyncAddress();
-      if (syncMember == null) {
-        return;
-      }
-      Message syncMsg = prepareSyncDataMsg(SYNC, null);
-      transport.send(syncMember, syncMsg).subscribe();
-      LOGGER.debug("Send Sync to {}: {}", syncMember, syncMsg);
-    } catch (Exception cause) {
-      LOGGER.error("Unhandled exception: {}", cause, cause);
+    Address syncMember = selectSyncAddress();
+    if (syncMember == null) {
+      return;
     }
+    Message syncMsg = prepareSyncDataMsg(SYNC, null);
+    LOGGER.debug("Send Sync to {}: {}", syncMember, syncMsg);
+    transport
+        .send(syncMember, syncMsg)
+        .subscribe(
+            null,
+            ex ->
+                LOGGER.debug(
+                    "Failed to send {} from {} to {}, cause: {}",
+                    syncMsg,
+                    transport.address(),
+                    syncMember,
+                    ex));
   }
 
   // ================================================
@@ -307,7 +320,17 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     LOGGER.debug("Received Sync: {}", syncMsg);
     syncMembership(syncMsg.data(), false);
     Message syncAckMsg = prepareSyncDataMsg(SYNC_ACK, syncMsg.correlationId());
-    transport.send(syncMsg.sender(), syncAckMsg).subscribe();
+    transport
+        .send(syncMsg.sender(), syncAckMsg)
+        .subscribe(
+            null,
+            ex ->
+                LOGGER.debug(
+                    "Failed to send {} from {} to {}, cause: {}",
+                    syncAckMsg,
+                    transport.address(),
+                    syncMsg.sender(),
+                    ex));
   }
 
   /** Merges FD updates and processes them. */
@@ -325,7 +348,17 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       // Alive won't override SUSPECT so issue instead extra sync with member to force it spread
       // alive with inc + 1
       Message syncMsg = prepareSyncDataMsg(SYNC, null);
-      transport.send(fdEvent.member().address(), syncMsg).subscribe();
+      transport
+          .send(fdEvent.member().address(), syncMsg)
+          .subscribe(
+              null,
+              ex ->
+                  LOGGER.debug(
+                      "Failed to send {} from {} to {}, cause: {}",
+                      syncMsg,
+                      transport.address(),
+                      fdEvent.member().address(),
+                      ex));
     } else {
       MembershipRecord r1 = new MembershipRecord(r0.member(), fdEvent.status(), r0.incarnation());
       updateMembership(r1, MembershipUpdateReason.FAILURE_DETECTOR_EVENT);
@@ -402,7 +435,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       MembershipRecord r2 = new MembershipRecord(localMember, r0.status(), currentIncarnation + 1);
       membershipTable.put(localMember.id(), r2);
       LOGGER.debug("Local membership record r0={}, but received r1={}, spread r2={}", r0, r1, r2);
-      spreadMembershipGossip(r2).subscribe();
+      spreadMembershipGossip(r2)
+          .subscribe(null, ex -> LOGGER.debug("Failed to spread membership gossip, cause: {}", ex));
       return;
     }
 
@@ -432,7 +466,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     // Spread gossip (unless already gossiped)
     if (reason != MembershipUpdateReason.MEMBERSHIP_GOSSIP
         && reason != MembershipUpdateReason.INITIAL_SYNC) {
-      spreadMembershipGossip(r1).subscribe();
+      spreadMembershipGossip(r1)
+          .subscribe(null, ex -> LOGGER.debug("Failed to spread membership gossip, cause: {}", ex));
     }
   }
 

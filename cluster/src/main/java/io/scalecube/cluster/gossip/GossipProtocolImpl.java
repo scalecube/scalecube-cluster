@@ -216,7 +216,17 @@ public final class GossipProtocolImpl implements GossipProtocol {
 
     // Send gossip request
     Message gossipReqMsg = buildGossipRequestMessage(gossipsToSend);
-    transport.send(member.address(), gossipReqMsg).subscribe();
+    transport
+        .send(member.address(), gossipReqMsg)
+        .subscribe(
+            null,
+            ex ->
+                LOGGER.debug(
+                    "Failed to send {} from {} to {}, cause: {}",
+                    gossipReqMsg,
+                    transport.address(),
+                    member.address(),
+                    ex));
   }
 
   private List<Gossip> selectGossipsToSend(Member member) {
