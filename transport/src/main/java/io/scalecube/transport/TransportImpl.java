@@ -17,8 +17,6 @@ import io.netty.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
 import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -31,7 +29,6 @@ import reactor.core.publisher.FluxProcessor;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoProcessor;
-import reactor.core.publisher.MonoSink;
 
 /**
  * Default transport implementation based on tcp netty client and server implementation and protobuf
@@ -133,7 +130,14 @@ final class TransportImpl implements Transport {
     return Mono.defer(
         () -> {
           if (!onClose.isDisposed()) {
-            stop0().doOnTerminate(onClose::onComplete).subscribe();
+            // Complete incoming messages observable
+            messageSink.complete();
+
+            closeServerChannel()
+                .then(closeOutgoingChannels())
+                .then(bootstrapFactory.shutdown())
+                .doOnTerminate(onClose::onComplete)
+                .subscribe();
           }
           return onClose;
         });
@@ -245,52 +249,43 @@ final class TransportImpl implements Transport {
 
   private static Mono<Channel> toMono(ChannelFuture channelFuture) {
     return Mono.create(
-        sink -> channelFuture.addListener((ChannelFutureListener) future -> toMono0(sink, future)));
-  }
-
-  private static void toMono0(MonoSink<Channel> sink, ChannelFuture future) {
-    if (future.isSuccess()) {
-      sink.success(future.channel());
-    } else {
-      sink.error(future.cause());
-    }
-  }
-
-  private Mono<Void> stop0() {
-    return Mono.defer(
-        () -> {
-          // Complete incoming messages observable
-          try {
-            messageSink.complete();
-          } catch (Exception ignore) {
-            // ignore
-          }
-
-          List<Mono<Void>> stopList = new ArrayList<>();
-
-          // close server channel
-          Optional.ofNullable(serverChannel)
-              .map(ChannelOutboundInvoker::close)
-              .map(TransportImpl::toMono)
-              .map(Mono::then)
-              .ifPresent(stopList::add);
-
-          // close connected channels
-          for (Address address : outgoingChannels.keySet()) {
-            Optional.ofNullable(outgoingChannels.get(address))
-                .ifPresent(
-                    channelMono ->
-                        channelMono
-                            .map(ChannelOutboundInvoker::close)
-                            .map(TransportImpl::toMono)
-                            .map(Mono::then)
-                            .subscribe(stopList::add));
-          }
-
-          return Mono.when(stopList)
-              .doOnTerminate(outgoingChannels::clear)
-              .doOnTerminate(bootstrapFactory::shutdown)
-              .then();
+        sink -> {
+          ChannelFutureListener futureListener =
+              future -> {
+                if (future.isSuccess()) {
+                  sink.success(future.channel());
+                } else {
+                  sink.error(future.cause());
+                }
+              };
+          channelFuture.addListener(futureListener);
         });
+  }
+
+  private Mono<Void> closeServerChannel() {
+    return Optional.ofNullable(serverChannel)
+        .map(ChannelOutboundInvoker::close)
+        .map(TransportImpl::toMono)
+        .map(Mono::then)
+        .orElse(Mono.empty())
+        .doOnError(e -> LOGGER.warn("Failed to close serverChannel", e))
+        .onErrorResume(e -> Mono.empty());
+  }
+
+  private Mono<Void> closeOutgoingChannels() {
+    return Mono.defer(
+        () ->
+            Mono.when(
+                    Flux.fromIterable(outgoingChannels.values())
+                        .map(
+                            channelMono ->
+                                channelMono
+                                    .map(ChannelOutboundInvoker::close)
+                                    .map(TransportImpl::toMono)
+                                    .then())
+                        .toIterable())
+                .doOnError(e -> LOGGER.warn("Failed to close outgoingChannels", e))
+                .onErrorResume(e -> Mono.empty())
+                .doOnTerminate(outgoingChannels::clear));
   }
 }

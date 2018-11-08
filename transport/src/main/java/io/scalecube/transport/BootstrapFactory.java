@@ -14,11 +14,14 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import io.netty.util.concurrent.Future;
 import io.netty.util.internal.SystemPropertyUtil;
 import java.util.Locale;
 import java.util.concurrent.ThreadFactory;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Mono;
 
 final class BootstrapFactory {
 
@@ -129,9 +132,27 @@ final class BootstrapFactory {
     return workerGroup;
   }
 
-  public void shutdown() {
-    this.bossGroup.shutdownGracefully();
-    this.workerGroup.shutdownGracefully();
+  public Mono<Void> shutdown() {
+    Supplier<Mono<? extends Void>> shutdownSupplier =
+        () ->
+            Mono.when(
+                toMono(bossGroup.shutdownGracefully()), toMono(workerGroup.shutdownGracefully()));
+    return Mono.defer(shutdownSupplier)
+        .doOnError(e -> LOGGER.warn("Failed to shutdown", e))
+        .onErrorResume(e -> Mono.empty());
+  }
+
+  private Mono<Void> toMono(Future<?> future) {
+    return Mono.create(
+        sink ->
+            future.addListener(
+                future1 -> {
+                  if (future1.isSuccess()) {
+                    sink.success();
+                  } else {
+                    sink.error(future1.cause());
+                  }
+                }));
   }
 
   private static Throwable getRootCause(Throwable throwable) {

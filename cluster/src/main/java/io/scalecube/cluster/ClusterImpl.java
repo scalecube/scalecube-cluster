@@ -279,7 +279,12 @@ final class ClusterImpl implements Cluster {
     return Mono.defer(
         () -> {
           if (!onShutdown.isDisposed()) {
-            shutdown0().doOnTerminate(onShutdown::onComplete).subscribe();
+            Member member = membership.member();
+            shutdown0()
+                .doOnTerminate(onShutdown::onComplete)
+                .doOnSuccess(
+                    avoid -> LOGGER.info("Cluster member hasshut down {}", member.toShortString()))
+                .subscribe();
           }
           return onShutdown;
         });
@@ -291,11 +296,13 @@ final class ClusterImpl implements Cluster {
           Member member = membership.member();
           return membership
               .leave()
-              .doOnSubscribe(s -> LOGGER.info("Cluster member {} is shutting down", member))
+              .doOnSubscribe(
+                  s -> LOGGER.info("Cluster member {} is shutting down", member.toShortString()))
               .flatMap(
                   gossipId -> {
                     LOGGER.info(
-                        "Cluster member notified about his leaving and shutting down {}", member);
+                        "Cluster member notified about his leaving and shutting down {}",
+                        member.toShortString());
 
                     // Stop accepting requests
                     actionsDisposables.dispose();
@@ -311,9 +318,13 @@ final class ClusterImpl implements Cluster {
                     // stop transport
                     return transport.stop();
                   })
-              .doOnSuccess(s -> LOGGER.info("Cluster member has shut down {}", member))
               .doOnError(
-                  th -> LOGGER.warn("Cluster member has shut down {} with error: {}", member, th));
+                  e ->
+                      LOGGER.warn(
+                          "Cluster member has shutdown {} with error: {}",
+                          member.toShortString(),
+                          e))
+              .onErrorResume(e -> Mono.empty());
         });
   }
 
