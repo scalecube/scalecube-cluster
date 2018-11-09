@@ -131,11 +131,10 @@ final class BootstrapFactory {
   }
 
   public Mono<Void> shutdown() {
-    return Mono.defer(
+    return Mono.fromRunnable(
         () -> {
           bossGroup.shutdownGracefully(SHUTDOWN_QUIET_PERIOD, SHUTDOWN_TIMEOUT, TimeUnit.SECONDS);
           workerGroup.shutdownGracefully(SHUTDOWN_QUIET_PERIOD, SHUTDOWN_TIMEOUT, TimeUnit.SECONDS);
-          return Mono.empty();
         });
   }
 

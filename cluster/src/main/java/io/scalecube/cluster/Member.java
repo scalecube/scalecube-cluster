@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Cluster member which represents node in the cluster and contains its id, address and metadata.
@@ -71,10 +72,10 @@ public final class Member {
 
   @Override
   public String toString() {
-    return toShortString() + (metadata.isEmpty() ? "" : metadata);
+    return id + "@" + address + "/" + (Integer.MAX_VALUE & metadataHashCode());
   }
 
-  public String toShortString() {
-    return id + "@" + address;
+  private int metadataHashCode() {
+    return Optional.ofNullable(metadata).map(Object::hashCode).orElse(0);
   }
 }
