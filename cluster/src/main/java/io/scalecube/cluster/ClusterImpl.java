@@ -279,7 +279,7 @@ final class ClusterImpl implements Cluster {
     return Mono.defer(
         () -> {
           if (!onShutdown.isDisposed()) {
-            String member = membership.member().toShortString();
+            Member member = membership.member();
             shutdown0()
                 .doOnSuccess(avoid -> LOGGER.info("Cluster member {} has shut down", member))
                 .doOnError(
@@ -295,7 +295,7 @@ final class ClusterImpl implements Cluster {
     return Mono.defer(
         () -> {
           Member member = membership.member();
-          LOGGER.info("Cluster member {} is shutting down", member.toShortString());
+          LOGGER.info("Cluster member {} is shutting down", member);
           return leaveCluster(member).then(dispose()).then(stopTransport());
         });
   }
@@ -306,21 +306,20 @@ final class ClusterImpl implements Cluster {
         .doOnSuccess(
             s ->
                 LOGGER.info(
-                    "Cluster member {} notified about his leaving and shutting down",
-                    member.toShortString()))
+                    "Cluster member {} notified about his leaving and shutting down", member))
         .doOnError(
             e ->
                 LOGGER.warn(
                     "Cluster member {} failed to spread leave notification "
                         + "to other cluster members: {}",
-                    member.toShortString(),
+                    member,
                     e))
         .onErrorResume(e -> Mono.empty())
         .then();
   }
 
   private Mono<Void> dispose() {
-    return Mono.defer(
+    return Mono.fromRunnable(
         () -> {
           // Stop accepting requests
           actionsDisposables.dispose();
@@ -332,8 +331,6 @@ final class ClusterImpl implements Cluster {
 
           // stop scheduler
           scheduler.dispose();
-
-          return Mono.empty();
         });
   }
 
