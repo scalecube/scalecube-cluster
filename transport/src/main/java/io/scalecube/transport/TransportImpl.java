@@ -15,6 +15,7 @@ import io.netty.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
 import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -261,16 +262,14 @@ final class TransportImpl implements Transport {
   }
 
   private Mono<Void> closeOutgoingChannels() {
-    return Mono.defer(
+    return Mono.fromRunnable(
         () -> {
-          outgoingChannels
-              .values()
-              .forEach(
-                  channelMono ->
-                      channelMono.subscribe(
-                          ChannelOutboundInvoker::close,
-                          e -> LOGGER.warn("Failed to close connection: " + e)));
-          return Mono.empty();
+          Collection<Mono<Channel>> connections = outgoingChannels.values();
+          connections.forEach(
+              channelMono ->
+                  channelMono.subscribe(
+                      ChannelOutboundInvoker::close,
+                      e -> LOGGER.warn("Failed to close connection: " + e)));
         });
   }
 }

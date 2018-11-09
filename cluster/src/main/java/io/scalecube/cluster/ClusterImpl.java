@@ -319,7 +319,7 @@ final class ClusterImpl implements Cluster {
   }
 
   private Mono<Void> dispose() {
-    return Mono.defer(
+    return Mono.fromRunnable(
         () -> {
           // Stop accepting requests
           actionsDisposables.dispose();
@@ -331,8 +331,6 @@ final class ClusterImpl implements Cluster {
 
           // stop scheduler
           scheduler.dispose();
-
-          return Mono.empty();
         });
   }
 
