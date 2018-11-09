@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.DirectProcessor;
@@ -273,16 +274,16 @@ final class TransportImpl implements Transport {
     return Mono.defer(
         () ->
             Mono.when(
-                    Flux.fromIterable(outgoingChannels.values())
+                    outgoingChannels
+                        .values()
+                        .stream()
                         .map(
                             channelMono ->
                                 channelMono
-                                    .map(ChannelOutboundInvoker::close)
-                                    .map(TransportImpl::toMono)
-                                    .then())
-                        .toIterable())
-                .doOnError(e -> LOGGER.warn("Failed to close outgoingChannels: " + e))
-                .onErrorResume(e -> Mono.empty())
+                                    .flatMap(channel -> toMono(channel.close()).then())
+                                    .doOnError(e -> LOGGER.warn("Failed to close connection: " + e))
+                                    .onErrorResume(e -> Mono.empty()))
+                        .collect(Collectors.toList()))
                 .doOnTerminate(outgoingChannels::clear));
   }
 }
