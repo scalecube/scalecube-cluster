@@ -14,10 +14,10 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.util.concurrent.DefaultThreadFactory;
-import io.netty.util.concurrent.Future;
 import io.netty.util.internal.SystemPropertyUtil;
 import java.util.Locale;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
@@ -25,6 +25,9 @@ import reactor.core.publisher.Mono;
 final class BootstrapFactory {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(BootstrapFactory.class);
+
+  private static final long SHUTDOWN_QUIET_PERIOD = 1L;
+  private static final long SHUTDOWN_TIMEOUT = 2L;
 
   private static boolean envSupportEpoll;
 
@@ -128,29 +131,12 @@ final class BootstrapFactory {
   }
 
   public Mono<Void> shutdown() {
-    return shutdownEventLoopGroup(bossGroup, "bossGroup")
-        .then(shutdownEventLoopGroup(workerGroup, "workerGroup"));
-  }
-
-  private Mono<Void> shutdownEventLoopGroup(EventLoopGroup eventLoopGroup, String name) {
     return Mono.defer(
-        () ->
-            toMono(eventLoopGroup.shutdownGracefully())
-                .doOnError(e -> LOGGER.warn("Failed to shutdown {}: {}", name, e))
-                .onErrorResume(e -> Mono.empty()));
-  }
-
-  private Mono<Void> toMono(Future<?> future) {
-    return Mono.create(
-        sink ->
-            future.addListener(
-                future1 -> {
-                  if (future1.isSuccess()) {
-                    sink.success();
-                  } else {
-                    sink.error(future1.cause());
-                  }
-                }));
+        () -> {
+          bossGroup.shutdownGracefully(SHUTDOWN_QUIET_PERIOD, SHUTDOWN_TIMEOUT, TimeUnit.SECONDS);
+          workerGroup.shutdownGracefully(SHUTDOWN_QUIET_PERIOD, SHUTDOWN_TIMEOUT, TimeUnit.SECONDS);
+          return Mono.empty();
+        });
   }
 
   private static Throwable getRootCause(Throwable throwable) {
