@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.scalecube.cluster.membership.MembershipEvent;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -18,6 +17,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 public class ClusterTest extends BaseTest {
 
@@ -198,9 +198,14 @@ public class ClusterTest extends BaseTest {
     shutdown(Stream.of(seedNode, node1, node3).collect(Collectors.toList()));
   }
 
-  private void shutdown(Collection<Cluster> nodes) {
+  private void shutdown(List<Cluster> nodes) {
     try {
-      Flux.fromIterable(nodes).flatMap(Cluster::shutdown).blockLast(TIMEOUT);
+      Mono.when(
+              nodes
+                  .stream() //
+                  .map(Cluster::shutdown)
+                  .collect(Collectors.toList()))
+          .block(TIMEOUT);
     } catch (Exception ex) {
       LOGGER.error("Exception on cluster shutdown", ex);
     }

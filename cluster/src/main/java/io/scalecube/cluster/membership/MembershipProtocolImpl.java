@@ -164,7 +164,16 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
    * @return mono handler
    */
   public Mono<String> leave() {
-    return onLeave();
+    return Mono.defer(
+        () -> {
+          Member curMember = memberRef.get();
+          String memberId = curMember.id();
+          MembershipRecord curRecord = membershipTable.get(memberId);
+          MembershipRecord newRecord =
+              new MembershipRecord(this.member(), DEAD, curRecord.incarnation() + 1);
+          membershipTable.put(memberId, newRecord);
+          return spreadMembershipGossip(newRecord);
+        });
   }
 
   /**
@@ -498,19 +507,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           new MembershipRecord(record.member(), DEAD, record.incarnation());
       updateMembership(deadRecord, MembershipUpdateReason.SUSPICION_TIMEOUT);
     }
-  }
-
-  private Mono<String> onLeave() {
-    return Mono.defer(
-        () -> {
-          Member curMember = memberRef.get();
-          String memberId = curMember.id();
-          MembershipRecord curRecord = membershipTable.get(memberId);
-          MembershipRecord newRecord =
-              new MembershipRecord(this.member(), DEAD, curRecord.incarnation() + 1);
-          membershipTable.put(memberId, newRecord);
-          return spreadMembershipGossip(newRecord);
-        });
   }
 
   private Mono<String> spreadMembershipGossip(MembershipRecord record) {
