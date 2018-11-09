@@ -281,9 +281,9 @@ final class ClusterImpl implements Cluster {
           if (!onShutdown.isDisposed()) {
             String member = membership.member().toShortString();
             shutdown0()
-                .doOnSuccess(avoid -> LOGGER.info("Cluster member has shut down {}", member))
+                .doOnSuccess(avoid -> LOGGER.info("Cluster member {} has shut down", member))
                 .doOnError(
-                    e -> LOGGER.warn("Cluster member has shutdown {} with error: {}", member, e))
+                    e -> LOGGER.warn("Cluster member {} has shutdown with error: {}", member, e))
                 .doOnTerminate(onShutdown::onComplete)
                 .subscribe();
           }
@@ -296,37 +296,49 @@ final class ClusterImpl implements Cluster {
         () -> {
           Member member = membership.member();
           LOGGER.info("Cluster member {} is shutting down", member.toShortString());
-          return leaveCluster()
-              .then(
-                  Mono.defer(
-                      () -> {
-                        LOGGER.info(
-                            "Cluster member notified about his leaving and shutting down {}",
-                            member.toShortString());
-
-                        // Stop accepting requests
-                        actionsDisposables.dispose();
-
-                        // stop algorithms
-                        membership.stop();
-                        gossip.stop();
-                        failureDetector.stop();
-
-                        // stop scheduler
-                        scheduler.dispose();
-
-                        // stop transport
-                        return transport.stop();
-                      }));
+          return leaveCluster(member).then(dispose()).then(stopTransport());
         });
   }
 
-  private Mono<String> leaveCluster() {
+  private Mono<Void> leaveCluster(Member member) {
     return membership
         .leave()
+        .doOnSuccess(
+            s ->
+                LOGGER.info(
+                    "Cluster member {} notified about his leaving and shutting down",
+                    member.toShortString()))
         .doOnError(
-            e -> LOGGER.warn("Failed to spread leave notification to other cluster members: " + e))
-        .onErrorResume(e -> Mono.empty());
+            e ->
+                LOGGER.warn(
+                    "Cluster member {} failed to spread leave notification "
+                        + "to other cluster members: {}",
+                    member.toShortString(),
+                    e))
+        .onErrorResume(e -> Mono.empty())
+        .then();
+  }
+
+  private Mono<Void> dispose() {
+    return Mono.defer(
+        () -> {
+          // Stop accepting requests
+          actionsDisposables.dispose();
+
+          // stop algorithms
+          membership.stop();
+          gossip.stop();
+          failureDetector.stop();
+
+          // stop scheduler
+          scheduler.dispose();
+
+          return Mono.empty();
+        });
+  }
+
+  private Mono<Void> stopTransport() {
+    return Mono.defer(() -> transport.stop());
   }
 
   @Override
