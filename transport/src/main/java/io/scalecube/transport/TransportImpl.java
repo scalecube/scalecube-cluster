@@ -135,7 +135,7 @@ final class TransportImpl implements Transport {
 
             closeServerChannel()
                 .then(closeOutgoingChannels())
-                .then(bootstrapFactory.shutdown())
+                .doOnTerminate(bootstrapFactory::shutdown)
                 .doOnTerminate(onClose::onComplete)
                 .subscribe();
           }
