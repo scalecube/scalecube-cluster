@@ -2,10 +2,9 @@ package io.scalecube.transport;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOutboundInvoker;
 import io.netty.channel.ChannelPipeline;
@@ -20,7 +19,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.DirectProcessor;
@@ -135,7 +133,7 @@ final class TransportImpl implements Transport {
 
             closeServerChannel()
                 .then(closeOutgoingChannels())
-                .doOnTerminate(bootstrapFactory::shutdown)
+                .then(bootstrapFactory.shutdown())
                 .doOnTerminate(onClose::onComplete)
                 .subscribe();
           }
@@ -181,9 +179,18 @@ final class TransportImpl implements Transport {
   private Mono<Channel> connect0(Address address) {
     return connect1(address)
         .doOnSuccess(
-            channel ->
-                LOGGER.debug(
-                    "Connected from {} to {}: {}", TransportImpl.this.address, address, channel))
+            channel -> {
+              LOGGER.debug(
+                  "Connected from {} to {}: {}", TransportImpl.this.address, address, channel);
+
+              ChannelFutureListener closeFutureListener =
+                  future -> {
+                    LOGGER.debug("Disconnected from: {} {}", address, future.channel());
+                    outgoingChannels.remove(address);
+                  };
+
+              channel.closeFuture().addListener(closeFutureListener);
+            })
         .doOnError(throwable -> outgoingChannels.remove(address))
         .cache();
   }
@@ -193,7 +200,7 @@ final class TransportImpl implements Transport {
         sink ->
             bootstrapFactory
                 .clientBootstrap()
-                .handler(new OutgoingChannelInitializer(address))
+                .handler(new OutgoingChannelInitializer())
                 .connect(address.host(), address.port())
                 .addListener(
                     future ->
@@ -215,29 +222,12 @@ final class TransportImpl implements Transport {
 
   @ChannelHandler.Sharable
   private final class OutgoingChannelInitializer extends ChannelInitializer {
-    private final Address address;
-
-    public OutgoingChannelInitializer(Address address) {
-      this.address = address;
-    }
-
     @Override
     protected void initChannel(Channel channel) {
       ChannelPipeline pipeline = channel.pipeline();
-      pipeline.addLast(
-          new ChannelDuplexHandler() {
-            @Override
-            public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-              LOGGER.debug("Disconnected from: {} {}", address, ctx.channel());
-              outgoingChannels.remove(address);
-              super.channelInactive(ctx);
-            }
-          });
       pipeline.addLast(new ProtobufVarint32LengthFieldPrepender());
       pipeline.addLast(serializerHandler);
-      if (networkEmulatorHandler != null) {
-        pipeline.addLast(networkEmulatorHandler);
-      }
+      Optional.ofNullable(networkEmulatorHandler).ifPresent(pipeline::addLast);
       pipeline.addLast(exceptionHandler);
     }
   }
@@ -272,18 +262,15 @@ final class TransportImpl implements Transport {
 
   private Mono<Void> closeOutgoingChannels() {
     return Mono.defer(
-        () ->
-            Mono.when(
-                    outgoingChannels
-                        .values()
-                        .stream()
-                        .map(
-                            channelMono ->
-                                channelMono
-                                    .flatMap(channel -> toMono(channel.close()).then())
-                                    .doOnError(e -> LOGGER.warn("Failed to close connection: " + e))
-                                    .onErrorResume(e -> Mono.empty()))
-                        .collect(Collectors.toList()))
-                .doOnTerminate(outgoingChannels::clear));
+        () -> {
+          outgoingChannels
+              .values()
+              .forEach(
+                  channelMono ->
+                      channelMono.subscribe(
+                          ChannelOutboundInvoker::close,
+                          e -> LOGGER.warn("Failed to close connection: " + e)));
+          return Mono.empty();
+        });
   }
 }
