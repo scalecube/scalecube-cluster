@@ -8,7 +8,7 @@ public final class TransportConfig {
   public static final boolean DEFAULT_USE_NETWORK_EMULATOR = false;
   public static final boolean DEFAULT_ENABLE_EPOLL = true;
   public static final int DEFAULT_BOSS_THREADS = 2;
-  public static final int DEFAULT_WORKER_THREADS = 0;
+  public static final int DEFAULT_WORKER_THREADS = Runtime.getRuntime().availableProcessors();
 
   private final int port;
   private final int connectTimeout;

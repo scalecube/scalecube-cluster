@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import io.netty.buffer.Unpooled;
 import java.io.IOException;
 import java.net.BindException;
 import java.net.UnknownHostException;
@@ -21,6 +22,10 @@ import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
+import reactor.core.publisher.EmitterProcessor;
+import reactor.core.publisher.Mono;
+import reactor.netty.ChannelBindException;
+import reactor.netty.tcp.TcpClient;
 
 public class TransportTest extends BaseTest {
 
@@ -49,7 +54,7 @@ public class TransportTest extends BaseTest {
     } catch (Throwable throwable) {
       // Check that get address already in use exception
       assertTrue(
-          throwable instanceof BindException
+          throwable instanceof ChannelBindException
               || throwable.getMessage().contains("Address already in use"));
     } finally {
       destroyTransport(transport1);
