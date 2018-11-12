@@ -182,8 +182,8 @@ final class TransportImpl implements Transport {
 
   private Mono<? extends Connection> connect0(Address address) {
     return TcpClient.create(ConnectionProvider.fixed("client-" + address, 1))
-      .runOn(loopResources)
-      .host(address.host())
+        .runOn(loopResources)
+        .host(address.host())
         .port(address.port())
         .bootstrap(b -> BootstrapHandlers.updateConfiguration(b, "inbound", outcomingPipeline))
         .doOnDisconnected(
