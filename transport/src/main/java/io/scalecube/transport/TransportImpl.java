@@ -225,10 +225,15 @@ final class TransportImpl implements Transport {
   private Mono<Void> closeOutgoingChannels() {
     return Mono.fromRunnable(
         () ->
-            Flux.merge(outgoingConnections.values())
-                .subscribe(
-                    DisposableChannel::dispose,
-                    e -> LOGGER.warn("Failed to close connection: " + e)));
+            outgoingConnections
+                .values()
+                .forEach(
+                    connectionMono ->
+                        connectionMono
+                            .doOnNext(DisposableChannel::dispose)
+                            .flatMap(DisposableChannel::onDispose)
+                            .subscribe(
+                                null, e -> LOGGER.warn("Failed to close connection: " + e))));
   }
 
   private final class InboundChannelInitializer implements BiConsumer<ConnectionObserver, Channel> {
