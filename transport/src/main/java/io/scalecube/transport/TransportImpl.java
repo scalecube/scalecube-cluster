@@ -2,7 +2,6 @@ package io.scalecube.transport;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.MessageToByteEncoder;
 import io.netty.handler.codec.MessageToMessageDecoder;
@@ -10,10 +9,8 @@ import io.netty.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
 import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,10 +20,9 @@ import reactor.core.publisher.FluxProcessor;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoProcessor;
-import reactor.netty.Connection;
 import reactor.netty.ConnectionObserver;
-import reactor.netty.DisposableChannel;
 import reactor.netty.DisposableServer;
+import reactor.netty.NettyPipeline.SendOptions;
 import reactor.netty.channel.BootstrapHandlers;
 import reactor.netty.resources.ConnectionProvider;
 import reactor.netty.resources.LoopResources;
@@ -51,9 +47,6 @@ final class TransportImpl implements Transport {
 
   private final FluxSink<Message> messageSink = incomingMessagesSubject.sink();
 
-  private final Map<Address, Mono<? extends Connection>> outgoingConnections =
-      new ConcurrentHashMap<>();
-
   // Pipeline
   private final ExceptionHandler exceptionHandler = new ExceptionHandler();
   private final MessageToByteEncoder<Message> serializerHandler = new MessageSerializerHandler();
@@ -62,12 +55,18 @@ final class TransportImpl implements Transport {
   private final MessageHandler messageHandler = new MessageHandler(messageSink);
   private final InboundChannelInitializer incomingPipeline = new InboundChannelInitializer();
   private final OutgoingChannelInitializer outcomingPipeline = new OutgoingChannelInitializer();
+
+  // Close logic handler
   private final MonoProcessor<Void> onClose = MonoProcessor.create();
+
   // Network emulator
   private NetworkEmulator networkEmulator;
   private NetworkEmulatorHandler networkEmulatorHandler;
+
   private Address address;
   private DisposableServer server;
+
+  private final ConnectionProvider connections = ConnectionProvider.fixed("cluster-connections", 1);
 
   public TransportImpl(TransportConfig config) {
     this.config = Objects.requireNonNull(config);
@@ -93,23 +92,21 @@ final class TransportImpl implements Transport {
         .runOn(loopResources)
         .addressSupplier(() -> new InetSocketAddress(config.getPort()))
         .bootstrap(b -> BootstrapHandlers.updateConfiguration(b, "inbound", incomingPipeline))
-        .handle((inb, outb) -> inb.receive().aggregate().retain().then())
+        // .handle((inb, outb) -> inb.receive().aggregate().retain().then())
         .bind()
-        .doOnSuccess(
-            s -> {
-              this.server = s;
-              address = toAddress(s.address());
-              networkEmulator = new NetworkEmulator(address, config.isUseNetworkEmulator());
-              networkEmulatorHandler =
-                  config.isUseNetworkEmulator()
-                      ? new NetworkEmulatorHandler(networkEmulator)
-                      : null;
-              LOGGER.info("Bound cluster transport on: {}", address);
-            })
+        .doOnSuccess(this::onBind)
         .doOnError(
-            cause ->
-                LOGGER.error("Failed to bind cluster transport on port={}, cause: {}", port, cause))
+            th -> LOGGER.error("Failed to bind cluster transport on port={}, cause: {}", port, th))
         .thenReturn(this);
+  }
+
+  private void onBind(DisposableServer server1) {
+    server = server1;
+    address = toAddress(server.address());
+    networkEmulator = new NetworkEmulator(address, config.isUseNetworkEmulator());
+    networkEmulatorHandler =
+        config.isUseNetworkEmulator() ? new NetworkEmulatorHandler(networkEmulator) : null;
+    LOGGER.info("Bound cluster transport on: {}", address);
   }
 
   @Override
@@ -135,7 +132,7 @@ final class TransportImpl implements Transport {
             // Complete incoming messages observable
             messageSink.complete();
             closeServerChannel()
-                .then(closeOutgoingChannels())
+                .then(connections.disposeLater())
                 .then(loopResources.disposeLater())
                 .doOnTerminate(onClose::onComplete)
                 .subscribe();
@@ -156,10 +153,22 @@ final class TransportImpl implements Transport {
           Objects.requireNonNull(address, "address");
           Objects.requireNonNull(message, "message");
 
-          message.setSender(this.address); // set local address as outgoing address
-
-          return getOrConnect(address)
-              .flatMap(conn -> conn.outbound().sendObject((message)).then())
+          return tcpClient()
+              .host(address.host())
+              .port(address.port())
+              .connect()
+              .doOnError(
+                  th ->
+                      LOGGER.warn("Failed to connect to remote address {}, cause: {}", address, th))
+              .flatMap(
+                  conn -> {
+                    message.setSender(this.address); // set local address as outgoing address
+                    return conn.outbound()
+                        .options(SendOptions::flushOnEach)
+                        .sendObject(message)
+                        .then()
+                        .log(">>>>>>>>>>>>>>>>>>>>>");
+                  })
               .doOnError(
                   ex ->
                       LOGGER.debug(
@@ -169,42 +178,6 @@ final class TransportImpl implements Transport {
                           address,
                           ex));
         });
-  }
-
-  private Mono<Connection> getOrConnect(Address address) {
-
-    return Mono.create(
-        sink ->
-            outgoingConnections
-                .computeIfAbsent(address, this::connect0)
-                .subscribe(sink::success, sink::error));
-  }
-
-  private Mono<? extends Connection> connect0(Address address) {
-    return TcpClient.create(ConnectionProvider.fixed("client-" + address, 1))
-        .runOn(loopResources)
-        .host(address.host())
-        .port(address.port())
-        .bootstrap(b -> BootstrapHandlers.updateConfiguration(b, "inbound", outcomingPipeline))
-        .doOnDisconnected(
-            c -> {
-              LOGGER.debug("Disconnected from: {} {}", address, c.channel());
-              outgoingConnections.remove(address);
-            })
-        .doOnConnected(
-            c ->
-                LOGGER.debug(
-                    "Connected from {} to {}: {}",
-                    TransportImpl.this.address,
-                    address,
-                    c.channel()))
-        .connect()
-        .doOnError(
-            t -> {
-              LOGGER.warn("Failed to connect to remote address {}, cause: {}", address, t);
-              outgoingConnections.remove(address);
-            })
-        .cache();
   }
 
   private Mono<Void> closeServerChannel() {
@@ -222,18 +195,12 @@ final class TransportImpl implements Transport {
                 .orElse(Mono.empty()));
   }
 
-  private Mono<Void> closeOutgoingChannels() {
-    return Mono.fromRunnable(
-        () ->
-            outgoingConnections
-                .values()
-                .forEach(
-                    connectionMono ->
-                        connectionMono
-                            .doOnNext(DisposableChannel::dispose)
-                            .flatMap(DisposableChannel::onDispose)
-                            .subscribe(
-                                null, e -> LOGGER.warn("Failed to close connection: " + e))));
+  private TcpClient tcpClient() {
+    return TcpClient.create(connections)
+        .runOn(loopResources)
+        .bootstrap(b -> BootstrapHandlers.updateConfiguration(b, "outbound", outcomingPipeline))
+        .observe(
+            (connection, newState) -> LOGGER.debug("{} has new state -> {}", connection, newState));
   }
 
   private final class InboundChannelInitializer implements BiConsumer<ConnectionObserver, Channel> {
@@ -248,7 +215,6 @@ final class TransportImpl implements Transport {
     }
   }
 
-  @ChannelHandler.Sharable
   private final class OutgoingChannelInitializer
       implements BiConsumer<ConnectionObserver, Channel> {
 
