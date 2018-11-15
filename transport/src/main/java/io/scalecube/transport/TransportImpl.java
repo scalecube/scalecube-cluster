@@ -33,7 +33,7 @@ import reactor.netty.tcp.TcpClient;
 import reactor.netty.tcp.TcpServer;
 
 /**
- * Default transport implementation based on tcp netty client and server implementation and protobuf
+ * Default transport implementation based on reactor-netty tcp client and server implementation and protobuf
  * codec.
  */
 final class TransportImpl implements Transport {
@@ -44,7 +44,6 @@ final class TransportImpl implements Transport {
   private final LoopResources loopResources;
 
   // Subject
-
   private final DirectProcessor<Message> messagesSubject = DirectProcessor.create();
   private final FluxSink<Message> messageSink = messagesSubject.sink();
 
@@ -90,26 +89,6 @@ final class TransportImpl implements Transport {
         .bind()
         .doOnSuccessOrError(this::onBind)
         .thenReturn(this);
-  }
-
-  private Mono<Void> onMessage(NettyInbound in, NettyOutbound out) {
-    return in.receive() //
-        .retain()
-        .map(MessageCodec::deserialize)
-        .doOnNext(messageSink::next)
-        .then();
-  }
-
-  private void onBind(DisposableServer s, Throwable ex) {
-    if (s != null) {
-      this.server = s;
-      address = toAddress(s.address());
-      networkEmulator = new NetworkEmulator(address, config.isUseNetworkEmulator());
-      LOGGER.info("Bound cluster transport on: {}", address);
-    }
-    if (ex != null) {
-      LOGGER.error("Failed to bind cluster transport on port={}, cause: {}", config.getPort(), ex);
-    }
   }
 
   @Override
@@ -162,6 +141,26 @@ final class TransportImpl implements Transport {
                     this.address,
                     address,
                     ex));
+  }
+
+  private Mono<Void> onMessage(NettyInbound in, NettyOutbound out) {
+    return in.receive() //
+      .retain()
+      .map(MessageCodec::deserialize)
+      .doOnNext(messageSink::next)
+      .then();
+  }
+
+  private void onBind(DisposableServer s, Throwable ex) {
+    if (s != null) {
+      this.server = s;
+      address = toAddress(s.address());
+      networkEmulator = new NetworkEmulator(address, config.isUseNetworkEmulator());
+      LOGGER.info("Bound cluster transport on: {}", address);
+    }
+    if (ex != null) {
+      LOGGER.error("Failed to bind cluster transport on port={}, cause: {}", config.getPort(), ex);
+    }
   }
 
   private Mono<? extends Void> send0(Connection conn, Message message, Address address) {

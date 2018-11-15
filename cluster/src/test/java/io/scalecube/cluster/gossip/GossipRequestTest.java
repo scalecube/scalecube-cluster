@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.util.ReferenceCountUtil;
 import io.scalecube.cluster.BaseTest;
 import io.scalecube.cluster.Member;
 import io.scalecube.transport.Address;
@@ -29,7 +30,6 @@ public class GossipRequestTest extends BaseTest {
   public void init() throws Throwable {
     Map<String, String> properties = new HashMap<>();
     properties.put("key", "123");
-
     testData = new TestData();
     testData.setProperties(properties);
   }
@@ -47,6 +47,8 @@ public class GossipRequestTest extends BaseTest {
     assertTrue(bb.readableBytes() > 0);
 
     ByteBuf input = copiedBuffer(bb);
+    ReferenceCountUtil.releaseLater(input);
+    ReferenceCountUtil.releaseLater(bb);
 
     Message deserializedMessage = MessageCodec.deserialize(input);
 
