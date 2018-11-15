@@ -1,6 +1,5 @@
 package io.scalecube.cluster.gossip;
 
-import static io.netty.buffer.Unpooled.buffer;
 import static io.netty.buffer.Unpooled.copiedBuffer;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -43,8 +42,7 @@ public class GossipRequestTest extends BaseTest {
     Message message =
         Message.withData(new GossipRequest(gossips, from.id())).correlationId("CORR_ID").build();
 
-    ByteBuf bb = buffer();
-    MessageCodec.serialize(message, bb);
+    ByteBuf bb = MessageCodec.serialize(message);
 
     assertTrue(bb.readableBytes() > 0);
 
