@@ -1,9 +1,7 @@
 package io.scalecube.transport;
 
-import static io.protostuff.LinkedBuffer.MIN_BUFFER_SIZE;
-import static io.scalecube.transport.RecyclableLinkedBuffer.DEFAULT_MAX_CAPACITY;
-
 import io.protostuff.Input;
+import io.protostuff.LinkedBuffer;
 import io.protostuff.Output;
 import io.protostuff.ProtostuffIOUtil;
 import io.protostuff.Schema;
@@ -33,9 +31,6 @@ final class MessageSchema implements Schema<Message> {
   private static final int DATA_FIELD_NUMBER = 3;
   private static final int SENDER_HOST_FIELD_NUMBER = 4;
   private static final int SENDER_PORT_FIELD_NUMBER = 5;
-
-  private static final RecyclableLinkedBuffer recyclableLinkedBuffer =
-      new RecyclableLinkedBuffer(MIN_BUFFER_SIZE, DEFAULT_MAX_CAPACITY);
 
   private static final Map<String, Integer> fieldMap;
 
@@ -206,10 +201,9 @@ final class MessageSchema implements Schema<Message> {
 
         // Write data as serialized byte array
         Schema dataSchema = RuntimeSchema.getSchema(dataClass);
-        try (RecyclableLinkedBuffer rlb = recyclableLinkedBuffer.get()) {
-          byte[] array = ProtostuffIOUtil.toByteArray(originalData, dataSchema, rlb.buffer());
-          output.writeByteArray(DATA_FIELD_NUMBER, array, false);
-        }
+        byte[] array =
+            ProtostuffIOUtil.toByteArray(originalData, dataSchema, LinkedBuffer.allocate());
+        output.writeByteArray(DATA_FIELD_NUMBER, array, false);
       }
     }
 
