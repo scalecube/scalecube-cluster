@@ -33,8 +33,8 @@ import reactor.netty.tcp.TcpClient;
 import reactor.netty.tcp.TcpServer;
 
 /**
- * Default transport implementation based on reactor-netty tcp client and server implementation and protobuf
- * codec.
+ * Default transport implementation based on reactor-netty tcp client and server implementation and
+ * protobuf codec.
  */
 final class TransportImpl implements Transport {
 
@@ -145,10 +145,10 @@ final class TransportImpl implements Transport {
 
   private Mono<Void> onMessage(NettyInbound in, NettyOutbound out) {
     return in.receive() //
-      .retain()
-      .map(MessageCodec::deserialize)
-      .doOnNext(messageSink::next)
-      .then();
+        .retain()
+        .map(MessageCodec::deserialize)
+        .doOnNext(messageSink::next)
+        .then();
   }
 
   private void onBind(DisposableServer s, Throwable ex) {
