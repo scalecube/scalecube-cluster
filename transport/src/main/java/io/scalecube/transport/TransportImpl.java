@@ -71,9 +71,7 @@ final class TransportImpl implements Transport {
    */
   public TransportImpl(TransportConfig config) {
     this.config = Objects.requireNonNull(config);
-    this.loopResources =
-        LoopResources.create(
-            "cluster-transport", config.getBossThreads(), config.getWorkerThreads(), true);
+    this.loopResources = LoopResources.create("cluster-transport", 1, 1, true);
   }
 
   private static Address toAddress(SocketAddress address) {
