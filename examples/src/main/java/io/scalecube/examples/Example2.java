@@ -36,7 +36,7 @@ public class Example2 {
     client.send(server.address(), Message.fromData("q1")).subscribe();
     client.send(server.address(), Message.fromData("q2")).subscribe();
 
-    List<Message> target = targetFuture.get(10, TimeUnit.SECONDS);
+    List<Message> target = targetFuture.get(3, TimeUnit.SECONDS);
     System.err.println("### target list: " + target);
   }
 }

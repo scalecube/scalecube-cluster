@@ -1,10 +1,7 @@
 package io.scalecube.transport;
 
-import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelPipeline;
-import io.netty.handler.codec.MessageToByteEncoder;
-import io.netty.handler.codec.MessageToMessageDecoder;
 import io.netty.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
 import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
 import java.net.InetSocketAddress;
@@ -16,7 +13,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxProcessor;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoProcessor;
@@ -39,22 +35,16 @@ final class TransportImpl implements Transport {
 
   private final TransportConfig config;
   private final LoopResources loopResources;
+  private final ConnectionProvider connections;
 
   // Subject
 
-  private final FluxProcessor<Message, Message> incomingMessagesSubject =
-      DirectProcessor.<Message>create().serialize();
-
-  private final FluxSink<Message> messageSink = incomingMessagesSubject.sink();
+  private final DirectProcessor<Message> messagesSubject = DirectProcessor.create();
+  private final FluxSink<Message> messageSink = messagesSubject.sink();
 
   // Pipeline
-  private final ExceptionHandler exceptionHandler = new ExceptionHandler();
-  private final MessageToByteEncoder<Message> serializerHandler = new MessageSerializerHandler();
-  private final MessageToMessageDecoder<ByteBuf> deserializerHandler =
-      new MessageDeserializerHandler();
-  private final MessageHandler messageHandler = new MessageHandler(messageSink);
-  private final InboundChannelInitializer incomingPipeline = new InboundChannelInitializer();
-  private final OutgoingChannelInitializer outcomingPipeline = new OutgoingChannelInitializer();
+  private final InboundChannelInitializer inboundPipeline = new InboundChannelInitializer();
+  private final OutboundChannelInitializer outboundPipeline = new OutboundChannelInitializer();
 
   // Close logic handler
   private final MonoProcessor<Void> onClose = MonoProcessor.create();
@@ -66,11 +56,15 @@ final class TransportImpl implements Transport {
   private Address address;
   private DisposableServer server;
 
-  private final ConnectionProvider connections = ConnectionProvider.fixed("cluster-connections", 1);
-
+  /**
+   * TransportImpl constructor with cofig as parameter.
+   *
+   * @param config transport configuration
+   */
   public TransportImpl(TransportConfig config) {
     this.config = Objects.requireNonNull(config);
     this.loopResources = LoopResources.create("cluster-transport", config.getWorkerThreads(), true);
+    this.connections = ConnectionProvider.fixed("cluster-connections", 1 /*max connections*/);
   }
 
   private static Address toAddress(SocketAddress address) {
@@ -91,9 +85,16 @@ final class TransportImpl implements Transport {
     return TcpServer.create()
         .runOn(loopResources)
         .addressSupplier(() -> new InetSocketAddress(config.getPort()))
-        .bootstrap(b -> BootstrapHandlers.updateConfiguration(b, "inbound", incomingPipeline))
+        .bootstrap(b -> BootstrapHandlers.updateConfiguration(b, "inbound", inboundPipeline))
         .observe((c, s) -> LOGGER.info("Server connection {} has new state -> {}", c, s))
-        //.handle((inb, outb) -> inb.receive().aggregate().retain().then())
+        .handle(
+            (in, out) ->
+                in.receive()
+                    .retain()
+                    .map(MessageCodec::deserialize)
+                    .log("########################## ")
+                    .doOnNext(messageSink::next)
+                    .then())
         .bind()
         .doOnSuccess(this::onBind)
         .doOnError(
@@ -144,7 +145,7 @@ final class TransportImpl implements Transport {
 
   @Override
   public final Flux<Message> listen() {
-    return incomingMessagesSubject.onBackpressureBuffer();
+    return messagesSubject.onBackpressureBuffer();
   }
 
   @Override
@@ -161,12 +162,13 @@ final class TransportImpl implements Transport {
                       LOGGER.warn("Failed to connect to remote address {}, cause: {}", address, th))
               .flatMap(
                   conn -> {
-                    message.setSender(this.address); // set local address as outgoing address
+                    // set local address as outgoing address
+                    message.setSender(this.address);
+                    // do actual send here
                     return conn.outbound()
                         .options(SendOptions::flushOnEach)
-                        .sendObject(message)
-                        .then()
-                        .log(">>>>>>>>>>>>>>>>>>>>>");
+                        .send(Mono.just(message).map(MessageCodec::serialize))
+                        .then();
                   })
               .doOnError(
                   ex ->
@@ -199,7 +201,7 @@ final class TransportImpl implements Transport {
         .runOn(loopResources)
         .host(address.host())
         .port(address.port())
-        .bootstrap(b -> BootstrapHandlers.updateConfiguration(b, "outbound", outcomingPipeline))
+        .bootstrap(b -> BootstrapHandlers.updateConfiguration(b, "outbound", outboundPipeline))
         .observe((c, s) -> LOGGER.info("Client connection {} has new state -> {}", c, s));
   }
 
@@ -209,22 +211,17 @@ final class TransportImpl implements Transport {
     public void accept(ConnectionObserver connectionObserver, Channel channel) {
       ChannelPipeline pipeline = channel.pipeline();
       pipeline.addLast(new ProtobufVarint32FrameDecoder());
-      pipeline.addLast(deserializerHandler);
-      pipeline.addLast(messageHandler);
-      pipeline.addLast(exceptionHandler);
     }
   }
 
-  private final class OutgoingChannelInitializer
+  private final class OutboundChannelInitializer
       implements BiConsumer<ConnectionObserver, Channel> {
 
     @Override
     public void accept(ConnectionObserver connectionObserver, Channel channel) {
       ChannelPipeline pipeline = channel.pipeline();
       pipeline.addLast(new ProtobufVarint32LengthFieldPrepender());
-      pipeline.addLast(serializerHandler);
       Optional.ofNullable(networkEmulatorHandler).ifPresent(pipeline::addLast);
-      pipeline.addLast(exceptionHandler);
     }
   }
 }

@@ -1,6 +1,7 @@
 package io.scalecube.transport;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.buffer.ByteBufOutputStream;
 import io.netty.handler.codec.DecoderException;
@@ -29,6 +30,7 @@ public final class MessageCodec {
    * Deserializes message from given byte buffer.
    *
    * @param bb byte buffer
+   * @return message from ByteBuf
    */
   public static Message deserialize(ByteBuf bb) {
     Schema<Message> schema = RuntimeSchema.getSchema(Message.class);
@@ -46,14 +48,17 @@ public final class MessageCodec {
    * Serializes given message into byte buffer.
    *
    * @param message message to serialize
-   * @param bb byte buffer of where to write serialzied message
+   * @return message as ByteBuf
    */
-  public static void serialize(Message message, ByteBuf bb) {
+  public static ByteBuf serialize(Message message) {
+    ByteBuf bb = ByteBufAllocator.DEFAULT.buffer();
     Schema<Message> schema = RuntimeSchema.getSchema(Message.class);
     try (RecyclableLinkedBuffer rlb = recyclableLinkedBuffer.get()) {
       try {
         ProtostuffIOUtil.writeTo(new ByteBufOutputStream(bb), message, schema, rlb.buffer());
+        return bb;
       } catch (Exception e) {
+        bb.release();
         throw new EncoderException(e.getMessage(), e);
       }
     }
