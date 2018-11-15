@@ -92,7 +92,8 @@ final class TransportImpl implements Transport {
         .runOn(loopResources)
         .addressSupplier(() -> new InetSocketAddress(config.getPort()))
         .bootstrap(b -> BootstrapHandlers.updateConfiguration(b, "inbound", incomingPipeline))
-        // .handle((inb, outb) -> inb.receive().aggregate().retain().then())
+        .observe((c, s) -> LOGGER.info("Server connection {} has new state -> {}", c, s))
+        //.handle((inb, outb) -> inb.receive().aggregate().retain().then())
         .bind()
         .doOnSuccess(this::onBind)
         .doOnError(
@@ -100,8 +101,8 @@ final class TransportImpl implements Transport {
         .thenReturn(this);
   }
 
-  private void onBind(DisposableServer server1) {
-    server = server1;
+  private void onBind(DisposableServer s) {
+    server = s;
     address = toAddress(server.address());
     networkEmulator = new NetworkEmulator(address, config.isUseNetworkEmulator());
     networkEmulatorHandler =
@@ -153,9 +154,7 @@ final class TransportImpl implements Transport {
           Objects.requireNonNull(address, "address");
           Objects.requireNonNull(message, "message");
 
-          return tcpClient()
-              .host(address.host())
-              .port(address.port())
+          return tcpClient(address)
               .connect()
               .doOnError(
                   th ->
@@ -195,12 +194,13 @@ final class TransportImpl implements Transport {
                 .orElse(Mono.empty()));
   }
 
-  private TcpClient tcpClient() {
+  private TcpClient tcpClient(Address address) {
     return TcpClient.create(connections)
         .runOn(loopResources)
+        .host(address.host())
+        .port(address.port())
         .bootstrap(b -> BootstrapHandlers.updateConfiguration(b, "outbound", outcomingPipeline))
-        .observe(
-            (connection, newState) -> LOGGER.debug("{} has new state -> {}", connection, newState));
+        .observe((c, s) -> LOGGER.info("Client connection {} has new state -> {}", c, s));
   }
 
   private final class InboundChannelInitializer implements BiConsumer<ConnectionObserver, Channel> {
