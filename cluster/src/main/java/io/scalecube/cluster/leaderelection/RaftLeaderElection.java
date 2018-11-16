@@ -1,7 +1,6 @@
 package io.scalecube.cluster.leaderelection;
 
 import java.util.Collection;
-import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -18,7 +17,6 @@ import io.scalecube.cluster.leaderelection.api.HeartbeatRequest;
 import io.scalecube.cluster.leaderelection.api.HeartbeatResponse;
 import io.scalecube.cluster.leaderelection.api.Leader;
 import io.scalecube.cluster.leaderelection.api.LeaderElectionGossip;
-import io.scalecube.cluster.leaderelection.api.LeaderElectionService;
 import io.scalecube.cluster.leaderelection.api.VoteRequest;
 import io.scalecube.cluster.leaderelection.api.VoteResponse;
 import io.scalecube.cluster.membership.IdGenerator;
@@ -28,7 +26,7 @@ import reactor.core.publisher.Mono;
 
 public abstract class RaftLeaderElection {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(LeaderElectionService.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(RaftLeaderElection.class);
 
   private final StateMachine stateMachine;
 
@@ -89,6 +87,23 @@ public abstract class RaftLeaderElection {
     this.memberId = cluster.member().id();
     this.cluster = cluster;
     this.stateMachine.transition(State.FOLLOWER, currentTerm.get());
+    
+    cluster.listen().filter(m->m.qualifier().equals("/io.scalecube.leader.election/hearbeat"))
+    	.subscribe(request -> {
+    		onHeartbeat(request.data())
+	    	.subscribe(resp -> {
+	    		cluster.send(request.sender(),Message.from(request).withData(resp).build());
+	    	});
+    });
+    
+    cluster.listen().filter(m->m.qualifier().equals("/io.scalecube.leader.election/vote"))
+    	.subscribe(request->{
+    		onRequestVote(request.data())
+    		.subscribe(resp -> {
+    			cluster.send(request.sender(),Message.from(request).withData(resp).build());
+    		});
+    });
+    
   }
 
   public Mono<Leader> leader() {
@@ -193,6 +208,7 @@ public abstract class RaftLeaderElection {
   
   private void sendElectionCampaign() {
     Collection<Member> services = findPeers();
+    
     CountDownLatch consensus = new CountDownLatch((services.size() / 2));
 
     services.stream()
@@ -216,7 +232,7 @@ public abstract class RaftLeaderElection {
         });
 
     try {
-      consensus.await(3, TimeUnit.SECONDS);
+      consensus.await(config.consensusTimeout(), TimeUnit.SECONDS);
       stateMachine.transition(State.LEADER, currentTerm);
     } catch (InterruptedException e) {
       stateMachine.transition(State.FOLLOWER, currentTerm);
