@@ -28,6 +28,8 @@ public abstract class RaftLeaderElection {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(RaftLeaderElection.class);
 
+private static final String LEADER_ELECTION = "/io.sc.leader-election@";
+
   private final StateMachine stateMachine;
 
   private Cluster cluster;
@@ -36,9 +38,9 @@ public abstract class RaftLeaderElection {
 
   private final AtomicReference<LogicalTimestamp> currentTerm = new AtomicReference<LogicalTimestamp>();
 
-  private final JobScheduler timeoutScheduler;
+  private JobScheduler timeoutScheduler;
 
-  private final JobScheduler heartbeatScheduler;
+  private JobScheduler heartbeatScheduler;
 
   private String memberId;
 
@@ -62,10 +64,10 @@ public abstract class RaftLeaderElection {
     return this.cluster;
   }
   
-  public RaftLeaderElection(String name, Config config) {
+  public RaftLeaderElection(String serviceName, Config config) {
     this.config = config;
+    this.serviceName = serviceName;
     this.timeout = new Random().nextInt(config.timeout() - (config.timeout() / 2)) + (config.timeout() / 2);
-    this.serviceName = name;
     this.stateMachine = StateMachine.builder()
         .init(State.INACTIVE)
         .addTransition(State.INACTIVE, State.FOLLOWER)
@@ -79,16 +81,18 @@ public abstract class RaftLeaderElection {
     this.stateMachine.on(State.LEADER, becomeLeader());
 
     this.currentTerm.set(clock.tick());
+    
     this.timeoutScheduler = new JobScheduler(onHeartbeatNotRecived());
-    this.heartbeatScheduler = new JobScheduler(sendHeartbeat());
+	this.heartbeatScheduler = new JobScheduler(sendHeartbeat());
   }
 
-  protected void start(Cluster cluster) {
+  public void start(Cluster cluster) {
+	
     this.memberId = cluster.member().id();
     this.cluster = cluster;
     this.stateMachine.transition(State.FOLLOWER, currentTerm.get());
     
-    cluster.listen().filter(m->m.qualifier().equals("/io.scalecube.leader.election/hearbeat"))
+    cluster.listen().filter(m->m.qualifier().equals(LEADER_ELECTION + serviceName+"/hearbeat"))
     	.subscribe(request -> {
     		onHeartbeat(request.data())
 	    	.subscribe(resp -> {
@@ -96,7 +100,7 @@ public abstract class RaftLeaderElection {
 	    	});
     });
     
-    cluster.listen().filter(m->m.qualifier().equals("/io.scalecube.leader.election/vote"))
+    cluster.listen().filter(m->m.qualifier().equals(LEADER_ELECTION + serviceName+"/vote"))
     	.subscribe(request->{
     		onRequestVote(request.data())
     		.subscribe(resp -> {
@@ -111,12 +115,12 @@ public abstract class RaftLeaderElection {
   }
 
   public Mono<HeartbeatResponse> onHeartbeat(HeartbeatRequest request) {
-    LOGGER.debug("service: [{}] member [{}] recived heartbeat request: [{}]", serviceName, this.memberId, request);
+    LOGGER.debug("member [{}] recived heartbeat request: [{}]", this.memberId, request);
     this.timeoutScheduler.reset(this.timeout);
     
     LogicalTimestamp term = LogicalTimestamp.fromBytes(request.term());
     if (currentTerm.get().isBefore(term)) {
-      LOGGER.info("service: [{}] member: [{}] currentTerm: [{}] is before: [{}] setting new seen term.", serviceName,
+      LOGGER.info("member: [{}] currentTerm: [{}] is before: [{}] setting new seen term.",
           this.memberId,
           currentTerm.get(), term);
       currentTerm.set(term);
@@ -124,7 +128,7 @@ public abstract class RaftLeaderElection {
 
     if (!stateMachine.currentState().equals(State.FOLLOWER)) {
 
-      LOGGER.info("service: [{}] member [{}] currentState [{}] and recived heartbeat. becoming FOLLOWER.", serviceName,
+      LOGGER.info("member [{}] currentState [{}] and recived heartbeat. becoming FOLLOWER.",
           this.memberId,
           stateMachine.currentState());
       stateMachine.transition(State.FOLLOWER, term);
@@ -142,12 +146,12 @@ public abstract class RaftLeaderElection {
     LogicalTimestamp term = LogicalTimestamp.fromBytes(request.term());
 
     boolean voteGranted = currentTerm.get().isBefore(term);
-    LOGGER.info("service: [{}] member [{}:{}] recived vote request: [{}] voteGranted: [{}].", serviceName,
+    LOGGER.info("member [{}:{}] recived vote request: [{}] voteGranted: [{}].",
         this.memberId,
         stateMachine.currentState(), request, voteGranted);
 
     if (currentTerm.get().isBefore(term)) {
-      LOGGER.info("service: [{}] member: [{}] currentTerm: [{}] is before: [{}] setting new seen term.", serviceName,
+      LOGGER.info("member: [{}] currentTerm: [{}] is before: [{}] setting new seen term.",
           this.memberId,
           currentTerm.get(), term);
       currentTerm.set(term);
@@ -161,7 +165,7 @@ public abstract class RaftLeaderElection {
       this.timeoutScheduler.stop();
       this.currentTerm.set(clock.tick(currentTerm.get()));
       this.stateMachine.transition(State.CANDIDATE, currentTerm.get());
-      LOGGER.info("service: [{}] member: [{}] didnt recive heartbeat until timeout: [{}ms] became: [{}]", serviceName,
+      LOGGER.info("member: [{}] didnt recive heartbeat until timeout: [{}ms] became: [{}]",
           this.memberId, timeout,
           stateMachine.currentState());
     };
@@ -180,11 +184,11 @@ public abstract class RaftLeaderElection {
 
       services.stream()
       .forEach(instance -> {
-        LOGGER.debug("service: [{}] member: [{}] sending heartbeat: [{}].", serviceName, this.memberId,
+        LOGGER.debug("member: [{}] sending heartbeat: [{}].", this.memberId,
             instance.id());
 
         Message request =
-            composeRequest("heartbeat", new HeartbeatRequest(currentTerm.get().toBytes(), this.memberId));
+            asRequest("heartbeat", new HeartbeatRequest(currentTerm.get().toBytes(), this.memberId));
         Address address = instance.address();
 
         cluster.listen().filter(m->m.correlationId().equals(request.correlationId()))
@@ -192,8 +196,8 @@ public abstract class RaftLeaderElection {
               HeartbeatResponse response = next.data();
               LogicalTimestamp term = LogicalTimestamp.fromBytes(response.term());
               if (currentTerm.get().isBefore(term)) {
-                LOGGER.info("service: [{}] member: [{}] currentTerm: [{}] is before: [{}] setting new seen term.",
-                    serviceName, this.memberId,
+                LOGGER.info("member: [{}] currentTerm: [{}] is before: [{}] setting new seen term.",
+                    this.memberId,
                     currentTerm.get(), term);
                 currentTerm.set(term);
               }
@@ -214,16 +218,16 @@ public abstract class RaftLeaderElection {
     services.stream()
         .forEach(instance -> {
 
-          LOGGER.info("service: [{}] member: [{}] sending vote request to: [{}].", serviceName, this.memberId,
+          LOGGER.info("member: [{}] sending vote request to: [{}].", this.memberId,
               instance.id());
          
-          Message request = composeRequest("vote", new VoteRequest(currentTerm.get().toBytes(),
+          Message request = asRequest("vote", new VoteRequest(currentTerm.get().toBytes(),
               instance.id()));
 
           requestOne(request, instance.address())
               .subscribe(next -> {
                 VoteResponse vote = next.data();
-                LOGGER.info("service: [{}] member: [{}] recived vote response: [{}].", serviceName, this.memberId,
+                LOGGER.info("member: [{}] recived vote response: [{}].", this.memberId,
                     vote);
                 if (vote.granted()) {
                   consensus.countDown();
@@ -257,7 +261,7 @@ public abstract class RaftLeaderElection {
   private Consumer becomeLeader() {
     return leader -> {
 
-      LOGGER.info("service: [{}] member: [{}] has become: [{}].", serviceName, this.memberId,
+      LOGGER.info("member: [{}] has become: [{}].", this.memberId,
           stateMachine.currentState());
       
       timeoutScheduler.stop();
@@ -289,7 +293,7 @@ public abstract class RaftLeaderElection {
    */
   private Consumer becomeCandidate() {
     return election -> {
-      LOGGER.info("service: [{}] member: [{}] has become: [{}].", serviceName, this.memberId,
+      LOGGER.info("member: [{}] has become: [{}].", this.memberId,
           stateMachine.currentState());
       heartbeatScheduler.stop();
       currentTerm.set(clock.tick());
@@ -310,7 +314,7 @@ public abstract class RaftLeaderElection {
    */
   private Consumer becomeFollower() {
     return follower -> {
-      LOGGER.info("service: [{}] member: [{}] has become: [{}].", serviceName, this.memberId,
+      LOGGER.info("member: [{}] has become: [{}].", this.memberId,
           stateMachine.currentState());
       heartbeatScheduler.stop();
       timeoutScheduler.start(this.timeout);
@@ -323,11 +327,12 @@ public abstract class RaftLeaderElection {
 
   public abstract void onBecomeFollower();
 
-  private Message composeRequest(String action, Object data) {
+  private Message asRequest(String action, Object data) {
     return Message.builder()
     	.correlationId(IdGenerator.generateId())
-        .qualifier("/"+ this.serviceName+ "/" + action)
-        .data(data).build();
+        .qualifier(LEADER_ELECTION + serviceName+ "/" + action)
+        .data(data)
+        .build();
   }
 
   private Collection<Member> findPeers() {
