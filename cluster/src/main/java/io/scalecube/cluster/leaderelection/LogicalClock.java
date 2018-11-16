@@ -10,8 +10,6 @@ import java.util.concurrent.atomic.AtomicReference;
  * This implementation provides methods to store local timestamp and update it in a thread safe and
  * non-blocking way.
  *
- * @author Anton Kharenko
- * @see io.scalecube.cluster.leaderelection.antonkharenko.logicalclocks.LogicalTimestamp
  */
 public class LogicalClock {
 

@@ -25,9 +25,6 @@ import java.io.Serializable;
  * href="http://research.microsoft.com/en-us/um/people/lamport/pubs/time-clocks.pdf"> Time, Clocks,
  * and the Ordering of Events in a Distributed System</a> for more info.
  *
- * @author Anton Kharenko
- * @see io.scalecube.cluster.leaderelection.antonkharenko.logicalclocks.LogicalClock
- * @see com.antonkharenko.logicalclocks.VectorTimestamp
  */
 public final class LogicalTimestamp implements Comparable<LogicalTimestamp>, Serializable {
 
