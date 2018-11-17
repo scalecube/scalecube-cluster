@@ -1,12 +1,15 @@
 package io.scalecube.cluster.leaderelection;
 
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,9 +29,11 @@ import reactor.core.publisher.Mono;
 
 public abstract class RaftLeaderElection {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(RaftLeaderElection.class);
+  private static final String LEADER_ELECTION_TOPIC = "leader-election-topic";
 
-private static final String LEADER_ELECTION = "/io.sc.leader-election@";
+private static final Logger LOGGER = LoggerFactory.getLogger(RaftLeaderElection.class);
+
+private static final String LEADER_ELECTION = "/sc.leader-election@";
 
   private final StateMachine stateMachine;
 
@@ -108,13 +113,18 @@ private static final String LEADER_ELECTION = "/io.sc.leader-election@";
     		});
     });
     
+    Map<String, String> metadata = new HashMap<>();
+    metadata.putAll(cluster.member().metadata());
+    metadata.put(serviceName, LEADER_ELECTION_TOPIC);
+	cluster.updateMetadata(metadata);
+    
   }
 
   public Mono<Leader> leader() {
     return Mono.just(new Leader(this.memberId, this.currentLeader.get()));
   }
 
-  public Mono<HeartbeatResponse> onHeartbeat(HeartbeatRequest request) {
+  private Mono<HeartbeatResponse> onHeartbeat(HeartbeatRequest request) {
     LOGGER.debug("member [{}] recived heartbeat request: [{}]", this.memberId, request);
     this.timeoutScheduler.reset(this.timeout);
     
@@ -141,7 +151,7 @@ private static final String LEADER_ELECTION = "/io.sc.leader-election@";
   }
 
 
-  public Mono<VoteResponse> onRequestVote(VoteRequest request) {
+  private Mono<VoteResponse> onRequestVote(VoteRequest request) {
 
     LogicalTimestamp term = LogicalTimestamp.fromBytes(request.term());
 
@@ -209,13 +219,15 @@ private static final String LEADER_ELECTION = "/io.sc.leader-election@";
     };
   }
 
-  
+  // election requesting votes from peers and try reach consensus.
+  // if most of peer members grant vote then member transition to a leader state.
+  // the election process is waiting until timeout of consensusTimeout in case timeout reached the member transition to Follower state.
   private void sendElectionCampaign() {
-    Collection<Member> services = findPeers();
+    Collection<Member> members = findPeers();
     
-    CountDownLatch consensus = new CountDownLatch((services.size() / 2));
+    CountDownLatch consensus = new CountDownLatch((members.size() / 2));
 
-    services.stream()
+    members.stream()
         .forEach(instance -> {
 
           LOGGER.info("member: [{}] sending vote request to: [{}].", this.memberId,
@@ -227,8 +239,7 @@ private static final String LEADER_ELECTION = "/io.sc.leader-election@";
           requestOne(request, instance.address())
               .subscribe(next -> {
                 VoteResponse vote = next.data();
-                LOGGER.info("member: [{}] recived vote response: [{}].", this.memberId,
-                    vote);
+                LOGGER.info("member: [{}] recived vote response: [{}].", this.memberId, vote);
                 if (vote.granted()) {
                   consensus.countDown();
                 }
@@ -336,10 +347,13 @@ private static final String LEADER_ELECTION = "/io.sc.leader-election@";
   }
 
   private Collection<Member> findPeers() {
-    return cluster().otherMembers();
+    return cluster().otherMembers().stream()
+    		.filter(m-> m.metadata().containsKey(serviceName))
+    		.collect(Collectors.toSet());
+    		
   }
 
-  public void on(State state, Consumer func) {
+  private void on(State state, Consumer func) {
     stateMachine.on(state, func);
   }
 
