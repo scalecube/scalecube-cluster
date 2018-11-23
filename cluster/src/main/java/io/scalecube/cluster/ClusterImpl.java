@@ -352,7 +352,6 @@ final class ClusterImpl implements Cluster {
   
   @Override
   public LeaderElection leadership(String name) {
-  	
 	  return new RaftLeaderElection(this,name) {
 		
 		DirectProcessor<ElectionEvent> processor = DirectProcessor.create();
@@ -375,11 +374,6 @@ final class ClusterImpl implements Cluster {
 		@Override
 		public Flux<ElectionEvent> listen() {
 			return processor;
-		}
-
-		@Override
-		public State state() {
-			return stateMachine.currentState();
 		}
 	};
   }

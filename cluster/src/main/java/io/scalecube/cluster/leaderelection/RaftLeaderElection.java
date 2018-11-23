@@ -30,13 +30,15 @@ import reactor.core.publisher.Mono;
 
 public abstract class RaftLeaderElection implements LeaderElection {
 
-	private static final String VOTE = "vote";
+	private static final String LEADER_ELECTION = "leader-election";
+
+	private static final String HEARTBEAT = "/heartbeat";
+
+	private static final String VOTE = "/vote";
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(RaftLeaderElection.class);
 
-	private static final String LEADER_ELECTION = "/sc.leader-election@";
-
-	protected final StateMachine stateMachine;
+	private final StateMachine stateMachine;
 
 	private Cluster cluster;
 
@@ -62,6 +64,10 @@ public abstract class RaftLeaderElection implements LeaderElection {
 		return currentLeader.get();
 	}
 
+	public State currentState() {
+		return stateMachine.currentState();
+	}
+	
 	public LogicalTimestamp currentTerm() {
 		return this.currentTerm.get();
 	}
@@ -72,7 +78,7 @@ public abstract class RaftLeaderElection implements LeaderElection {
 
 	public RaftLeaderElection(String serviceName, Config config) {
 		this.config = config;
-		this.serviceName = LEADER_ELECTION + serviceName + "/";
+		this.serviceName = serviceName;
 		this.timeout = new Random().nextInt(config.timeout() - (config.timeout() / 2)) + (config.timeout() / 2);
 		this.stateMachine = StateMachine.builder().init(State.INACTIVE).addTransition(State.INACTIVE, State.FOLLOWER)
 				.addTransition(State.FOLLOWER, State.CANDIDATE).addTransition(State.CANDIDATE, State.LEADER)
@@ -95,6 +101,7 @@ public abstract class RaftLeaderElection implements LeaderElection {
 	public RaftLeaderElection(Cluster cluster, String name) {
 		this(name, Config.build());
 		this.cluster = cluster;
+		this.cluster.updateMetadataProperty(name, LEADER_ELECTION).subscribe();
 	}
 
 	@Override
@@ -103,7 +110,7 @@ public abstract class RaftLeaderElection implements LeaderElection {
 	}
 
 	private boolean isHeartbeat(String value) {
-		String s = serviceName + "heartbeat";
+		String s = serviceName + HEARTBEAT;
 		return  s.equalsIgnoreCase(value);
 	}
 	
@@ -211,7 +218,7 @@ public abstract class RaftLeaderElection implements LeaderElection {
 			services.stream().forEach(instance -> {
 				LOGGER.debug("member: [{}] sending heartbeat: [{}].", this.memberId, instance.id());
 
-				Message request = asRequest("heartbeat",
+				Message request = asRequest(HEARTBEAT,
 						new HeartbeatRequest(currentTerm.get().toBytes(), this.memberId));
 				Address address = instance.address();
 
@@ -360,7 +367,9 @@ public abstract class RaftLeaderElection implements LeaderElection {
 	}
 
 	private Collection<Member> findPeers() {
-		return cluster().otherMembers().stream()//.filter(m -> m.metadata().containsKey(serviceName))
+		return cluster().otherMembers().stream()
+				.filter(m -> m.metadata().containsKey(serviceName))
+				.filter(m -> m.metadata().get(serviceName).equals(LEADER_ELECTION))
 				.collect(Collectors.toSet());
 
 	}

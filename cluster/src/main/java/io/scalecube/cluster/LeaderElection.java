@@ -10,6 +10,6 @@ public interface LeaderElection {
 
 	Flux<ElectionEvent> listen();
 
-	State state();
+	State currentState();
 
 }
