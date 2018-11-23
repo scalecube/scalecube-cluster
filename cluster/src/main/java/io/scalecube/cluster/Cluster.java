@@ -223,5 +223,12 @@ public interface Cluster {
    */
   NetworkEmulator networkEmulator();
 
-  LeaderElection leadership(String name);
+  /**
+   * Factory leader election context protocol for a given group name.
+   * 
+   * @param partition / group name to participate in leader election protocol in the cluster.
+   * @return Leader election instance for a given context.
+   */
+  LeaderElection leadership(String groupName);
+
 }
