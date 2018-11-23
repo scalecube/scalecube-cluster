@@ -11,6 +11,7 @@ import static io.scalecube.cluster.membership.MembershipProtocolImpl.SYNC_ACK;
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
 import io.scalecube.cluster.leaderelection.RaftLeaderElection;
+import io.scalecube.cluster.leaderelection.State;
 import io.scalecube.cluster.membership.IdGenerator;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipProtocolImpl;
@@ -354,19 +355,26 @@ final class ClusterImpl implements Cluster {
   	
 	  return new RaftLeaderElection(this,name) {
 		
+		DirectProcessor<ElectionEvent> processor = DirectProcessor.create();
+		
 		@Override
 		public void onBecomeLeader() {
-			
+			processor.onNext(new ElectionEvent(State.LEADER));
 		}
 		
 		@Override
 		public void onBecomeFollower() {
-			
+			processor.onNext(new ElectionEvent(State.FOLLOWER));
 		}
 		
 		@Override
 		public void onBecomeCandidate() {
-			
+			processor.onNext(new ElectionEvent(State.CANDIDATE));
+		}
+
+		@Override
+		public Flux<ElectionEvent> listen() {
+			return processor;
 		}
 	};
   }
