@@ -15,11 +15,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.scalecube.cluster.Cluster;
-import io.scalecube.cluster.LeaderElection;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.leaderelection.api.HeartbeatRequest;
 import io.scalecube.cluster.leaderelection.api.HeartbeatResponse;
 import io.scalecube.cluster.leaderelection.api.Leader;
+import io.scalecube.cluster.leaderelection.api.LeaderElection;
 import io.scalecube.cluster.leaderelection.api.LeaderElectionGossip;
 import io.scalecube.cluster.leaderelection.api.VoteRequest;
 import io.scalecube.cluster.leaderelection.api.VoteResponse;

@@ -12,6 +12,8 @@ import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
 import io.scalecube.cluster.leaderelection.RaftLeaderElection;
 import io.scalecube.cluster.leaderelection.State;
+import io.scalecube.cluster.leaderelection.api.ElectionEvent;
+import io.scalecube.cluster.leaderelection.api.LeaderElection;
 import io.scalecube.cluster.membership.IdGenerator;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipProtocolImpl;

@@ -1,4 +1,4 @@
-package io.scalecube.cluster;
+package io.scalecube.cluster.leaderelection.api;
 
 import io.scalecube.cluster.leaderelection.State;
 

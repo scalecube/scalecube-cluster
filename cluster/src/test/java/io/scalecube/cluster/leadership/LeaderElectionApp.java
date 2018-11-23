@@ -1,7 +1,7 @@
 package io.scalecube.cluster.leadership;
 
 import io.scalecube.cluster.Cluster;
-import io.scalecube.cluster.LeaderElection;
+import io.scalecube.cluster.leaderelection.api.LeaderElection;
 
 public class LeaderElectionApp {
 
