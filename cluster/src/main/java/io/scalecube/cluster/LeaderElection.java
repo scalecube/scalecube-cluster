@@ -12,4 +12,6 @@ public interface LeaderElection {
 
 	State currentState();
 
+	String id();
+
 }

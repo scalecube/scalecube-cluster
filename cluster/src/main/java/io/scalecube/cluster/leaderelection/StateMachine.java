@@ -22,7 +22,7 @@ public class StateMachine {
   public State currentState() {
     return currentState.get();
   }
-  
+
   public static final class Builder {
     private Map<State, List<State>> transitions = new HashMap<State, List<State>>();
 
@@ -59,7 +59,7 @@ public class StateMachine {
 
   public CompletableFuture<State> transition(State newState, Object obj) {
     CompletableFuture<State> futureState = new CompletableFuture<State>();
-    
+
     if (!currentState.get().equals(newState)) {
       CompletableFuture<State> leaveStateFuture = new CompletableFuture<State>();
       CompletableFuture<State> onStateFuture = new CompletableFuture<State>();
@@ -123,5 +123,5 @@ public class StateMachine {
     return this;
   }
 
-  
+
 }

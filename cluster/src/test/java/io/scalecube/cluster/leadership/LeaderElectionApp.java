@@ -40,7 +40,7 @@ public class LeaderElectionApp {
 
 	public static void print(LeaderElection... elections ) {
 		for(LeaderElection election : elections) {
-			System.out.println( election.currentState());
+			System.out.println(election.id() + " - " + election.currentState());
 		}
 	}
 }

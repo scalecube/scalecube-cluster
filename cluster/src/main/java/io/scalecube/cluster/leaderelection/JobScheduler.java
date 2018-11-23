@@ -27,7 +27,7 @@ public class JobScheduler {
   }
 
   public void stop() {
-    
+
     if (executor.get() != null) {
       executor.get().shutdownNow();
     }

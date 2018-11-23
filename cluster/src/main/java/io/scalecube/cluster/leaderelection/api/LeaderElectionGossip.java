@@ -6,7 +6,7 @@ import io.scalecube.transport.Address;
 public class LeaderElectionGossip {
 
   public static final String TYPE = "sc-leader-election";
-  
+
   private String memberId;
   private long term;
   private Address address;
@@ -19,23 +19,23 @@ public class LeaderElectionGossip {
     this.address = address;
   }
 
-  public String leaderId(){
+  public String leaderId() {
     return leaderId;
   }
-  
-  public String memberId(){
+
+  public String memberId() {
     return this.memberId;
   }
-  
-  public long term(){
+
+  public long term() {
     return this.term;
   }
-  
-  public Address address(){
+
+  public Address address() {
     return this.address;
   }
-  
-  public boolean isLeader(){
+
+  public boolean isLeader() {
     return this.memberId.equals(this.leaderId);
   }
 }

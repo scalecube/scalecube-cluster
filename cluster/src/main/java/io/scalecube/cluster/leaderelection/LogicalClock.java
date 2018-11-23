@@ -3,12 +3,11 @@ package io.scalecube.cluster.leaderelection;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * This class implements logical clock abstraction. Logical clock is a mechanism for capturing
- * chronological and causal relationships between events in a distributed system.
+ * This class implements logical clock abstraction. Logical clock is a mechanism for capturing chronological and causal
+ * relationships between events in a distributed system.
  *
  * <p>
- * This implementation provides methods to store local timestamp and update it in a thread safe and
- * non-blocking way.
+ * This implementation provides methods to store local timestamp and update it in a thread safe and non-blocking way.
  *
  */
 public class LogicalClock {
@@ -51,9 +50,8 @@ public class LogicalClock {
   }
 
   /**
-   * Increments the value of the clock taking into account that provided timestamp happens before
-   * that moment. Returns new value of the clock which happens after previous value of the clock and
-   * provided timestamp.
+   * Increments the value of the clock taking into account that provided timestamp happens before that moment. Returns
+   * new value of the clock which happens after previous value of the clock and provided timestamp.
    *
    * @param happensBeforeTimestamp timestamp value which happens in the past
    * @return New value of the clock.

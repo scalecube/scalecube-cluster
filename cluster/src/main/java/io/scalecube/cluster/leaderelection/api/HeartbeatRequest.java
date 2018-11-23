@@ -8,8 +8,8 @@ public class HeartbeatRequest {
   private String memberId;
 
   public HeartbeatRequest() {};
-  
-  
+
+
   public HeartbeatRequest(byte[] term, String memberId) {
     this.term = term;
     this.memberId = memberId;
@@ -22,10 +22,11 @@ public class HeartbeatRequest {
   public String memberId() {
     return memberId;
   }
+
   @Override
   public String toString() {
     return "HeartbeatRequest [term=" + Arrays.toString(term) + ", memberId=" + memberId + "]";
   }
-  
+
 }
 
