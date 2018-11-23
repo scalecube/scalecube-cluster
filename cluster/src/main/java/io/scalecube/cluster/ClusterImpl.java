@@ -10,6 +10,7 @@ import static io.scalecube.cluster.membership.MembershipProtocolImpl.SYNC_ACK;
 
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
+import io.scalecube.cluster.leaderelection.RaftLeaderElection;
 import io.scalecube.cluster.membership.IdGenerator;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipProtocolImpl;
@@ -346,5 +347,27 @@ final class ClusterImpl implements Cluster {
   @Override
   public boolean isShutdown() {
     return onShutdown.isDisposed();
+  }
+  
+  @Override
+  public LeaderElection leadership(String name) {
+  	
+	  return new RaftLeaderElection(this,name) {
+		
+		@Override
+		public void onBecomeLeader() {
+			
+		}
+		
+		@Override
+		public void onBecomeFollower() {
+			
+		}
+		
+		@Override
+		public void onBecomeCandidate() {
+			
+		}
+	};
   }
 }

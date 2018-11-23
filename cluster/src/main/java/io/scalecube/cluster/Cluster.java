@@ -221,4 +221,6 @@ public interface Cluster {
    * @return network emulator object
    */
   NetworkEmulator networkEmulator();
+
+  LeaderElection leadership(String name);
 }
