@@ -36,7 +36,7 @@ public abstract class RaftLeaderElection implements LeaderElection {
 
 	private static final String LEADER_ELECTION = "/sc.leader-election@";
 
-	private final StateMachine stateMachine;
+	protected final StateMachine stateMachine;
 
 	private Cluster cluster;
 

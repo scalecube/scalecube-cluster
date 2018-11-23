@@ -376,6 +376,11 @@ final class ClusterImpl implements Cluster {
 		public Flux<ElectionEvent> listen() {
 			return processor;
 		}
+
+		@Override
+		public State state() {
+			return stateMachine.currentState();
+		}
 	};
   }
 }

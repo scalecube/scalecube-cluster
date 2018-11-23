@@ -2,8 +2,8 @@ package io.scalecube.cluster.leaderelection;
 
 public class Config {
 
-	private int heartbeatInterval = 200;
-	private int timeout = 800;
+	private int heartbeatInterval = 500;
+	private int timeout = 1000;
 	private long consensusTimeout = 3000;
 
 	private Config() {
