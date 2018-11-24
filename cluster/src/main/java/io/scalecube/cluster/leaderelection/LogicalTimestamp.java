@@ -3,12 +3,13 @@ package io.scalecube.cluster.leaderelection;
 import java.io.Serializable;
 
 /**
- * This class represents specific time value of logical clock at the given moment of time. This class is immutable. It
- * provides convenient operations for working with logical time.
+ * This class represents specific time value of logical clock at the given moment of time. This
+ * class is immutable. It provides convenient operations for working with logical time.
  *
  * <p>
- * Logical timestamps assigned to each event in the distributed system obey causality, but they can not distinguish
- * concurrent events. Logical timestamps not guaranteed to be ordered or unequal for concurrent events:
+ * Logical timestamps assigned to each event in the distributed system obey causality, but they can
+ * not distinguish concurrent events. Logical timestamps not guaranteed to be ordered or unequal for
+ * concurrent events:
  * 
  * <pre>
  * E1 -> E2 => timestamp(E1) < timestamp(E2), but
@@ -16,11 +17,13 @@ import java.io.Serializable;
  * </pre>
  *
  * <p>
- * In order to identify concurrent events see {@link com.antonkharenko.logicalclocks.VectorTimestamp}.
+ * In order to identify concurrent events see
+ * {@link com.antonkharenko.logicalclocks.VectorTimestamp}.
  *
  * <p>
- * See also Leslie Lamport's paper <a href="http://research.microsoft.com/en-us/um/people/lamport/pubs/time-clocks.pdf">
- * Time, Clocks, and the Ordering of Events in a Distributed System</a> for more info.
+ * See also Leslie Lamport's paper
+ * <a href="http://research.microsoft.com/en-us/um/people/lamport/pubs/time-clocks.pdf"> Time,
+ * Clocks, and the Ordering of Events in a Distributed System</a> for more info.
  *
  */
 public final class LogicalTimestamp implements Comparable<LogicalTimestamp>, Serializable {
@@ -39,8 +42,8 @@ public final class LogicalTimestamp implements Comparable<LogicalTimestamp>, Ser
   }
 
   /**
-   * Creates instance of logical timestamp at the given logical time. Time value passed as argument should be considered
-   * to be represented in cyclic time.
+   * Creates instance of logical timestamp at the given logical time. Time value passed as argument
+   * should be considered to be represented in cyclic time.
    *
    * @param cyclicTime logical time counter value
    */
@@ -56,8 +59,8 @@ public final class LogicalTimestamp implements Comparable<LogicalTimestamp>, Ser
   }
 
   /**
-   * Converts given byte array into corresponding logical timestamp. It is supposed that given byte array was produced
-   * by {@link LogicalTimestamp#toBytes()} method.
+   * Converts given byte array into corresponding logical timestamp. It is supposed that given byte
+   * array was produced by {@link LogicalTimestamp#toBytes()} method.
    */
   public static LogicalTimestamp fromBytes(byte[] bytes) {
     long count = 0;
@@ -69,8 +72,8 @@ public final class LogicalTimestamp implements Comparable<LogicalTimestamp>, Ser
   }
 
   /**
-   * Converts given long value into corresponding logical timestamp. It is supposed that given long was produced by
-   * {@link LogicalTimestamp#toLong()} method.
+   * Converts given long value into corresponding logical timestamp. It is supposed that given long
+   * was produced by {@link LogicalTimestamp#toLong()} method.
    */
   public static LogicalTimestamp fromLong(long longValue) {
     return new LogicalTimestamp(longValue);
@@ -89,8 +92,8 @@ public final class LogicalTimestamp implements Comparable<LogicalTimestamp>, Ser
   }
 
   /**
-   * Converts this timestamp into a long value. It can be converted back by {@link LogicalTimestamp#fromBytes(byte[])}
-   * method.
+   * Converts this timestamp into a long value. It can be converted back by
+   * {@link LogicalTimestamp#fromBytes(byte[])} method.
    */
   public long toLong() {
     return cyclicTime;
@@ -114,9 +117,10 @@ public final class LogicalTimestamp implements Comparable<LogicalTimestamp>, Ser
    * Compares two logical timestamps.
    *
    * @param that the logical timestamp to be compared.
-   * @return the value {@code 0} if this timestamp is happens at same logical time to the argument timestamp; a value
-   *         less than {@code 0} if this timestamp is smaller than the argument timestamp; and a value greater than
-   *         {@code 0} if this timestamp is bigger than the argument timestamp.
+   * @return the value {@code 0} if this timestamp is happens at same logical time to the argument
+   *         timestamp; a value less than {@code 0} if this timestamp is smaller than the argument
+   *         timestamp; and a value greater than {@code 0} if this timestamp is bigger than the
+   *         argument timestamp.
    */
   @Override
   public int compareTo(LogicalTimestamp that) {

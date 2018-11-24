@@ -88,8 +88,8 @@ public class StateMachine {
         });
 
       } else {
-        futureState.completeExceptionally(
-            new IllegalStateException("not allowed tranistion from: " + currentState.get() + " to: " + newState));
+        futureState.completeExceptionally(new IllegalStateException(
+            "not allowed tranistion from: " + currentState.get() + " to: " + newState));
       }
     }
     return futureState;

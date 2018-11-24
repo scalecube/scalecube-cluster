@@ -21,7 +21,7 @@ public class JobScheduler {
 
   public void start(int millis) {
     if (disposables.get() == null || disposables.get().isDisposed()) {
-      disposables.set( Flux.interval(Duration.ofMillis(millis)).subscribe(callable));
+      disposables.set(Flux.interval(Duration.ofMillis(millis)).subscribe(callable));
     }
   }
 
