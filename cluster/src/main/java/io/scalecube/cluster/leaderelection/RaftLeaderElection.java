@@ -80,9 +80,13 @@ public abstract class RaftLeaderElection implements LeaderElection {
     this.config = config;
     this.serviceName = serviceName;
     this.timeout = new Random().nextInt(config.timeout() - (config.timeout() / 2)) + (config.timeout() / 2);
-    this.stateMachine = StateMachine.builder().init(State.INACTIVE).addTransition(State.INACTIVE, State.FOLLOWER)
-        .addTransition(State.FOLLOWER, State.CANDIDATE).addTransition(State.CANDIDATE, State.LEADER)
-        .addTransition(State.LEADER, State.FOLLOWER).build();
+    
+    this.stateMachine = StateMachine.builder().init(State.INACTIVE)
+        .addTransition(State.INACTIVE, State.FOLLOWER)
+        .addTransition(State.FOLLOWER, State.CANDIDATE)
+        .addTransition(State.CANDIDATE, State.LEADER)
+        .addTransition(State.LEADER, State.FOLLOWER)
+        .build();
 
     this.stateMachine.on(State.FOLLOWER, becomeFollower());
     this.stateMachine.on(State.CANDIDATE, becomeCandidate());
