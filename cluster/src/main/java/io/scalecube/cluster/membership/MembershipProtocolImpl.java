@@ -407,7 +407,12 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private Message prepareSyncDataMsg(String qualifier, String cid) {
     List<MembershipRecord> membershipRecords = new ArrayList<>(membershipTable.values());
     SyncData syncData = new SyncData(membershipRecords, config.getSyncGroup());
-    return Message.withData(syncData).qualifier(qualifier).correlationId(cid).build();
+    Member localMember = member();
+    return Message.withData(syncData)
+        .qualifier(qualifier)
+        .correlationId(cid)
+        .sender(localMember.address())
+        .build();
   }
 
   private void syncMembership(SyncData syncData, boolean initial) {

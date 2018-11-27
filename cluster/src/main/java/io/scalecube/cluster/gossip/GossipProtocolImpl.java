@@ -266,8 +266,12 @@ public final class GossipProtocolImpl implements GossipProtocol {
   }
 
   private Message buildGossipRequestMessage(List<Gossip> gossipsToSend) {
-    GossipRequest gossipReqData = new GossipRequest(gossipsToSend, memberSupplier.get().id());
-    return Message.withData(gossipReqData).qualifier(GOSSIP_REQ).build();
+    Member localMember = memberSupplier.get();
+    GossipRequest gossipReqData = new GossipRequest(gossipsToSend, localMember.id());
+    return Message.withData(gossipReqData)
+        .qualifier(GOSSIP_REQ)
+        .sender(localMember.address())
+        .build();
   }
 
   private void sweepGossips() {
