@@ -1,25 +1,22 @@
-language: java
 addons:
   apt:
     packages:
     - libxml-xpath-perl
 sudo: required
-jdk:
-- oraclejdk8
+language: java
+jdk: openjdk8
 before_install:
 - "./src/main/scripts/ci/before-install.sh"
 - "./src/main/scripts/cd/before-deploy.sh"
-
-after_success:
-- java -jar ~/codacy-coverage-reporter-assembly.jar report -l Java -r target/site/jacoco/jacoco.xml
-
+after_success: "./src/main/scripts/ci/after-success.sh"
 deploy:
 - provider: script
-  script: mvn -P release deploy -DskipTests=true -B -V -s travis-settings.xml
+  script:
+  - "./src/main/scripts/cd/deploy.sh"
   on:
     branch: develop
 - provider: script
   script:
-  - "./src/main/scripts/cd/deploy.sh"
+  - "./src/main/scripts/cd/release.sh"
   on:
     branch: master
