@@ -61,7 +61,8 @@ public class TransportSendOrderTest extends BaseTest {
 
       long startAt = System.currentTimeMillis();
       for (int j = 0; j < sentPerIteration; j++) {
-        client.send(server.address(), Message.fromQualifier("q" + j)).subscribe();
+        Message message = Message.withQualifier("q" + j).sender(client.address()).build();
+        client.send(server.address(), message).subscribe();
       }
       latch.await(20, TimeUnit.SECONDS);
       long iterationTime = System.currentTimeMillis() - startAt;
@@ -109,8 +110,9 @@ public class TransportSendOrderTest extends BaseTest {
       long startAt = System.currentTimeMillis();
       for (int j = 0; j < sentPerIteration; j++) {
         long sentAt = System.currentTimeMillis();
+        Message message = Message.withQualifier("q" + j).sender(client.address()).build();
         client
-            .send(server.address(), Message.fromQualifier("q" + j))
+            .send(server.address(), message)
             .subscribe(
                 avoid -> iterSentTimeSeries.add(System.currentTimeMillis() - sentAt),
                 th ->
@@ -220,9 +222,12 @@ public class TransportSendOrderTest extends BaseTest {
       for (int j = 0; j < total; j++) {
         String correlationId = id + "/" + j;
         try {
-          client
-              .send(address, Message.withQualifier("q").correlationId(correlationId).build())
-              .block(Duration.ofSeconds(3));
+          Message message =
+              Message.withQualifier("q")
+                  .correlationId(correlationId)
+                  .sender(client.address())
+                  .build();
+          client.send(address, message).block(Duration.ofSeconds(3));
         } catch (Exception e) {
           LOGGER.error("Failed to send message: j = {} id = {}", j, id, e);
           throw Exceptions.propagate(e);

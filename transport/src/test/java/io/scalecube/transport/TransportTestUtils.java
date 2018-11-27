@@ -50,12 +50,13 @@ public final class TransportTestUtils {
    * @param msg request
    */
   public static Mono<Void> send(final Transport from, final Address to, final Message msg) {
-    return from.send(to, msg)
+    Message message = Message.with(msg).sender(from.address()).build();
+    return from.send(to, message)
         .doOnError(
             th ->
                 LOGGER.error(
                     "Failed to send {} to {} from transport: {}, cause: {}",
-                    msg,
+                    message,
                     to,
                     from,
                     th.getCause()));

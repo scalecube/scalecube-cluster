@@ -17,7 +17,6 @@ import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.NetworkEmulator;
 import io.scalecube.transport.Transport;
-import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -88,7 +87,7 @@ final class ClusterImpl implements Cluster {
               transport = boundTransport;
 
               // Prepare local cluster member
-              final Member localMember = createLocalMember();
+              final Member localMember = createLocalMember(boundTransport.address().port());
 
               onMemberAdded(localMember); // store local member at this phase
 
@@ -126,7 +125,7 @@ final class ClusterImpl implements Cluster {
 
               return membership.start();
             })
-        .then(Mono.just(ClusterImpl.this));
+        .thenReturn(this);
   }
 
   /**
@@ -134,23 +133,20 @@ final class ClusterImpl implements Cluster {
    * overriden from config variables. See {@link io.scalecube.cluster.ClusterConfig#memberHost},
    * {@link ClusterConfig#memberPort}.
    *
+   * @param listenPort transport listen port
    * @return local cluster member with cluster address and cluster member id
    */
-  private Member createLocalMember() {
-    String id = IdGenerator.generateId();
-
-    InetAddress listenAddress = Address.getLocalIpAddress();
-    int listenPort = transport.address().port();
-
-    String memberHost = config.getMemberHost();
-    Integer memberPort = config.getMemberPort();
-
+  private Member createLocalMember(int listenPort) {
     Address memberAddress =
-        Optional.ofNullable(memberHost)
-            .map(host -> Address.create(host, Optional.ofNullable(memberPort).orElse(listenPort)))
-            .orElseGet(() -> Address.create(listenAddress.getHostAddress(), listenPort));
+        Optional.ofNullable(config.getMemberHost())
+            .map(
+                memberHost ->
+                    Address.create(
+                        memberHost, Optional.ofNullable(config.getMemberPort()).orElse(listenPort)))
+            .orElseGet(
+                () -> Address.create(Address.getLocalIpAddress().getHostAddress(), listenPort));
 
-    return new Member(id, memberAddress, config.getMetadata());
+    return new Member(IdGenerator.generateId(), memberAddress, config.getMetadata());
   }
 
   /**

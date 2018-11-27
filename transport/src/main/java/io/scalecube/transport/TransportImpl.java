@@ -6,7 +6,6 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
 import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
 import java.net.InetSocketAddress;
-import java.net.SocketAddress;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -44,38 +43,71 @@ final class TransportImpl implements Transport {
   private final LoopResources loopResources;
 
   // Subject
-  private final DirectProcessor<Message> messagesSubject = DirectProcessor.create();
-  private final FluxSink<Message> messageSink = messagesSubject.sink();
+  private final DirectProcessor<Message> messagesSubject;
+  private final FluxSink<Message> messageSink;
 
-  private final Map<Address, Mono<? extends Connection>> connections = new ConcurrentHashMap<>();
+  private final Map<Address, Mono<? extends Connection>> connections;
 
   // Pipeline
-  private final ExceptionHandler exceptionHandler = new ExceptionHandler();
-  private final InboundChannelInitializer inboundPipeline = new InboundChannelInitializer();
-  private final OutboundChannelInitializer outboundPipeline = new OutboundChannelInitializer();
+  private final ExceptionHandler exceptionHandler;
+  private final InboundChannelInitializer inboundPipeline;
+  private final OutboundChannelInitializer outboundPipeline;
 
   // Close handler
-  private final MonoProcessor<Void> onClose = MonoProcessor.create();
+  private final MonoProcessor<Void> onClose;
 
   // Network emulator
-  private NetworkEmulator networkEmulator;
+  private final NetworkEmulator networkEmulator;
 
-  private Address address;
-  private DisposableServer server;
+  // Server
+  private final Address address;
+  private final DisposableServer server;
 
   /**
-   * TransportImpl constructor with cofig as parameter.
+   * Constructor with cofig as parameter.
    *
    * @param config transport configuration
    */
   public TransportImpl(TransportConfig config) {
     this.config = Objects.requireNonNull(config);
-    this.loopResources = LoopResources.create("cluster-transport", 1, 1, true);
+    this.loopResources = LoopResources.create("sc-cluster-io", 1, 1, true);
+    this.messagesSubject = DirectProcessor.create();
+    this.messageSink = messagesSubject.sink();
+    this.connections = new ConcurrentHashMap<>();
+    this.exceptionHandler = new ExceptionHandler();
+    this.inboundPipeline = new InboundChannelInitializer();
+    this.outboundPipeline = new OutboundChannelInitializer();
+    this.onClose = MonoProcessor.create();
+    this.networkEmulator = null;
+    this.address = null;
+    this.server = null;
   }
 
-  private static Address toAddress(SocketAddress address) {
-    InetSocketAddress inetAddress = ((InetSocketAddress) address);
-    return Address.create(inetAddress.getHostString(), inetAddress.getPort());
+  /**
+   * Copying constructor.
+   *
+   * @param address server addtess
+   * @param server bound server
+   * @param networkEmulator network emulator
+   * @param other instance of transport to copy from
+   */
+  private TransportImpl(
+      Address address,
+      DisposableServer server,
+      NetworkEmulator networkEmulator,
+      TransportImpl other) {
+    this.address = Objects.requireNonNull(address);
+    this.server = Objects.requireNonNull(server);
+    this.networkEmulator = Objects.requireNonNull(networkEmulator);
+    this.config = other.config;
+    this.loopResources = other.loopResources;
+    this.messagesSubject = other.messagesSubject;
+    this.messageSink = other.messageSink;
+    this.connections = other.connections;
+    this.exceptionHandler = other.exceptionHandler;
+    this.inboundPipeline = other.inboundPipeline;
+    this.outboundPipeline = other.outboundPipeline;
+    this.onClose = other.onClose;
   }
 
   /**
@@ -87,8 +119,13 @@ final class TransportImpl implements Transport {
     return newTcpServer()
         .handle(this::onMessage)
         .bind()
-        .doOnSuccessOrError(this::onBind)
-        .thenReturn(this);
+        .doOnSuccess(
+            server -> LOGGER.info("Bound cluster transport on {}:{}", server.host(), server.port()))
+        .doOnError(
+            ex ->
+                LOGGER.error(
+                    "Failed to bind cluster transport on port={}, cause: {}", config.getPort(), ex))
+        .map(this::onBind);
   }
 
   @Override
@@ -133,16 +170,10 @@ final class TransportImpl implements Transport {
     return getOrConnect(address)
         .flatMap(conn -> send0(conn, message, address))
         .then()
-        .doOnError(
-            ex ->
-                LOGGER.debug(
-                    "Failed to send {} from {} to {}, cause: {}",
-                    message,
-                    this.address,
-                    address,
-                    ex));
+        .doOnError(ex -> LOGGER.debug("Failed to send {} to {}, cause: {}", message, address, ex));
   }
 
+  @SuppressWarnings("unused")
   private Mono<Void> onMessage(NettyInbound in, NettyOutbound out) {
     return in.receive() //
         .retain()
@@ -151,21 +182,15 @@ final class TransportImpl implements Transport {
         .then();
   }
 
-  private void onBind(DisposableServer s, Throwable ex) {
-    if (s != null) {
-      this.server = s;
-      address = toAddress(s.address());
-      networkEmulator = new NetworkEmulator(address, config.isUseNetworkEmulator());
-      LOGGER.info("Bound cluster transport on: {}", address);
-    }
-    if (ex != null) {
-      LOGGER.error("Failed to bind cluster transport on port={}, cause: {}", config.getPort(), ex);
-    }
+  private TransportImpl onBind(DisposableServer server) {
+    Address address = Address.create(server.address().getHostString(), server.address().getPort());
+    NetworkEmulator networkEmulator = new NetworkEmulator(address, config.isUseNetworkEmulator());
+    return new TransportImpl(address, server, networkEmulator, this);
   }
 
   private Mono<? extends Void> send0(Connection conn, Message message, Address address) {
-    // set local address as outgoing address
-    message.setSender(this.address);
+    // check sender not null
+    Objects.requireNonNull(message.sender(), "sender must be not null");
     // do send
     return conn.outbound()
         .options(SendOptions::flushOnEach)
@@ -192,13 +217,7 @@ final class TransportImpl implements Transport {
               LOGGER.debug("Disconnected from: {} {}", address, c.channel());
               connections.remove(address);
             })
-        .doOnConnected(
-            c ->
-                LOGGER.debug(
-                    "Connected from {} to {}: {}",
-                    TransportImpl.this.address,
-                    address,
-                    c.channel()))
+        .doOnConnected(c -> LOGGER.debug("Connected to {}: {}", address, c.channel()))
         .connect()
         .doOnError(
             t -> {

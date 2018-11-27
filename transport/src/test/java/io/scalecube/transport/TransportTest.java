@@ -62,9 +62,9 @@ public class TransportTest extends BaseTest {
     client = createTransport();
     // create transport with wrong host
     try {
-      client
-          .send(Address.from("wronghost:49255"), Message.fromData("q"))
-          .block(Duration.ofSeconds(5));
+      Address address = Address.from("wronghost:49255");
+      Message message = Message.withData("q").sender(client.address()).build();
+      client.send(address, message).block(Duration.ofSeconds(5));
       fail();
     } catch (Exception e) {
       assertEquals(
@@ -82,7 +82,8 @@ public class TransportTest extends BaseTest {
 
       // create transport and don't wait just send message
       try {
-        client.send(serverAddress, Message.fromData("q")).block(Duration.ofSeconds(3));
+        Message msg = Message.withData("q").sender(client.address()).build();
+        client.send(serverAddress, msg).block(Duration.ofSeconds(3));
         fail();
       } catch (Exception e) {
         assertTrue(e.getCause() instanceof IOException, "Unexpected exception type: " + e);
@@ -90,7 +91,8 @@ public class TransportTest extends BaseTest {
 
       // send second message: no connection yet and it's clear that there's no connection
       try {
-        client.send(serverAddress, Message.fromData("q")).block(Duration.ofSeconds(3));
+        Message msg = Message.withData("q").sender(client.address()).build();
+        client.send(serverAddress, msg).block(Duration.ofSeconds(3));
         fail();
       } catch (Exception e) {
         assertTrue(e.getCause() instanceof IOException, "Unexpected exception type: " + e);
@@ -138,7 +140,8 @@ public class TransportTest extends BaseTest {
 
     int total = 1000;
     for (int i = 0; i < total; i++) {
-      client.send(server.address(), Message.fromData("q" + i)).subscribe();
+      Message message = Message.withData("q" + i).sender(client.address()).build();
+      client.send(server.address(), message).subscribe();
     }
 
     Thread.sleep(1000);
@@ -160,7 +163,10 @@ public class TransportTest extends BaseTest {
         .subscribe(
             messages -> {
               for (Message message : messages) {
-                Message echo = Message.fromData("echo/" + message.qualifier());
+                Message echo =
+                    Message.withData("echo/" + message.qualifier())
+                        .sender(server.address())
+                        .build();
                 server.send(message.sender(), echo).subscribe();
               }
             });
@@ -168,8 +174,11 @@ public class TransportTest extends BaseTest {
     final CompletableFuture<List<Message>> targetFuture = new CompletableFuture<>();
     client.listen().buffer(2).subscribe(targetFuture::complete);
 
-    client.send(server.address(), Message.fromData("q1")).subscribe();
-    client.send(server.address(), Message.fromData("q2")).subscribe();
+    Message q1 = Message.withData("q1").sender(client.address()).build();
+    Message q2 = Message.withData("q2").sender(client.address()).build();
+
+    client.send(server.address(), q1).subscribe();
+    client.send(server.address(), q2).subscribe();
 
     List<Message> target = targetFuture.get(1, TimeUnit.SECONDS);
     assertNotNull(target);
@@ -187,7 +196,10 @@ public class TransportTest extends BaseTest {
         .subscribe(
             messages -> {
               for (Message message : messages) {
-                Message echo = Message.fromData("echo/" + message.qualifier());
+                Message echo =
+                    Message.withData("echo/" + message.qualifier())
+                        .sender(server.address())
+                        .build();
                 server.send(message.sender(), echo).subscribe();
               }
             });
@@ -195,8 +207,11 @@ public class TransportTest extends BaseTest {
     final CompletableFuture<List<Message>> targetFuture = new CompletableFuture<>();
     client.listen().buffer(2).subscribe(targetFuture::complete);
 
-    client.send(server.address(), Message.fromData("q1")).subscribe();
-    client.send(server.address(), Message.fromData("q2")).subscribe();
+    Message q1 = Message.withData("q1").sender(client.address()).build();
+    Message q2 = Message.withData("q2").sender(client.address()).build();
+
+    client.send(server.address(), q1).subscribe();
+    client.send(server.address(), q2).subscribe();
 
     List<Message> target = targetFuture.get(1, TimeUnit.SECONDS);
     assertNotNull(target);
@@ -220,7 +235,9 @@ public class TransportTest extends BaseTest {
             },
             () -> completeLatch.complete(true));
 
-    client.send(server.address(), Message.fromData("q")).block(Duration.ofSeconds(1));
+    client
+        .send(server.address(), Message.withData("q").sender(client.address()).build())
+        .block(Duration.ofSeconds(1));
 
     assertNotNull(messageLatch.get(1, TimeUnit.SECONDS));
 
@@ -243,7 +260,10 @@ public class TransportTest extends BaseTest {
                 throw new RuntimeException("" + message);
               }
               if (qualifier.startsWith("q")) {
-                Message echo = Message.fromData("echo/" + message.qualifier());
+                Message echo =
+                    Message.withData("echo/" + message.qualifier())
+                        .sender(server.address())
+                        .build();
                 server.send(message.sender(), echo).subscribe();
               }
             },
@@ -252,7 +272,8 @@ public class TransportTest extends BaseTest {
     // send "throw" and raise exception on server subscriber
     final CompletableFuture<Message> messageFuture0 = new CompletableFuture<>();
     client.listen().subscribe(messageFuture0::complete);
-    client.send(server.address(), Message.fromData("throw")).subscribe();
+    Message message = Message.withData("throw").sender(client.address()).build();
+    client.send(server.address(), message).subscribe();
     Message message0 = null;
     try {
       message0 = messageFuture0.get(1, TimeUnit.SECONDS);
@@ -264,7 +285,7 @@ public class TransportTest extends BaseTest {
     // send normal message and check whether server subscriber is broken (no response)
     final CompletableFuture<Message> messageFuture1 = new CompletableFuture<>();
     client.listen().subscribe(messageFuture1::complete);
-    client.send(server.address(), Message.fromData("q"));
+    client.send(server.address(), Message.withData("q").sender(client.address()).build());
     Message transportMessage1 = null;
     try {
       transportMessage1 = messageFuture1.get(1, TimeUnit.SECONDS);

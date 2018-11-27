@@ -134,7 +134,12 @@ public final class FailureDetectorImpl implements FailureDetector {
     Member localMember = memberSupplier.get();
     String cid = localMember.id() + "-" + Long.toString(period);
     PingData pingData = new PingData(localMember, pingMember);
-    Message pingMsg = Message.withData(pingData).qualifier(PING).correlationId(cid).build();
+    Message pingMsg =
+        Message.withData(pingData)
+            .qualifier(PING)
+            .correlationId(cid)
+            .sender(localMember.address())
+            .build();
 
     transport
         .listen()
@@ -219,7 +224,11 @@ public final class FailureDetectorImpl implements FailureDetector {
 
     PingData pingReqData = new PingData(localMember, pingMember);
     Message pingReqMsg =
-        Message.withData(pingReqData).qualifier(PING_REQ).correlationId(cid).build();
+        Message.withData(pingReqData)
+            .qualifier(PING_REQ)
+            .correlationId(cid)
+            .sender(localMember.address())
+            .build();
     LOGGER.trace("Send PingReq[{}] to {} for {}", period, pingReqMembers, pingMember);
 
     Flux.fromIterable(pingReqMembers)
@@ -256,7 +265,11 @@ public final class FailureDetectorImpl implements FailureDetector {
     }
     String correlationId = message.correlationId();
     Message ackMessage =
-        Message.withData(data).qualifier(PING_ACK).correlationId(correlationId).build();
+        Message.withData(data)
+            .qualifier(PING_ACK)
+            .correlationId(correlationId)
+            .sender(localMember.address())
+            .build();
     LOGGER.trace("Send PingAck to {}", data.getFrom().address());
     transport
         .send(data.getFrom().address(), ackMessage)
@@ -279,8 +292,13 @@ public final class FailureDetectorImpl implements FailureDetector {
     Member originalIssuer = data.getFrom();
     String correlationId = message.correlationId();
     PingData pingReqData = new PingData(memberSupplier.get(), target, originalIssuer);
+    Member localMember = memberSupplier.get();
     Message pingMessage =
-        Message.withData(pingReqData).qualifier(PING).correlationId(correlationId).build();
+        Message.withData(pingReqData)
+            .qualifier(PING)
+            .correlationId(correlationId)
+            .sender(localMember.address())
+            .build();
     LOGGER.trace("Send transit Ping to {}", target.address());
     transport
         .send(target.address(), pingMessage)
@@ -305,8 +323,13 @@ public final class FailureDetectorImpl implements FailureDetector {
     Member target = data.getOriginalIssuer();
     String correlationId = message.correlationId();
     PingData originalAckData = new PingData(target, data.getTo());
+    Member localMember = memberSupplier.get();
     Message originalAckMessage =
-        Message.withData(originalAckData).qualifier(PING_ACK).correlationId(correlationId).build();
+        Message.withData(originalAckData)
+            .qualifier(PING_ACK)
+            .correlationId(correlationId)
+            .sender(localMember.address())
+            .build();
     LOGGER.trace("Resend transit PingAck to {}", target.address());
     transport
         .send(target.address(), originalAckMessage)
