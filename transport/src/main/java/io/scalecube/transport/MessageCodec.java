@@ -2,9 +2,11 @@ package io.scalecube.transport;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectMapper.DefaultTyping;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -62,6 +64,7 @@ public final class MessageCodec {
     mapper.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
     mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
     mapper.configure(SerializationFeature.WRITE_ENUMS_USING_TO_STRING, true);
+    mapper.enableDefaultTyping(DefaultTyping.JAVA_LANG_OBJECT, JsonTypeInfo.As.PROPERTY);
     return mapper;
   }
 }
