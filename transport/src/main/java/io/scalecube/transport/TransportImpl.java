@@ -3,8 +3,7 @@ package io.scalecube.transport;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
-import io.netty.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
-import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
+import io.netty.handler.codec.json.JsonObjectDecoder;
 import java.net.InetSocketAddress;
 import java.util.Map;
 import java.util.Objects;
@@ -33,7 +32,7 @@ import reactor.netty.tcp.TcpServer;
 
 /**
  * Default transport implementation based on reactor-netty tcp client and server implementation and
- * protobuf codec.
+ * jackson codec.
  */
 final class TransportImpl implements Transport {
 
@@ -294,7 +293,7 @@ final class TransportImpl implements Transport {
     @Override
     public void accept(ConnectionObserver connectionObserver, Channel channel) {
       ChannelPipeline pipeline = channel.pipeline();
-      pipeline.addLast(new ProtobufVarint32FrameDecoder());
+      pipeline.addLast(new JsonObjectDecoder());
       pipeline.addLast(exceptionHandler);
     }
   }
@@ -305,7 +304,7 @@ final class TransportImpl implements Transport {
     @Override
     public void accept(ConnectionObserver connectionObserver, Channel channel) {
       ChannelPipeline pipeline = channel.pipeline();
-      pipeline.addLast(new ProtobufVarint32LengthFieldPrepender());
+      pipeline.addLast(new JsonObjectDecoder());
       pipeline.addLast(exceptionHandler);
     }
   }
