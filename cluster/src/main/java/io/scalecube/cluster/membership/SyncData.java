@@ -1,6 +1,5 @@
 package io.scalecube.cluster.membership;
 
-import io.protostuff.Tag;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -12,14 +11,15 @@ import java.util.List;
 final class SyncData {
 
   /** Full cluster membership table. */
-  @Tag(1)
-  private final List<MembershipRecord> membership;
+  private List<MembershipRecord> membership;
 
   /**
    * Sort of cluster identifier. Only members in the same sync group allowed to join into cluster.
    */
-  @Tag(2)
-  private final String syncGroup;
+  private String syncGroup;
+
+  /** Instantiates empty sync data for deserialization purpose. */
+  SyncData() {}
 
   public SyncData(Collection<MembershipRecord> membership, String syncGroup) {
     this.membership = new ArrayList<>(membership);

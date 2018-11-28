@@ -86,38 +86,6 @@
         <version>${slf4j.version}</version>
       </dependency>
 
-      <!-- Protostuff/Protobuf -->
-      <dependency>
-        <groupId>io.protostuff</groupId>
-        <artifactId>protostuff-api</artifactId>
-        <version>${protostuff.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.protostuff</groupId>
-        <artifactId>protostuff-runtime</artifactId>
-        <version>${protostuff.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.protostuff</groupId>
-        <artifactId>protostuff-core</artifactId>
-        <version>${protostuff.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.protostuff</groupId>
-        <artifactId>protostuff-runtime-registry</artifactId>
-        <version>${protostuff.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.protostuff</groupId>
-        <artifactId>protostuff-collectionschema</artifactId>
-        <version>${protostuff.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>com.google.protobuf</groupId>
-        <artifactId>protobuf-java</artifactId>
-        <version>${protobuf.version}</version>
-      </dependency>
-
       <!-- Reactor -->
       <dependency>
         <groupId>io.projectreactor</groupId>

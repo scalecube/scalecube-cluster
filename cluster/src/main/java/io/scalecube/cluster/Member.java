@@ -12,9 +12,12 @@ import java.util.Optional;
  */
 public final class Member {
 
-  private final String id;
-  private final Address address;
-  private final Map<String, String> metadata;
+  private String id;
+  private Address address;
+  private Map<String, String> metadata;
+
+  /** Instantiates empty member for deserialization purpose. */
+  Member() {}
 
   /**
    * Create instance of cluster member with given id, address and empty metadata.

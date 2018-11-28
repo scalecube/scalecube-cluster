@@ -6,8 +6,11 @@ import java.util.Objects;
 /** Data model for gossip, include gossip id, qualifier and object need to disseminate. */
 final class Gossip {
 
-  private final String gossipId;
-  private final Message message;
+  private String gossipId;
+  private Message message;
+
+  /** Instantiates empty gossip for deserialization purpose. */
+  Gossip() {}
 
   public Gossip(String gossipId, Message message) {
     this.gossipId = Objects.requireNonNull(gossipId);
