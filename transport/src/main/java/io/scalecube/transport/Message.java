@@ -37,9 +37,9 @@ public final class Message {
   Message() {}
 
   private Message(Builder builder) {
-    setData(builder.data);
-    setHeaders(builder.headers);
-    setSender(builder.sender);
+    this.data = builder.data;
+    this.headers = Collections.unmodifiableMap(Objects.requireNonNull(builder.headers));
+    this.sender = builder.sender;
   }
 
   /**
@@ -129,33 +129,6 @@ public final class Message {
    */
   public static Builder builder() {
     return Builder.getInstance();
-  }
-
-  /**
-   * Sets data for deserialization purpose.
-   *
-   * @param data data to set
-   */
-  void setData(Object data) {
-    this.data = data;
-  }
-
-  /**
-   * Sets headers for deserialization purpose.
-   *
-   * @param headers headers to set
-   */
-  void setHeaders(Map<String, String> headers) {
-    this.headers = Collections.unmodifiableMap(Objects.requireNonNull(headers));
-  }
-
-  /**
-   * Sets sender and used by transport send method.
-   *
-   * @param sender address from where message was sent
-   */
-  void setSender(Address sender) {
-    this.sender = sender;
   }
 
   /**
