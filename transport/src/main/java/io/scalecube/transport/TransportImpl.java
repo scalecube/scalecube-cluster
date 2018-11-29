@@ -9,7 +9,8 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.EncoderException;
-import io.netty.handler.codec.json.JsonObjectDecoder;
+import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import io.netty.handler.codec.LengthFieldPrepender;
 import java.net.InetSocketAddress;
 import java.util.Map;
 import java.util.Objects;
@@ -319,7 +320,7 @@ final class TransportImpl implements Transport {
     @Override
     public void accept(ConnectionObserver connectionObserver, Channel channel) {
       ChannelPipeline pipeline = channel.pipeline();
-      pipeline.addLast(new JsonObjectDecoder());
+      pipeline.addLast(new LengthFieldBasedFrameDecoder(32768, 0, 2, 0, 2));
       pipeline.addLast(exceptionHandler);
     }
   }
@@ -330,7 +331,7 @@ final class TransportImpl implements Transport {
     @Override
     public void accept(ConnectionObserver connectionObserver, Channel channel) {
       ChannelPipeline pipeline = channel.pipeline();
-      pipeline.addLast(new JsonObjectDecoder());
+      pipeline.addLast(new LengthFieldPrepender(2));
       pipeline.addLast(exceptionHandler);
     }
   }
