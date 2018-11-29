@@ -8,12 +8,6 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectMapper.DefaultTyping;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
-import io.netty.buffer.ByteBufInputStream;
-import io.netty.buffer.ByteBufOutputStream;
-import io.netty.handler.codec.DecoderException;
-import io.netty.handler.codec.EncoderException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
@@ -23,36 +17,23 @@ public final class MessageCodec {
   private static final ObjectMapper mapper = initMapper();
 
   /**
-   * Deserializes message from given byte buffer.
+   * Deserializes message from given input stream.
    *
-   * @param bb byte buffer
-   * @return message from ByteBuf
+   * @param stream input stream
+   * @return message from the input stream
    */
-  public static Message deserialize(ByteBuf bb) {
-    try (ByteBufInputStream stream = new ByteBufInputStream(bb, true)) {
-      return mapper.readValue((InputStream) stream, Message.class);
-    } catch (Exception e) {
-      //      ReferenceCountUtil.safeRelease(bb);//todo ?
-      throw new DecoderException(e.getMessage(), e);
-    }
+  public static Message deserialize(InputStream stream) throws Exception {
+    return mapper.readValue(stream, Message.class);
   }
 
   /**
-   * Serializes given message into byte buffer.
+   * Serializes given message into given output stream.
    *
-   * @param message message to serialize
-   * @return message as ByteBuf
+   * @param message message
+   * @param stream output stream
    */
-  public static ByteBuf serialize(Message message) {
-    ByteBuf bb = ByteBufAllocator.DEFAULT.buffer();
-    ByteBufOutputStream stream = new ByteBufOutputStream(bb);
-    try {
-      mapper.writeValue((OutputStream) stream, message);
-    } catch (Exception e) {
-      bb.release();
-      throw new EncoderException(e.getMessage(), e);
-    }
-    return bb;
+  public static void serialize(Message message, OutputStream stream) throws Exception {
+    mapper.writeValue(stream, message);
   }
 
   private static ObjectMapper initMapper() {

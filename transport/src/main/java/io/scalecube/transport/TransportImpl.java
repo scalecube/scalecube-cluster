@@ -1,8 +1,14 @@
 package io.scalecube.transport;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
+import io.netty.buffer.ByteBufInputStream;
+import io.netty.buffer.ByteBufOutputStream;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
+import io.netty.handler.codec.DecoderException;
+import io.netty.handler.codec.EncoderException;
 import io.netty.handler.codec.json.JsonObjectDecoder;
 import java.net.InetSocketAddress;
 import java.util.Map;
@@ -176,9 +182,17 @@ final class TransportImpl implements Transport {
   private Mono<Void> onMessage(NettyInbound in, NettyOutbound out) {
     return in.receive() //
         .retain()
-        .map(MessageCodec::deserialize)
+        .map(this::toMessage)
         .doOnNext(messageSink::next)
         .then();
+  }
+
+  private Message toMessage(ByteBuf byteBuf) {
+    try (ByteBufInputStream stream = new ByteBufInputStream(byteBuf, true)) {
+      return MessageCodec.deserialize(stream);
+    } catch (Exception e) {
+      throw new DecoderException(e.getMessage(), e);
+    }
   }
 
   private TransportImpl onBind(DisposableServer server) {
@@ -197,8 +211,20 @@ final class TransportImpl implements Transport {
             Mono.just(message)
                 .flatMap(msg -> networkEmulator.tryFail(msg, address))
                 .flatMap(msg -> networkEmulator.tryDelay(msg, address))
-                .map(MessageCodec::serialize))
+                .map(this::toByteBuf))
         .then();
+  }
+
+  private ByteBuf toByteBuf(Message message) {
+    ByteBuf bb = ByteBufAllocator.DEFAULT.buffer();
+    ByteBufOutputStream stream = new ByteBufOutputStream(bb);
+    try {
+      MessageCodec.serialize(message, stream);
+    } catch (Exception e) {
+      bb.release();
+      throw new EncoderException(e.getMessage(), e);
+    }
+    return bb;
   }
 
   private Mono<Connection> getOrConnect(Address address) {

@@ -1,17 +1,16 @@
 package io.scalecube.cluster.gossip;
 
-import static io.netty.buffer.Unpooled.copiedBuffer;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.util.ReferenceCountUtil;
 import io.scalecube.cluster.BaseTest;
 import io.scalecube.cluster.Member;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.MessageCodec;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -42,15 +41,13 @@ public class GossipRequestTest extends BaseTest {
     Message message =
         Message.withData(new GossipRequest(gossips, from.id())).correlationId("CORR_ID").build();
 
-    ByteBuf bb = MessageCodec.serialize(message);
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    MessageCodec.serialize(message, out);
 
-    assertTrue(bb.readableBytes() > 0);
+    assertTrue(out.size() > 0);
 
-    ByteBuf input = copiedBuffer(bb);
-    ReferenceCountUtil.releaseLater(input);
-    ReferenceCountUtil.releaseLater(bb);
-
-    Message deserializedMessage = MessageCodec.deserialize(input);
+    Message deserializedMessage =
+        MessageCodec.deserialize(new ByteArrayInputStream(out.toByteArray()));
 
     assertNotNull(deserializedMessage);
     assertEquals(deserializedMessage.data().getClass(), GossipRequest.class);
