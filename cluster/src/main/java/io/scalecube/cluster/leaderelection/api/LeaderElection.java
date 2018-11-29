@@ -6,12 +6,12 @@ import reactor.core.publisher.Mono;
 
 public interface LeaderElection {
 
-	Mono<Void> start();
+  Mono<Void> start();
 
-	Flux<ElectionEvent> listen();
+  Flux<ElectionEvent> listen();
 
-	State currentState();
+  State currentState();
 
-	String id();
+  String id();
 
 }

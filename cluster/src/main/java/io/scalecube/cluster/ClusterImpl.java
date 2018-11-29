@@ -7,7 +7,6 @@ import static io.scalecube.cluster.gossip.GossipProtocolImpl.GOSSIP_REQ;
 import static io.scalecube.cluster.membership.MembershipProtocolImpl.MEMBERSHIP_GOSSIP;
 import static io.scalecube.cluster.membership.MembershipProtocolImpl.SYNC;
 import static io.scalecube.cluster.membership.MembershipProtocolImpl.SYNC_ACK;
-
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
 import io.scalecube.cluster.leaderelection.RaftLeaderElection;
@@ -99,13 +98,14 @@ final class ClusterImpl implements Cluster {
       failureDetector = new FailureDetectorImpl(memberRef::get, transport,
           membershipEvents.onBackpressureBuffer(), config, scheduler);
 
-      gossip = new GossipProtocolImpl(memberRef::get, transport, membershipEvents.onBackpressureBuffer(), config,
+      gossip = new GossipProtocolImpl(memberRef::get, transport,
+          membershipEvents.onBackpressureBuffer(), config, scheduler);
+
+      membership = new MembershipProtocolImpl(memberRef, transport, failureDetector, gossip, config,
           scheduler);
 
-      membership = new MembershipProtocolImpl(memberRef, transport, failureDetector, gossip, config, scheduler);
-
-      actionsDisposables
-          .add(membership.listen().subscribe(event -> onMemberEvent(event, membershipSink), this::onError));
+      actionsDisposables.add(membership.listen()
+          .subscribe(event -> onMemberEvent(event, membershipSink), this::onError));
 
       failureDetector.start();
       gossip.start();
@@ -115,8 +115,9 @@ final class ClusterImpl implements Cluster {
   }
 
   /**
-   * Creates and prepares local cluster member. An address of member that's being constructed may be overriden from
-   * config variables. See {@link io.scalecube.cluster.ClusterConfig#memberHost}, {@link ClusterConfig#memberPort}.
+   * Creates and prepares local cluster member. An address of member that's being constructed may be
+   * overriden from config variables. See {@link io.scalecube.cluster.ClusterConfig#memberHost},
+   * {@link ClusterConfig#memberPort}.
    *
    * @return local cluster member with cluster address and cluster member id
    */
@@ -137,7 +138,8 @@ final class ClusterImpl implements Cluster {
   }
 
   /**
-   * Handler for membership events. Reacts on events and updates {@link #members} {@link #memberAddressIndex} hashmaps.
+   * Handler for membership events. Reacts on events and updates {@link #members}
+   * {@link #memberAddressIndex} hashmaps.
    *
    * @param event membership event
    * @param membershipSink membership events sink
@@ -219,7 +221,8 @@ final class ClusterImpl implements Cluster {
 
   @Override
   public Optional<Member> member(Address address) {
-    return Optional.ofNullable(memberAddressIndex.get(address)).flatMap(id -> Optional.ofNullable(members.get(id)));
+    return Optional.ofNullable(memberAddressIndex.get(address))
+        .flatMap(id -> Optional.ofNullable(members.get(id)));
   }
 
   @Override
@@ -273,10 +276,10 @@ final class ClusterImpl implements Cluster {
 
   private Mono<Void> leaveCluster(Member member) {
     return membership.leave()
-        .doOnSuccess(s -> LOGGER.info("Cluster member {} notified about his leaving and shutting down", member))
-        .doOnError(e -> LOGGER.warn(
-            "Cluster member {} failed to spread leave notification " + "to other cluster members: {}",
-            member, e))
+        .doOnSuccess(s -> LOGGER
+            .info("Cluster member {} notified about his leaving and shutting down", member))
+        .doOnError(e -> LOGGER.warn("Cluster member {} failed to spread leave notification "
+            + "to other cluster members: {}", member, e))
         .onErrorResume(e -> Mono.empty()).then();
   }
 

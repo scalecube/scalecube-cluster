@@ -1,5 +1,7 @@
 package io.scalecube.cluster.leaderelection;
 
+import io.scalecube.cluster.Cluster;
+
 public enum State {
 
   /**
