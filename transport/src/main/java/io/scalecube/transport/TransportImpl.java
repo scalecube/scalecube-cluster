@@ -192,7 +192,7 @@ final class TransportImpl implements Transport {
     try (ByteBufInputStream stream = new ByteBufInputStream(byteBuf, true)) {
       return MessageCodec.deserialize(stream);
     } catch (Exception e) {
-      throw new DecoderException(e.getMessage(), e);
+      throw new DecoderException(e);
     }
   }
 
@@ -223,7 +223,7 @@ final class TransportImpl implements Transport {
       MessageCodec.serialize(message, stream);
     } catch (Exception e) {
       bb.release();
-      throw new EncoderException(e.getMessage(), e);
+      throw new EncoderException(e);
     }
     return bb;
   }
