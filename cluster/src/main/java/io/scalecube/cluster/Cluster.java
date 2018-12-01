@@ -88,9 +88,9 @@ public interface Cluster {
   }
 
   /**
-   * Returns local listen {@link Address} of this cluster instance.
+   * Returns {@link Address} of this cluster instance.
    *
-   * @return local server address
+   * @return cluster address
    */
   Address address();
 

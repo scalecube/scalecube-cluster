@@ -39,9 +39,7 @@ public class ClusterMetadataExample {
             .findAny();
 
     // Send hello to Joe
-    if (joeMemberOptional.isPresent()) {
-      alice.send(joeMemberOptional.get(), Message.fromData("Hello Joe"));
-    }
+    joeMemberOptional.ifPresent(member -> alice.send(member, Message.fromData("Hello Joe")));
 
     TimeUnit.SECONDS.sleep(3);
   }

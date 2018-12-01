@@ -37,8 +37,9 @@ public final class Message {
   Message() {}
 
   private Message(Builder builder) {
-    this.data = builder.data();
-    this.headers = builder.headers();
+    this.data = builder.data;
+    this.headers = Collections.unmodifiableMap(Objects.requireNonNull(builder.headers));
+    this.sender = builder.sender;
   }
 
   /**
@@ -118,7 +119,7 @@ public final class Message {
    * @return a builder with initial data and headers from the message
    */
   public static Builder with(Message message) {
-    return withData(message.data).headers(message.headers);
+    return withData(message.data).headers(message.headers).sender(message.sender);
   }
 
   /**
@@ -128,33 +129,6 @@ public final class Message {
    */
   public static Builder builder() {
     return Builder.getInstance();
-  }
-
-  /**
-   * Sets data for deserialization purpose.
-   *
-   * @param data data to set
-   */
-  void setData(Object data) {
-    this.data = data;
-  }
-
-  /**
-   * Sets headers for deserialization purpose.
-   *
-   * @param headers headers to set
-   */
-  void setHeaders(Map<String, String> headers) {
-    this.headers = Collections.unmodifiableMap(Objects.requireNonNull(headers));
-  }
-
-  /**
-   * Sets sender and used by transport send method.
-   *
-   * @param sender address from where message was sent
-   */
-  void setSender(Address sender) {
-    this.sender = sender;
   }
 
   /**
@@ -223,6 +197,7 @@ public final class Message {
 
     private Map<String, String> headers = new HashMap<>();
     private Object data;
+    private Address sender;
 
     private Builder() {}
 
@@ -259,6 +234,11 @@ public final class Message {
 
     public Builder correlationId(String correlationId) {
       return header(HEADER_CORRELATION_ID, correlationId);
+    }
+
+    public Builder sender(Address sender) {
+      this.sender = sender;
+      return this;
     }
 
     public Message build() {

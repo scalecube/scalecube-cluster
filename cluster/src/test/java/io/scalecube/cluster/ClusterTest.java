@@ -188,11 +188,17 @@ public class ClusterTest extends BaseTest {
     final Cluster node2 = Cluster.joinAwait(seedNode.address());
     final Cluster node3 = Cluster.joinAwait(seedNode.address());
 
-    node2.shutdown().block(Duration.ofSeconds(30));
+    CountDownLatch latch = new CountDownLatch(3);
 
-    assertTrue(!seedNode.members().contains(node2.member()));
-    assertTrue(!node1.members().contains(node2.member()));
-    assertTrue(!node3.members().contains(node2.member()));
+    Flux.merge(seedNode.listenMembership(), node1.listenMembership(), node3.listenMembership())
+        .filter(MembershipEvent::isRemoved)
+        .filter(event -> event.member().id().equals(node2.member().id()))
+        .doOnNext(event -> latch.countDown())
+        .subscribe();
+
+    node2.shutdown().block(TIMEOUT);
+
+    assertTrue(latch.await(TIMEOUT.getSeconds(), TimeUnit.SECONDS));
     assertTrue(node2.isShutdown());
 
     shutdown(Stream.of(seedNode, node1, node3).collect(Collectors.toList()));

@@ -11,9 +11,12 @@ import java.util.Objects;
 /** Cluster membership record which represents member, status, and incarnation. */
 final class MembershipRecord {
 
-  private final Member member;
-  private final MemberStatus status;
-  private final int incarnation;
+  private Member member;
+  private MemberStatus status;
+  private int incarnation;
+
+  /** Instantiates empty membership record for deserialization purpose. */
+  MembershipRecord() {}
 
   /** Instantiates new instance of membership record with given member, status and incarnation. */
   public MembershipRecord(Member member, MemberStatus status, int incarnation) {

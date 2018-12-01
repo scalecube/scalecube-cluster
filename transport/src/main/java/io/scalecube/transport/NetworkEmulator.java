@@ -1,6 +1,7 @@
 package io.scalecube.transport;
 
 import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
@@ -8,6 +9,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Mono;
 
 /**
  * Network Emulator is allowing to control link quality between endpoints in order to allow testing
@@ -219,21 +221,53 @@ public final class NetworkEmulator {
     return totalMessageLostCount.get();
   }
 
-  // For internal use
-  void incrementMessageSentCount() {
-    if (!enabled) {
-      LOGGER.warn("since network emulator is disabled");
-      return;
-    }
-    totalMessageSentCount.incrementAndGet();
+  /**
+   * Conditionally fails given message onto given address with {@link NetworkEmulatorException}.
+   *
+   * @param msg message
+   * @param address target address
+   * @return mono message
+   */
+  public Mono<Message> tryFail(Message msg, Address address) {
+    return Mono.defer(
+        () -> {
+          if (!enabled) {
+            return Mono.just(msg);
+          }
+          totalMessageSentCount.incrementAndGet();
+          // Emulate message loss
+          boolean isLost = getLinkSettings(address).evaluateLoss();
+          if (isLost) {
+            totalMessageLostCount.incrementAndGet();
+            return Mono.error(
+                new NetworkEmulatorException("NETWORK_BREAK detected, not sent " + msg));
+          } else {
+            return Mono.just(msg);
+          }
+        });
   }
 
-  // For internal use
-  void incrementMessageLostCount() {
-    if (!enabled) {
-      LOGGER.warn("since network emulator is disabled");
-      return;
-    }
-    totalMessageLostCount.incrementAndGet();
+  /**
+   * Conditionally delays given message onto given address.
+   *
+   * @param msg message
+   * @param address target address
+   * @return mono message
+   */
+  public Mono<Message> tryDelay(Message msg, Address address) {
+    return Mono.defer(
+        () -> {
+          if (!enabled) {
+            return Mono.just(msg);
+          }
+          totalMessageSentCount.incrementAndGet();
+          // Emulate message delay
+          int delay = (int) getLinkSettings(address).evaluateDelay();
+          if (delay > 0) {
+            return Mono.just(msg).delayElement(Duration.ofMillis(delay));
+          } else {
+            return Mono.just(msg);
+          }
+        });
   }
 }

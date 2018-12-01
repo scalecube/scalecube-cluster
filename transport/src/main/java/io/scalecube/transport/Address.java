@@ -11,8 +11,12 @@ public final class Address {
 
   private static final Pattern ADDRESS_FORMAT = Pattern.compile("(?<host>^.*):(?<port>\\d+$)");
 
-  private final String host;
-  private final int port;
+  private String host;
+  private int port;
+
+  /** Instantiates empty address for deserialization purpose. */
+  Address() {
+  }
 
   private Address(String host, int port) {
     requireNonEmpty(host);
