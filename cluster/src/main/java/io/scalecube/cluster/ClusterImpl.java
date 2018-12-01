@@ -7,9 +7,12 @@ import static io.scalecube.cluster.gossip.GossipProtocolImpl.GOSSIP_REQ;
 import static io.scalecube.cluster.membership.MembershipProtocolImpl.MEMBERSHIP_GOSSIP;
 import static io.scalecube.cluster.membership.MembershipProtocolImpl.SYNC;
 import static io.scalecube.cluster.membership.MembershipProtocolImpl.SYNC_ACK;
-
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
+import io.scalecube.cluster.leaderelection.RaftLeaderElection;
+import io.scalecube.cluster.leaderelection.State;
+import io.scalecube.cluster.leaderelection.api.ElectionEvent;
+import io.scalecube.cluster.leaderelection.api.LeaderElection;
 import io.scalecube.cluster.membership.IdGenerator;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipProtocolImpl;
@@ -47,10 +50,8 @@ final class ClusterImpl implements Cluster {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ClusterImpl.class);
 
-  private static final Set<String> SYSTEM_MESSAGES =
-      Collections.unmodifiableSet(
-          Stream.of(PING, PING_REQ, PING_ACK, SYNC, SYNC_ACK, GOSSIP_REQ)
-              .collect(Collectors.toSet()));
+  private static final Set<String> SYSTEM_MESSAGES = Collections.unmodifiableSet(
+      Stream.of(PING, PING_REQ, PING_ACK, SYNC, SYNC_ACK, GOSSIP_REQ).collect(Collectors.toSet()));
 
   private static final Set<String> SYSTEM_GOSSIPS = Collections.singleton(MEMBERSHIP_GOSSIP);
 
@@ -81,51 +82,35 @@ final class ClusterImpl implements Cluster {
   }
 
   public Mono<Cluster> join0() {
-    return Transport.bind(config.getTransportConfig())
-        .flatMap(
-            boundTransport -> {
-              transport = boundTransport;
+    return Transport.bind(config.getTransportConfig()).flatMap(boundTransport -> {
+      transport = boundTransport;
 
-              // Prepare local cluster member
-              final Member localMember = createLocalMember(boundTransport.address().port());
+      // Prepare local cluster member
+      final Member localMember = createLocalMember(boundTransport.address().port());
 
-              onMemberAdded(localMember); // store local member at this phase
+      onMemberAdded(localMember); // store local member at this phase
 
-              final AtomicReference<Member> memberRef = new AtomicReference<>(localMember);
+      final AtomicReference<Member> memberRef = new AtomicReference<>(localMember);
 
-              scheduler = Schedulers.newSingle("sc-cluster-" + localMember.address().port(), true);
+      scheduler = Schedulers.newSingle("sc-cluster-" + localMember.address().port(), true);
 
-              failureDetector =
-                  new FailureDetectorImpl(
-                      memberRef::get,
-                      transport,
-                      membershipEvents.onBackpressureBuffer(),
-                      config,
-                      scheduler);
+      failureDetector = new FailureDetectorImpl(memberRef::get, transport,
+          membershipEvents.onBackpressureBuffer(), config, scheduler);
 
-              gossip =
-                  new GossipProtocolImpl(
-                      memberRef::get,
-                      transport,
-                      membershipEvents.onBackpressureBuffer(),
-                      config,
-                      scheduler);
+      gossip = new GossipProtocolImpl(memberRef::get, transport,
+          membershipEvents.onBackpressureBuffer(), config, scheduler);
 
-              membership =
-                  new MembershipProtocolImpl(
-                      memberRef, transport, failureDetector, gossip, config, scheduler);
+      membership = new MembershipProtocolImpl(memberRef, transport, failureDetector, gossip, config,
+          scheduler);
 
-              actionsDisposables.add(
-                  membership
-                      .listen()
-                      .subscribe(event -> onMemberEvent(event, membershipSink), this::onError));
+      actionsDisposables.add(membership.listen()
+          .subscribe(event -> onMemberEvent(event, membershipSink), this::onError));
 
-              failureDetector.start();
-              gossip.start();
+      failureDetector.start();
+      gossip.start();
 
-              return membership.start();
-            })
-        .thenReturn(this);
+      return membership.start();
+    }).thenReturn(this);
   }
 
   /**
@@ -137,21 +122,17 @@ final class ClusterImpl implements Cluster {
    * @return local cluster member with cluster address and cluster member id
    */
   private Member createLocalMember(int listenPort) {
-    Address memberAddress =
-        Optional.ofNullable(config.getMemberHost())
-            .map(
-                memberHost ->
-                    Address.create(
-                        memberHost, Optional.ofNullable(config.getMemberPort()).orElse(listenPort)))
-            .orElseGet(
-                () -> Address.create(Address.getLocalIpAddress().getHostAddress(), listenPort));
+    Address memberAddress = Optional.ofNullable(config.getMemberHost())
+        .map(memberHost -> Address.create(memberHost,
+            Optional.ofNullable(config.getMemberPort()).orElse(listenPort)))
+        .orElseGet(() -> Address.create(Address.getLocalIpAddress().getHostAddress(), listenPort));
 
     return new Member(IdGenerator.generateId(), memberAddress, config.getMetadata());
   }
 
   /**
-   * Handler for membership events. Reacts on events and updates {@link #members} {@link
-   * #memberAddressIndex} hashmaps.
+   * Handler for membership events. Reacts on events and updates {@link #members}
+   * {@link #memberAddressIndex} hashmaps.
    *
    * @param event membership event
    * @param membershipSink membership events sink
@@ -251,83 +232,63 @@ final class ClusterImpl implements Cluster {
 
   @Override
   public Mono<Void> updateMetadataProperty(String key, String value) {
-    return Mono.defer(
-        () -> {
-          Member curMember = membership.member();
-          Map<String, String> metadata = new HashMap<>(curMember.metadata());
-          metadata.put(key, value);
-          return membership.updateMetadata(metadata);
-        });
+    return Mono.defer(() -> {
+      Member curMember = membership.member();
+      Map<String, String> metadata = new HashMap<>(curMember.metadata());
+      metadata.put(key, value);
+      return membership.updateMetadata(metadata);
+    });
   }
 
   @Override
   public Flux<MembershipEvent> listenMembership() {
-    return Flux.defer(
-        () ->
-            Flux.fromIterable(otherMembers())
-                .map(MembershipEvent::createAdded)
-                .concatWith(membershipEvents)
-                .onBackpressureBuffer());
+    return Flux.defer(() -> Flux.fromIterable(otherMembers()).map(MembershipEvent::createAdded)
+        .concatWith(membershipEvents).onBackpressureBuffer());
   }
 
   @Override
   public Mono<Void> shutdown() {
-    return Mono.defer(
-        () -> {
-          if (!onShutdown.isDisposed()) {
-            Member member = membership.member();
-            shutdown0()
-                .doOnSuccess(avoid -> LOGGER.info("Cluster member {} has shut down", member))
-                .doOnError(
-                    e -> LOGGER.warn("Cluster member {} has shutdown with error: {}", member, e))
-                .doOnTerminate(onShutdown::onComplete)
-                .subscribe();
-          }
-          return onShutdown;
-        });
+    return Mono.defer(() -> {
+      if (!onShutdown.isDisposed()) {
+        Member member = membership.member();
+        shutdown0().doOnSuccess(avoid -> LOGGER.info("Cluster member {} has shut down", member))
+            .doOnError(e -> LOGGER.warn("Cluster member {} has shutdown with error: {}", member, e))
+            .doOnTerminate(onShutdown::onComplete).subscribe();
+      }
+      return onShutdown;
+    });
   }
 
   private Mono<Void> shutdown0() {
-    return Mono.defer(
-        () -> {
-          Member member = membership.member();
-          LOGGER.info("Cluster member {} is shutting down", member);
-          return leaveCluster(member).then(dispose()).then(stopTransport());
-        });
+    return Mono.defer(() -> {
+      Member member = membership.member();
+      LOGGER.info("Cluster member {} is shutting down", member);
+      return leaveCluster(member).then(dispose()).then(stopTransport());
+    });
   }
 
   private Mono<Void> leaveCluster(Member member) {
-    return membership
-        .leave()
-        .doOnSuccess(
-            s ->
-                LOGGER.info(
-                    "Cluster member {} notified about his leaving and shutting down", member))
-        .doOnError(
-            e ->
-                LOGGER.warn(
-                    "Cluster member {} failed to spread leave notification "
-                        + "to other cluster members: {}",
-                    member,
-                    e))
-        .onErrorResume(e -> Mono.empty())
-        .then();
+    return membership.leave()
+        .doOnSuccess(s -> LOGGER
+            .info("Cluster member {} notified about his leaving and shutting down", member))
+        .doOnError(e -> LOGGER.warn("Cluster member {} failed to spread leave notification "
+            + "to other cluster members: {}", member, e))
+        .onErrorResume(e -> Mono.empty()).then();
   }
 
   private Mono<Void> dispose() {
-    return Mono.fromRunnable(
-        () -> {
-          // Stop accepting requests
-          actionsDisposables.dispose();
+    return Mono.fromRunnable(() -> {
+      // Stop accepting requests
+      actionsDisposables.dispose();
 
-          // stop algorithms
-          membership.stop();
-          gossip.stop();
-          failureDetector.stop();
+      // stop algorithms
+      membership.stop();
+      gossip.stop();
+      failureDetector.stop();
 
-          // stop scheduler
-          scheduler.dispose();
-        });
+      // stop scheduler
+      scheduler.dispose();
+    });
   }
 
   private Mono<Void> stopTransport() {
@@ -342,5 +303,38 @@ final class ClusterImpl implements Cluster {
   @Override
   public boolean isShutdown() {
     return onShutdown.isDisposed();
+  }
+
+  @Override
+  public LeaderElection leadership(String name) {
+    return new RaftLeaderElection(this, name) {
+
+      DirectProcessor<ElectionEvent> processor = DirectProcessor.create();
+
+      @Override
+      public void onBecomeLeader() {
+        processor.onNext(new ElectionEvent(State.LEADER));
+      }
+
+      @Override
+      public void onBecomeFollower() {
+        processor.onNext(new ElectionEvent(State.FOLLOWER));
+      }
+
+      @Override
+      public void onBecomeCandidate() {
+        processor.onNext(new ElectionEvent(State.CANDIDATE));
+      }
+
+      @Override
+      public Flux<ElectionEvent> listen() {
+        return processor;
+      }
+
+      @Override
+      public String id() {
+        return this.cluster().member().id();
+      }
+    };
   }
 }
