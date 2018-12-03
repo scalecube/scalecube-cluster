@@ -145,11 +145,12 @@ public abstract class RaftLeaderElection implements LeaderElection {
 
     cluster.listen().filter(m -> isHeartbeat(m.qualifier())).subscribe(request -> {
       onHeartbeat(request.data()).subscribe(resp -> {
-        cluster.send(request.sender(), Message.from(request).withData(resp).build()).subscribe();
+        cluster.send(request.sender(), Message.from(request).withData(resp).sender(this.cluster.address()).build()).subscribe();
       });
     });
 
     cluster.listen().filter(m -> isVote(m.qualifier())).subscribe(request -> {
+      
       onRequestVote(request).subscribe(resp -> {
         cluster.send(request.sender(), resp).subscribe();
       });
@@ -190,7 +191,6 @@ public abstract class RaftLeaderElection implements LeaderElection {
   }
 
   private Mono<Message> onRequestVote(Message request) {
-
     VoteRequest voteReq = request.data();
     LogicalTimestamp term = LogicalTimestamp.fromBytes(voteReq.term());
 
@@ -204,8 +204,11 @@ public abstract class RaftLeaderElection implements LeaderElection {
       currentTerm.set(term);
     }
 
-    return Mono.just(Message.builder().correlationId(request.correlationId())
-        .data(new VoteResponse(voteGranted, this.memberId)).build());
+    return Mono.just(Message.builder()
+        .sender(this.cluster.address())
+        .correlationId(request.correlationId())
+        .data(new VoteResponse(voteGranted, this.memberId))
+        .build());
   }
 
   private Consumer onHeartbeatNotRecived() {
@@ -302,7 +305,10 @@ public abstract class RaftLeaderElection implements LeaderElection {
   }
 
   private Message asRequest(String action, Object data) {
-    return Message.builder().correlationId(IdGenerator.generateId()).qualifier(serviceName + action)
+    return Message.builder()
+        .sender(this.cluster.address())
+        .correlationId(IdGenerator.generateId())
+        .qualifier(serviceName + action)
         .data(data).build();
   }
 
