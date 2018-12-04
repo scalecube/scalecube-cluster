@@ -9,10 +9,11 @@ import static io.scalecube.cluster.membership.MembershipProtocolImpl.SYNC;
 import static io.scalecube.cluster.membership.MembershipProtocolImpl.SYNC_ACK;
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
+import io.scalecube.cluster.leaderelection.LeaderElectionFactory;
 import io.scalecube.cluster.leaderelection.RaftLeaderElection;
 import io.scalecube.cluster.leaderelection.State;
 import io.scalecube.cluster.leaderelection.api.ElectionEvent;
-import io.scalecube.cluster.leaderelection.api.LeaderElection;
+import io.scalecube.cluster.leaderelection.api.ElectionTopic;
 import io.scalecube.cluster.membership.IdGenerator;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipProtocolImpl;
@@ -77,6 +78,8 @@ final class ClusterImpl implements Cluster {
 
   private final MonoProcessor<Void> onShutdown = MonoProcessor.create();
 
+  private final LeaderElectionFactory electionFactory = new LeaderElectionFactory(this);
+  
   public ClusterImpl(ClusterConfig config) {
     this.config = Objects.requireNonNull(config);
   }
@@ -304,37 +307,9 @@ final class ClusterImpl implements Cluster {
   public boolean isShutdown() {
     return onShutdown.isDisposed();
   }
-
+  
   @Override
-  public LeaderElection leadership(String name) {
-    return new RaftLeaderElection(this, name) {
-
-      DirectProcessor<ElectionEvent> processor = DirectProcessor.create();
-
-      @Override
-      public void onBecomeLeader() {
-        processor.onNext(new ElectionEvent(State.LEADER));
-      }
-
-      @Override
-      public void onBecomeFollower() {
-        processor.onNext(new ElectionEvent(State.FOLLOWER));
-      }
-
-      @Override
-      public void onBecomeCandidate() {
-        processor.onNext(new ElectionEvent(State.CANDIDATE));
-      }
-
-      @Override
-      public Flux<ElectionEvent> listen() {
-        return processor;
-      }
-
-      @Override
-      public String id() {
-        return this.cluster().member().id();
-      }
-    };
+  public ElectionTopic leadership(String name) {
+    return electionFactory.leadership(name);
   }
 }
