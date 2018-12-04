@@ -187,12 +187,12 @@ public abstract class RaftLeaderElection implements LeaderElection {
 
     this.currentLeader.set(request.memberId());
 
-    return Mono.just(new HeartbeatResponse(this.memberId, currentTerm.get().toBytes()));
+    return Mono.just(new HeartbeatResponse(this.memberId, currentTerm.get().toLong()));
   }
 
   private Mono<Message> onRequestVote(Message request) {
     VoteRequest voteReq = request.data();
-    LogicalTimestamp term = LogicalTimestamp.fromBytes(voteReq.term());
+    LogicalTimestamp term = LogicalTimestamp.fromLong(voteReq.term());
 
     boolean voteGranted = currentTerm.get().isBefore(term);
     LOGGER.info("member [{}:{}] recived vote request: [{}] voteGranted: [{}].", this.memberId,
@@ -240,7 +240,7 @@ public abstract class RaftLeaderElection implements LeaderElection {
 
         requestOne(request, instance.address()).subscribe(next -> {
           HeartbeatResponse response = next.data();
-          LogicalTimestamp term = LogicalTimestamp.fromBytes(response.term());
+          LogicalTimestamp term = LogicalTimestamp.fromLong(response.term());
           if (currentTerm.get().isBefore(term)) {
             LOGGER.info("member: [{}] currentTerm: [{}] is before: [{}] setting new seen term.",
                 this.memberId, currentTerm.get(), term);
@@ -265,7 +265,7 @@ public abstract class RaftLeaderElection implements LeaderElection {
       LOGGER.info("member: [{}] sending vote request to: [{}].", this.memberId, instance.id());
 
       Message request =
-          asRequest(VOTE, new VoteRequest(currentTerm.get().toBytes(), instance.id()));
+          asRequest(VOTE, new VoteRequest(currentTerm.get().toLong()));
 
       requestOne(request, instance.address()).timeout(Duration.ofMillis(config.consensusTimeout()))
           .subscribe(next -> {

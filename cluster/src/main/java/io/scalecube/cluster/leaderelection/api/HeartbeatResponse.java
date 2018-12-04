@@ -1,22 +1,20 @@
 package io.scalecube.cluster.leaderelection.api;
 
-import java.util.Arrays;
-
 public class HeartbeatResponse {
 
-  private byte[] term;
+  private long term;
 
   private String memberId;
 
   public HeartbeatResponse() {};
 
 
-  public HeartbeatResponse(String memberId, byte[] term) {
+  public HeartbeatResponse(String memberId, long term) {
     this.term = term;
     this.memberId = memberId;
   }
 
-  public byte[] term() {
+  public long term() {
     return term;
   }
 
@@ -26,7 +24,7 @@ public class HeartbeatResponse {
 
   @Override
   public String toString() {
-    return "HeartbeatResponse [term=" + Arrays.toString(term) + ", memberId=" + memberId + "]";
+    return "HeartbeatResponse [term=" + term + ", memberId=" + memberId + "]";
   }
 
 }

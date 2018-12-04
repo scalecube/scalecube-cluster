@@ -2,15 +2,9 @@ package io.scalecube.cluster.leaderelection.api;
 
 public class RequestVote {
 
-  String candidateId;
-
-  byte[] term;
-
-  public String candidateId() {
-    return candidateId;
-  }
-
-  public byte[] term() {
+  long term;
+  
+  public long term() {
     return term;
   }
 
