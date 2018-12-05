@@ -320,7 +320,7 @@ final class TransportImpl implements Transport {
     @Override
     public void accept(ConnectionObserver connectionObserver, Channel channel) {
       ChannelPipeline pipeline = channel.pipeline();
-      pipeline.addLast(new LengthFieldBasedFrameDecoder(32768, 0, 2, 0, 2));
+      pipeline.addLast(new LengthFieldBasedFrameDecoder(32768, 0, 4, 0, 4));
       pipeline.addLast(exceptionHandler);
     }
   }
@@ -331,7 +331,7 @@ final class TransportImpl implements Transport {
     @Override
     public void accept(ConnectionObserver connectionObserver, Channel channel) {
       ChannelPipeline pipeline = channel.pipeline();
-      pipeline.addLast(new LengthFieldPrepender(2));
+      pipeline.addLast(new LengthFieldPrepender(4));
       pipeline.addLast(exceptionHandler);
     }
   }
