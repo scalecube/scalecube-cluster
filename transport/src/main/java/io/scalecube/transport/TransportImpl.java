@@ -317,10 +317,12 @@ final class TransportImpl implements Transport {
 
   private final class InboundChannelInitializer implements BiConsumer<ConnectionObserver, Channel> {
 
+    private static final int MAX_FRAME_LENGTH = 1024 * 1024;
+
     @Override
     public void accept(ConnectionObserver connectionObserver, Channel channel) {
       ChannelPipeline pipeline = channel.pipeline();
-      pipeline.addLast(new LengthFieldBasedFrameDecoder(32768, 0, 2, 0, 2));
+      pipeline.addLast(new LengthFieldBasedFrameDecoder(MAX_FRAME_LENGTH, 0, 2, 0, 2));
       pipeline.addLast(exceptionHandler);
     }
   }
