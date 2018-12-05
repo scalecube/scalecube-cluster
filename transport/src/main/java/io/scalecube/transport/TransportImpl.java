@@ -1,10 +1,16 @@
 package io.scalecube.transport;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
+import io.netty.buffer.ByteBufInputStream;
+import io.netty.buffer.ByteBufOutputStream;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
-import io.netty.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
-import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
+import io.netty.handler.codec.DecoderException;
+import io.netty.handler.codec.EncoderException;
+import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import io.netty.handler.codec.LengthFieldPrepender;
 import java.net.InetSocketAddress;
 import java.util.Map;
 import java.util.Objects;
@@ -33,7 +39,7 @@ import reactor.netty.tcp.TcpServer;
 
 /**
  * Default transport implementation based on reactor-netty tcp client and server implementation and
- * protobuf codec.
+ * jackson codec.
  */
 final class TransportImpl implements Transport {
 
@@ -177,9 +183,17 @@ final class TransportImpl implements Transport {
   private Mono<Void> onMessage(NettyInbound in, NettyOutbound out) {
     return in.receive() //
         .retain()
-        .map(MessageCodec::deserialize)
+        .map(this::toMessage)
         .doOnNext(messageSink::next)
         .then();
+  }
+
+  private Message toMessage(ByteBuf byteBuf) {
+    try (ByteBufInputStream stream = new ByteBufInputStream(byteBuf, true)) {
+      return MessageCodec.deserialize(stream);
+    } catch (Exception e) {
+      throw new DecoderException(e);
+    }
   }
 
   private TransportImpl onBind(DisposableServer server) {
@@ -198,8 +212,20 @@ final class TransportImpl implements Transport {
             Mono.just(message)
                 .flatMap(msg -> networkEmulator.tryFail(msg, address))
                 .flatMap(msg -> networkEmulator.tryDelay(msg, address))
-                .map(MessageCodec::serialize))
+                .map(this::toByteBuf))
         .then();
+  }
+
+  private ByteBuf toByteBuf(Message message) {
+    ByteBuf bb = ByteBufAllocator.DEFAULT.buffer();
+    ByteBufOutputStream stream = new ByteBufOutputStream(bb);
+    try {
+      MessageCodec.serialize(message, stream);
+    } catch (Exception e) {
+      bb.release();
+      throw new EncoderException(e);
+    }
+    return bb;
   }
 
   private Mono<Connection> getOrConnect(Address address) {
@@ -294,7 +320,7 @@ final class TransportImpl implements Transport {
     @Override
     public void accept(ConnectionObserver connectionObserver, Channel channel) {
       ChannelPipeline pipeline = channel.pipeline();
-      pipeline.addLast(new ProtobufVarint32FrameDecoder());
+      pipeline.addLast(new LengthFieldBasedFrameDecoder(32768, 0, 2, 0, 2));
       pipeline.addLast(exceptionHandler);
     }
   }
@@ -305,7 +331,7 @@ final class TransportImpl implements Transport {
     @Override
     public void accept(ConnectionObserver connectionObserver, Channel channel) {
       ChannelPipeline pipeline = channel.pipeline();
-      pipeline.addLast(new ProtobufVarint32LengthFieldPrepender());
+      pipeline.addLast(new LengthFieldPrepender(2));
       pipeline.addLast(exceptionHandler);
     }
   }

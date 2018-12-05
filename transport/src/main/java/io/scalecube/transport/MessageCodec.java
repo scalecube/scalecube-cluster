@@ -1,63 +1,51 @@
 package io.scalecube.transport;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
-import io.netty.buffer.ByteBufInputStream;
-import io.netty.buffer.ByteBufOutputStream;
-import io.netty.handler.codec.DecoderException;
-import io.netty.handler.codec.EncoderException;
-import io.protostuff.LinkedBuffer;
-import io.protostuff.ProtostuffIOUtil;
-import io.protostuff.Schema;
-import io.protostuff.runtime.RuntimeSchema;
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.PropertyAccessor;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectMapper.DefaultTyping;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 /** Contains static methods for message serializing/deserializing logic. */
 public final class MessageCodec {
 
-  static {
-    // Register message schema
-    if (!RuntimeSchema.isRegistered(Message.class)) {
-      RuntimeSchema.register(Message.class, new MessageSchema());
-    }
-  }
+  private static final ObjectMapper mapper = initMapper();
 
-  private MessageCodec() {
-    // Do not instantiate
+  /**
+   * Deserializes message from given input stream.
+   *
+   * @param stream input stream
+   * @return message from the input stream
+   */
+  public static Message deserialize(InputStream stream) throws Exception {
+    return mapper.readValue(stream, Message.class);
   }
 
   /**
-   * Deserializes message from given byte buffer.
+   * Serializes given message into given output stream.
    *
-   * @param bb byte buffer
-   * @return message from ByteBuf
+   * @param message message
+   * @param stream output stream
    */
-  public static Message deserialize(ByteBuf bb) {
-    Schema<Message> schema = RuntimeSchema.getSchema(Message.class);
-    Message message = schema.newMessage();
-    try (ByteBufInputStream stream = new ByteBufInputStream(bb, true)) {
-      ProtostuffIOUtil.mergeFrom(stream, message, schema);
-    } catch (Exception e) {
-      throw new DecoderException(e.getMessage(), e);
-    }
-    return message;
+  public static void serialize(Message message, OutputStream stream) throws Exception {
+    mapper.writeValue(stream, message);
   }
 
-  /**
-   * Serializes given message into byte buffer.
-   *
-   * @param message message to serialize
-   * @return message as ByteBuf
-   */
-  public static ByteBuf serialize(Message message) {
-    Schema<Message> schema = RuntimeSchema.getSchema(Message.class);
-    ByteBuf bb = ByteBufAllocator.DEFAULT.buffer();
-    ByteBufOutputStream stream = new ByteBufOutputStream(bb);
-    try {
-      ProtostuffIOUtil.writeTo(stream, message, schema, LinkedBuffer.allocate());
-    } catch (Exception e) {
-      bb.release();
-      throw new EncoderException(e.getMessage(), e);
-    }
-    return bb;
+  private static ObjectMapper initMapper() {
+    ObjectMapper mapper = new ObjectMapper();
+    mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+    mapper.configure(DeserializationFeature.READ_UNKNOWN_ENUM_VALUES_AS_NULL, true);
+    mapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
+    mapper.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
+    mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+    mapper.configure(SerializationFeature.WRITE_ENUMS_USING_TO_STRING, true);
+    mapper.enableDefaultTyping(DefaultTyping.JAVA_LANG_OBJECT, JsonTypeInfo.As.PROPERTY);
+    return mapper;
   }
 }
