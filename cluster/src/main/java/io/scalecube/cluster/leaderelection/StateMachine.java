@@ -70,7 +70,6 @@ public class StateMachine {
       if (allowed().contains(newState)) {
         leaveStateFuture.supplyAsync(() -> {
           if (onLeaveHandlers.get(leaveState) != null) {
-            System.out.println(onLeaveHandlers.get(leaveState));
             onLeaveHandlers.get(leaveState).forEach(action -> action.accept(obj));
           }
           leaveStateFuture.complete(leaveState);

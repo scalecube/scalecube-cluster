@@ -113,15 +113,15 @@ public class RaftLeaderElection implements ElectionTopic {
       heartbeatScheduler.stop();
       timeoutScheduler.start(this.timeout);
       // spread the gossip about me as follower.
-      this.cluster.spreadGossip(newLeaderElectionGossip(State.FOLLOWER));
+      this.cluster.spreadGossip(newLeaderElectionGossip(State.FOLLOWER)).subscribe();
       this.processor.onNext(new ElectionEvent(State.FOLLOWER));
     });
 
     this.stateMachine.on(State.CANDIDATE, asCandidate -> {
       LOGGER.info("member: [{}] has become: [{}].", this.memberId, stateMachine.currentState());
       heartbeatScheduler.stop();
-      currentTerm.set(clock.tick());
-      sendElectionCampaign();
+      nextTerm();
+      startElection();
 
       // spread the gossip about me as candidate.
       this.cluster.spreadGossip(newLeaderElectionGossip(State.CANDIDATE));
@@ -135,13 +135,18 @@ public class RaftLeaderElection implements ElectionTopic {
       this.currentLeader.set(this.memberId);
 
       // spread the gossip about me as a new leader.
-      this.cluster.spreadGossip(newLeaderElectionGossip(State.LEADER));
+      this.cluster.spreadGossip(newLeaderElectionGossip(State.LEADER)).subscribe();
       this.processor.onNext(new ElectionEvent(State.LEADER));
     });
 
     this.currentTerm.set(clock.tick());
     this.timeoutScheduler = new JobScheduler(onHeartbeatNotRecived());
     this.heartbeatScheduler = new JobScheduler(sendHeartbeat());
+  }
+
+  private LogicalTimestamp nextTerm() {
+    currentTerm.set(clock.tick());
+    return currentTerm.get();
   }
   
   @Override
@@ -163,7 +168,7 @@ public class RaftLeaderElection implements ElectionTopic {
     return Mono.create(sink -> {
 
       cluster.listen().filter(m -> isHeartbeat(m.qualifier())).subscribe(request -> {
-        onHeartbeat(request.data()).subscribe(resp -> {
+        onHeartbeatRecived(request.data()).subscribe(resp -> {
           cluster
               .send(request.sender(),
                   Message.from(request).withData(resp).sender(this.cluster.address()).build())
@@ -172,8 +177,7 @@ public class RaftLeaderElection implements ElectionTopic {
       });
 
       cluster.listen().filter(m -> isVote(m.qualifier())).subscribe(request -> {
-
-        onRequestVote(request).subscribe(resp -> {
+        onVoteRequested(request).subscribe(resp -> {
           cluster.send(request.sender(), resp).subscribe();
         });
       });
@@ -183,7 +187,7 @@ public class RaftLeaderElection implements ElectionTopic {
     });
   }
   
-  private Mono<HeartbeatResponse> onHeartbeat(HeartbeatRequest request) {
+  private Mono<HeartbeatResponse> onHeartbeatRecived(HeartbeatRequest request) {
     LOGGER.debug("member [{}] recived heartbeat request: [{}]", this.memberId, request);
     this.timeoutScheduler.reset(this.timeout);
 
@@ -206,7 +210,7 @@ public class RaftLeaderElection implements ElectionTopic {
     return Mono.just(new HeartbeatResponse(this.memberId, currentTerm.get().toLong()));
   }
 
-  private Mono<Message> onRequestVote(Message request) {
+  private Mono<Message> onVoteRequested(Message request) {
     VoteRequest voteReq = request.data();
     LogicalTimestamp term = LogicalTimestamp.fromLong(voteReq.term());
 
@@ -269,7 +273,7 @@ public class RaftLeaderElection implements ElectionTopic {
   // if most of peer members grant vote then member transition to a leader state.
   // the election process is waiting until timeout of consensusTimeout in case
   // timeout reached the member transition to Follower state.
-  private void sendElectionCampaign() {
+  private void startElection() {
     final Collection<Member> members = findPeers();
     final CountDownLatch consensus = new CountDownLatch((members.size() / 2));
 
