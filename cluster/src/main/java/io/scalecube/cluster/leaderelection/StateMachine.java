@@ -5,17 +5,19 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import reactor.core.publisher.TopicProcessor;
 
 public class StateMachine {
 
-  private Map<State, List<Consumer>> onStateHandlers = new HashMap<State, List<Consumer>>();
-
-  private Map<State, List<Consumer>> onLeaveHandlers = new HashMap<State, List<Consumer>>();
+  private static final Logger LOGGER = LoggerFactory.getLogger(StateMachine.class);
 
   private final Map<State, List<State>> transitions;
+
+  private TopicProcessor<State> onStateHandlers = TopicProcessor.create();
 
   private AtomicReference<State> currentState;
 
@@ -57,41 +59,18 @@ public class StateMachine {
     this.currentState = new AtomicReference<State>(init);
   }
 
-  public CompletableFuture<State> transition(State newState, Object obj) {
-    CompletableFuture<State> futureState = new CompletableFuture<State>();
-
+  public void transition(State newState, Object obj) {
     if (!currentState.get().equals(newState)) {
-      CompletableFuture<State> leaveStateFuture = new CompletableFuture<State>();
-      CompletableFuture<State> onStateFuture = new CompletableFuture<State>();
-
-      State leaveState = currentState.get();
-
-
       if (allowed().contains(newState)) {
-        leaveStateFuture.supplyAsync(() -> {
-          if (onLeaveHandlers.get(leaveState) != null) {
-            onLeaveHandlers.get(leaveState).forEach(action -> action.accept(obj));
-          }
-          leaveStateFuture.complete(leaveState);
-          return leaveState;
-        });
-
-        leaveStateFuture.whenComplete((success, error) -> {
-          onStateFuture.supplyAsync(() -> {
-            this.currentState.set(newState);
-            if (onStateHandlers.get(newState) != null) {
-              onStateHandlers.get(newState).forEach(action -> action.accept(obj));
-            }
-            return currentState.get();
-          });
-        });
-
+        currentState.set(newState);
+        onStateHandlers.onNext(newState);
       } else {
-        futureState.completeExceptionally(new IllegalStateException(
-            "not allowed tranistion from: " + currentState.get() + " to: " + newState));
+        throw new IllegalStateException(
+            "not allowed tranistion from: " + currentState.get() + " to: " + newState);
       }
+    } else {
+      LOGGER.warn("no transition was done - already in state {}", newState);
     }
-    return futureState;
   }
 
   public List<Enum> allowed() {
@@ -101,24 +80,10 @@ public class StateMachine {
     return Collections.EMPTY_LIST;
   }
 
-  public void beforeExit(State state, Consumer consumer) {
-    if (onLeaveHandlers.containsKey(state)) {
-      onLeaveHandlers.get(state).add(consumer);
-    } else {
-      onLeaveHandlers.put(state, new ArrayList());
-      onLeaveHandlers.get(state).add(consumer);
-    }
-
-  }
-
   public StateMachine on(State state, Consumer consumer) {
-    if (onStateHandlers.containsKey(state)) {
-      onStateHandlers.get(state).add(consumer);
-    } else {
-      onStateHandlers.put(state, new ArrayList());
-      onStateHandlers.get(state).add(consumer);
-    }
-
+    onStateHandlers.filter(p -> p.equals(state)).doOnNext(s -> {
+      consumer.accept(s);
+    }).subscribe();
     return this;
   }
 

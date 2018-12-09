@@ -153,4 +153,8 @@ public final class LogicalTimestamp implements Comparable<LogicalTimestamp>, Ser
   public String toString() {
     return Long.toString(cyclicTime);
   }
+
+  public boolean isBefore(long term) {
+    return this.isBefore(LogicalTimestamp.fromLong(term));
+  }
 }

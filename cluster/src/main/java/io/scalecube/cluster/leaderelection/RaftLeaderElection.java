@@ -35,31 +35,14 @@ public class RaftLeaderElection implements ElectionTopic {
 
   private static final String LEADER_ELECTION = "leader-election";
 
-  private static final String HEARTBEAT = "/heartbeat";
-
-  private static final String VOTE = "/vote";
-
-  private final StateMachine stateMachine;
-
-  private final LogicalClock clock = new LogicalClock();
-
-  private final AtomicReference<LogicalTimestamp> currentTerm =
-      new AtomicReference<LogicalTimestamp>();
-
-  private JobScheduler timeoutScheduler;
-
-  private JobScheduler heartbeatScheduler;
+  private final RaftStateMachine stateMachine;
 
   private String memberId;
-
-  private final int timeout;
-
+  
   private final Config config;
 
-  private final AtomicReference<String> currentLeader = new AtomicReference<String>("");
-
   private final DirectProcessor<ElectionEvent> processor = DirectProcessor.create();
-    
+
   private String topic;
 
   private Cluster cluster;
@@ -73,93 +56,66 @@ public class RaftLeaderElection implements ElectionTopic {
   public String name() {
     return this.topic;
   }
-  
-  public String leaderId() {
-    return currentLeader.get();
-  }
 
   public State currentState() {
     return stateMachine.currentState();
   }
 
-  public LogicalTimestamp currentTerm() {
-    return this.currentTerm.get();
-  }
-
   public Mono<Leader> leader() {
-    return Mono.just(new Leader(this.memberId, this.currentLeader.get()));
+    return Mono.just(new Leader(this.memberId, stateMachine.leaderId()));
   }
 
   protected Cluster cluster() {
     return this.cluster;
   }
 
-  public RaftLeaderElection(String topic, Config config) {
+  public RaftLeaderElection(Cluster cluser, String topic, Config config) {
     this.config = config;
     this.topic = topic;
-    this.timeout =
+    this.cluster = cluser;
+    int timeout =
         new Random().nextInt(config.timeout() - (config.timeout() / 2)) + (config.timeout() / 2);
 
-    this.stateMachine = StateMachine.builder()
-        .init(State.INACTIVE)
-        .addTransition(State.INACTIVE, State.FOLLOWER)
-        .addTransition(State.FOLLOWER, State.CANDIDATE)
-        .addTransition(State.CANDIDATE, State.LEADER)
-        .addTransition(State.LEADER, State.FOLLOWER)
+    this.stateMachine = RaftStateMachine.builder()
+        .id(this.cluster.member().id())
+        .timeout(timeout)
+        .heartbeatInterval(config.heartbeatInterval())
+        .heartbeatSender(sendHeartbeat())
         .build();
-
-    this.stateMachine.on(State.FOLLOWER, asFollower -> {
-      LOGGER.info("member: [{}] has become: [{}].", this.memberId, stateMachine.currentState());
-      heartbeatScheduler.stop();
-      timeoutScheduler.start(this.timeout);
+    
+    this.stateMachine.onFollower(asFollower -> {
+      
       // spread the gossip about me as follower.
       this.cluster.spreadGossip(newLeaderElectionGossip(State.FOLLOWER)).subscribe();
       this.processor.onNext(new ElectionEvent(State.FOLLOWER));
+
     });
 
-    this.stateMachine.on(State.CANDIDATE, asCandidate -> {
-      LOGGER.info("member: [{}] has become: [{}].", this.memberId, stateMachine.currentState());
-      heartbeatScheduler.stop();
-      nextTerm();
+    this.stateMachine.onCandidate(asCandidate -> {
+      
+      this.stateMachine.nextTerm();
       startElection();
-
       // spread the gossip about me as candidate.
       this.cluster.spreadGossip(newLeaderElectionGossip(State.CANDIDATE));
       this.processor.onNext(new ElectionEvent(State.CANDIDATE));
     });
 
-    this.stateMachine.on(State.LEADER, asLeader -> {
-      LOGGER.info("member: [{}] has become: [{}].", this.memberId, stateMachine.currentState());
-      timeoutScheduler.stop();
-      heartbeatScheduler.start(config.heartbeatInterval());
-      this.currentLeader.set(this.memberId);
-
+    this.stateMachine.onLeader(asLeader -> {
       // spread the gossip about me as a new leader.
       this.cluster.spreadGossip(newLeaderElectionGossip(State.LEADER)).subscribe();
       this.processor.onNext(new ElectionEvent(State.LEADER));
     });
-
-    this.currentTerm.set(clock.tick());
-    this.timeoutScheduler = new JobScheduler(onHeartbeatNotRecived());
-    this.heartbeatScheduler = new JobScheduler(sendHeartbeat());
+    
+    this.stateMachine.becomeFollower(this.stateMachine.nextTerm());
   }
 
-  private LogicalTimestamp nextTerm() {
-    currentTerm.set(clock.tick());
-    return currentTerm.get();
-  }
-  
   @Override
   public Flux<ElectionEvent> listen() {
     return processor;
   }
 
-  public RaftLeaderElection(String name) {
-    this(name, Config.build());
-  }
-
   public RaftLeaderElection(Cluster cluster, String name) {
-    this(name, Config.build());
+    this(cluster, name, Config.build());
     this.cluster = cluster;
     this.cluster.updateMetadataProperty(name, LEADER_ELECTION).subscribe();
   }
@@ -167,76 +123,47 @@ public class RaftLeaderElection implements ElectionTopic {
   public Mono<Void> start() {
     return Mono.create(sink -> {
 
-      cluster.listen().filter(m -> isHeartbeat(m.qualifier())).subscribe(request -> {
-        onHeartbeatRecived(request.data()).subscribe(resp -> {
-          cluster
-              .send(request.sender(),
-                  Message.from(request).withData(resp).sender(this.cluster.address()).build())
-              .subscribe();
-        });
-      });
+      cluster.listen().filter(m -> RaftProtocol.isHeartbeat(topic, m.qualifier()))
+          .subscribe(request -> {
+            onHeartbeatRecived(request.data()).subscribe(resp -> {
+              cluster
+                  .send(request.sender(),
+                      Message.from(request).withData(resp).sender(this.cluster.address()).build())
+                  .subscribe();
+            });
+          });
 
-      cluster.listen().filter(m -> isVote(m.qualifier())).subscribe(request -> {
+      cluster.listen().filter(m -> RaftProtocol.isVote(topic, m.qualifier())).subscribe(request -> {
         onVoteRequested(request).subscribe(resp -> {
           cluster.send(request.sender(), resp).subscribe();
         });
       });
 
       this.memberId = cluster.member().id();
-      this.stateMachine.transition(State.FOLLOWER, currentTerm.get());
+      this.stateMachine.becomeFollower(this.stateMachine.currentTerm());
     });
   }
-  
+
   private Mono<HeartbeatResponse> onHeartbeatRecived(HeartbeatRequest request) {
-    LOGGER.debug("member [{}] recived heartbeat request: [{}]", this.memberId, request);
-    this.timeoutScheduler.reset(this.timeout);
-
-    LogicalTimestamp term = LogicalTimestamp.fromBytes(request.term());
-    if (currentTerm.get().isBefore(term)) {
-      LOGGER.info("member: [{}] currentTerm: [{}] is before: [{}] setting new seen term.",
-          this.memberId, currentTerm.get(), term);
-      currentTerm.set(term);
-    }
-
-    if (!stateMachine.currentState().equals(State.FOLLOWER)) {
-
-      LOGGER.info("member [{}] currentState [{}] and recived heartbeat. becoming FOLLOWER.",
-          this.memberId, stateMachine.currentState());
-      stateMachine.transition(State.FOLLOWER, term);
-    }
-
-    this.currentLeader.set(request.memberId());
-
-    return Mono.just(new HeartbeatResponse(this.memberId, currentTerm.get().toLong()));
+    return Mono.create(sink -> {
+      LOGGER.debug("member [{}] recived heartbeat request: [{}]", this.memberId, request);
+      stateMachine.heartbeat(request.memberId(),LogicalTimestamp.fromLong(request.term()));
+      sink.success(new HeartbeatResponse(this.memberId, stateMachine.currentTerm().toLong()));
+    });
   }
 
   private Mono<Message> onVoteRequested(Message request) {
     VoteRequest voteReq = request.data();
-    LogicalTimestamp term = LogicalTimestamp.fromLong(voteReq.term());
 
-    boolean voteGranted = currentTerm.get().isBefore(term);
+    boolean voteGranted = stateMachine.currentTerm().isBefore(voteReq.term());
     LOGGER.info("member [{}:{}] recived vote request: [{}] voteGranted: [{}].", this.memberId,
         stateMachine.currentState(), request.data(), voteGranted);
 
-    if (currentTerm.get().isBefore(term)) {
-      LOGGER.info("member: [{}] currentTerm: [{}] is before: [{}] setting new seen term.",
-          this.memberId, currentTerm.get(), term);
-      currentTerm.set(term);
-    }
+    stateMachine.updateTerm(voteReq.term());
 
     return Mono.just(
         Message.builder().sender(this.cluster.address()).correlationId(request.correlationId())
             .data(new VoteResponse(voteGranted, this.memberId)).build());
-  }
-
-  private Consumer onHeartbeatNotRecived() {
-    return toCandidate -> {
-      this.timeoutScheduler.stop();
-      this.currentTerm.set(clock.tick(currentTerm.get()));
-      this.stateMachine.transition(State.CANDIDATE, currentTerm.get());
-      LOGGER.info("member: [{}] didnt recive heartbeat until timeout: [{}ms] became: [{}]",
-          this.memberId, timeout, stateMachine.currentState());
-    };
   }
 
   /**
@@ -253,17 +180,12 @@ public class RaftLeaderElection implements ElectionTopic {
       services.stream().forEach(instance -> {
         LOGGER.debug("member: [{}] sending heartbeat: [{}].", this.memberId, instance.id());
 
-        Message request =
-            asRequest(HEARTBEAT, new HeartbeatRequest(currentTerm.get().toBytes(), this.memberId));
+        Message request = RaftProtocol.asHeartbeatRequest(this.cluster.address(), topic,
+            new HeartbeatRequest(stateMachine.currentTerm().toLong(), this.memberId));
 
         requestOne(request, instance.address()).subscribe(next -> {
           HeartbeatResponse response = next.data();
-          LogicalTimestamp term = LogicalTimestamp.fromLong(response.term());
-          if (currentTerm.get().isBefore(term)) {
-            LOGGER.info("member: [{}] currentTerm: [{}] is before: [{}] setting new seen term.",
-                this.memberId, currentTerm.get(), term);
-            currentTerm.set(term);
-          }
+          stateMachine.updateTerm(LogicalTimestamp.fromLong(response.term()));
         });
       });
     };
@@ -281,7 +203,8 @@ public class RaftLeaderElection implements ElectionTopic {
 
       LOGGER.info("member: [{}] sending vote request to: [{}].", this.memberId, instance.id());
 
-      Message request = asRequest(VOTE, new VoteRequest(currentTerm.get().toLong()));
+      Message request = RaftProtocol.asVoteRequest(this.cluster.address(), topic,
+          new VoteRequest(stateMachine.currentTerm().toLong()));
 
       requestOne(request, instance.address()).timeout(Duration.ofMillis(config.consensusTimeout()))
           .subscribe(next -> {
@@ -295,9 +218,9 @@ public class RaftLeaderElection implements ElectionTopic {
 
     try {
       consensus.await(config.consensusTimeout(), TimeUnit.SECONDS);
-      stateMachine.transition(State.LEADER, currentTerm);
+      stateMachine.becomeLeader(stateMachine.currentTerm());
     } catch (InterruptedException e) {
-      stateMachine.transition(State.FOLLOWER, currentTerm);
+      stateMachine.becomeFollower(stateMachine.currentTerm());
     }
   }
 
@@ -315,31 +238,16 @@ public class RaftLeaderElection implements ElectionTopic {
 
   private Message newLeaderElectionGossip(State state) {
     return Message.builder().header(LeaderElectionGossip.TYPE, state.toString())
-        .data(new LeaderElectionGossip(this.memberId, this.currentLeader.get(),
-            this.currentTerm.get().toLong(), this.cluster.address()))
+        .data(new LeaderElectionGossip(this.memberId, 
+            this.stateMachine.leaderId(),
+            this.stateMachine.currentTerm().toLong(), 
+            this.cluster.address()))
         .build();
-  }
-
-  private Message asRequest(String action, Object data) {
-    return Message.builder().sender(this.cluster.address()).correlationId(IdGenerator.generateId())
-        .qualifier(topic + action).data(data).build();
   }
 
   private Collection<Member> findPeers() {
     return cluster().otherMembers().stream().filter(m -> m.metadata().containsKey(topic))
         .filter(m -> m.metadata().get(topic).equals(LEADER_ELECTION)).collect(Collectors.toSet());
 
-  }
-
-  private void on(State state, Consumer func) {
-    stateMachine.on(state, func);
-  }
-
-  private boolean isHeartbeat(String value) {
-    return (topic + HEARTBEAT).equalsIgnoreCase(value);
-  }
-
-  private boolean isVote(String value) {
-    return (topic + VOTE).equalsIgnoreCase(value);
   }
 }

@@ -10,15 +10,15 @@ public class JobScheduler {
 
   private AtomicReference<Disposable> disposables = new AtomicReference<>(null);
 
-  private final Consumer callable;
+  private final Consumer job;
 
-  public JobScheduler(final Consumer callable) {
-    this.callable = callable;
+  public JobScheduler(final Consumer job) {
+    this.job = job;
   }
 
   public void start(int millis) {
     if (disposables.get() == null || disposables.get().isDisposed()) {
-      disposables.set(Flux.interval(Duration.ofMillis(millis)).subscribe(callable));
+      disposables.set(Flux.interval(Duration.ofMillis(millis)).subscribe(job));
     }
   }
 
