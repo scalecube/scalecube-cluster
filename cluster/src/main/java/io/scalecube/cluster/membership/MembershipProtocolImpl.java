@@ -157,10 +157,23 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   /**
    * Updates local member incarnation number.
    *
-   * @return mono handle result of {@link #updateIncarnation0()}
+   * @return mono handle
    */
   public Mono<Void> updateIncarnation() {
-    return updateIncarnation0().subscribeOn(scheduler);
+    return Mono.defer(
+        () -> {
+          // Update membership table
+          MembershipRecord curRecord = membershipTable.get(localMember.id());
+          MembershipRecord newRecord =
+              new MembershipRecord(localMember, ALIVE, curRecord.incarnation() + 1);
+          membershipTable.put(localMember.id(), newRecord);
+
+          // Emit membership updated event
+          sink.next(MembershipEvent.createUpdated(localMember, localMember));
+
+          // Spread new membership record over the cluster
+          return spreadMembershipGossip(newRecord).then();
+        });
   }
 
   /**
@@ -168,7 +181,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
    *
    * @return mono handle
    */
-  public Mono<String> leave() {
+  public Mono<String> leaveCluster() {
     return Mono.defer(
         () -> {
           MembershipRecord curRecord = membershipTable.get(localMember.id());
@@ -285,23 +298,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   // ================================================
   // ============== Event Listeners =================
   // ================================================
-
-  private Mono<Void> updateIncarnation0() {
-    return Mono.defer(
-        () -> {
-          // Update membership table
-          MembershipRecord curRecord = membershipTable.get(localMember.id());
-          MembershipRecord newRecord =
-              new MembershipRecord(localMember, ALIVE, curRecord.incarnation() + 1);
-          membershipTable.put(localMember.id(), newRecord);
-
-          // Emit membership updated event
-          sink.next(MembershipEvent.createUpdated(localMember, localMember));
-
-          // Spread new membership record over the cluster
-          return spreadMembershipGossip(newRecord).then();
-        });
-  }
 
   private void onMessage(Message message) {
     if (SYNC.equals(message.qualifier()) && checkSyncGroup(message)) {

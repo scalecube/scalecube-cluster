@@ -98,6 +98,7 @@ final class ClusterImpl implements Cluster {
               shutdown
                   .then(doShutdown())
                   .doFinally(s -> onShutdown.onComplete())
+                  .subscribeOn(scheduler)
                   .subscribe(
                       null, ex -> LOGGER.error("Exception occurred on cluster shutdown: " + ex));
 
@@ -255,17 +256,22 @@ final class ClusterImpl implements Cluster {
 
   @Override
   public Mono<Void> updateMetadata(Map<String, String> metadata) {
-    return metadataStore.updateMetadata(metadata).then(membership.updateIncarnation());
+    return metadataStore
+        .updateMetadata(metadata)
+        .then(membership.updateIncarnation())
+        .subscribeOn(scheduler);
   }
 
   @Override
   public Mono<Void> updateMetadataProperty(String key, String value) {
-    return Mono.defer(
-        () -> {
-          Map<String, String> metadata = new HashMap<>(metadataStore.metadata());
-          metadata.put(key, value);
-          return updateMetadata(metadata);
-        });
+    return Mono.fromCallable(
+            () -> {
+              Map<String, String> metadata = new HashMap<>(metadataStore.metadata());
+              metadata.put(key, value);
+              return metadata;
+            })
+        .flatMap(this::updateMetadata)
+        .subscribeOn(scheduler);
   }
 
   @Override
@@ -299,7 +305,7 @@ final class ClusterImpl implements Cluster {
 
   private Mono<Void> leaveCluster(Member member) {
     return membership
-        .leave()
+        .leaveCluster()
         .doOnSuccess(
             s ->
                 LOGGER.info(
