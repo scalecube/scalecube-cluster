@@ -1,7 +1,6 @@
 package io.scalecube.cluster.metadata;
 
 import java.util.Map;
-import reactor.core.publisher.Mono;
 
 public interface MetadataStore {
 
@@ -15,8 +14,7 @@ public interface MetadataStore {
   /**
    * Updates local member metadata.
    *
-   * @param metadata metadata
-   * @return mono handle
+   * @param metadata local member metadata
    */
-  Mono<Void> updateMetadata(Map<String, String> metadata);
+  void updateMetadata(Map<String, String> metadata);
 }

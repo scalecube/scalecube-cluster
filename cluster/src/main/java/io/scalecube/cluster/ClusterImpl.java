@@ -13,7 +13,7 @@ import io.scalecube.cluster.gossip.GossipProtocolImpl;
 import io.scalecube.cluster.membership.IdGenerator;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipProtocolImpl;
-import io.scalecube.cluster.metadata.MetadataStore;
+import io.scalecube.cluster.metadata.MetadataStoreImpl;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.NetworkEmulator;
@@ -73,7 +73,7 @@ final class ClusterImpl implements Cluster {
   private FailureDetectorImpl failureDetector;
   private GossipProtocolImpl gossip;
   private MembershipProtocolImpl membership;
-  private MetadataStore metadataStore;
+  private MetadataStoreImpl metadataStore;
   private Scheduler scheduler;
 
   private final MonoProcessor<Void> shutdown = MonoProcessor.create();
@@ -89,8 +89,6 @@ final class ClusterImpl implements Cluster {
             boundTransport -> {
               transport = boundTransport;
               localMember = createLocalMember(boundTransport.address().port());
-
-              onMemberAdded(localMember); // store local member at this phase
 
               scheduler = Schedulers.newSingle("sc-cluster-" + localMember.address().port(), true);
 
@@ -122,6 +120,8 @@ final class ClusterImpl implements Cluster {
                   new MembershipProtocolImpl(
                       localMember, transport, failureDetector, gossip, config, scheduler);
 
+              metadataStore = new MetadataStoreImpl(localMember, transport, config.getMetadata());
+
               actionsDisposables.add(
                   membership
                       .listen()
@@ -152,7 +152,13 @@ final class ClusterImpl implements Cluster {
             .map(memberHost -> Address.create(memberHost, port))
             .orElseGet(() -> Address.create(localAddress, listenPort));
 
-    return new Member(IdGenerator.generateId(), memberAddress);
+    Member localMember = new Member(IdGenerator.generateId(), memberAddress);
+
+    // store local member at this phase
+    memberAddressIndex.put(localMember.address(), localMember.id());
+    members.put(localMember.id(), localMember);
+
+    return localMember;
   }
 
   /**
@@ -165,25 +171,23 @@ final class ClusterImpl implements Cluster {
   private void onMemberEvent(MembershipEvent event, FluxSink<MembershipEvent> membershipSink) {
     Member member = event.member();
     if (event.isAdded()) {
-      onMemberAdded(member);
+      memberAddressIndex.put(member.address(), member.id());
+      members.put(member.id(), member);
+      metadataStore.markMetadataForUpdate(member);
     }
 
     if (event.isRemoved()) {
       members.remove(member.id());
       memberAddressIndex.remove(member.address());
+      metadataStore.removeMetadata(member);
     }
 
     if (event.isUpdated()) {
-      members.put(member.id(), member);
+      metadataStore.markMetadataForUpdate(member);
     }
 
     // forward membershipevent to downstream components
     membershipSink.next(event);
-  }
-
-  private void onMemberAdded(Member member) {
-    memberAddressIndex.put(member.address(), member.id());
-    members.put(member.id(), member);
   }
 
   private void onError(Throwable throwable) {
@@ -256,8 +260,7 @@ final class ClusterImpl implements Cluster {
 
   @Override
   public Mono<Void> updateMetadata(Map<String, String> metadata) {
-    return metadataStore
-        .updateMetadata(metadata)
+    return Mono.fromRunnable(() -> metadataStore.updateMetadata(metadata))
         .then(membership.updateIncarnation())
         .subscribeOn(scheduler);
   }
