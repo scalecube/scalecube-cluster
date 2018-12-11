@@ -96,7 +96,8 @@ final class ClusterImpl implements Cluster {
               shutdown
                   .then(doShutdown())
                   .doFinally(s -> onShutdown.onComplete())
-                  .subscribe(null, ex -> LOGGER.error("Unexpected exception occurred: ", ex));
+                  .subscribe(
+                      null, ex -> LOGGER.error("Exception occurred on cluster shutdown: " + ex));
 
               failureDetector =
                   new FailureDetectorImpl(
@@ -229,6 +230,11 @@ final class ClusterImpl implements Cluster {
   }
 
   @Override
+  public Map<String, String> metadata() {
+    return null;
+  }
+
+  @Override
   public Optional<Member> member(String id) {
     return Optional.ofNullable(members.get(id));
   }
@@ -272,21 +278,20 @@ final class ClusterImpl implements Cluster {
 
   @Override
   public Mono<Void> shutdown() {
-    shutdown.onComplete();
-    return onShutdown;
+    return Mono.defer(
+        () -> {
+          shutdown.onComplete();
+          return onShutdown;
+        });
   }
 
   private Mono<Void> doShutdown() {
     return Mono.defer(
         () -> {
           LOGGER.info("Cluster member {} is shutting down", localMember);
-          return leaveCluster(localMember)
-              .then(dispose())
-              .then(stopTransport())
-              .doOnSuccess(avoid -> LOGGER.info("Cluster member {} has shut down", localMember))
-              .doOnError(
-                  e ->
-                      LOGGER.warn("Cluster member {} has shutdown with error: {}", localMember, e));
+          return Flux.concatDelayError(leaveCluster(localMember), dispose(), transport.stop())
+              .then()
+              .doOnSuccess(avoid -> LOGGER.info("Cluster member {} has shut down", localMember));
         });
   }
 
@@ -304,7 +309,6 @@ final class ClusterImpl implements Cluster {
                         + "to other cluster members: {}",
                     member,
                     e))
-        .onErrorResume(e -> Mono.empty())
         .then();
   }
 
@@ -322,10 +326,6 @@ final class ClusterImpl implements Cluster {
           // stop scheduler
           scheduler.dispose();
         });
-  }
-
-  private Mono<Void> stopTransport() {
-    return Mono.defer(() -> transport.stop());
   }
 
   @Override

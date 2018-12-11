@@ -111,8 +111,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     // Init membership table with local member record
     membershipTable.put(localMember.id(), new MembershipRecord(localMember, ALIVE, 0));
 
-    final Map<String, String> localMetadata = config.getMetadata();
-
     actionsDisposables.addAll(
         Arrays.asList(
             // Listen to incoming SYNC and SYNC ACK requests from other members
@@ -147,37 +145,32 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     return subject.onBackpressureBuffer();
   }
 
-  @Override
-  public Map<String, String> metadata() {
-    return null;
-  }
-
-  @Override
-  public Mono<Void> updateMetadata(Map<String, String> metadata) {
-    return Mono.just(metadata).publishOn(scheduler).flatMap(this::onUpdateMetadata);
+  /**
+   * Updates local member incarnation number.
+   *
+   * @return mono handle result of {@link #updateIncarnation0()}
+   */
+  public Mono<Void> updateIncarnation() {
+    return updateIncarnation0().subscribeOn(scheduler);
   }
 
   /**
    * Spreads leave notification to other cluster members.
    *
-   * @return mono handler
+   * @return mono handle
    */
   public Mono<String> leave() {
     return Mono.defer(
         () -> {
-          String memberId = localMember.id();
-          MembershipRecord curRecord = membershipTable.get(memberId);
+          MembershipRecord curRecord = membershipTable.get(localMember.id());
           MembershipRecord newRecord =
               new MembershipRecord(localMember, DEAD, curRecord.incarnation() + 1);
-          membershipTable.put(memberId, newRecord);
+          membershipTable.put(localMember.id(), newRecord);
           return spreadMembershipGossip(newRecord);
         });
   }
 
-  /**
-   * Starts running cluster membership protocol. After started it begins to receive and send cluster
-   * membership messages
-   */
+  @Override
   public Mono<Void> start() {
     // Make initial sync with all seed members
     return Mono.create(
@@ -238,7 +231,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     LOGGER.error("Received unexpected error: ", throwable);
   }
 
-  /** Stops running cluster membership protocol and releases occupied resources. */
+  @Override
   public void stop() {
     // Stop accepting requests, events and sending sync
     actionsDisposables.dispose();
@@ -284,23 +277,17 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   // ============== Event Listeners =================
   // ================================================
 
-  private Mono<Void> onUpdateMetadata(Map<String, String> metadata) {
+  private Mono<Void> updateIncarnation0() {
     return Mono.defer(
         () -> {
-          // Update local member reference
-          Member curMember = memberRef.get();
-          String memberId = curMember.id();
-          Member newMember = new Member(memberId, curMember.address());
-          memberRef.set(newMember);
-
           // Update membership table
-          MembershipRecord curRecord = membershipTable.get(memberId);
+          MembershipRecord curRecord = membershipTable.get(localMember.id());
           MembershipRecord newRecord =
-              new MembershipRecord(newMember, ALIVE, curRecord.incarnation() + 1);
-          membershipTable.put(memberId, newRecord);
+              new MembershipRecord(localMember, ALIVE, curRecord.incarnation() + 1);
+          membershipTable.put(localMember.id(), newRecord);
 
           // Emit membership updated event
-          sink.next(MembershipEvent.createUpdated(curMember, newMember));
+          sink.next(MembershipEvent.createUpdated(localMember, localMember));
 
           // Spread new membership record over the cluster
           return spreadMembershipGossip(newRecord).then();
@@ -405,7 +392,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private Message prepareSyncDataMsg(String qualifier, String cid) {
     List<MembershipRecord> membershipRecords = new ArrayList<>(membershipTable.values());
     SyncData syncData = new SyncData(membershipRecords, config.getSyncGroup());
-    Member localMember = member();
     return Message.withData(syncData)
         .qualifier(qualifier)
         .correlationId(cid)
@@ -441,7 +427,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     }
 
     // If received updated for local member then increase incarnation number and spread Alive gossip
-    Member localMember = memberRef.get();
     if (r1.member().id().equals(localMember.id())) {
       int currentIncarnation = Math.max(r0.incarnation(), r1.incarnation());
       MembershipRecord r2 = new MembershipRecord(localMember, r0.status(), currentIncarnation + 1);

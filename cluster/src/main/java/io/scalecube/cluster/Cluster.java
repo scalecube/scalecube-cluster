@@ -141,6 +141,13 @@ public interface Cluster {
   Member member();
 
   /**
+   * Returns local cluster member metadata.
+   *
+   * @return local member metadata
+   */
+  Map<String, String> metadata();
+
+  /**
    * Returns cluster member with given id or null if no member with such id exists at joined
    * cluster.
    *

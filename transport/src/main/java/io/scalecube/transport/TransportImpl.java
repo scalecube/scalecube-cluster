@@ -60,7 +60,8 @@ final class TransportImpl implements Transport {
   private final OutboundChannelInitializer outboundPipeline;
 
   // Close handler
-  private final MonoProcessor<Void> onClose;
+  private final MonoProcessor<Void> stop;
+  private final MonoProcessor<Void> onStop;
 
   // Network emulator
   private final NetworkEmulator networkEmulator;
@@ -83,7 +84,8 @@ final class TransportImpl implements Transport {
     this.exceptionHandler = new ExceptionHandler();
     this.inboundPipeline = new InboundChannelInitializer();
     this.outboundPipeline = new OutboundChannelInitializer();
-    this.onClose = MonoProcessor.create();
+    this.stop = MonoProcessor.create();
+    this.onStop = MonoProcessor.create();
     this.networkEmulator = null;
     this.address = null;
     this.server = null;
@@ -113,7 +115,13 @@ final class TransportImpl implements Transport {
     this.exceptionHandler = other.exceptionHandler;
     this.inboundPipeline = other.inboundPipeline;
     this.outboundPipeline = other.outboundPipeline;
-    this.onClose = other.onClose;
+    this.stop = other.stop;
+    this.onStop = other.onStop;
+
+    // Setup cleanup
+    stop.then(doStop())
+        .doFinally(s -> onStop.onComplete())
+        .subscribe(null, ex -> LOGGER.warn("Exception occurred on transport stop: " + ex));
   }
 
   /**
@@ -141,7 +149,7 @@ final class TransportImpl implements Transport {
 
   @Override
   public boolean isStopped() {
-    return onClose.isDisposed();
+    return onStop.isDisposed();
   }
 
   @Override
@@ -153,16 +161,21 @@ final class TransportImpl implements Transport {
   public final Mono<Void> stop() {
     return Mono.defer(
         () -> {
-          if (!onClose.isDisposed()) {
-            // Complete incoming messages observable
-            messageSink.complete();
-            closeServer()
-                .then(closeConnections())
-                .doOnTerminate(loopResources::dispose)
-                .doOnTerminate(onClose::onComplete)
-                .subscribe();
-          }
-          return onClose;
+          stop.onComplete();
+          return onStop;
+        });
+  }
+
+  private Mono<Void> doStop() {
+    return Mono.defer(
+        () -> {
+          LOGGER.info("Transport is shutting down on {}", address);
+          // Complete incoming messages observable
+          messageSink.complete();
+          return Flux.concatDelayError(closeServer(), closeConnections())
+              .doOnTerminate(loopResources::dispose)
+              .then()
+              .doOnSuccess(avoid -> LOGGER.info("Transport has shut down on {}", address));
         });
   }
 
@@ -262,8 +275,7 @@ final class TransportImpl implements Transport {
                       server.dispose();
                       return server
                           .onDispose()
-                          .doOnError(e -> LOGGER.warn("Failed to close server: " + e))
-                          .onErrorResume(e -> Mono.empty());
+                          .doOnError(e -> LOGGER.warn("Failed to close server: " + e));
                     })
                 .orElse(Mono.empty()));
   }
