@@ -146,6 +146,15 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   }
 
   /**
+   * Returns local member.
+   *
+   * @return local member
+   */
+  public Member member() {
+    return localMember;
+  }
+
+  /**
    * Updates local member incarnation number.
    *
    * @return mono handle result of {@link #updateIncarnation0()}

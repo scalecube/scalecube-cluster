@@ -13,6 +13,7 @@ import io.scalecube.cluster.gossip.GossipProtocolImpl;
 import io.scalecube.cluster.membership.IdGenerator;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipProtocolImpl;
+import io.scalecube.cluster.metadata.MetadataStore;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.NetworkEmulator;
@@ -72,6 +73,7 @@ final class ClusterImpl implements Cluster {
   private FailureDetectorImpl failureDetector;
   private GossipProtocolImpl gossip;
   private MembershipProtocolImpl membership;
+  private MetadataStore metadataStore;
   private Scheduler scheduler;
 
   private final MonoProcessor<Void> shutdown = MonoProcessor.create();
@@ -231,7 +233,7 @@ final class ClusterImpl implements Cluster {
 
   @Override
   public Map<String, String> metadata() {
-    return null;
+    return metadataStore.metadata();
   }
 
   @Override
@@ -253,16 +255,16 @@ final class ClusterImpl implements Cluster {
 
   @Override
   public Mono<Void> updateMetadata(Map<String, String> metadata) {
-    return membership.updateMetadata(metadata);
+    return metadataStore.updateMetadata(metadata).then(membership.updateIncarnation());
   }
 
   @Override
   public Mono<Void> updateMetadataProperty(String key, String value) {
     return Mono.defer(
         () -> {
-          Map<String, String> metadata = new HashMap<>(membership.metadata());
+          Map<String, String> metadata = new HashMap<>(metadataStore.metadata());
           metadata.put(key, value);
-          return membership.updateMetadata(metadata);
+          return updateMetadata(metadata);
         });
   }
 
