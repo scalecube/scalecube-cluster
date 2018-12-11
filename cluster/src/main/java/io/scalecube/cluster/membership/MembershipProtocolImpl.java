@@ -24,7 +24,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
@@ -56,7 +55,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   // Injected
 
-  private final AtomicReference<Member> memberRef;
+  private final Member localMember;
   private final Transport transport;
   private final MembershipConfig config;
   private final List<Address> seedMembers;
@@ -84,7 +83,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   /**
    * Creates new instantiates of cluster membership protocol with given transport and config.
    *
-   * @param memberRef local cluster member reference
+   * @param localMember local cluster member
    * @param transport cluster transport
    * @param failureDetector failure detector
    * @param gossipProtocol gossip protocol
@@ -92,7 +91,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
    * @param scheduler scheduler
    */
   public MembershipProtocolImpl(
-      AtomicReference<Member> memberRef,
+      Member localMember,
       Transport transport,
       FailureDetector failureDetector,
       GossipProtocol gossipProtocol,
@@ -103,16 +102,16 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     this.config = Objects.requireNonNull(config);
     this.failureDetector = Objects.requireNonNull(failureDetector);
     this.gossipProtocol = Objects.requireNonNull(gossipProtocol);
-    this.memberRef = Objects.requireNonNull(memberRef);
+    this.localMember = Objects.requireNonNull(localMember);
     this.scheduler = Objects.requireNonNull(scheduler);
 
     // Prepare seeds
-    this.seedMembers = cleanUpSeedMembers(config.getSeedMembers());
+    seedMembers = cleanUpSeedMembers(config.getSeedMembers());
 
     // Init membership table with local member record
-    Member member = memberRef.get();
-    MembershipRecord localMemberRecord = new MembershipRecord(member, ALIVE, 0);
-    this.membershipTable.put(member.id(), localMemberRecord);
+    membershipTable.put(localMember.id(), new MembershipRecord(localMember, ALIVE, 0));
+
+    final Map<String, String> localMetadata = config.getMetadata();
 
     actionsDisposables.addAll(
         Arrays.asList(
@@ -139,7 +138,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   // Remove duplicates and local address
   private List<Address> cleanUpSeedMembers(Collection<Address> seedMembers) {
     Set<Address> seedMembersSet = new HashSet<>(seedMembers); // remove duplicates
-    seedMembersSet.remove(member().address()); // remove local address
+    seedMembersSet.remove(localMember.address()); // remove local address
     return Collections.unmodifiableList(new ArrayList<>(seedMembersSet));
   }
 
@@ -149,8 +148,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   }
 
   @Override
-  public Member member() {
-    return memberRef.get();
+  public Map<String, String> metadata() {
+    return null;
   }
 
   @Override
@@ -166,11 +165,10 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   public Mono<String> leave() {
     return Mono.defer(
         () -> {
-          Member curMember = memberRef.get();
-          String memberId = curMember.id();
+          String memberId = localMember.id();
           MembershipRecord curRecord = membershipTable.get(memberId);
           MembershipRecord newRecord =
-              new MembershipRecord(this.member(), DEAD, curRecord.incarnation() + 1);
+              new MembershipRecord(localMember, DEAD, curRecord.incarnation() + 1);
           membershipTable.put(memberId, newRecord);
           return spreadMembershipGossip(newRecord);
         });
@@ -194,7 +192,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           LOGGER.debug("Making initial Sync to all seed members: {}", seedMembers);
 
           // Listen initial Sync Ack
-          String cid = memberRef.get().id();
+          String cid = localMember.id();
           transport
               .listen()
               .filter(msg -> SYNC_ACK.equals(msg.qualifier()))
@@ -292,7 +290,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           // Update local member reference
           Member curMember = memberRef.get();
           String memberId = curMember.id();
-          Member newMember = new Member(memberId, curMember.address(), metadata);
+          Member newMember = new Member(memberId, curMember.address());
           memberRef.set(newMember);
 
           // Update membership table

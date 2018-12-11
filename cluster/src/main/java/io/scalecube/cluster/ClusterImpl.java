@@ -27,7 +27,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
@@ -69,11 +68,13 @@ final class ClusterImpl implements Cluster {
 
   // Cluster components
   private Transport transport;
+  private Member localMember;
   private FailureDetectorImpl failureDetector;
   private GossipProtocolImpl gossip;
   private MembershipProtocolImpl membership;
   private Scheduler scheduler;
 
+  private final MonoProcessor<Void> shutdown = MonoProcessor.create();
   private final MonoProcessor<Void> onShutdown = MonoProcessor.create();
 
   public ClusterImpl(ClusterConfig config) {
@@ -85,19 +86,21 @@ final class ClusterImpl implements Cluster {
         .flatMap(
             boundTransport -> {
               transport = boundTransport;
-
-              // Prepare local cluster member
-              final Member localMember = createLocalMember(boundTransport.address().port());
+              localMember = createLocalMember(boundTransport.address().port());
 
               onMemberAdded(localMember); // store local member at this phase
 
-              final AtomicReference<Member> memberRef = new AtomicReference<>(localMember);
-
               scheduler = Schedulers.newSingle("sc-cluster-" + localMember.address().port(), true);
+
+              // Setup shutdown
+              shutdown
+                  .then(doShutdown())
+                  .doFinally(s -> onShutdown.onComplete())
+                  .subscribe(null, ex -> LOGGER.error("Unexpected exception occurred: ", ex));
 
               failureDetector =
                   new FailureDetectorImpl(
-                      memberRef::get,
+                      localMember,
                       transport,
                       membershipEvents.onBackpressureBuffer(),
                       config,
@@ -105,7 +108,7 @@ final class ClusterImpl implements Cluster {
 
               gossip =
                   new GossipProtocolImpl(
-                      memberRef::get,
+                      localMember,
                       transport,
                       membershipEvents.onBackpressureBuffer(),
                       config,
@@ -113,7 +116,7 @@ final class ClusterImpl implements Cluster {
 
               membership =
                   new MembershipProtocolImpl(
-                      memberRef, transport, failureDetector, gossip, config, scheduler);
+                      localMember, transport, failureDetector, gossip, config, scheduler);
 
               actionsDisposables.add(
                   membership
@@ -137,16 +140,15 @@ final class ClusterImpl implements Cluster {
    * @return local cluster member with cluster address and cluster member id
    */
   private Member createLocalMember(int listenPort) {
+    String localAddress = Address.getLocalIpAddress().getHostAddress();
+    Integer port = Optional.ofNullable(config.getMemberPort()).orElse(listenPort);
+
     Address memberAddress =
         Optional.ofNullable(config.getMemberHost())
-            .map(
-                memberHost ->
-                    Address.create(
-                        memberHost, Optional.ofNullable(config.getMemberPort()).orElse(listenPort)))
-            .orElseGet(
-                () -> Address.create(Address.getLocalIpAddress().getHostAddress(), listenPort));
+            .map(memberHost -> Address.create(memberHost, port))
+            .orElseGet(() -> Address.create(localAddress, listenPort));
 
-    return new Member(IdGenerator.generateId(), memberAddress, config.getMetadata());
+    return new Member(IdGenerator.generateId(), memberAddress);
   }
 
   /**
@@ -223,7 +225,7 @@ final class ClusterImpl implements Cluster {
 
   @Override
   public Member member() {
-    return membership.member();
+    return localMember;
   }
 
   @Override
@@ -233,14 +235,13 @@ final class ClusterImpl implements Cluster {
 
   @Override
   public Optional<Member> member(Address address) {
-    return Optional.ofNullable(memberAddressIndex.get(address))
-        .flatMap(id -> Optional.ofNullable(members.get(id)));
+    return Optional.ofNullable(memberAddressIndex.get(address)).flatMap(this::member);
   }
 
   @Override
   public Collection<Member> otherMembers() {
-    ArrayList<Member> otherMembers = new ArrayList<>(members.values());
-    otherMembers.remove(membership.member());
+    ArrayList<Member> otherMembers = new ArrayList<>(members());
+    otherMembers.remove(localMember);
     return Collections.unmodifiableCollection(otherMembers);
   }
 
@@ -253,8 +254,7 @@ final class ClusterImpl implements Cluster {
   public Mono<Void> updateMetadataProperty(String key, String value) {
     return Mono.defer(
         () -> {
-          Member curMember = membership.member();
-          Map<String, String> metadata = new HashMap<>(curMember.metadata());
+          Map<String, String> metadata = new HashMap<>(membership.metadata());
           metadata.put(key, value);
           return membership.updateMetadata(metadata);
         });
@@ -272,27 +272,21 @@ final class ClusterImpl implements Cluster {
 
   @Override
   public Mono<Void> shutdown() {
-    return Mono.defer(
-        () -> {
-          if (!onShutdown.isDisposed()) {
-            Member member = membership.member();
-            shutdown0()
-                .doOnSuccess(avoid -> LOGGER.info("Cluster member {} has shut down", member))
-                .doOnError(
-                    e -> LOGGER.warn("Cluster member {} has shutdown with error: {}", member, e))
-                .doOnTerminate(onShutdown::onComplete)
-                .subscribe();
-          }
-          return onShutdown;
-        });
+    shutdown.onComplete();
+    return onShutdown;
   }
 
-  private Mono<Void> shutdown0() {
+  private Mono<Void> doShutdown() {
     return Mono.defer(
         () -> {
-          Member member = membership.member();
-          LOGGER.info("Cluster member {} is shutting down", member);
-          return leaveCluster(member).then(dispose()).then(stopTransport());
+          LOGGER.info("Cluster member {} is shutting down", localMember);
+          return leaveCluster(localMember)
+              .then(dispose())
+              .then(stopTransport())
+              .doOnSuccess(avoid -> LOGGER.info("Cluster member {} has shut down", localMember))
+              .doOnError(
+                  e ->
+                      LOGGER.warn("Cluster member {} has shutdown with error: {}", localMember, e));
         });
   }
 

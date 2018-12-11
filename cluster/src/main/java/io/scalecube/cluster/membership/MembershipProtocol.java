@@ -11,8 +11,8 @@ import reactor.core.publisher.Mono;
  */
 public interface MembershipProtocol {
 
-  /** Returns local cluster member. */
-  Member member();
+  /** Returns local member metadata. */
+  Map<String, String> metadata();
 
   /** Updates local member metadata. */
   Mono<Void> updateMetadata(Map<String, String> metadata);

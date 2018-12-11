@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
@@ -36,8 +35,8 @@ public final class FailureDetectorImpl implements FailureDetector {
 
   // Injected
 
+  private final Member localMember;
   private final Transport transport;
-  private final Supplier<Member> memberSupplier;
   private final FailureDetectorConfig config;
 
   // State
@@ -62,20 +61,20 @@ public final class FailureDetectorImpl implements FailureDetector {
   /**
    * Creates new instance of failure detector with given transport and settings.
    *
-   * @param memberSupplier local cluster member provider
+   * @param localMember local cluster member
    * @param transport cluster transport
    * @param membershipProcessor membership event processor
    * @param config failure detector settings
    * @param scheduler scheduler
    */
   public FailureDetectorImpl(
-      Supplier<Member> memberSupplier,
+      Member localMember,
       Transport transport,
       Flux<MembershipEvent> membershipProcessor,
       FailureDetectorConfig config,
       Scheduler scheduler) {
 
-    this.memberSupplier = Objects.requireNonNull(memberSupplier);
+    this.localMember = Objects.requireNonNull(localMember);
     this.transport = Objects.requireNonNull(transport);
     this.config = Objects.requireNonNull(config);
     this.scheduler = Objects.requireNonNull(scheduler);
@@ -131,7 +130,6 @@ public final class FailureDetectorImpl implements FailureDetector {
     }
 
     // Send ping
-    Member localMember = memberSupplier.get();
     String cid = localMember.id() + "-" + Long.toString(period);
     PingData pingData = new PingData(localMember, pingMember);
     Message pingMsg =
@@ -195,7 +193,6 @@ public final class FailureDetectorImpl implements FailureDetector {
       return;
     }
 
-    Member localMember = memberSupplier.get();
     transport
         .listen()
         .filter(this::isPingAck)
@@ -258,7 +255,6 @@ public final class FailureDetectorImpl implements FailureDetector {
   private void onPing(Message message) {
     LOGGER.trace("Received Ping: {}", message);
     PingData data = message.data();
-    Member localMember = memberSupplier.get();
     if (!data.getTo().id().equals(localMember.id())) {
       LOGGER.warn("Received Ping to {}, but local member is {}", data.getTo(), localMember);
       return;
@@ -291,8 +287,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     Member target = data.getTo();
     Member originalIssuer = data.getFrom();
     String correlationId = message.correlationId();
-    PingData pingReqData = new PingData(memberSupplier.get(), target, originalIssuer);
-    Member localMember = memberSupplier.get();
+    PingData pingReqData = new PingData(localMember, target, originalIssuer);
     Message pingMessage =
         Message.withData(pingReqData)
             .qualifier(PING)
@@ -323,7 +318,6 @@ public final class FailureDetectorImpl implements FailureDetector {
     Member target = data.getOriginalIssuer();
     String correlationId = message.correlationId();
     PingData originalAckData = new PingData(target, data.getTo());
-    Member localMember = memberSupplier.get();
     Message originalAckMessage =
         Message.withData(originalAckData)
             .qualifier(PING_ACK)

@@ -14,7 +14,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,8 +37,8 @@ public final class GossipProtocolImpl implements GossipProtocol {
 
   // Injected
 
+  private final Member localMember;
   private final Transport transport;
-  private final Supplier<Member> memberSupplier;
   private final GossipConfig config;
 
   // Local State
@@ -70,14 +69,14 @@ public final class GossipProtocolImpl implements GossipProtocol {
   /**
    * Creates new instance of gossip protocol with given memberId, transport and settings.
    *
-   * @param memberSupplier local cluster member provider
+   * @param localMember local cluster member
    * @param transport cluster transport
    * @param membershipProcessor membership event processor
    * @param config gossip protocol settings
    * @param scheduler scheduler
    */
   public GossipProtocolImpl(
-      Supplier<Member> memberSupplier,
+      Member localMember,
       Transport transport,
       Flux<MembershipEvent> membershipProcessor,
       GossipConfig config,
@@ -85,7 +84,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
 
     this.transport = Objects.requireNonNull(transport);
     this.config = Objects.requireNonNull(config);
-    this.memberSupplier = Objects.requireNonNull(memberSupplier);
+    this.localMember = Objects.requireNonNull(localMember);
     this.scheduler = Objects.requireNonNull(scheduler);
 
     // Subscribe
@@ -204,7 +203,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
   }
 
   private String generateGossipId() {
-    return memberSupplier.get().id() + "-" + gossipCounter++;
+    return localMember.id() + "-" + gossipCounter++;
   }
 
   private void spreadGossipsTo(Member member) {
@@ -266,7 +265,6 @@ public final class GossipProtocolImpl implements GossipProtocol {
   }
 
   private Message buildGossipRequestMessage(List<Gossip> gossipsToSend) {
-    Member localMember = memberSupplier.get();
     GossipRequest gossipReqData = new GossipRequest(gossipsToSend, localMember.id());
     return Message.withData(gossipReqData)
         .qualifier(GOSSIP_REQ)
@@ -316,6 +314,6 @@ public final class GossipProtocolImpl implements GossipProtocol {
    * @return local member
    */
   Member getMember() {
-    return memberSupplier.get();
+    return localMember;
   }
 }
