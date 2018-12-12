@@ -168,9 +168,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
               new MembershipRecord(localMember, ALIVE, curRecord.incarnation() + 1);
           membershipTable.put(localMember.id(), newRecord);
 
-          // Emit membership updated event
-          sink.next(MembershipEvent.createUpdated(localMember, localMember));
-
           // Spread new membership record over the cluster
           return spreadMembershipGossip(newRecord).then();
         });
@@ -461,7 +458,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       sink.next(MembershipEvent.createRemoved(r1.member()));
     } else if (r0 == null && r1.isAlive()) {
       sink.next(MembershipEvent.createAdded(r1.member()));
-    } else if (r0 != null && !r0.member().equals(r1.member())) {
+    } else if (r0 != null && r0.incarnation() < r1.incarnation()) {
       sink.next(MembershipEvent.createUpdated(r0.member(), r1.member()));
     }
 

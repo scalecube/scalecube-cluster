@@ -53,6 +53,8 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
   public static final int DEFAULT_LOCAL_GOSSIP_INTERVAL = 100;
   public static final int DEFAULT_LOCAL_CONNECT_TIMEOUT = 1_000;
 
+  public static final int DEFAULT_METADATA_TIMEOUT = 1_000;
+
   public static final String DEFAULT_MEMBER_HOST = null;
   public static final Integer DEFAULT_MEMBER_PORT = null;
 
@@ -62,6 +64,7 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
   private final int syncTimeout;
   private final int suspicionMult;
   private final String syncGroup;
+  private final int metadataTimeout;
 
   private final int pingInterval;
   private final int pingTimeout;
@@ -82,6 +85,7 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
     this.syncTimeout = builder.syncTimeout;
     this.syncGroup = builder.syncGroup;
     this.suspicionMult = builder.suspicionMult;
+    this.metadataTimeout = builder.metadataTimeout;
 
     this.pingInterval = builder.pingInterval;
     this.pingTimeout = builder.pingTimeout;
@@ -158,6 +162,10 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
     return syncGroup;
   }
 
+  public int getMetadataTimeout() {
+    return metadataTimeout;
+  }
+
   public int getPingInterval() {
     return pingInterval;
   }
@@ -204,6 +212,8 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
         + syncInterval
         + ", syncTimeout="
         + syncTimeout
+        + ", metadataTimeout="
+        + metadataTimeout
         + ", suspicionMult="
         + suspicionMult
         + ", syncGroup='"
@@ -238,6 +248,7 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
     private int syncTimeout = DEFAULT_SYNC_TIMEOUT;
     private String syncGroup = DEFAULT_SYNC_GROUP;
     private int suspicionMult = DEFAULT_SUSPICION_MULT;
+    private int metadataTimeout = DEFAULT_METADATA_TIMEOUT;
 
     private int pingInterval = DEFAULT_PING_INTERVAL;
     private int pingTimeout = DEFAULT_PING_TIMEOUT;
@@ -296,6 +307,11 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
 
     public Builder syncGroup(String syncGroup) {
       this.syncGroup = syncGroup;
+      return this;
+    }
+
+    public Builder metadataTimeout(int metadataTimeout) {
+      this.metadataTimeout = metadataTimeout;
       return this;
     }
 

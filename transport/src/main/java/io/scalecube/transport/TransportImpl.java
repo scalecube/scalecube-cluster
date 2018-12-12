@@ -56,8 +56,7 @@ final class TransportImpl implements Transport {
 
   // Pipeline
   private final ExceptionHandler exceptionHandler;
-  private final InboundChannelInitializer inboundPipeline;
-  private final OutboundChannelInitializer outboundPipeline;
+  private final TransportChannelInitializer channelInitializer;
 
   // Close handler
   private final MonoProcessor<Void> stop;
@@ -82,8 +81,7 @@ final class TransportImpl implements Transport {
     this.messageSink = messagesSubject.sink();
     this.connections = new ConcurrentHashMap<>();
     this.exceptionHandler = new ExceptionHandler();
-    this.inboundPipeline = new InboundChannelInitializer();
-    this.outboundPipeline = new OutboundChannelInitializer();
+    this.channelInitializer = new TransportChannelInitializer();
     this.stop = MonoProcessor.create();
     this.onStop = MonoProcessor.create();
     this.networkEmulator = null;
@@ -113,8 +111,7 @@ final class TransportImpl implements Transport {
     this.messageSink = other.messageSink;
     this.connections = other.connections;
     this.exceptionHandler = other.exceptionHandler;
-    this.inboundPipeline = other.inboundPipeline;
-    this.outboundPipeline = other.outboundPipeline;
+    this.channelInitializer = other.channelInitializer;
     this.stop = other.stop;
     this.onStop = other.onStop;
 
@@ -306,7 +303,7 @@ final class TransportImpl implements Transport {
         .option(ChannelOption.SO_KEEPALIVE, true)
         .option(ChannelOption.SO_REUSEADDR, true)
         .addressSupplier(() -> new InetSocketAddress(config.getPort()))
-        .bootstrap(b -> BootstrapHandlers.updateConfiguration(b, "inbound", inboundPipeline));
+        .bootstrap(b -> BootstrapHandlers.updateConfiguration(b, "inbound", channelInitializer));
   }
 
   /**
@@ -324,28 +321,22 @@ final class TransportImpl implements Transport {
         .option(ChannelOption.SO_KEEPALIVE, true)
         .option(ChannelOption.SO_REUSEADDR, true)
         .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.getConnectTimeout())
-        .bootstrap(b -> BootstrapHandlers.updateConfiguration(b, "outbound", outboundPipeline));
+        .bootstrap(b -> BootstrapHandlers.updateConfiguration(b, "outbound", channelInitializer));
   }
 
-  private final class InboundChannelInitializer implements BiConsumer<ConnectionObserver, Channel> {
-
-    private static final int MAX_FRAME_LENGTH = 1024 * 1024;
-
-    @Override
-    public void accept(ConnectionObserver connectionObserver, Channel channel) {
-      ChannelPipeline pipeline = channel.pipeline();
-      pipeline.addLast(new LengthFieldBasedFrameDecoder(MAX_FRAME_LENGTH, 0, 4, 0, 4));
-      pipeline.addLast(exceptionHandler);
-    }
-  }
-
-  private final class OutboundChannelInitializer
+  private final class TransportChannelInitializer
       implements BiConsumer<ConnectionObserver, Channel> {
 
+    private static final int MAX_FRAME_LENGTH = 8192;
+    private static final int LENGTH_FIELD_LENGTH = 2;
+
     @Override
     public void accept(ConnectionObserver connectionObserver, Channel channel) {
       ChannelPipeline pipeline = channel.pipeline();
-      pipeline.addLast(new LengthFieldPrepender(4));
+      pipeline.addLast(new LengthFieldPrepender(LENGTH_FIELD_LENGTH));
+      pipeline.addLast(
+          new LengthFieldBasedFrameDecoder(
+              MAX_FRAME_LENGTH, 0, LENGTH_FIELD_LENGTH, 0, LENGTH_FIELD_LENGTH));
       pipeline.addLast(exceptionHandler);
     }
   }

@@ -1,13 +1,5 @@
 package io.scalecube.cluster;
 
-import static io.scalecube.cluster.fdetector.FailureDetectorImpl.PING;
-import static io.scalecube.cluster.fdetector.FailureDetectorImpl.PING_ACK;
-import static io.scalecube.cluster.fdetector.FailureDetectorImpl.PING_REQ;
-import static io.scalecube.cluster.gossip.GossipProtocolImpl.GOSSIP_REQ;
-import static io.scalecube.cluster.membership.MembershipProtocolImpl.MEMBERSHIP_GOSSIP;
-import static io.scalecube.cluster.membership.MembershipProtocolImpl.SYNC;
-import static io.scalecube.cluster.membership.MembershipProtocolImpl.SYNC_ACK;
-
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
 import io.scalecube.cluster.membership.IdGenerator;
@@ -49,10 +41,19 @@ final class ClusterImpl implements Cluster {
 
   private static final Set<String> SYSTEM_MESSAGES =
       Collections.unmodifiableSet(
-          Stream.of(PING, PING_REQ, PING_ACK, SYNC, SYNC_ACK, GOSSIP_REQ)
+          Stream.of(
+                  FailureDetectorImpl.PING,
+                  FailureDetectorImpl.PING_REQ,
+                  FailureDetectorImpl.PING_ACK,
+                  MembershipProtocolImpl.SYNC,
+                  MembershipProtocolImpl.SYNC_ACK,
+                  GossipProtocolImpl.GOSSIP_REQ,
+                  MetadataStoreImpl.GET_METADATA_REQ,
+                  MetadataStoreImpl.GET_METADATA_RESP)
               .collect(Collectors.toSet()));
 
-  private static final Set<String> SYSTEM_GOSSIPS = Collections.singleton(MEMBERSHIP_GOSSIP);
+  private static final Set<String> SYSTEM_GOSSIPS =
+      Collections.singleton(MembershipProtocolImpl.MEMBERSHIP_GOSSIP);
 
   private final ClusterConfig config;
 
@@ -120,15 +121,20 @@ final class ClusterImpl implements Cluster {
                   new MembershipProtocolImpl(
                       localMember, transport, failureDetector, gossip, config, scheduler);
 
-              metadataStore = new MetadataStoreImpl(localMember, transport, config.getMetadata());
+              metadataStore =
+                  new MetadataStoreImpl(
+                      localMember, transport, config.getMetadata(), config, scheduler);
 
               actionsDisposables.add(
                   membership
                       .listen()
+                      /*.publishOn(scheduler)*/
+                      // TODO [AV] : make otherMembers work
                       .subscribe(event -> onMemberEvent(event, membershipSink), this::onError));
 
               failureDetector.start();
               gossip.start();
+              metadataStore.start();
 
               return membership.start();
             })
@@ -147,6 +153,7 @@ final class ClusterImpl implements Cluster {
     String localAddress = Address.getLocalIpAddress().getHostAddress();
     Integer port = Optional.ofNullable(config.getMemberPort()).orElse(listenPort);
 
+    // calculate local member cluster address
     Address memberAddress =
         Optional.ofNullable(config.getMemberHost())
             .map(memberHost -> Address.create(memberHost, port))
@@ -232,13 +239,18 @@ final class ClusterImpl implements Cluster {
   }
 
   @Override
-  public Member member() {
-    return localMember;
+  public Map<String, String> metadata() {
+    return metadataStore.metadata();
   }
 
   @Override
-  public Map<String, String> metadata() {
-    return metadataStore.metadata();
+  public Mono<Map<String, String>> metadata(Member member) {
+    return metadataStore.metadata(member);
+  }
+
+  @Override
+  public Member member() {
+    return localMember;
   }
 
   @Override
@@ -267,14 +279,15 @@ final class ClusterImpl implements Cluster {
 
   @Override
   public Mono<Void> updateMetadataProperty(String key, String value) {
-    return Mono.fromCallable(
-            () -> {
-              Map<String, String> metadata = new HashMap<>(metadataStore.metadata());
-              metadata.put(key, value);
-              return metadata;
-            })
+    return Mono.fromCallable(() -> updateMetadataProperty0(key, value))
         .flatMap(this::updateMetadata)
         .subscribeOn(scheduler);
+  }
+
+  private Map<String, String> updateMetadataProperty0(String key, String value) {
+    Map<String, String> metadata = new HashMap<>(metadataStore.metadata());
+    metadata.put(key, value);
+    return metadata;
   }
 
   @Override
@@ -330,6 +343,7 @@ final class ClusterImpl implements Cluster {
           actionsDisposables.dispose();
 
           // stop algorithms
+          metadataStore.stop();
           membership.stop();
           gossip.stop();
           failureDetector.stop();

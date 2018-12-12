@@ -130,7 +130,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     }
 
     // Send ping
-    String cid = localMember.id() + "-" + Long.toString(period);
+    String cid = localMember.id() + "-" + period;
     PingData pingData = new PingData(localMember, pingMember);
     Message pingMsg =
         Message.withData(pingData)
@@ -347,19 +347,11 @@ public final class FailureDetectorImpl implements FailureDetector {
     if (event.isRemoved()) {
       pingMembers.removeIf(that -> that.id().equals(member.id()));
     }
-
     if (event.isAdded()) {
       // insert member into random positions
       int size = pingMembers.size();
       int index = size > 0 ? ThreadLocalRandom.current().nextInt(size) : 0;
       pingMembers.add(index, member);
-    }
-
-    if (event.isUpdated()) {
-      int index = pingMembers.indexOf(event.oldMember());
-      if (index != -1) { // except local
-        pingMembers.set(index, event.newMember());
-      }
     }
   }
 
