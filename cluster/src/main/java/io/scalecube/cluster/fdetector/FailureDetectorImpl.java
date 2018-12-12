@@ -345,7 +345,7 @@ public final class FailureDetectorImpl implements FailureDetector {
   private void onMemberEvent(MembershipEvent event) {
     Member member = event.member();
     if (event.isRemoved()) {
-      pingMembers.removeIf(that -> that.id().equals(member.id()));
+      pingMembers.remove(member);
     }
     if (event.isAdded()) {
       // insert member into random positions

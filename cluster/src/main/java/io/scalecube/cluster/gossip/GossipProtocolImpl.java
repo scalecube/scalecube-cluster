@@ -183,7 +183,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
   private void onMemberEvent(MembershipEvent event) {
     Member member = event.member();
     if (event.isRemoved()) {
-      remoteMembers.removeIf(that -> that.id().equals(member.id()));
+      remoteMembers.remove(member);
     }
     if (event.isAdded()) {
       remoteMembers.add(member);
