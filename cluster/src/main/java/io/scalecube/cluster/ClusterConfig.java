@@ -53,7 +53,7 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
   public static final int DEFAULT_LOCAL_GOSSIP_INTERVAL = 100;
   public static final int DEFAULT_LOCAL_CONNECT_TIMEOUT = 1_000;
 
-  public static final int DEFAULT_METADATA_TIMEOUT = 1_000;
+  public static final int DEFAULT_METADATA_TIMEOUT = 3_000;
 
   public static final String DEFAULT_MEMBER_HOST = null;
   public static final Integer DEFAULT_MEMBER_PORT = null;
