@@ -99,7 +99,7 @@ public final class NetworkEmulator {
     }
     NetworkLinkSettings settings = new NetworkLinkSettings(lossPercent, meanDelay);
     customLinkSettings.put(destination, settings);
-    LOGGER.info(
+    LOGGER.debug(
         "Set network settings (loss={}%, mean={}ms) from {} to {}",
         lossPercent, meanDelay, address, destination);
   }
@@ -119,7 +119,7 @@ public final class NetworkEmulator {
       return;
     }
     defaultLinkSettings = new NetworkLinkSettings(lossPercent, meanDelay);
-    LOGGER.info(
+    LOGGER.debug(
         "Set default network settings (loss={}%, mean={}ms) for {}",
         lossPercent, meanDelay, address);
   }
@@ -146,7 +146,7 @@ public final class NetworkEmulator {
     for (Address destination : destinations) {
       customLinkSettings.put(destination, DEAD_LINK_SETTINGS);
     }
-    LOGGER.info("Blocked network from {} to {}", address, destinations);
+    LOGGER.debug("Blocked network from {} to {}", address, destinations);
   }
 
   /**
@@ -174,7 +174,7 @@ public final class NetworkEmulator {
     for (Address destination : destinations) {
       customLinkSettings.remove(destination);
     }
-    LOGGER.info("Unblocked network from {} to {}", address, destinations);
+    LOGGER.debug("Unblocked network from {} to {}", address, destinations);
   }
 
   /**
@@ -188,7 +188,7 @@ public final class NetworkEmulator {
       return;
     }
     customLinkSettings.clear();
-    LOGGER.info("Unblocked all network from {}", address);
+    LOGGER.debug("Unblocked all network from {}", address);
   }
 
   /**
