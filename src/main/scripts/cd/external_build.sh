@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-
 import requests
 from urllib.parse import urljoin
 import json
@@ -12,7 +11,7 @@ class TravisBuilds:
     """
     This class provides requests to builds and check their statuses
     """
-    travis_api_url = 'https://api.travis-ci.com/'
+    travis_api_url = 'https://api.travis-ci.org/'
     build_id = None
 
     def __init__(self, repo_name, auth_token):
