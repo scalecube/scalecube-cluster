@@ -35,8 +35,10 @@ public class ClusterMetadataExample {
         alice
             .otherMembers()
             .stream()
-            .filter(member -> "Joe".equals(member.metadata().get("name")))
+            .filter(member -> "Joe".equals(alice.metadata(member).block().get("name")))
             .findAny();
+
+    System.out.println("joeMemberOptional: " + joeMemberOptional);
 
     // Send hello to Joe
     joeMemberOptional.ifPresent(member -> alice.send(member, Message.fromData("Hello Joe")));
