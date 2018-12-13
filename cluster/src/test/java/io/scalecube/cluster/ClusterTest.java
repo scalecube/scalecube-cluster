@@ -77,7 +77,7 @@ public class ClusterTest extends BaseTest {
         Optional<Member> memberOptional = node.member(metadataNode.member().id());
         assertTrue(memberOptional.isPresent());
         Member member = memberOptional.get();
-        assertEquals(metadata, node.metadata(member).block());
+        assertEquals(metadata, node.metadata(member));
       }
 
       // Subscribe for membership update event all nodes
@@ -101,7 +101,7 @@ public class ClusterTest extends BaseTest {
         Optional<Member> memberOptional = node.member(metadataNode.member().id());
         assertTrue(memberOptional.isPresent());
         Member member = memberOptional.get();
-        assertEquals(updatedMetadata, node.metadata(member).block());
+        assertEquals(updatedMetadata, node.metadata(member));
       }
     } finally {
       // Shutdown all nodes
@@ -142,7 +142,7 @@ public class ClusterTest extends BaseTest {
         Optional<Member> memberOptional = node.member(metadataNode.member().id());
         assertTrue(memberOptional.isPresent());
         Member member = memberOptional.get();
-        assertEquals(metadata, node.metadata(member).block());
+        assertEquals(metadata, node.metadata(member));
       }
 
       // Subscribe for membership update event all nodes
@@ -165,7 +165,7 @@ public class ClusterTest extends BaseTest {
         Optional<Member> memberOptional = node.member(metadataNode.member().id());
         assertTrue(memberOptional.isPresent());
         Member member = memberOptional.get();
-        Map<String, String> actualMetadata = node.metadata(member).block();
+        Map<String, String> actualMetadata = node.metadata(member);
         assertEquals(2, actualMetadata.size());
         assertEquals("value1", actualMetadata.get("key1"));
         assertEquals("value3", actualMetadata.get("key2"));

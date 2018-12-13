@@ -117,13 +117,19 @@ final class ClusterImpl implements Cluster {
                       config,
                       scheduler);
 
-              membership =
-                  new MembershipProtocolImpl(
-                      localMember, transport, failureDetector, gossip, config, scheduler);
-
               metadataStore =
                   new MetadataStoreImpl(
                       localMember, transport, config.getMetadata(), config, scheduler);
+
+              membership =
+                  new MembershipProtocolImpl(
+                      localMember,
+                      transport,
+                      failureDetector,
+                      gossip,
+                      metadataStore,
+                      config,
+                      scheduler);
 
               actionsDisposables.add(
                   membership
@@ -180,17 +186,11 @@ final class ClusterImpl implements Cluster {
     if (event.isAdded()) {
       memberAddressIndex.put(member.address(), member.id());
       members.put(member.id(), member);
-      metadataStore.markMetadataForUpdate(member);
     }
 
     if (event.isRemoved()) {
       members.remove(member.id());
       memberAddressIndex.remove(member.address());
-      metadataStore.removeMetadata(member);
-    }
-
-    if (event.isUpdated()) {
-      metadataStore.markMetadataForUpdate(member);
     }
 
     // forward membershipevent to downstream components
@@ -244,7 +244,7 @@ final class ClusterImpl implements Cluster {
   }
 
   @Override
-  public Mono<Map<String, String>> metadata(Member member) {
+  public Map<String, String> metadata(Member member) {
     return metadataStore.metadata(member);
   }
 

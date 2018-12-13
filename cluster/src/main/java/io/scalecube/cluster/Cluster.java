@@ -146,7 +146,7 @@ public interface Cluster {
    * @param member cluster member
    * @return cluster member metadata
    */
-  Mono<Map<String, String>> metadata(Member member);
+  Map<String, String> metadata(Member member);
 
   /**
    * Returns local cluster member which corresponds to this cluster instance.

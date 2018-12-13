@@ -36,7 +36,7 @@ public class MetadataStoreImpl implements MetadataStore {
   // State
 
   private long cidCounter = 0;
-  private final Map<Member, Mono<Map<String, String>>> membersMetadata = new ConcurrentHashMap<>();
+  private final Map<Member, Map<String, String>> membersMetadata = new ConcurrentHashMap<>();
 
   // Scheduler
 
@@ -69,7 +69,7 @@ public class MetadataStoreImpl implements MetadataStore {
     // store local metadata
     Map<String, String> localMetadata =
         Collections.unmodifiableMap(new HashMap<>(Objects.requireNonNull(metadata)));
-    membersMetadata.put(localMember, Mono.just(localMetadata));
+    membersMetadata.put(localMember, localMetadata);
   }
 
   @Override
@@ -93,48 +93,38 @@ public class MetadataStoreImpl implements MetadataStore {
 
   @Override
   public Map<String, String> metadata() {
-    // Get local metadata immediately
-    return membersMetadata.get(localMember).block();
+    return metadata(localMember);
   }
 
   @Override
-  public Mono<Map<String, String>> metadata(Member member) {
-    // compute metadata for member if not computed already
-    return membersMetadata.computeIfPresent(
-        member, (member1, mono) -> getMetadata(member1).cache());
+  public Map<String, String> metadata(Member member) {
+    return membersMetadata.get(member);
   }
 
   @Override
   public void updateMetadata(Map<String, String> metadata) {
-    Map<String, String> localMetadata =
-        Collections.unmodifiableMap(new HashMap<>(Objects.requireNonNull(metadata)));
+    Map<String, String> localMetadata = new HashMap<>(metadata);
     LOGGER.debug("Update local member {} with metadata: {}", localMember, localMetadata);
-    membersMetadata.put(localMember, Mono.just(localMetadata));
+    membersMetadata.put(localMember, localMetadata);
   }
 
-  /**
-   * Mark a fact that cluster member metadata must be update on next access. Marking for update
-   * local member metadata will be ignored.
-   *
-   * @param member cluster member
-   */
-  public void markMetadataForUpdate(Member member) {
-    if (!localMember.equals(member)) {
-      // replace old metadata promise with new one
-      membersMetadata.compute(member, (member1, mono) -> getMetadata(member1).cache());
-    }
+  @Override
+  public void updateMetadata(Member member, Map<String, String> metadata) {
+    Map<String, String> memberMetadata = new HashMap<>(metadata);
+    LOGGER.debug(
+        "Update member {} with metadata: {} on local member {}",
+        member,
+        memberMetadata,
+        localMember);
+    membersMetadata.put(member, memberMetadata);
   }
 
-  /**
-   * Remove cluster member metadata. Removing local member metadata will be ignored.
-   *
-   * @param member cluster member
-   */
+  @Override
   public void removeMetadata(Member member) {
     if (!localMember.equals(member)) {
       // remove
-      Mono<Map<String, String>> mono = membersMetadata.remove(member);
-      if (mono != null) {
+      Object map = membersMetadata.remove(member);
+      if (map != null) {
         LOGGER.debug("Removed metadata for member {} on local member {}", member, localMember);
       }
     }
@@ -162,7 +152,8 @@ public class MetadataStoreImpl implements MetadataStore {
     return GET_METADATA_RESP.equals(message.qualifier());
   }
 
-  private Mono<Map<String, String>> getMetadata(Member member) {
+  @Override
+  public Mono<Map<String, String>> fetchMetadata(Member member) {
     return Mono.create(
         sink -> {
           LOGGER.debug("Getting metadata for member {} from local member {}", member, localMember);
@@ -190,7 +181,7 @@ public class MetadataStoreImpl implements MetadataStore {
                   },
                   throwable -> {
                     LOGGER.warn(
-                        "Timeout getting metadata response[{}] from {} within {} ms",
+                        "Timeout getting GetMetadataResp[{}] from {} within {} ms",
                         cidCounter,
                         targetAddress,
                         config.getMetadataTimeout());
@@ -211,7 +202,7 @@ public class MetadataStoreImpl implements MetadataStore {
                   null,
                   ex ->
                       LOGGER.warn(
-                          "Failed to send {} from local member {}, cause: {}",
+                          "Failed to send request {} from local member {}, cause: {}",
                           request,
                           localMember,
                           ex));
@@ -226,7 +217,8 @@ public class MetadataStoreImpl implements MetadataStore {
 
     // Validate target member
     if (!targetMember.id().equals(localMember.id())) {
-      LOGGER.warn("Received {} to {}, but local member is {}", message, targetMember, localMember);
+      LOGGER.warn(
+          "Received request {} to {}, but local member is {}", message, targetMember, localMember);
       return;
     }
 
@@ -242,14 +234,14 @@ public class MetadataStoreImpl implements MetadataStore {
             .build();
 
     Address responseAddress = message.sender();
-    LOGGER.debug("Send {} to {}", response, responseAddress);
+    LOGGER.debug("Send response {} to {}", response, responseAddress);
     transport
         .send(responseAddress, response)
         .subscribe(
             null,
             ex ->
                 LOGGER.debug(
-                    "Failed to send {} from {} to {}, cause: {}",
+                    "Failed to send response {} from {} to {}, cause: {}",
                     response,
                     localMember,
                     responseAddress,

@@ -8,6 +8,7 @@ import io.scalecube.cluster.Member;
 import io.scalecube.cluster.fdetector.FailureDetector;
 import io.scalecube.cluster.fdetector.FailureDetectorEvent;
 import io.scalecube.cluster.gossip.GossipProtocol;
+import io.scalecube.cluster.metadata.MetadataStore;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.Transport;
@@ -61,6 +62,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private final List<Address> seedMembers;
   private final FailureDetector failureDetector;
   private final GossipProtocol gossipProtocol;
+  private final MetadataStore metadataStore;
 
   // State
 
@@ -87,6 +89,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
    * @param transport cluster transport
    * @param failureDetector failure detector
    * @param gossipProtocol gossip protocol
+   * @param metadataStore metadata store
    * @param config membership config parameters
    * @param scheduler scheduler
    */
@@ -95,6 +98,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       Transport transport,
       FailureDetector failureDetector,
       GossipProtocol gossipProtocol,
+      MetadataStore metadataStore,
       MembershipConfig config,
       Scheduler scheduler) {
 
@@ -102,6 +106,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     this.config = Objects.requireNonNull(config);
     this.failureDetector = Objects.requireNonNull(failureDetector);
     this.gossipProtocol = Objects.requireNonNull(gossipProtocol);
+    this.metadataStore = Objects.requireNonNull(metadataStore);
     this.localMember = Objects.requireNonNull(localMember);
     this.scheduler = Objects.requireNonNull(scheduler);
 
@@ -453,21 +458,60 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       cancelSuspicionTimeoutTask(r1.id());
     }
 
-    // Emit membership event
-    if (r1.isDead()) {
-      sink.next(MembershipEvent.createRemoved(r1.member()));
-    } else if (r0 == null && r1.isAlive()) {
-      sink.next(MembershipEvent.createAdded(r1.member()));
-    } else if (r0 != null && r0.incarnation() < r1.incarnation()) {
-      sink.next(MembershipEvent.createUpdated(r0.member(), r1.member()));
-    }
+    emitMembershipEvent(r0, r1)
+        .doFinally(
+            s -> {
+              // Spread gossip (unless already gossiped)
 
-    // Spread gossip (unless already gossiped)
-    if (reason != MembershipUpdateReason.MEMBERSHIP_GOSSIP
-        && reason != MembershipUpdateReason.INITIAL_SYNC) {
-      spreadMembershipGossip(r1)
-          .subscribe(null, ex -> LOGGER.debug("Failed to spread membership gossip, cause: {}", ex));
-    }
+              if (reason == MembershipUpdateReason.MEMBERSHIP_GOSSIP
+                  || reason == MembershipUpdateReason.INITIAL_SYNC) {
+                return;
+              }
+
+              Mono<String> mono = spreadMembershipGossip(r1);
+              mono.subscribe(
+                  null, ex -> LOGGER.debug("Failed to spread membership gossip, cause: {}", ex));
+            })
+        .subscribe(null, this::onError);
+  }
+
+  private Mono<Void> emitMembershipEvent(MembershipRecord r0, MembershipRecord r1) {
+    return Mono.defer(
+        () -> {
+          final Member newMember = r1.member();
+
+          if (r1.isDead()) {
+            return Mono.fromRunnable(
+                () -> {
+                  metadataStore.removeMetadata(newMember);
+                  sink.next(MembershipEvent.createRemoved(newMember));
+                });
+          }
+
+          if (r0 == null && r1.isAlive()) {
+            return metadataStore
+                .fetchMetadata(newMember)
+                .doOnSuccess(
+                    metadata -> {
+                      metadataStore.updateMetadata(newMember, metadata);
+                      sink.next(MembershipEvent.createAdded(newMember));
+                    })
+                .then();
+          }
+
+          if (r0 != null && r0.incarnation() < r1.incarnation()) {
+            return metadataStore
+                .fetchMetadata(newMember)
+                .doOnSuccess(
+                    metadata -> {
+                      metadataStore.updateMetadata(newMember, metadata);
+                      sink.next(MembershipEvent.createUpdated(r0.member(), newMember));
+                    })
+                .then();
+          }
+
+          return Mono.empty();
+        });
   }
 
   private void cancelSuspicionTimeoutTask(String memberId) {
@@ -534,6 +578,15 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
    */
   Transport getTransport() {
     return transport;
+  }
+
+  /**
+   * <b>NOTE:</b> this method is for testing purpose only.
+   *
+   * @return metadataStore
+   */
+  MetadataStore getMetadataStore() {
+    return metadataStore;
   }
 
   /**

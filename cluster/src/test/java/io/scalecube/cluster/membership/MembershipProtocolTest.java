@@ -9,6 +9,7 @@ import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
+import io.scalecube.cluster.metadata.MetadataStoreImpl;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Transport;
 import java.net.InetAddress;
@@ -555,17 +556,29 @@ public class MembershipProtocolTest extends BaseTest {
 
     FailureDetectorImpl failureDetector =
         new FailureDetectorImpl(localMember, transport, membershipProcessor, config, scheduler);
+
     GossipProtocolImpl gossipProtocol =
         new GossipProtocolImpl(localMember, transport, membershipProcessor, config, scheduler);
+
+    MetadataStoreImpl metadataStore =
+        new MetadataStoreImpl(localMember, transport, Collections.emptyMap(), config, scheduler);
+
     MembershipProtocolImpl membership =
         new MembershipProtocolImpl(
-            localMember, transport, failureDetector, gossipProtocol, config, scheduler);
+            localMember,
+            transport,
+            failureDetector,
+            gossipProtocol,
+            metadataStore,
+            config,
+            scheduler);
 
     membership.listen().subscribe(membershipSink::next);
 
     try {
       failureDetector.start();
       gossipProtocol.start();
+      metadataStore.start();
       membership.start().block(TIMEOUT);
     } catch (Exception ex) {
       throw Exceptions.propagate(ex);
@@ -584,6 +597,7 @@ public class MembershipProtocolTest extends BaseTest {
 
   private void stop(MembershipProtocolImpl membership) {
     membership.stop();
+    membership.getMetadataStore().stop();
     membership.getGossipProtocol().stop();
     membership.getFailureDetector().stop();
     try {
