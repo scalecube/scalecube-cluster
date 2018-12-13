@@ -158,7 +158,7 @@ public class MetadataStoreImpl implements MetadataStore {
           cidCounter++;
 
           final String cid = localMember.id() + "-" + cidCounter;
-
+          final long cidCounter0 = cidCounter;
           final Address targetAddress = member.address();
 
           transport
@@ -170,7 +170,8 @@ public class MetadataStoreImpl implements MetadataStore {
               .publishOn(scheduler)
               .subscribe(
                   response -> {
-                    LOGGER.debug("Received GetMetadataResp[{}] from {}", cidCounter, targetAddress);
+                    LOGGER.debug(
+                        "Received GetMetadataResp[{}] from {}", cidCounter0, targetAddress);
                     GetMetadataResponse respData = response.data();
                     Map<String, String> metadata = respData.getMetadata();
                     sink.success(metadata);
@@ -178,7 +179,7 @@ public class MetadataStoreImpl implements MetadataStore {
                   throwable -> {
                     LOGGER.warn(
                         "Timeout getting GetMetadataResp[{}] from {} within {} ms",
-                        cidCounter,
+                        cidCounter0,
                         targetAddress,
                         config.getMetadataTimeout());
                     sink.error(throwable);
@@ -199,7 +200,7 @@ public class MetadataStoreImpl implements MetadataStore {
                   ex ->
                       LOGGER.warn(
                           "Failed to send GetMetadataReq[{}] to {}, cause: {}",
-                          cidCounter,
+                          cidCounter0,
                           targetAddress,
                           ex));
         });
