@@ -134,7 +134,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
             gossipProtocol
                 .listen()
                 .publishOn(scheduler)
-                .filter(msg -> MEMBERSHIP_GOSSIP.equals(msg.qualifier()))
                 .subscribe(this::onMembershipGossip, this::onError)));
   }
 
@@ -174,7 +173,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           membershipTable.put(localMember.id(), newRecord);
 
           // Spread new membership record over the cluster
-          return spreadMembershipGossip(newRecord).then();
+          return spreadMembershipGossip(newRecord);
         });
   }
 
@@ -183,7 +182,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
    *
    * @return mono handle
    */
-  public Mono<String> leaveCluster() {
+  public Mono<Void> leaveCluster() {
     return Mono.defer(
         () -> {
           MembershipRecord curRecord = membershipTable.get(localMember.id());
@@ -198,11 +197,11 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   public Mono<Void> start() {
     // Make initial sync with all seed members
     return Mono.create(
-        sink -> {
+        startSink -> {
           // In case no members at the moment just schedule periodic sync
           if (seedMembers.isEmpty()) {
             schedulePeriodicSync();
-            sink.success();
+            startSink.success();
             return;
           }
 
@@ -218,24 +217,19 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
               .take(1)
               .timeout(Duration.ofMillis(config.getSyncTimeout()), scheduler)
               .publishOn(scheduler)
+              .flatMap(message -> onSyncAck(message, true))
+              .doFinally(
+                  s -> {
+                    schedulePeriodicSync();
+                    startSink.success();
+                  })
               .subscribe(
-                  message -> {
-                    SyncData syncData = message.data();
-                    String syncGroup = syncData.getSyncGroup();
-                    Collection<MembershipRecord> membership = syncData.getMembership();
-                    LOGGER.info("Joined cluster '{}': {}", syncGroup, membership);
-
-                    onSyncAck(message, true);
-                    schedulePeriodicSync();
-                    sink.success();
-                  },
-                  throwable -> {
-                    LOGGER.info(
-                        "Timeout getting initial SyncAck from seed members: {}", seedMembers);
-
-                    schedulePeriodicSync();
-                    sink.success();
-                  });
+                  null,
+                  ex ->
+                      LOGGER.info(
+                          "Exception processing initial SyncAck from seed members: {}, cause: {}",
+                          seedMembers,
+                          ex));
 
           Message syncMsg = prepareSyncDataMsg(SYNC, cid);
           Flux.fromIterable(seedMembers)
@@ -244,10 +238,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                   null,
                   ex ->
                       LOGGER.debug(
-                          "Failed to send {} from {}, cause: {}",
-                          syncMsg,
-                          transport.address(),
-                          ex));
+                          "Failed to send Sync {} from {}, cause: {}", syncMsg, localMember, ex));
         });
   }
 
@@ -290,9 +281,9 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
             null,
             ex ->
                 LOGGER.debug(
-                    "Failed to send {} from {} to {}, cause: {}",
+                    "Failed to send Sync {} from {} to {}, cause: {}",
                     syncMsg,
-                    transport.address(),
+                    localMember,
                     syncMember,
                     ex));
   }
@@ -302,36 +293,46 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   // ================================================
 
   private void onMessage(Message message) {
-    if (SYNC.equals(message.qualifier()) && checkSyncGroup(message)) {
-      onSync(message);
-    } else if (SYNC_ACK.equals(message.qualifier())
-        && message.correlationId() == null // filter out initial sync
-        && checkSyncGroup(message)) {
-      onSyncAck(message, false);
+    if (checkSyncGroup(message)) {
+      if (SYNC.equals(message.qualifier())) {
+        onSync(message);
+      }
+      if (SYNC_ACK.equals(message.qualifier())) {
+        if (message.correlationId() == null) { // filter out initial sync
+          onSyncAck(message, false).subscribe(null, this::onError);
+        }
+      }
     }
   }
 
-  private void onSyncAck(Message syncAckMsg, boolean initial) {
-    LOGGER.debug("Received SyncAck: {}", syncAckMsg);
-    syncMembership(syncAckMsg.data(), initial);
+  private Mono<Void> onSyncAck(Message syncAckMsg, boolean onStart) {
+    return Mono.defer(
+        () -> {
+          LOGGER.debug("Received SyncAck: {}", syncAckMsg);
+          return syncMembership(syncAckMsg.data(), onStart);
+        });
   }
 
   /** Merges incoming SYNC data, merges it and sending back merged data with SYNC_ACK. */
   private void onSync(Message syncMsg) {
     LOGGER.debug("Received Sync: {}", syncMsg);
-    syncMembership(syncMsg.data(), false);
-    Message syncAckMsg = prepareSyncDataMsg(SYNC_ACK, syncMsg.correlationId());
-    transport
-        .send(syncMsg.sender(), syncAckMsg)
-        .subscribe(
-            null,
-            ex ->
-                LOGGER.debug(
-                    "Failed to send {} from {} to {}, cause: {}",
-                    syncAckMsg,
-                    transport.address(),
-                    syncMsg.sender(),
-                    ex));
+    syncMembership(syncMsg.data(), false)
+        .doOnSuccess(
+            avoid -> {
+              Message syncAckMsg = prepareSyncDataMsg(SYNC_ACK, syncMsg.correlationId());
+              transport
+                  .send(syncMsg.sender(), syncAckMsg)
+                  .subscribe(
+                      null,
+                      ex ->
+                          LOGGER.debug(
+                              "Failed to send SyncAck {} from {} to {}, cause: {}",
+                              syncAckMsg,
+                              localMember,
+                              syncMsg.sender(),
+                              ex));
+            })
+        .subscribe(null, this::onError);
   }
 
   /** Merges FD updates and processes them. */
@@ -349,28 +350,34 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       // Alive won't override SUSPECT so issue instead extra sync with member to force it spread
       // alive with inc + 1
       Message syncMsg = prepareSyncDataMsg(SYNC, null);
+      Address address = fdEvent.member().address();
       transport
-          .send(fdEvent.member().address(), syncMsg)
+          .send(address, syncMsg)
           .subscribe(
               null,
               ex ->
                   LOGGER.debug(
                       "Failed to send {} from {} to {}, cause: {}",
                       syncMsg,
-                      transport.address(),
-                      fdEvent.member().address(),
+                      localMember,
+                      address,
                       ex));
     } else {
-      MembershipRecord r1 = new MembershipRecord(r0.member(), fdEvent.status(), r0.incarnation());
-      updateMembership(r1, MembershipUpdateReason.FAILURE_DETECTOR_EVENT);
+      MembershipRecord notAliveRecord =
+          new MembershipRecord(r0.member(), fdEvent.status(), r0.incarnation());
+      updateMembership(notAliveRecord, MembershipUpdateReason.FAILURE_DETECTOR_EVENT)
+          .subscribe(null, this::onError);
     }
   }
 
   /** Merges received membership gossip (not spreading gossip further). */
   private void onMembershipGossip(Message message) {
-    MembershipRecord record = message.data();
-    LOGGER.debug("Received membership gossip: {}", record);
-    updateMembership(record, MembershipUpdateReason.MEMBERSHIP_GOSSIP);
+    if (MEMBERSHIP_GOSSIP.equals(message.qualifier())) {
+      MembershipRecord record = message.data();
+      LOGGER.debug("Received membership gossip: {}", record);
+      updateMembership(record, MembershipUpdateReason.MEMBERSHIP_GOSSIP)
+          .subscribe(null, this::onError);
+    }
   }
 
   // ================================================
@@ -385,8 +392,11 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   }
 
   private boolean checkSyncGroup(Message message) {
-    SyncData data = message.data();
-    return config.getSyncGroup().equals(data.getSyncGroup());
+    if (message.data() instanceof SyncData) {
+      SyncData syncData = message.data();
+      return config.getSyncGroup().equals(syncData.getSyncGroup());
+    }
+    return false;
   }
 
   private void schedulePeriodicSync() {
@@ -406,15 +416,19 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
         .build();
   }
 
-  private void syncMembership(SyncData syncData, boolean initial) {
-    for (MembershipRecord r1 : syncData.getMembership()) {
-      MembershipRecord r0 = membershipTable.get(r1.id());
-      if (!r1.equals(r0)) {
-        MembershipUpdateReason reason =
-            initial ? MembershipUpdateReason.INITIAL_SYNC : MembershipUpdateReason.SYNC;
-        updateMembership(r1, reason);
-      }
-    }
+  private Mono<Void> syncMembership(SyncData syncData, boolean onStart) {
+    return Mono.defer(
+        () -> {
+          MembershipUpdateReason reason =
+              onStart ? MembershipUpdateReason.INITIAL_SYNC : MembershipUpdateReason.SYNC;
+          return Mono.whenDelayError(
+              syncData
+                  .getMembership()
+                  .stream()
+                  .filter(r1 -> !r1.equals(membershipTable.get(r1.id())))
+                  .map(r1 -> updateMembership(r1, reason))
+                  .toArray(Mono[]::new));
+        });
   }
 
   /**
@@ -423,56 +437,67 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
    * @param r1 new membership record which compares with existing r0 record
    * @param reason indicating the reason for updating membership table
    */
-  private void updateMembership(MembershipRecord r1, MembershipUpdateReason reason) {
-    Objects.requireNonNull(r1, "Membership record can't be null");
-    // Get current record
-    MembershipRecord r0 = membershipTable.get(r1.id());
+  private Mono<Void> updateMembership(MembershipRecord r1, MembershipUpdateReason reason) {
+    return Mono.defer(
+        () -> {
+          Objects.requireNonNull(r1, "Membership record can't be null");
+          // Get current record
+          MembershipRecord r0 = membershipTable.get(r1.id());
 
-    // Check if new record r1 overrides existing membership record r0
-    if (!r1.isOverrides(r0)) {
-      return;
-    }
+          // Check if new record r1 overrides existing membership record r0
+          if (!r1.isOverrides(r0)) {
+            return Mono.empty();
+          }
 
-    // If received updated for local member then increase incarnation number and spread Alive gossip
-    if (r1.member().id().equals(localMember.id())) {
-      int currentIncarnation = Math.max(r0.incarnation(), r1.incarnation());
-      MembershipRecord r2 = new MembershipRecord(localMember, r0.status(), currentIncarnation + 1);
-      membershipTable.put(localMember.id(), r2);
-      LOGGER.debug("Local membership record r0={}, but received r1={}, spread r2={}", r0, r1, r2);
-      spreadMembershipGossip(r2)
-          .subscribe(null, ex -> LOGGER.debug("Failed to spread membership gossip, cause: {}", ex));
-      return;
-    }
+          // If received updated for local member then increase incarnation and spread Alive gossip
+          if (r1.member().id().equals(localMember.id())) {
+            int currentIncarnation = Math.max(r0.incarnation(), r1.incarnation());
+            MembershipRecord r2 =
+                new MembershipRecord(localMember, r0.status(), currentIncarnation + 1);
 
-    // Update membership
-    if (r1.isDead()) {
-      membershipTable.remove(r1.id());
-    } else {
-      membershipTable.put(r1.id(), r1);
-    }
+            membershipTable.put(localMember.id(), r2);
 
-    // Schedule/cancel suspicion timeout task
-    if (r1.isSuspect()) {
-      scheduleSuspicionTimeoutTask(r1);
-    } else {
-      cancelSuspicionTimeoutTask(r1.id());
-    }
+            LOGGER.debug(
+                "Local membership record r0={}, but received r1={}, spread r2={}", r0, r1, r2);
 
-    emitMembershipEvent(r0, r1)
-        .doFinally(
-            s -> {
-              // Spread gossip (unless already gossiped)
+            spreadMembershipGossip(r2)
+                .subscribe(
+                    null,
+                    ex -> {
+                      // on-op
+                    });
+            return Mono.empty();
+          }
 
-              if (reason == MembershipUpdateReason.MEMBERSHIP_GOSSIP
-                  || reason == MembershipUpdateReason.INITIAL_SYNC) {
-                return;
-              }
+          // Update membership
+          if (r1.isDead()) {
+            membershipTable.remove(r1.id());
+          } else {
+            membershipTable.put(r1.id(), r1);
+          }
 
-              Mono<String> mono = spreadMembershipGossip(r1);
-              mono.subscribe(
-                  null, ex -> LOGGER.debug("Failed to spread membership gossip, cause: {}", ex));
-            })
-        .subscribe(null, this::onError);
+          // Schedule/cancel suspicion timeout task
+          if (r1.isSuspect()) {
+            scheduleSuspicionTimeoutTask(r1);
+          } else {
+            cancelSuspicionTimeoutTask(r1.id());
+          }
+
+          return emitMembershipEvent(r0, r1)
+              .doFinally(
+                  s -> {
+                    // Spread gossip (unless already gossiped)
+                    if (reason != MembershipUpdateReason.MEMBERSHIP_GOSSIP
+                        && reason != MembershipUpdateReason.INITIAL_SYNC) {
+                      spreadMembershipGossip(r1)
+                          .subscribe(
+                              null,
+                              ex -> {
+                                // no-op
+                              });
+                    }
+                  });
+        });
   }
 
   private Mono<Void> emitMembershipEvent(MembershipRecord r0, MembershipRecord r1) {
@@ -539,18 +564,21 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       LOGGER.debug("Declare SUSPECTED member as DEAD by timeout: {}", record);
       MembershipRecord deadRecord =
           new MembershipRecord(record.member(), DEAD, record.incarnation());
-      updateMembership(deadRecord, MembershipUpdateReason.SUSPICION_TIMEOUT);
+      updateMembership(deadRecord, MembershipUpdateReason.SUSPICION_TIMEOUT)
+          .subscribe(null, this::onError);
     }
   }
 
-  private Mono<String> spreadMembershipGossip(MembershipRecord record) {
+  private Mono<Void> spreadMembershipGossip(MembershipRecord record) {
     return Mono.defer(
-        () ->
-            gossipProtocol.spread(
-                Message //
-                    .withData(record)
-                    .qualifier(MEMBERSHIP_GOSSIP)
-                    .build()));
+        () -> {
+          Message msg = Message.withData(record).qualifier(MEMBERSHIP_GOSSIP).build();
+          LOGGER.debug("Spead membreship {} with gossip from local member {}", msg, localMember);
+          return gossipProtocol
+              .spread(msg)
+              .doOnError(ex -> LOGGER.debug("Failed to spread membership gossip, cause: {}", ex))
+              .then();
+        });
   }
 
   /**

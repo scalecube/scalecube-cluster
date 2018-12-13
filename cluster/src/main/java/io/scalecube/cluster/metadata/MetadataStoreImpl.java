@@ -202,9 +202,10 @@ public class MetadataStoreImpl implements MetadataStore {
                   null,
                   ex ->
                       LOGGER.warn(
-                          "Failed to send request {} from local member {}, cause: {}",
+                          "Failed to send GetMetadataReq {} from local member {} to {}, cause: {}",
                           request,
                           localMember,
+                          targetAddress,
                           ex));
         });
   }
@@ -234,14 +235,14 @@ public class MetadataStoreImpl implements MetadataStore {
             .build();
 
     Address responseAddress = message.sender();
-    LOGGER.debug("Send response {} to {}", response, responseAddress);
+    LOGGER.debug("Send GetMetadataResp {} to {}", response, responseAddress);
     transport
         .send(responseAddress, response)
         .subscribe(
             null,
             ex ->
                 LOGGER.debug(
-                    "Failed to send response {} from {} to {}, cause: {}",
+                    "Failed to send GetMetadataResp {} from {} to {}, cause: {}",
                     response,
                     localMember,
                     responseAddress,

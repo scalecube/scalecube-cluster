@@ -167,9 +167,9 @@ public final class FailureDetectorImpl implements FailureDetector {
             null,
             ex ->
                 LOGGER.debug(
-                    "Failed to send {} from {} to {}, cause: {}",
+                    "Failed to send Ping {} from {} to {}, cause: {}",
                     pingMsg,
-                    transport.address(),
+                    localMember,
                     pingMember.address(),
                     ex));
   }
@@ -234,7 +234,7 @@ public final class FailureDetectorImpl implements FailureDetector {
             null,
             ex ->
                 LOGGER.debug(
-                    "Failed to send {} from {}, cause: {}", pingReqMsg, transport.address(), ex));
+                    "Failed to send PingReq {} from {}, cause: {}", pingReqMsg, localMember, ex));
   }
 
   // ================================================
@@ -273,9 +273,9 @@ public final class FailureDetectorImpl implements FailureDetector {
             null,
             ex ->
                 LOGGER.debug(
-                    "Failed to send {} from {} to {}, cause: {}",
+                    "Failed to send PingAck {} from {} to {}, cause: {}",
                     ackMessage,
-                    transport.address(),
+                    localMember,
                     data.getFrom().address(),
                     ex));
   }
@@ -301,9 +301,9 @@ public final class FailureDetectorImpl implements FailureDetector {
             null,
             ex ->
                 LOGGER.debug(
-                    "Failed to send {} from {} to {}, cause: {}",
+                    "Failed to send transit Ping {} from {} to {}, cause: {}",
                     pingMessage,
-                    transport.address(),
+                    localMember,
                     target.address(),
                     ex));
   }
@@ -333,7 +333,7 @@ public final class FailureDetectorImpl implements FailureDetector {
                 LOGGER.debug(
                     "Failed to send {} from {} to {}, cause: {}",
                     originalAckMessage,
-                    transport.address(),
+                    localMember,
                     target.address(),
                     ex));
   }

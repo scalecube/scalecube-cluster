@@ -221,9 +221,9 @@ public final class GossipProtocolImpl implements GossipProtocol {
             null,
             ex ->
                 LOGGER.debug(
-                    "Failed to send {} from {} to {}, cause: {}",
+                    "Failed to send GossipReq {} from {} to {}, cause: {}",
                     gossipReqMsg,
-                    transport.address(),
+                    localMember,
                     member.address(),
                     ex));
   }
