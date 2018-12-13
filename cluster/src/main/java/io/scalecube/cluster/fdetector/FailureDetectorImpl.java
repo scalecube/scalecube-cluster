@@ -3,6 +3,7 @@ package io.scalecube.cluster.fdetector;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.membership.MemberStatus;
 import io.scalecube.cluster.membership.MembershipEvent;
+import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.Transport;
 import java.time.Duration;
@@ -161,17 +162,12 @@ public final class FailureDetectorImpl implements FailureDetector {
             });
 
     LOGGER.trace("Send Ping[{}] to {}", period, pingMember);
+    Address address = pingMember.address();
     transport
-        .send(pingMember.address(), pingMsg)
+        .send(address, pingMsg)
         .subscribe(
             null,
-            ex ->
-                LOGGER.debug(
-                    "Failed to send Ping {} from {} to {}, cause: {}",
-                    pingMsg,
-                    localMember,
-                    pingMember.address(),
-                    ex));
+            ex -> LOGGER.debug("Failed to send Ping[{}] to {}, cause: {}", period, address, ex));
   }
 
   private void doPingReq(final Member pingMember, String cid) {
@@ -234,7 +230,7 @@ public final class FailureDetectorImpl implements FailureDetector {
             null,
             ex ->
                 LOGGER.debug(
-                    "Failed to send PingReq {} from {}, cause: {}", pingReqMsg, localMember, ex));
+                    "Failed to send PingReq[{}] for {}, cause: {}", period, pingMember, ex));
   }
 
   // ================================================
@@ -253,10 +249,11 @@ public final class FailureDetectorImpl implements FailureDetector {
 
   /** Listens to PING message and answers with ACK. */
   private void onPing(Message message) {
-    LOGGER.trace("Received Ping: {}", message);
+    LOGGER.trace("Received Ping[{}]", period);
     PingData data = message.data();
     if (!data.getTo().id().equals(localMember.id())) {
-      LOGGER.warn("Received Ping to {}, but local member is {}", data.getTo(), localMember);
+      LOGGER.warn(
+          "Received Ping[{}] to {}, but local member is {}", period, data.getTo(), localMember);
       return;
     }
     String correlationId = message.correlationId();
@@ -266,23 +263,18 @@ public final class FailureDetectorImpl implements FailureDetector {
             .correlationId(correlationId)
             .sender(localMember.address())
             .build();
-    LOGGER.trace("Send PingAck to {}", data.getFrom().address());
+    Address address = data.getFrom().address();
+    LOGGER.trace("Send PingAck[{}] to {}", period, address);
     transport
-        .send(data.getFrom().address(), ackMessage)
+        .send(address, ackMessage)
         .subscribe(
             null,
-            ex ->
-                LOGGER.debug(
-                    "Failed to send PingAck {} from {} to {}, cause: {}",
-                    ackMessage,
-                    localMember,
-                    data.getFrom().address(),
-                    ex));
+            ex -> LOGGER.debug("Failed to send PingAck[{}] to {}, cause: {}", period, address, ex));
   }
 
   /** Listens to PING_REQ message and sends PING to requested cluster member. */
   private void onPingReq(Message message) {
-    LOGGER.trace("Received PingReq: {}", message);
+    LOGGER.trace("Received PingReq[{}]", period);
     PingData data = message.data();
     Member target = data.getTo();
     Member originalIssuer = data.getFrom();
@@ -294,18 +286,15 @@ public final class FailureDetectorImpl implements FailureDetector {
             .correlationId(correlationId)
             .sender(localMember.address())
             .build();
-    LOGGER.trace("Send transit Ping to {}", target.address());
+    Address address = target.address();
+    LOGGER.trace("Send transit Ping[{}] to {}", period, address);
     transport
-        .send(target.address(), pingMessage)
+        .send(address, pingMessage)
         .subscribe(
             null,
             ex ->
                 LOGGER.debug(
-                    "Failed to send transit Ping {} from {} to {}, cause: {}",
-                    pingMessage,
-                    localMember,
-                    target.address(),
-                    ex));
+                    "Failed to send transit Ping[{}] to {}, cause: {}", period, address, ex));
   }
 
   /**
@@ -313,7 +302,7 @@ public final class FailureDetectorImpl implements FailureDetector {
    * sends it to ORIGINAL_ISSUER.
    */
   private void onTransitPingAck(Message message) {
-    LOGGER.trace("Received transit PingAck: {}", message);
+    LOGGER.trace("Received transit PingAck[{}]", period);
     PingData data = message.data();
     Member target = data.getOriginalIssuer();
     String correlationId = message.correlationId();
@@ -324,22 +313,19 @@ public final class FailureDetectorImpl implements FailureDetector {
             .correlationId(correlationId)
             .sender(localMember.address())
             .build();
-    LOGGER.trace("Resend transit PingAck to {}", target.address());
+    Address address = target.address();
+    LOGGER.trace("Resend transit PingAck[{}] to {}", period, address);
     transport
-        .send(target.address(), originalAckMessage)
+        .send(address, originalAckMessage)
         .subscribe(
             null,
             ex ->
                 LOGGER.debug(
-                    "Failed to send {} from {} to {}, cause: {}",
-                    originalAckMessage,
-                    localMember,
-                    target.address(),
-                    ex));
+                    "Failed to resend transit PingAck[{}] to {}, cause: {}", period, address, ex));
   }
 
   private void onError(Throwable throwable) {
-    LOGGER.error("Received unexpected error: ", throwable);
+    LOGGER.error("Received unexpected error[{}]: ", period, throwable);
   }
 
   private void onMemberEvent(MembershipEvent event) {
@@ -385,7 +371,7 @@ public final class FailureDetectorImpl implements FailureDetector {
   }
 
   private void publishPingResult(Member member, MemberStatus status) {
-    LOGGER.debug("Member {} detected as {}", member, status);
+    LOGGER.debug("Member {} detected as {} at [{}]", member, status, period);
     sink.next(new FailureDetectorEvent(member, status));
   }
 

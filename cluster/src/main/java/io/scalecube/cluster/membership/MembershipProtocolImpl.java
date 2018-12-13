@@ -197,11 +197,11 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   public Mono<Void> start() {
     // Make initial sync with all seed members
     return Mono.create(
-        startSink -> {
+        sink -> {
           // In case no members at the moment just schedule periodic sync
           if (seedMembers.isEmpty()) {
             schedulePeriodicSync();
-            startSink.success();
+            sink.success();
             return;
           }
 
@@ -221,15 +221,9 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
               .doFinally(
                   s -> {
                     schedulePeriodicSync();
-                    startSink.success();
+                    sink.success();
                   })
-              .subscribe(
-                  null,
-                  ex ->
-                      LOGGER.info(
-                          "Exception processing initial SyncAck from seed members: {}, cause: {}",
-                          seedMembers,
-                          ex));
+              .subscribe(null, ex -> LOGGER.info("Exception on initial SyncAck, cause: {}", ex));
 
           Message syncMsg = prepareSyncDataMsg(SYNC, cid);
           Flux.fromIterable(seedMembers)
@@ -238,7 +232,10 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                   null,
                   ex ->
                       LOGGER.debug(
-                          "Failed to send Sync {} from {}, cause: {}", syncMsg, localMember, ex));
+                          "Failed to send initial Sync: {} to seed members: {}, cause: {}",
+                          syncMsg,
+                          seedMembers,
+                          ex));
         });
   }
 
@@ -269,23 +266,17 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   // ================================================
 
   private void doSync() {
-    Address syncMember = selectSyncAddress();
-    if (syncMember == null) {
+    Address address = selectSyncAddress();
+    if (address == null) {
       return;
     }
-    Message syncMsg = prepareSyncDataMsg(SYNC, null);
-    LOGGER.debug("Send Sync to {}: {}", syncMember, syncMsg);
+    Message message = prepareSyncDataMsg(SYNC, null);
+    LOGGER.debug("Send Sync: {} to {}", message, address);
     transport
-        .send(syncMember, syncMsg)
+        .send(address, message)
         .subscribe(
             null,
-            ex ->
-                LOGGER.debug(
-                    "Failed to send Sync {} from {} to {}, cause: {}",
-                    syncMsg,
-                    localMember,
-                    syncMember,
-                    ex));
+            ex -> LOGGER.debug("Failed to send Sync: {} to {}, cause: {}", message, address, ex));
   }
 
   // ================================================
@@ -319,18 +310,15 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     syncMembership(syncMsg.data(), false)
         .doOnSuccess(
             avoid -> {
-              Message syncAckMsg = prepareSyncDataMsg(SYNC_ACK, syncMsg.correlationId());
+              Message message = prepareSyncDataMsg(SYNC_ACK, syncMsg.correlationId());
+              Address address = syncMsg.sender();
               transport
-                  .send(syncMsg.sender(), syncAckMsg)
+                  .send(address, message)
                   .subscribe(
                       null,
                       ex ->
                           LOGGER.debug(
-                              "Failed to send SyncAck {} from {} to {}, cause: {}",
-                              syncAckMsg,
-                              localMember,
-                              syncMsg.sender(),
-                              ex));
+                              "Failed to send SyncAck: {} to {}, cause: {}", message, address, ex));
             })
         .subscribe(null, this::onError);
   }
@@ -354,14 +342,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       transport
           .send(address, syncMsg)
           .subscribe(
-              null,
-              ex ->
-                  LOGGER.debug(
-                      "Failed to send {} from {} to {}, cause: {}",
-                      syncMsg,
-                      localMember,
-                      address,
-                      ex));
+              null, ex -> LOGGER.debug("Failed to send {} to {}, cause: {}", syncMsg, address, ex));
     } else {
       MembershipRecord notAliveRecord =
           new MembershipRecord(r0.member(), fdEvent.status(), r0.incarnation());
@@ -458,7 +439,11 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
             membershipTable.put(localMember.id(), r2);
 
             LOGGER.debug(
-                "Local membership record r0={}, but received r1={}, spread r2={}", r0, r1, r2);
+                "Local membership record r0: {}, but received r1: {}, "
+                    + "spread with increased incarnation r2: {}",
+                r0,
+                r1,
+                r2);
 
             spreadMembershipGossip(r2)
                 .subscribe(
@@ -483,6 +468,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
             cancelSuspicionTimeoutTask(r1.id());
           }
 
+          // Emit membership and regardless of result spread gossip
           return emitMembershipEvent(r0, r1)
               .doFinally(
                   s -> {
@@ -561,7 +547,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     suspicionTimeoutTasks.remove(memberId);
     MembershipRecord record = membershipTable.get(memberId);
     if (record != null) {
-      LOGGER.debug("Declare SUSPECTED member as DEAD by timeout: {}", record);
+      LOGGER.debug("Declare SUSPECTED member {} as DEAD by timeout", record);
       MembershipRecord deadRecord =
           new MembershipRecord(record.member(), DEAD, record.incarnation());
       updateMembership(deadRecord, MembershipUpdateReason.SUSPICION_TIMEOUT)
@@ -573,10 +559,13 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     return Mono.defer(
         () -> {
           Message msg = Message.withData(record).qualifier(MEMBERSHIP_GOSSIP).build();
-          LOGGER.debug("Spead membreship {} with gossip from local member {}", msg, localMember);
+          LOGGER.debug("Spead membreship: {} with gossip", msg);
           return gossipProtocol
               .spread(msg)
-              .doOnError(ex -> LOGGER.debug("Failed to spread membership gossip, cause: {}", ex))
+              .doOnError(
+                  ex ->
+                      LOGGER.debug(
+                          "Failed to spread membership: {} with gossip, cause: {}", msg, ex))
               .then();
         });
   }

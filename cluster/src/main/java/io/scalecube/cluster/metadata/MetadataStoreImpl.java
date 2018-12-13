@@ -104,18 +104,14 @@ public class MetadataStoreImpl implements MetadataStore {
   @Override
   public void updateMetadata(Map<String, String> metadata) {
     Map<String, String> localMetadata = new HashMap<>(metadata);
-    LOGGER.debug("Update local member {} with metadata: {}", localMember, localMetadata);
+    LOGGER.debug("Update local member with new metadata: {}", localMetadata);
     membersMetadata.put(localMember, localMetadata);
   }
 
   @Override
   public void updateMetadata(Member member, Map<String, String> metadata) {
     Map<String, String> memberMetadata = new HashMap<>(metadata);
-    LOGGER.debug(
-        "Update member {} with metadata: {} on local member {}",
-        member,
-        memberMetadata,
-        localMember);
+    LOGGER.debug("Update member {} with new metadata: {}", member, memberMetadata);
     membersMetadata.put(member, memberMetadata);
   }
 
@@ -125,7 +121,7 @@ public class MetadataStoreImpl implements MetadataStore {
       // remove
       Object map = membersMetadata.remove(member);
       if (map != null) {
-        LOGGER.debug("Removed metadata for member {} on local member {}", member, localMember);
+        LOGGER.debug("Removed metadata for member {}", member);
       }
     }
   }
@@ -156,7 +152,7 @@ public class MetadataStoreImpl implements MetadataStore {
   public Mono<Map<String, String>> fetchMetadata(Member member) {
     return Mono.create(
         sink -> {
-          LOGGER.debug("Getting metadata for member {} from local member {}", member, localMember);
+          LOGGER.debug("Getting metadata for member {}", member);
 
           // Increment counter
           cidCounter++;
@@ -202,16 +198,15 @@ public class MetadataStoreImpl implements MetadataStore {
                   null,
                   ex ->
                       LOGGER.warn(
-                          "Failed to send GetMetadataReq {} from local member {} to {}, cause: {}",
-                          request,
-                          localMember,
+                          "Failed to send GetMetadataReq[{}] to {}, cause: {}",
+                          cidCounter,
                           targetAddress,
                           ex));
         });
   }
 
   private void onMetadataRequest(Message message) {
-    LOGGER.debug("Received request: {}", message);
+    LOGGER.debug("Received GetMetadataReq: {}", message);
 
     GetMetadataRequest reqData = message.data();
     Member targetMember = reqData.getMember();
@@ -219,7 +214,10 @@ public class MetadataStoreImpl implements MetadataStore {
     // Validate target member
     if (!targetMember.id().equals(localMember.id())) {
       LOGGER.warn(
-          "Received request {} to {}, but local member is {}", message, targetMember, localMember);
+          "Received GetMetadataReq: {} to {}, but local member is {}",
+          message,
+          targetMember,
+          localMember);
       return;
     }
 
@@ -235,16 +233,15 @@ public class MetadataStoreImpl implements MetadataStore {
             .build();
 
     Address responseAddress = message.sender();
-    LOGGER.debug("Send GetMetadataResp {} to {}", response, responseAddress);
+    LOGGER.debug("Send GetMetadataResp: {} to {}", response, responseAddress);
     transport
         .send(responseAddress, response)
         .subscribe(
             null,
             ex ->
                 LOGGER.debug(
-                    "Failed to send GetMetadataResp {} from {} to {}, cause: {}",
+                    "Failed to send GetMetadataResp: {} to {}, cause: {}",
                     response,
-                    localMember,
                     responseAddress,
                     ex));
   }

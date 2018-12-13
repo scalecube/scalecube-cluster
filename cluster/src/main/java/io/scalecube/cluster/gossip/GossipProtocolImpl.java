@@ -3,6 +3,7 @@ package io.scalecube.cluster.gossip;
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.membership.MembershipEvent;
+import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.Transport;
 import java.util.ArrayList;
@@ -150,9 +151,8 @@ public final class GossipProtocolImpl implements GossipProtocol {
 
       // Sweep gossips
       sweepGossips();
-    } catch (Exception cause) {
-      LOGGER.error(
-          "Exception on sending GossipReq[{}] exception: {}", period, cause.getMessage(), cause);
+    } catch (Exception ex) {
+      LOGGER.warn("Exception at doSpreadGossip[{}]: {}", period, ex.getMessage(), ex);
     }
   }
 
@@ -191,7 +191,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
   }
 
   private void onError(Throwable throwable) {
-    LOGGER.error("Received unexpected error: ", throwable);
+    LOGGER.error("Received unexpected error[{}]: ", period, throwable);
   }
 
   // ================================================
@@ -214,17 +214,18 @@ public final class GossipProtocolImpl implements GossipProtocol {
     }
 
     // Send gossip request
-    Message gossipReqMsg = buildGossipRequestMessage(gossipsToSend);
+    Message message = buildGossipRequestMessage(gossipsToSend);
+    Address address = member.address();
     transport
-        .send(member.address(), gossipReqMsg)
+        .send(address, message)
         .subscribe(
             null,
             ex ->
                 LOGGER.debug(
-                    "Failed to send GossipReq {} from {} to {}, cause: {}",
-                    gossipReqMsg,
-                    localMember,
-                    member.address(),
+                    "Failed to send GossipReq[{}]: {} to {}, cause: {}",
+                    period,
+                    message,
+                    address,
                     ex));
   }
 
@@ -289,7 +290,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
     }
 
     // Sweep gossips
-    LOGGER.debug("Sweep gossips: {}", gossipsToRemove);
+    LOGGER.debug("Sweep gossips[{}]: {}", period, gossipsToRemove);
     for (GossipState gossipState : gossipsToRemove) {
       gossips.remove(gossipState.gossip().gossipId());
       MonoSink<String> sink = futures.remove(gossipState.gossip().gossipId());
