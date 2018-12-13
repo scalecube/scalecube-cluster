@@ -76,7 +76,7 @@ final class TransportImpl implements Transport {
    */
   public TransportImpl(TransportConfig config) {
     this.config = Objects.requireNonNull(config);
-    this.loopResources = LoopResources.create("sc-cluster-io", 1, 1, true);
+    this.loopResources = LoopResources.create("sc-cluster-io", 1, true);
     this.messagesSubject = DirectProcessor.create();
     this.messageSink = messagesSubject.sink();
     this.connections = new ConcurrentHashMap<>();
