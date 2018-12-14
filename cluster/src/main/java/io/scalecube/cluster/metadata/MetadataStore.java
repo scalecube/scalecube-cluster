@@ -17,14 +17,14 @@ public interface MetadataStore {
   void stop();
 
   /**
-   * Returns local cluster member metadata. Never null.
+   * Returns local cluster member metadata from local store. Never null.
    *
    * @return local member metadata
    */
   Map<String, String> metadata();
 
   /**
-   * Returns cluster member metadata. Null if member was removed.
+   * Returns cluster member metadata from local store. Null if member was removed.
    *
    * @param member cluster member
    * @return metadata of the cluster member
@@ -32,14 +32,14 @@ public interface MetadataStore {
   Map<String, String> metadata(Member member);
 
   /**
-   * Updates local cluster member metadata.
+   * Updates local cluster member metadata locally.
    *
    * @param metadata local member metadata
    */
   void updateMetadata(Map<String, String> metadata);
 
   /**
-   * Updates given cluster member with its corresponding metadata.
+   * Updates cluster member metadata locally.
    *
    * @param member member
    * @param metadata cluster member metadtaa
