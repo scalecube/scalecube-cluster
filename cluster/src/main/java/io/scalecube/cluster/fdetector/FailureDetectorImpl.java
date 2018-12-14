@@ -167,7 +167,9 @@ public final class FailureDetectorImpl implements FailureDetector {
         .send(address, pingMsg)
         .subscribe(
             null,
-            ex -> LOGGER.debug("Failed to send Ping[{}] to {}, cause: {}", period, address, ex));
+            ex ->
+                LOGGER.debug(
+                    "Failed to send Ping[{}] to {}, cause: {}", period, address, ex.toString()));
   }
 
   private void doPingReq(final Member pingMember, String cid) {
@@ -230,7 +232,10 @@ public final class FailureDetectorImpl implements FailureDetector {
             null,
             ex ->
                 LOGGER.debug(
-                    "Failed to send PingReq[{}] for {}, cause: {}", period, pingMember, ex));
+                    "Failed to send PingReq[{}] for {}, cause: {}",
+                    period,
+                    pingMember,
+                    ex.toString()));
   }
 
   // ================================================
@@ -269,7 +274,9 @@ public final class FailureDetectorImpl implements FailureDetector {
         .send(address, ackMessage)
         .subscribe(
             null,
-            ex -> LOGGER.debug("Failed to send PingAck[{}] to {}, cause: {}", period, address, ex));
+            ex ->
+                LOGGER.debug(
+                    "Failed to send PingAck[{}] to {}, cause: {}", period, address, ex.toString()));
   }
 
   /** Listens to PING_REQ message and sends PING to requested cluster member. */
@@ -294,7 +301,10 @@ public final class FailureDetectorImpl implements FailureDetector {
             null,
             ex ->
                 LOGGER.debug(
-                    "Failed to send transit Ping[{}] to {}, cause: {}", period, address, ex));
+                    "Failed to send transit Ping[{}] to {}, cause: {}",
+                    period,
+                    address,
+                    ex.toString()));
   }
 
   /**
@@ -321,7 +331,10 @@ public final class FailureDetectorImpl implements FailureDetector {
             null,
             ex ->
                 LOGGER.debug(
-                    "Failed to resend transit PingAck[{}] to {}, cause: {}", period, address, ex));
+                    "Failed to resend transit PingAck[{}] to {}, cause: {}",
+                    period,
+                    address,
+                    ex.toString()));
   }
 
   private void onError(Throwable throwable) {

@@ -226,7 +226,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
                     period,
                     message,
                     address,
-                    ex));
+                    ex.toString()));
   }
 
   private List<Gossip> selectGossipsToSend(Member member) {

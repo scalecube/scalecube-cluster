@@ -131,11 +131,14 @@ final class TransportImpl implements Transport {
         .handle(this::onMessage)
         .bind()
         .doOnSuccess(
-            server -> LOGGER.info("Bound cluster transport on {}:{}", server.host(), server.port()))
+            server ->
+                LOGGER.debug("Bound cluster transport on {}:{}", server.host(), server.port()))
         .doOnError(
             ex ->
                 LOGGER.error(
-                    "Failed to bind cluster transport on port={}, cause: {}", config.getPort(), ex))
+                    "Failed to bind cluster transport on port={}, cause: {}",
+                    config.getPort(),
+                    ex.toString()))
         .map(this::onBind);
   }
 
@@ -166,13 +169,13 @@ final class TransportImpl implements Transport {
   private Mono<Void> doStop() {
     return Mono.defer(
         () -> {
-          LOGGER.info("Transport is shutting down on {}", address);
+          LOGGER.debug("Transport is shutting down on {}", address);
           // Complete incoming messages observable
           messageSink.complete();
           return Flux.concatDelayError(closeServer(), closeConnections())
               .doOnTerminate(loopResources::dispose)
               .then()
-              .doOnSuccess(avoid -> LOGGER.info("Transport has shut down on {}", address));
+              .doOnSuccess(avoid -> LOGGER.debug("Transport has shut down on {}", address));
         });
   }
 
@@ -186,7 +189,10 @@ final class TransportImpl implements Transport {
     return getOrConnect(address)
         .flatMap(conn -> send0(conn, message, address))
         .then()
-        .doOnError(ex -> LOGGER.debug("Failed to send {} to {}, cause: {}", message, address, ex));
+        .doOnError(
+            ex ->
+                LOGGER.debug(
+                    "Failed to send {} to {}, cause: {}", message, address, ex.toString()));
   }
 
   @SuppressWarnings("unused")
@@ -256,8 +262,9 @@ final class TransportImpl implements Transport {
         .doOnConnected(c -> LOGGER.debug("Connected to {}: {}", address, c.channel()))
         .connect()
         .doOnError(
-            t -> {
-              LOGGER.warn("Failed to connect to remote address {}, cause: {}", address, t);
+            th -> {
+              LOGGER.warn(
+                  "Failed to connect to remote address {}, cause: {}", address, th.toString());
               connections.remove(address);
             })
         .cache();

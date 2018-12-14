@@ -183,7 +183,7 @@ public class MetadataStoreImpl implements MetadataStore {
                           "Failed to send GetMetadataReq[{}] to {}, cause: {}",
                           cidCounter0,
                           targetAddress,
-                          ex));
+                          ex.toString()));
         });
   }
 
@@ -243,6 +243,6 @@ public class MetadataStoreImpl implements MetadataStore {
                     "Failed to send GetMetadataResp: {} to {}, cause: {}",
                     response,
                     responseAddress,
-                    ex));
+                    ex.toString()));
   }
 }
