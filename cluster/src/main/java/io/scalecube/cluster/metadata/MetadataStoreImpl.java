@@ -129,28 +129,6 @@ public class MetadataStoreImpl implements MetadataStore {
     }
   }
 
-  // ================================================
-  // ============== Event Listeners =================
-  // ================================================
-
-  private void onMessage(Message message) {
-    if (GET_METADATA_REQ.equals(message.qualifier())) {
-      onMetadataRequest(message);
-    }
-  }
-
-  private void onError(Throwable throwable) {
-    LOGGER.error("Received unexpected error: ", throwable);
-  }
-
-  // ================================================
-  // ============== Helper Methods ==================
-  // ================================================
-
-  private boolean isGetMetadataResp(Message message) {
-    return GET_METADATA_RESP.equals(message.qualifier());
-  }
-
   @Override
   public Mono<Map<String, String>> fetchMetadata(Member member) {
     return Mono.create(
@@ -207,6 +185,24 @@ public class MetadataStoreImpl implements MetadataStore {
                           targetAddress,
                           ex));
         });
+  }
+
+  private boolean isGetMetadataResp(Message message) {
+    return GET_METADATA_RESP.equals(message.qualifier());
+  }
+
+  // ================================================
+  // ============== Event Listeners =================
+  // ================================================
+
+  private void onMessage(Message message) {
+    if (GET_METADATA_REQ.equals(message.qualifier())) {
+      onMetadataRequest(message);
+    }
+  }
+
+  private void onError(Throwable throwable) {
+    LOGGER.error("Received unexpected error: ", throwable);
   }
 
   private void onMetadataRequest(Message message) {
