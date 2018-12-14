@@ -103,15 +103,18 @@ public class MetadataStoreImpl implements MetadataStore {
 
   @Override
   public void updateMetadata(Map<String, String> metadata) {
-    Map<String, String> localMetadata = new HashMap<>(metadata);
-    LOGGER.debug("Update local member with new metadata: {}", localMetadata);
-    membersMetadata.put(localMember, localMetadata);
+    updateMetadata(localMember, metadata);
   }
 
   @Override
   public void updateMetadata(Member member, Map<String, String> metadata) {
-    Map<String, String> memberMetadata = new HashMap<>(metadata);
-    LOGGER.debug("Update member {} with new metadata: {}", member, memberMetadata);
+    Map<String, String> memberMetadata =
+        Collections.unmodifiableMap(new HashMap<>(Objects.requireNonNull(metadata)));
+    if (localMember.equals(member)) {
+      LOGGER.debug("Update local member with new metadata: {}", memberMetadata);
+    } else {
+      LOGGER.debug("Update member {} with new metadata: {}", member, memberMetadata);
+    }
     membersMetadata.put(member, memberMetadata);
   }
 

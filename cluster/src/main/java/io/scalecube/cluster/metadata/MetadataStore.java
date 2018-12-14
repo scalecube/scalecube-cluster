@@ -32,7 +32,8 @@ public interface MetadataStore {
   Map<String, String> metadata(Member member);
 
   /**
-   * Updates local cluster member metadata locally.
+   * Updates local cluster member metadata locally. Shortcut method for {@link
+   * #updateMetadata(Member, Map)}.
    *
    * @param metadata local member metadata
    */
@@ -55,7 +56,8 @@ public interface MetadataStore {
   Mono<Map<String, String>> fetchMetadata(Member member);
 
   /**
-   * Removes cluster member metadata from store.
+   * Removes cluster member metadata from store. Attemp to remove local cluster member metadata will
+   * be ignored.
    *
    * @param member cluster member
    */
