@@ -15,8 +15,7 @@ public final class Address {
   private int port;
 
   /** Instantiates empty address for deserialization purpose. */
-  Address() {
-  }
+  Address() {}
 
   private Address(String host, int port) {
     requireNonEmpty(host);

@@ -62,6 +62,7 @@ public class StateMachine {
   public void transition(State newState, Object obj) {
     if (!currentState.get().equals(newState)) {
       if (allowed().contains(newState)) {
+        LOGGER.info("start transition to {}", newState);
         currentState.set(newState);
         onStateHandlers.onNext(newState);
       } else {
@@ -80,7 +81,7 @@ public class StateMachine {
     return Collections.EMPTY_LIST;
   }
 
-  public StateMachine on(State state, Consumer consumer) {
+  public StateMachine on(final State state, Consumer consumer) {
     onStateHandlers.filter(p -> p.equals(state)).doOnNext(s -> {
       consumer.accept(s);
     }).subscribe();

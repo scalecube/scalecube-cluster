@@ -135,6 +135,21 @@ public interface Cluster {
   Flux<Message> listenGossips();
 
   /**
+   * Returns local cluster member metadata.
+   *
+   * @return local member metadata
+   */
+  Map<String, String> metadata();
+
+  /**
+   * Returns cluster member metadata by given member reference.
+   *
+   * @param member cluster member
+   * @return cluster member metadata
+   */
+  Map<String, String> metadata(Member member);
+
+  /**
    * Returns local cluster member which corresponds to this cluster instance.
    *
    * @return local member

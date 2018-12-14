@@ -56,11 +56,11 @@ final class TransportImpl implements Transport {
 
   // Pipeline
   private final ExceptionHandler exceptionHandler;
-  private final InboundChannelInitializer inboundPipeline;
-  private final OutboundChannelInitializer outboundPipeline;
+  private final TransportChannelInitializer channelInitializer;
 
   // Close handler
-  private final MonoProcessor<Void> onClose;
+  private final MonoProcessor<Void> stop;
+  private final MonoProcessor<Void> onStop;
 
   // Network emulator
   private final NetworkEmulator networkEmulator;
@@ -76,14 +76,14 @@ final class TransportImpl implements Transport {
    */
   public TransportImpl(TransportConfig config) {
     this.config = Objects.requireNonNull(config);
-    this.loopResources = LoopResources.create("sc-cluster-io", 1, 1, true);
+    this.loopResources = LoopResources.create("sc-cluster-io", 1, true);
     this.messagesSubject = DirectProcessor.create();
     this.messageSink = messagesSubject.sink();
     this.connections = new ConcurrentHashMap<>();
     this.exceptionHandler = new ExceptionHandler();
-    this.inboundPipeline = new InboundChannelInitializer();
-    this.outboundPipeline = new OutboundChannelInitializer();
-    this.onClose = MonoProcessor.create();
+    this.channelInitializer = new TransportChannelInitializer();
+    this.stop = MonoProcessor.create();
+    this.onStop = MonoProcessor.create();
     this.networkEmulator = null;
     this.address = null;
     this.server = null;
@@ -111,9 +111,14 @@ final class TransportImpl implements Transport {
     this.messageSink = other.messageSink;
     this.connections = other.connections;
     this.exceptionHandler = other.exceptionHandler;
-    this.inboundPipeline = other.inboundPipeline;
-    this.outboundPipeline = other.outboundPipeline;
-    this.onClose = other.onClose;
+    this.channelInitializer = other.channelInitializer;
+    this.stop = other.stop;
+    this.onStop = other.onStop;
+
+    // Setup cleanup
+    stop.then(doStop())
+        .doFinally(s -> onStop.onComplete())
+        .subscribe(null, ex -> LOGGER.warn("Exception occurred on transport stop: " + ex));
   }
 
   /**
@@ -126,11 +131,14 @@ final class TransportImpl implements Transport {
         .handle(this::onMessage)
         .bind()
         .doOnSuccess(
-            server -> LOGGER.info("Bound cluster transport on {}:{}", server.host(), server.port()))
+            server ->
+                LOGGER.debug("Bound cluster transport on {}:{}", server.host(), server.port()))
         .doOnError(
             ex ->
                 LOGGER.error(
-                    "Failed to bind cluster transport on port={}, cause: {}", config.getPort(), ex))
+                    "Failed to bind cluster transport on port={}, cause: {}",
+                    config.getPort(),
+                    ex.toString()))
         .map(this::onBind);
   }
 
@@ -141,7 +149,7 @@ final class TransportImpl implements Transport {
 
   @Override
   public boolean isStopped() {
-    return onClose.isDisposed();
+    return onStop.isDisposed();
   }
 
   @Override
@@ -153,16 +161,21 @@ final class TransportImpl implements Transport {
   public final Mono<Void> stop() {
     return Mono.defer(
         () -> {
-          if (!onClose.isDisposed()) {
-            // Complete incoming messages observable
-            messageSink.complete();
-            closeServer()
-                .then(closeConnections())
-                .doOnTerminate(loopResources::dispose)
-                .doOnTerminate(onClose::onComplete)
-                .subscribe();
-          }
-          return onClose;
+          stop.onComplete();
+          return onStop;
+        });
+  }
+
+  private Mono<Void> doStop() {
+    return Mono.defer(
+        () -> {
+          LOGGER.debug("Transport is shutting down on {}", address);
+          // Complete incoming messages observable
+          messageSink.complete();
+          return Flux.concatDelayError(closeServer(), closeConnections())
+              .doOnTerminate(loopResources::dispose)
+              .then()
+              .doOnSuccess(avoid -> LOGGER.debug("Transport has shut down on {}", address));
         });
   }
 
@@ -176,7 +189,10 @@ final class TransportImpl implements Transport {
     return getOrConnect(address)
         .flatMap(conn -> send0(conn, message, address))
         .then()
-        .doOnError(ex -> LOGGER.debug("Failed to send {} to {}, cause: {}", message, address, ex));
+        .doOnError(
+            ex ->
+                LOGGER.debug(
+                    "Failed to send {} to {}, cause: {}", message, address, ex.toString()));
   }
 
   @SuppressWarnings("unused")
@@ -246,8 +262,9 @@ final class TransportImpl implements Transport {
         .doOnConnected(c -> LOGGER.debug("Connected to {}: {}", address, c.channel()))
         .connect()
         .doOnError(
-            t -> {
-              LOGGER.warn("Failed to connect to remote address {}, cause: {}", address, t);
+            th -> {
+              LOGGER.warn(
+                  "Failed to connect to remote address {}, cause: {}", address, th.toString());
               connections.remove(address);
             })
         .cache();
@@ -262,8 +279,7 @@ final class TransportImpl implements Transport {
                       server.dispose();
                       return server
                           .onDispose()
-                          .doOnError(e -> LOGGER.warn("Failed to close server: " + e))
-                          .onErrorResume(e -> Mono.empty());
+                          .doOnError(e -> LOGGER.warn("Failed to close server: " + e));
                     })
                 .orElse(Mono.empty()));
   }
@@ -294,7 +310,7 @@ final class TransportImpl implements Transport {
         .option(ChannelOption.SO_KEEPALIVE, true)
         .option(ChannelOption.SO_REUSEADDR, true)
         .addressSupplier(() -> new InetSocketAddress(config.getPort()))
-        .bootstrap(b -> BootstrapHandlers.updateConfiguration(b, "inbound", inboundPipeline));
+        .bootstrap(b -> BootstrapHandlers.updateConfiguration(b, "inbound", channelInitializer));
   }
 
   /**
@@ -312,26 +328,22 @@ final class TransportImpl implements Transport {
         .option(ChannelOption.SO_KEEPALIVE, true)
         .option(ChannelOption.SO_REUSEADDR, true)
         .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.getConnectTimeout())
-        .bootstrap(b -> BootstrapHandlers.updateConfiguration(b, "outbound", outboundPipeline));
+        .bootstrap(b -> BootstrapHandlers.updateConfiguration(b, "outbound", channelInitializer));
   }
 
-  private final class InboundChannelInitializer implements BiConsumer<ConnectionObserver, Channel> {
-
-    @Override
-    public void accept(ConnectionObserver connectionObserver, Channel channel) {
-      ChannelPipeline pipeline = channel.pipeline();
-      pipeline.addLast(new LengthFieldBasedFrameDecoder(32768, 0, 2, 0, 2));
-      pipeline.addLast(exceptionHandler);
-    }
-  }
-
-  private final class OutboundChannelInitializer
+  private final class TransportChannelInitializer
       implements BiConsumer<ConnectionObserver, Channel> {
 
+    private static final int MAX_FRAME_LENGTH = 8192;
+    private static final int LENGTH_FIELD_LENGTH = 2;
+
     @Override
     public void accept(ConnectionObserver connectionObserver, Channel channel) {
       ChannelPipeline pipeline = channel.pipeline();
-      pipeline.addLast(new LengthFieldPrepender(2));
+      pipeline.addLast(new LengthFieldPrepender(LENGTH_FIELD_LENGTH));
+      pipeline.addLast(
+          new LengthFieldBasedFrameDecoder(
+              MAX_FRAME_LENGTH, 0, LENGTH_FIELD_LENGTH, 0, LENGTH_FIELD_LENGTH));
       pipeline.addLast(exceptionHandler);
     }
   }

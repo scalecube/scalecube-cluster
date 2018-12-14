@@ -6,7 +6,7 @@ import io.scalecube.cluster.membership.IdGenerator;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 
-public class RaftProtocol {
+public class Protocol {
 
   private static final String HEARTBEAT = "/heartbeat";
 

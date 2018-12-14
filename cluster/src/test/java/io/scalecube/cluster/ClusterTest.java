@@ -76,7 +76,8 @@ public class ClusterTest extends BaseTest {
       for (Cluster node : otherNodes) {
         Optional<Member> memberOptional = node.member(metadataNode.member().id());
         assertTrue(memberOptional.isPresent());
-        assertEquals(metadata, memberOptional.get().metadata());
+        Member member = memberOptional.get();
+        assertEquals(metadata, node.metadata(member));
       }
 
       // Subscribe for membership update event all nodes
@@ -100,7 +101,7 @@ public class ClusterTest extends BaseTest {
         Optional<Member> memberOptional = node.member(metadataNode.member().id());
         assertTrue(memberOptional.isPresent());
         Member member = memberOptional.get();
-        assertEquals(updatedMetadata, member.metadata());
+        assertEquals(updatedMetadata, node.metadata(member));
       }
     } finally {
       // Shutdown all nodes
@@ -140,7 +141,8 @@ public class ClusterTest extends BaseTest {
       for (Cluster node : otherNodes) {
         Optional<Member> memberOptional = node.member(metadataNode.member().id());
         assertTrue(memberOptional.isPresent());
-        assertEquals(metadata, memberOptional.get().metadata());
+        Member member = memberOptional.get();
+        assertEquals(metadata, node.metadata(member));
       }
 
       // Subscribe for membership update event all nodes
@@ -163,10 +165,10 @@ public class ClusterTest extends BaseTest {
         Optional<Member> memberOptional = node.member(metadataNode.member().id());
         assertTrue(memberOptional.isPresent());
         Member member = memberOptional.get();
-        Map<String, String> mnodemetadata = member.metadata();
-        assertEquals(2, member.metadata().size());
-        assertEquals("value1", mnodemetadata.get("key1"));
-        assertEquals("value3", mnodemetadata.get("key2"));
+        Map<String, String> actualMetadata = node.metadata(member);
+        assertEquals(2, actualMetadata.size());
+        assertEquals("value1", actualMetadata.get("key1"));
+        assertEquals("value3", actualMetadata.get("key2"));
       }
     } finally {
       // Shutdown all nodes

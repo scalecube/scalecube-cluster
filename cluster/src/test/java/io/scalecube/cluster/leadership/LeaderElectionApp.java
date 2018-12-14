@@ -23,14 +23,13 @@ public class LeaderElectionApp {
     le2.listen().subscribe(e -> {
       System.out.println("Joe " + le1.currentState() + " -> " + e.state());
       print(le1, le2, le3);
-    });
 
+    });
     le3.listen().subscribe(e -> {
       System.out.println("David " + le1.currentState() + " -> " + e.state());
       print(le1, le2, le3);
     });
-
-    System.out.println("done " + cluster1.member().metadata());
+    System.out.println("done " + cluster1.metadata());
 
   }
 

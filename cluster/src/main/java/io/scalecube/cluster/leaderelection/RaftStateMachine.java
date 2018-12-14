@@ -9,25 +9,42 @@ public class RaftStateMachine {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(RaftLeaderElection.class);
 
+  private final String id;
+
   private final StateMachine stateMachine;
 
-  private JobScheduler timeoutScheduler;
+  private final JobScheduler timeoutScheduler;
 
-  private JobScheduler heartbeatScheduler;
-
-  private int timeout;
-
-  private final LogicalClock clock = new LogicalClock();
-
-  private final AtomicReference<LogicalTimestamp> currentTerm =
-      new AtomicReference<LogicalTimestamp>();
+  private final JobScheduler heartbeatScheduler;
 
   private final AtomicReference<String> currentLeader = new AtomicReference<String>("");
 
-  private String id;
+  private final Term term = new Term();
+  
+  private final int timeout;
+  private final int heartbeatInterval;
+  
+  public boolean isFollower() {
+    return this.currentState().equals(State.FOLLOWER);
+  }
 
-  private int heartbeatInterval;
+  public boolean isCandidate() {
+    return this.currentState().equals(State.CANDIDATE);
+  }
 
+  public boolean isLeader() {
+    return this.currentState().equals(State.LEADER);
+  }
+  
+  public String leaderId() {
+    return currentLeader.get();
+  }
+  
+  public State currentState() {
+    return this.stateMachine.currentState();
+  }
+
+  
   public static class Builder {
 
     private String id;
@@ -78,42 +95,8 @@ public class RaftStateMachine {
 
     this.timeoutScheduler = new JobScheduler(onHeartbeatNotRecived());
     this.heartbeatScheduler = new JobScheduler(builder.sendHeartbeat);
-    this.currentTerm.set(clock.tick());
+    term.nextTerm();
 
-  }
-
-
-  public String leaderId() {
-    return currentLeader.get();
-  }
-  
-  
-  public LogicalTimestamp nextTerm() {
-    currentTerm.set(clock.tick());
-    return currentTerm.get();
-  }
-
-
-  public void heartbeat(String memberId, LogicalTimestamp term) {
-    this.timeoutScheduler.reset(this.timeout);
-    if (currentTerm.get().isBefore(term)) {
-      LOGGER.info("member: [{}] currentTerm: [{}] is before: [{}] setting new seen term.", this.id,
-          currentTerm.get(), term);
-      currentTerm.set(term);
-    }
-
-    if (!isFollower()) {
-
-      LOGGER.info("member [{}] currentState [{}] and recived heartbeat. becoming FOLLOWER.",
-          this.id, stateMachine.currentState());
-      becomeFollower(term);
-    } else {
-      this.currentLeader.set(memberId);
-    }
-  }
-
-  public State currentState() {
-    return this.stateMachine.currentState();
   }
 
   public void onFollower(Consumer func) {
@@ -143,58 +126,62 @@ public class RaftStateMachine {
         .andThen(l->logStateChanged()));
   }
 
-  public void becomeFollower(LogicalTimestamp term) {
+  public void becomeFollower(long term) {
     this.stateMachine.transition(State.FOLLOWER, term);
-
   }
 
-  public void becomeCandidate(LogicalTimestamp term) {
+  public void becomeCandidate(long term) {
     this.stateMachine.transition(State.CANDIDATE, term);
   }
 
-  public void becomeLeader(LogicalTimestamp term) {
+  public void becomeLeader(long term) {
     this.currentLeader.set(this.id);
     this.stateMachine.transition(State.LEADER, term);
   }
 
-  public boolean isFollower() {
-    return this.currentState().equals(State.FOLLOWER);
-  }
+  public void heartbeat(String memberId, long term) {
+    this.timeoutScheduler.reset(this.timeout);
+    if (this.term.isBefore(term)) {
+      LOGGER.info("member: [{}] currentTerm: [{}] is before: [{}] setting new seen term.", this.id,
+          this.term.getLong(), term);
+      this.term.set(term);
+    }
 
-  public boolean isCandidate() {
-    return this.currentState().equals(State.CANDIDATE);
-  }
+    if (!isFollower()) {
 
-  public boolean isLeader() {
-    return this.currentState().equals(State.LEADER);
+      LOGGER.info("member [{}] currentState [{}] and recived heartbeat. becoming FOLLOWER.",
+          this.id, stateMachine.currentState());
+      becomeFollower(term);
+    } else {
+      this.currentLeader.set(memberId);
+    }
   }
-
+  
   private Consumer onHeartbeatNotRecived() {
     return toCandidate -> {
       LOGGER.info("member: [{}] didnt recive heartbeat until timeout: [{}ms] became: [{}]", this.id,
           timeout, stateMachine.currentState());
-      becomeCandidate(nextTerm());
+      becomeCandidate(term.nextTerm());
     };
   }
 
-  public LogicalTimestamp currentTerm() {
-    return this.currentTerm.get();
+  public long nextTerm() {
+    return this.term.nextTerm();
+  }
+  
+  public Term currentTerm() {
+    return this.term;
   }
 
-  public void updateTerm(LogicalTimestamp term) {
-
-    if (currentTerm().isBefore(term)) {
+  public void updateTerm(long timestamp) {
+    if (term.isBefore(timestamp)) {
       LOGGER.info("member: [{}] currentTerm: [{}] is before: [{}] setting new seen term.", this.id,
-          currentTerm(), term);
-      currentTerm.set(term);
+          currentTerm(), timestamp);
+      term.set(timestamp);
     }
-  }
-
-  public void updateTerm(long term) {
-    updateTerm(LogicalTimestamp.fromLong(term));
   }
   
   private void logStateChanged() {
-    LOGGER.info("member: [{}] has become: [{}] term: [{}].", this.id, stateMachine.currentState(), currentTerm.get().toLong());
+    LOGGER.info("member: [{}] has become: [{}] term: [{}].", this.id, stateMachine.currentState(), term.getLong());
   }
 }
