@@ -420,7 +420,7 @@ public class FailureDetectorTest extends BaseTest {
             .map(address -> new Member("member-" + address.port(), address))
             .map(MembershipEvent::createAdded);
 
-    return new FailureDetectorImpl(() -> localMember, transport, membershipFlux, config, scheduler);
+    return new FailureDetectorImpl(localMember, transport, membershipFlux, config, scheduler);
   }
 
   private void destroyTransport(Transport transport) {

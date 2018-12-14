@@ -22,7 +22,7 @@ final class ExceptionHandler extends ChannelDuplexHandler {
       LOGGER.debug(
           "Network emulator fire exception for channel {}: {}", ctx.channel(), cause.getMessage());
     } else {
-      LOGGER.warn("Exception caught for channel {}, {}", ctx.channel(), cause.getMessage(), cause);
+      LOGGER.warn("Exception caught for channel {}, {}", ctx.channel(), cause.toString(), cause);
     }
   }
 }

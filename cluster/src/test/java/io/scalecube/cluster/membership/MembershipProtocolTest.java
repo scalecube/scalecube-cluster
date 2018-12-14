@@ -9,6 +9,7 @@ import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
+import io.scalecube.cluster.metadata.MetadataStoreImpl;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Transport;
 import java.net.InetAddress;
@@ -19,7 +20,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -550,24 +550,35 @@ public class MembershipProtocolTest extends BaseTest {
 
   private MembershipProtocolImpl createMembership(Transport transport, ClusterConfig config) {
     Member localMember = new Member(UUID.randomUUID().toString(), transport.address());
-    AtomicReference<Member> memberRef = new AtomicReference<>(localMember);
 
     DirectProcessor<MembershipEvent> membershipProcessor = DirectProcessor.create();
     FluxSink<MembershipEvent> membershipSink = membershipProcessor.sink();
 
     FailureDetectorImpl failureDetector =
-        new FailureDetectorImpl(memberRef::get, transport, membershipProcessor, config, scheduler);
+        new FailureDetectorImpl(localMember, transport, membershipProcessor, config, scheduler);
+
     GossipProtocolImpl gossipProtocol =
-        new GossipProtocolImpl(memberRef::get, transport, membershipProcessor, config, scheduler);
+        new GossipProtocolImpl(localMember, transport, membershipProcessor, config, scheduler);
+
+    MetadataStoreImpl metadataStore =
+        new MetadataStoreImpl(localMember, transport, Collections.emptyMap(), config, scheduler);
+
     MembershipProtocolImpl membership =
         new MembershipProtocolImpl(
-            memberRef, transport, failureDetector, gossipProtocol, config, scheduler);
+            localMember,
+            transport,
+            failureDetector,
+            gossipProtocol,
+            metadataStore,
+            config,
+            scheduler);
 
     membership.listen().subscribe(membershipSink::next);
 
     try {
       failureDetector.start();
       gossipProtocol.start();
+      metadataStore.start();
       membership.start().block(TIMEOUT);
     } catch (Exception ex) {
       throw Exceptions.propagate(ex);
@@ -586,6 +597,7 @@ public class MembershipProtocolTest extends BaseTest {
 
   private void stop(MembershipProtocolImpl membership) {
     membership.stop();
+    membership.getMetadataStore().stop();
     membership.getGossipProtocol().stop();
     membership.getFailureDetector().stop();
     try {

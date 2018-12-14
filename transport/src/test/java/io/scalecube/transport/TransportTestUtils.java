@@ -59,6 +59,6 @@ public final class TransportTestUtils {
                     message,
                     to,
                     from,
-                    th.getCause()));
+                    th.toString()));
   }
 }
