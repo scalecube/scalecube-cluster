@@ -26,21 +26,32 @@ public class ClusterTest extends BaseTest {
   public static final Duration TIMEOUT = Duration.ofSeconds(30);
 
   @Test
-  public void testJoinLocalhostIgnored() throws Exception {
+  public void testJoinLocalhostIgnored() {
     // Start seed node
-    Address localhost4801 = Address.from("localhost:4801");
-    Address localhost1270014801 = Address.from("127.0.0.1:4801");
-    Address localhost4802 = Address.from("localhost:4802");
-    Address localhost1270014802 = Address.from("127.0.0.1:4802");
     Cluster seedNode =
         Cluster.joinAwait(
             ClusterConfig.builder()
                 .port(4801)
                 .connectTimeout(500)
-                .seedMembers(localhost4801, localhost1270014801, localhost4802, localhost1270014802)
+                .seedMembers(Address.from("localhost:4801"), Address.from("127.0.0.1:4801"))
                 .build());
 
-    TimeUnit.SECONDS.sleep(3);
+    Collection<Member> otherMembers = seedNode.otherMembers();
+    assertEquals(0, otherMembers.size(), "otherMembers: " + otherMembers);
+  }
+
+  @Test
+  public void testJoinLocalhostIgnoredWithOverride() {
+    // Start seed node
+    Cluster seedNode =
+        Cluster.joinAwait(
+            ClusterConfig.builder()
+                .port(7878)
+                .memberHost("localhost")
+                .memberPort(7878)
+                .connectTimeout(500)
+                .seedMembers(Address.from("localhost:7878"))
+                .build());
 
     Collection<Member> otherMembers = seedNode.otherMembers();
     assertEquals(0, otherMembers.size(), "otherMembers: " + otherMembers);

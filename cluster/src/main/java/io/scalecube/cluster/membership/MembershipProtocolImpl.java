@@ -139,9 +139,10 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   // Remove duplicates and local address
   private List<Address> cleanUpSeedMembers(Collection<Address> seedMembers) {
-    Set<Address> seedMembersSet = new HashSet<>(seedMembers); // remove duplicates
-    seedMembersSet.remove(localMember.address()); // remove local address
-    return Collections.unmodifiableList(new ArrayList<>(seedMembersSet));
+    Set<Address> seedMembersCopy = new HashSet<>(seedMembers); // remove duplicates
+    seedMembersCopy.remove(localMember.address()); // remove local address
+    seedMembersCopy.remove(transport.address()); // remove local address
+    return Collections.unmodifiableList(new ArrayList<>(seedMembersCopy));
   }
 
   @Override
