@@ -69,18 +69,23 @@ public class RaftLeaderElection implements ElectionTopic {
     int timeout =
         new Random().nextInt(config.timeout() - (config.timeout() / 2)) + (config.timeout() / 2);
 
-    this.stateMachine = RaftStateMachine.builder().id(this.cluster.member().id()).timeout(timeout)
-        .heartbeatInterval(config.heartbeatInterval()).heartbeatSender(sendHeartbeat()).build();
+    this.stateMachine = RaftStateMachine.builder()
+        .id(this.cluster.member().id())
+        .timeout(timeout)
+        .heartbeatInterval(config.heartbeatInterval())
+        .heartbeatSender(sendHeartbeat(Duration.ofMillis(1000)))
+        .build();
 
     this.stateMachine.onFollower(asFollower -> {
-      this.processor.onNext(new ElectionEvent(State.FOLLOWER));
+      this.processor.onNext(ElectionEvent.follower());
     });
 
     this.stateMachine.onCandidate(asCandidate -> {
       this.stateMachine.nextTerm();
-      this.processor.onNext(new ElectionEvent(State.CANDIDATE));
-      startElection()
-      .timeout(Duration.ofMillis(3000)).subscribe(result->{
+      this.processor.onNext(ElectionEvent.candidate());
+      
+      startElection(Duration.ofMillis(config.electionTimeout()+1000))
+      .timeout(Duration.ofMillis(config.electionTimeout())).subscribe(result->{
         if(result) {
           stateMachine.becomeLeader(stateMachine.currentTerm().getLong());
         } else {
@@ -90,7 +95,7 @@ public class RaftLeaderElection implements ElectionTopic {
     });
 
     this.stateMachine.onLeader(asLeader -> {
-      this.processor.onNext(new ElectionEvent(State.LEADER));
+      this.processor.onNext(ElectionEvent.leader());
     });
 
     this.stateMachine.becomeFollower(this.stateMachine.nextTerm());
@@ -157,16 +162,12 @@ public class RaftLeaderElection implements ElectionTopic {
    * 
    * @return consumer.
    */
-  private Consumer sendHeartbeat() {
-
+  private Consumer sendHeartbeat(Duration timeout) {
     return heartbeat -> {
-
-      Collection<Member> services = findPeers();
-
-      services.stream().forEach(instance -> {
-        LOGGER.debug("member: [{}] sending heartbeat: [{}].", this.memberId, instance.id());
-
-        requestOne(heartbeatRequest(), instance.address()).subscribe(next -> {
+      findPeers().stream().forEach(instance -> {
+        LOGGER.trace("member: [{}] sending heartbeat: [{}].", this.memberId, instance.id());
+        requestOne(heartbeatRequest(), instance.address(), timeout)
+        .subscribe(next -> {
           HeartbeatResponse response = next.data();
           stateMachine.updateTerm(response.term());
         });
@@ -178,14 +179,18 @@ public class RaftLeaderElection implements ElectionTopic {
   // if most of peer members grant vote then member transition to a leader state.
   // the election process is waiting until timeout of consensusTimeout in case
   // timeout reached the member transition to Follower state.
-  private Mono<Boolean> startElection() {
+  private Mono<Boolean> startElection(Duration timeout) {
     Collection<Member> peers = findPeers();
-    return Flux.fromStream(peers.stream())
-        .concatMap(member  -> requestOne(voteRequest(), member.address()))
-        .map(result->((VoteResponse)result.data()).granted())
-        .filter(vote->vote)
-        .take(peers.size()/2)
-        .reduce((a,b)->a && b);
+    if(!peers.isEmpty())
+      return Flux.fromStream(peers.stream())
+          .concatMap(member  -> requestOne(voteRequest(), member.address(), timeout))
+          .map(result -> ((VoteResponse)result.data()).granted())
+          .filter(vote -> vote)
+          .take(peers.size() / 2)
+          .reduce((a,b) -> a && b);
+    else {
+      return Mono.just(true);
+    }
   }
 
   private Message heartbeatRequest() {
@@ -207,11 +212,13 @@ public class RaftLeaderElection implements ElectionTopic {
   }
 
   private Message voteResponseMessage(Message request, boolean voteGranted) {
-    return Message.builder().sender(this.cluster.address()).correlationId(request.correlationId())
-        .data(new VoteResponse(voteGranted, this.memberId)).build();
+    return Message.builder().sender(this.cluster.address())
+        .correlationId(request.correlationId())
+        .data(new VoteResponse(voteGranted, this.memberId))
+        .build();
   }
 
-  private Mono<Message> requestOne(final Message request, Address address) {
+  private Mono<Message> requestOne(final Message request, Address address, Duration timeout) {
     Objects.requireNonNull(request.correlationId());
     Objects.requireNonNull(request.sender());
     return Mono.create(s -> {
@@ -220,7 +227,7 @@ public class RaftLeaderElection implements ElectionTopic {
           .filter(resp -> resp.correlationId() != null)
           .filter(resp -> resp.correlationId().equals(request.correlationId()))
           .take(1)
-          .timeout(Duration.ofMillis(10000))
+          .timeout(timeout)
           .subscribe(m -> {
             s.success(m);
           },error->{
@@ -231,8 +238,10 @@ public class RaftLeaderElection implements ElectionTopic {
   }
 
   private Collection<Member> findPeers() {
-    return cluster.otherMembers().stream().filter(m -> cluster.metadata(m).containsKey(topic))
-        .filter(m -> cluster.metadata(m).get(topic).equals(LEADER_ELECTION)).collect(Collectors.toSet());
-
+    return cluster.otherMembers().stream()
+        .filter(m -> cluster.metadata(m).containsKey(topic))
+        .filter(m -> cluster.metadata(m)
+            .get(topic).equals(LEADER_ELECTION))
+        .collect(Collectors.toSet());
   }
 }

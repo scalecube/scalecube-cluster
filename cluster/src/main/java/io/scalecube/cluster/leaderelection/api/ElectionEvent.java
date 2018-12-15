@@ -4,6 +4,10 @@ import io.scalecube.cluster.leaderelection.State;
 
 public class ElectionEvent {
 
+  private static ElectionEvent follower = new ElectionEvent(State.FOLLOWER);
+  private static ElectionEvent candidate = new ElectionEvent(State.CANDIDATE);
+  private static ElectionEvent leader = new ElectionEvent(State.LEADER)
+      ;
   private State state;
 
   public ElectionEvent(State state) {
@@ -12,5 +16,17 @@ public class ElectionEvent {
 
   public State state() {
     return state;
+  }
+
+  public static ElectionEvent follower() {
+    return follower ;
+  }
+  
+  public static ElectionEvent candidate() {
+    return candidate ;
+  }
+  
+  public static ElectionEvent leader() {
+    return leader ;
   }
 }

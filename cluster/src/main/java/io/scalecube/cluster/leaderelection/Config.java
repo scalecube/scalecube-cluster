@@ -4,7 +4,7 @@ public class Config {
 
   private int heartbeatInterval = 500;
   private int timeout = 1000;
-  private long consensusTimeout = 3000;
+  private long electionTimeout = 3000;
 
   private Config() {}
 
@@ -16,8 +16,8 @@ public class Config {
     return heartbeatInterval;
   }
 
-  public long consensusTimeout() {
-    return consensusTimeout;
+  public long electionTimeout() {
+    return electionTimeout;
   }
 
   public static Config build() {
