@@ -139,9 +139,10 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   // Remove duplicates and local address
   private List<Address> cleanUpSeedMembers(Collection<Address> seedMembers) {
-    Set<Address> seedMembersSet = new HashSet<>(seedMembers); // remove duplicates
-    seedMembersSet.remove(localMember.address()); // remove local address
-    return Collections.unmodifiableList(new ArrayList<>(seedMembersSet));
+    Set<Address> seedMembersCopy = new HashSet<>(seedMembers); // remove duplicates
+    seedMembersCopy.remove(localMember.address()); // remove local address
+    seedMembersCopy.remove(transport.address()); // remove local address
+    return Collections.unmodifiableList(new ArrayList<>(seedMembersCopy));
   }
 
   @Override
@@ -354,9 +355,9 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                   LOGGER.debug(
                       "Failed to send {} to {}, cause: {}", syncMsg, address, ex.toString()));
     } else {
-      MembershipRecord notAliveRecord =
+      MembershipRecord record =
           new MembershipRecord(r0.member(), fdEvent.status(), r0.incarnation());
-      updateMembership(notAliveRecord, MembershipUpdateReason.FAILURE_DETECTOR_EVENT)
+      updateMembership(record, MembershipUpdateReason.FAILURE_DETECTOR_EVENT)
           .subscribe(null, this::onError);
     }
   }
