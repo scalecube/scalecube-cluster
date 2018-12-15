@@ -29,11 +29,12 @@ public class Protocol {
     return (topic + HEARTBEAT).equalsIgnoreCase(value);
   }
 
+  public static Message asVoteRequest(Address sender, String topic, VoteRequest data) {
+    return asRequest(sender, topic, VOTE, data);
+  }
+  
   public static  boolean isVote(String topic, String value) {
     return (topic + VOTE).equalsIgnoreCase(value);
   }
 
-  public static Message asVoteRequest(Address sender, String topic, VoteRequest data) {
-    return asRequest(sender, topic, HEARTBEAT, data);
-  }
 }

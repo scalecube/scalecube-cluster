@@ -21,4 +21,9 @@ public class Term {
   public void set(long timestamp) {
     this.term.set(timestamp);
   }
+  
+  @Override
+  public String toString() {
+    return "Term [term=" + term.get() + "]";
+  }
 }

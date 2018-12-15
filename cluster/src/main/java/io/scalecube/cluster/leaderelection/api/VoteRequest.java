@@ -13,4 +13,9 @@ public class VoteRequest {
   public long term() {
     return term;
   }
+  
+  @Override
+  public String toString() {
+    return "VoteRequest [term=" + term + "]";
+  }
 }

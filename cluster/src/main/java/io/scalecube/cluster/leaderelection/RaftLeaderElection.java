@@ -33,7 +33,7 @@ public class RaftLeaderElection implements ElectionTopic {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(RaftLeaderElection.class);
 
-  private static final String LEADER_ELECTION = "leader-election";
+  public static final String LEADER_ELECTION = "leader-election";
 
   private final RaftStateMachine stateMachine;
 
@@ -79,7 +79,8 @@ public class RaftLeaderElection implements ElectionTopic {
     this.stateMachine.onCandidate(asCandidate -> {
       this.stateMachine.nextTerm();
       this.processor.onNext(new ElectionEvent(State.CANDIDATE));
-      startElection().subscribe(result->{
+      startElection()
+      .timeout(Duration.ofMillis(3000)).subscribe(result->{
         if(result) {
           stateMachine.becomeLeader(stateMachine.currentTerm().getLong());
         } else {
@@ -107,35 +108,32 @@ public class RaftLeaderElection implements ElectionTopic {
   }
 
   public Mono<Void> start() {
+    
+    cluster.listen().subscribe(request -> {
+      if(Protocol.isVote(topic, request.qualifier())) {
+        onVoteRequested(request).subscribe(resp -> {
+          cluster.send(request.sender(), resp).subscribe();
+        });
+      } else if(Protocol.isHeartbeat(topic, request.qualifier())) {
+        onHeartbeatRecived(request).subscribe(resp -> {
+          cluster.send(request.sender(), resp).subscribe();
+        });
+      } 
+    });
+    
     return Mono.create(sink -> {
-
-      cluster.listen().filter(m -> Protocol.isHeartbeat(topic, m.qualifier()))
-        .subscribe(request -> {
-          onHeartbeatRecived(request.data()).subscribe(resp -> {
-            cluster
-                .send(request.sender(),
-                    Message.from(request).withData(resp).sender(this.cluster.address()).build())
-                .subscribe();
-          });
-        });
-
-      cluster.listen().filter(m -> Protocol.isVote(topic, m.qualifier()))
-        .subscribe(request -> {
-          onVoteRequested(request).subscribe(resp -> {
-            cluster.send(request.sender(), resp).subscribe();
-          });
-        });
-
       this.memberId = cluster.member().id();
       this.stateMachine.becomeFollower(this.stateMachine.currentTerm().getLong());
+      sink.success();
     });
   }
 
-  private Mono<HeartbeatResponse> onHeartbeatRecived(HeartbeatRequest request) {
+  private Mono<Message> onHeartbeatRecived(Message request) {
     return Mono.create(sink -> {
-      LOGGER.debug("member [{}] recived heartbeat request: [{}]", this.memberId, request);
-      stateMachine.heartbeat(request.memberId(), request.term());
-      sink.success(new HeartbeatResponse(this.memberId, stateMachine.currentTerm().getLong()));
+      HeartbeatRequest data = request.data();
+      LOGGER.debug("member [{}] recived heartbeat request: [{}]", this.memberId, data);
+      stateMachine.heartbeat(data.memberId(), data.term());
+      sink.success(heartbeatResponseMessage(request));
     });
   }
 
@@ -180,16 +178,27 @@ public class RaftLeaderElection implements ElectionTopic {
   // if most of peer members grant vote then member transition to a leader state.
   // the election process is waiting until timeout of consensusTimeout in case
   // timeout reached the member transition to Follower state.
-  private Flux<Boolean> startElection() {
-    return Flux.fromStream(findPeers().stream())
+  private Mono<Boolean> startElection() {
+    Collection<Member> peers = findPeers();
+    return Flux.fromStream(peers.stream())
         .concatMap(member  -> requestOne(voteRequest(), member.address()))
-        .doOnError(onError -> stateMachine.becomeFollower(stateMachine.currentTerm().getLong()))
-        .map(result->(Boolean)result.data());
+        .map(result->((VoteResponse)result.data()).granted())
+        .filter(vote->vote)
+        .take(peers.size()/2)
+        .reduce((a,b)->a && b);
   }
 
   private Message heartbeatRequest() {
     return Protocol.asHeartbeatRequest(this.cluster.address(), topic,
         new HeartbeatRequest(stateMachine.currentTerm().getLong(), this.memberId));
+  }
+
+  private Message heartbeatResponseMessage(Message request) {
+    
+    return Message.builder()
+        .sender(this.cluster.address()).correlationId(request.correlationId())
+        .data( new HeartbeatResponse(this.memberId, stateMachine.currentTerm().getLong()))
+        .build();
   }
 
   private Message voteRequest() {
@@ -204,12 +213,18 @@ public class RaftLeaderElection implements ElectionTopic {
 
   private Mono<Message> requestOne(final Message request, Address address) {
     Objects.requireNonNull(request.correlationId());
+    Objects.requireNonNull(request.sender());
     return Mono.create(s -> {
+      
       cluster.listen()
           .filter(resp -> resp.correlationId() != null)
           .filter(resp -> resp.correlationId().equals(request.correlationId()))
+          .take(1)
+          .timeout(Duration.ofMillis(10000))
           .subscribe(m -> {
             s.success(m);
+          },error->{
+            LOGGER.error(error.getMessage());
           });
       cluster.send(address, request).subscribe();
     });

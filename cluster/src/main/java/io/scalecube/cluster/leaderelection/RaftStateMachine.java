@@ -90,6 +90,7 @@ public class RaftStateMachine {
         .addTransition(State.INACTIVE, State.FOLLOWER)
         .addTransition(State.FOLLOWER, State.CANDIDATE)
         .addTransition(State.CANDIDATE, State.LEADER)
+        .addTransition(State.CANDIDATE, State.FOLLOWER)
         .addTransition(State.LEADER, State.FOLLOWER)
         .build();
 

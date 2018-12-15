@@ -1,20 +1,35 @@
 package io.scalecube.cluster.leadership;
 
 import io.scalecube.cluster.Cluster;
+import io.scalecube.cluster.ClusterConfig;
+import io.scalecube.cluster.leaderelection.RaftLeaderElection;
 import io.scalecube.cluster.leaderelection.api.ElectionTopic;
 
 public class LeaderElectionApp {
 
-  public static void main(String[] args) {
+  public static void main(String[] args) throws InterruptedException {
 
-    Cluster cluster  = Cluster.joinAwait();
-    Cluster cluster1 = Cluster.joinAwait(cluster.address());
-    Cluster cluster2 = Cluster.joinAwait(cluster.address());
+    
+    Cluster cluster0  = Cluster.joinAwait(ClusterConfig.builder()
+        .addMetadata("topic-1", RaftLeaderElection.LEADER_ELECTION)
+        .build());
+    
+    Cluster cluster1 = Cluster.joinAwait(ClusterConfig.builder()
+        .addMetadata("topic-1", RaftLeaderElection.LEADER_ELECTION)
+        .seedMembers(cluster0.address())
+        .build());
+    
+    Cluster cluster2 = Cluster.joinAwait(ClusterConfig.builder()
+        .addMetadata("topic-1", RaftLeaderElection.LEADER_ELECTION)
+        .seedMembers(cluster0.address())
+        .build());
 
-    ElectionTopic le1 = cluster.leadership("some-topic");
-    ElectionTopic le2 = cluster1.leadership("some-topic");
-    ElectionTopic le3 = cluster2.leadership("some-topic");
+    ElectionTopic le1 = cluster0.leadership("topic-1");
+    ElectionTopic le2 = cluster1.leadership("topic-1");
+    ElectionTopic le3 = cluster2.leadership("topic-1");
 
+    System.out.println( cluster2.metadata(cluster1.member()));
+    
     le1.listen().subscribe(e -> {
       System.out.println("Alice " + le1.currentState() + " -> " + e.state());
       print(le1, le2, le3);
