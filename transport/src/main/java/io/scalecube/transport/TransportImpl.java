@@ -221,8 +221,7 @@ final class TransportImpl implements Transport {
   public Mono<Message> requestResponse(final Message request, Address address) {
     return Mono.create(s -> {
       Objects.requireNonNull(request);
-      Objects.requireNonNull(request.correlationId());
-      Objects.requireNonNull(request.sender());
+      Objects.requireNonNull(request.correlationId(), "correlationId must be not null");
       
       listen().filter(resp -> resp.correlationId() != null)
           .filter(resp -> resp.correlationId().equals(request.correlationId()))
