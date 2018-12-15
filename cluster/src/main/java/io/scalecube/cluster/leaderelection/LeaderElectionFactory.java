@@ -4,7 +4,6 @@ import io.scalecube.cluster.Cluster;
 import io.scalecube.cluster.leaderelection.api.ElectionTopic;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import reactor.core.publisher.Mono;
 
 public class LeaderElectionFactory {
 

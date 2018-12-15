@@ -219,22 +219,21 @@ final class TransportImpl implements Transport {
   }
 
   public Mono<Message> requestResponse(final Message request, Address address) {
-    return Mono.create(s -> {
-      Objects.requireNonNull(request);
+    return Mono.create(sink -> {
+      Objects.requireNonNull(request, "request must be not null");
       Objects.requireNonNull(request.correlationId(), "correlationId must be not null");
-      
+
       listen().filter(resp -> resp.correlationId() != null)
-          .filter(resp -> resp.correlationId().equals(request.correlationId()))
-          .take(1)
-          .subscribe(m -> {
-            s.success(m);
+          .filter(resp -> resp.correlationId().equals(request.correlationId())).take(1)
+          .subscribe(msg -> {
+            sink.success(msg);
           }, error -> {
-            s.error(error);
+            sink.error(error);
           });
-      
-      send(address, request).subscribe(null, ex -> { LOGGER
-          .warn("Unexpected exception on transport request-response, cause: {}", ex.toString());
-          s.error(ex);
+
+      send(address, request).subscribe(null, ex -> {
+        LOGGER.warn("Unexpected exception on transport request-response, cause: {}", ex.toString());
+        sink.error(ex);
       });
     });
   }

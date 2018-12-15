@@ -87,6 +87,4 @@ public class StateMachine {
     }).subscribe();
     return this;
   }
-
-
 }

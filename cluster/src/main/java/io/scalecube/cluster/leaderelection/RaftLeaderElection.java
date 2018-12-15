@@ -174,7 +174,7 @@ public class RaftLeaderElection implements ElectionTopic {
   private Consumer sendHeartbeat(Duration timeout) {
     return heartbeat -> {
       findPeers().stream().forEach(instance -> {
-        LOGGER.trace("member: [{}] sending heartbeat: [{}].", this.memberId, instance.id());
+        LOGGER.trace("member: [{}:{}] sending heartbeat: [{}].", this.memberId,currentState(), instance.id());
         cluster.requestResponse(instance.address(), heartbeatRequest())
         .timeout(timeout)
         .subscribe(next -> {
