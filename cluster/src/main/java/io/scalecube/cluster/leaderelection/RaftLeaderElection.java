@@ -151,7 +151,8 @@ public class RaftLeaderElection implements ElectionTopic {
   private Mono<Message> onVoteRequested(Message request) {
     VoteRequest voteReq = request.data();
      
-    boolean voteGranted = stateMachine.currentTerm().isBefore(voteReq.term()) && currentState().equals(State.FOLLOWER);
+    boolean voteGranted = stateMachine.currentTerm().isBefore(voteReq.term()) 
+        && currentState().equals(State.FOLLOWER);
 
     LOGGER.info("member [{}:{}] recived vote request: [{}] voteGranted: [{}].", this.memberId,
         stateMachine.currentState(), request.data(), voteGranted);
