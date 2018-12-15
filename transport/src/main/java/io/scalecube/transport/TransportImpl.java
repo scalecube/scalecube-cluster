@@ -224,12 +224,32 @@ final class TransportImpl implements Transport {
       Objects.requireNonNull(request.correlationId(), "correlationId must be not null");
 
       listen().filter(resp -> resp.correlationId() != null)
-          .filter(resp -> resp.correlationId().equals(request.correlationId())).take(1)
-          .subscribe(msg -> {
-            sink.success(msg);
-          }, error -> {
-            sink.error(error);
-          });
+        .filter(resp -> resp.correlationId().equals(request.correlationId())).take(1)
+        .subscribe(msg -> {
+          sink.success(msg);
+        }, error -> {
+          sink.error(error);
+        });
+
+      send(address, request).subscribe(null, ex -> {
+        LOGGER.warn("Unexpected exception on transport request-response, cause: {}", ex.toString());
+        sink.error(ex);
+      });
+    });
+  }
+
+  public Flux<Message> requestSteam(final Message request, Address address) {
+    return Flux.create(sink -> {
+      Objects.requireNonNull(request, "request must be not null");
+      Objects.requireNonNull(request.correlationId(), "correlationId must be not null");
+
+      listen().filter(resp -> resp.correlationId() != null)
+        .filter(resp -> resp.correlationId().equals(request.correlationId())).take(1)
+        .doOnComplete(() -> sink.complete()).subscribe(msg -> {
+          sink.next(msg);
+        }, error -> {
+          sink.error(error);
+        });
 
       send(address, request).subscribe(null, ex -> {
         LOGGER.warn("Unexpected exception on transport request-response, cause: {}", ex.toString());
