@@ -20,10 +20,10 @@ public class RaftStateMachine {
   private final AtomicReference<String> currentLeader = new AtomicReference<String>("");
 
   private final Term term = new Term();
-  
+
   private final int timeout;
   private final int heartbeatInterval;
-  
+
   public boolean isFollower() {
     return this.currentState().equals(State.FOLLOWER);
   }
@@ -35,16 +35,16 @@ public class RaftStateMachine {
   public boolean isLeader() {
     return this.currentState().equals(State.LEADER);
   }
-  
+
   public String leaderId() {
     return currentLeader.get();
   }
-  
+
   public State currentState() {
     return this.stateMachine.currentState();
   }
 
-  
+
   public static class Builder {
 
     private String id;
@@ -88,10 +88,8 @@ public class RaftStateMachine {
     this.heartbeatInterval = builder.heartbeatInterval;
     this.stateMachine = StateMachine.builder().init(State.INACTIVE)
         .addTransition(State.INACTIVE, State.FOLLOWER)
-        .addTransition(State.FOLLOWER, State.CANDIDATE)
-        .addTransition(State.CANDIDATE, State.LEADER)
-        .addTransition(State.CANDIDATE, State.FOLLOWER)
-        .addTransition(State.LEADER, State.FOLLOWER)
+        .addTransition(State.FOLLOWER, State.CANDIDATE).addTransition(State.CANDIDATE, State.LEADER)
+        .addTransition(State.CANDIDATE, State.FOLLOWER).addTransition(State.LEADER, State.FOLLOWER)
         .build();
 
     this.timeoutScheduler = new JobScheduler(onHeartbeatNotRecived());
@@ -101,30 +99,28 @@ public class RaftStateMachine {
   }
 
   public void onFollower(Consumer func) {
-    Consumer action =  act ->  {
+    Consumer action = act -> {
       heartbeatScheduler.stop();
       timeoutScheduler.start(this.timeout);
     };
-    stateMachine.on(State.FOLLOWER, action.andThen(func)
-        .andThen(l->logStateChanged()));
-    
+    stateMachine.on(State.FOLLOWER, action.andThen(func).andThen(l -> logStateChanged()));
+
   }
+
   public void onCandidate(Consumer func) {
-    Consumer action =  act ->  {
+    Consumer action = act -> {
       heartbeatScheduler.stop();
       timeoutScheduler.stop();
     };
-    stateMachine.on(State.CANDIDATE, action.andThen(func)
-        .andThen(l->logStateChanged()));
+    stateMachine.on(State.CANDIDATE, action.andThen(func).andThen(l -> logStateChanged()));
   }
 
   public void onLeader(Consumer func) {
-    Consumer action =  act ->  {
+    Consumer action = act -> {
       heartbeatScheduler.start(this.heartbeatInterval);
     };
-    
-    stateMachine.on(State.LEADER, action.andThen(func)
-        .andThen(l->logStateChanged()));
+
+    stateMachine.on(State.LEADER, action.andThen(func).andThen(l -> logStateChanged()));
   }
 
   public void becomeFollower(long term) {
@@ -157,7 +153,7 @@ public class RaftStateMachine {
       this.currentLeader.set(memberId);
     }
   }
-  
+
   private Consumer onHeartbeatNotRecived() {
     return toCandidate -> {
       LOGGER.info("member: [{}] didnt recive heartbeat until timeout: [{}ms] became: [{}]", this.id,
@@ -169,7 +165,7 @@ public class RaftStateMachine {
   public long nextTerm() {
     return this.term.nextTerm();
   }
-  
+
   public Term currentTerm() {
     return this.term;
   }
@@ -181,8 +177,9 @@ public class RaftStateMachine {
       term.set(timestamp);
     }
   }
-  
+
   private void logStateChanged() {
-    LOGGER.info("member: [{}] has become: [{}] term: [{}].", this.id, stateMachine.currentState(), term.getLong());
+    LOGGER.info("member: [{}] has become: [{}] term: [{}].", this.id, stateMachine.currentState(),
+        term.getLong());
   }
 }
