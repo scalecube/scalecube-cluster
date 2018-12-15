@@ -4,8 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.scalecube.cluster.membership.MembershipEvent;
+import io.scalecube.transport.Address;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -22,6 +24,38 @@ import reactor.core.publisher.Mono;
 public class ClusterTest extends BaseTest {
 
   public static final Duration TIMEOUT = Duration.ofSeconds(30);
+
+  @Test
+  public void testJoinLocalhostIgnored() {
+    // Start seed node
+    Cluster seedNode =
+        Cluster.joinAwait(
+            ClusterConfig.builder()
+                .port(4801)
+                .connectTimeout(500)
+                .seedMembers(Address.from("localhost:4801"), Address.from("127.0.0.1:4801"))
+                .build());
+
+    Collection<Member> otherMembers = seedNode.otherMembers();
+    assertEquals(0, otherMembers.size(), "otherMembers: " + otherMembers);
+  }
+
+  @Test
+  public void testJoinLocalhostIgnoredWithOverride() {
+    // Start seed node
+    Cluster seedNode =
+        Cluster.joinAwait(
+            ClusterConfig.builder()
+                .port(7878)
+                .memberHost("localhost")
+                .memberPort(7878)
+                .connectTimeout(500)
+                .seedMembers(Address.from("localhost:7878"))
+                .build());
+
+    Collection<Member> otherMembers = seedNode.otherMembers();
+    assertEquals(0, otherMembers.size(), "otherMembers: " + otherMembers);
+  }
 
   @Test
   public void testJoinDynamicPort() {
@@ -76,7 +110,8 @@ public class ClusterTest extends BaseTest {
       for (Cluster node : otherNodes) {
         Optional<Member> memberOptional = node.member(metadataNode.member().id());
         assertTrue(memberOptional.isPresent());
-        assertEquals(metadata, memberOptional.get().metadata());
+        Member member = memberOptional.get();
+        assertEquals(metadata, node.metadata(member));
       }
 
       // Subscribe for membership update event all nodes
@@ -100,7 +135,7 @@ public class ClusterTest extends BaseTest {
         Optional<Member> memberOptional = node.member(metadataNode.member().id());
         assertTrue(memberOptional.isPresent());
         Member member = memberOptional.get();
-        assertEquals(updatedMetadata, member.metadata());
+        assertEquals(updatedMetadata, node.metadata(member));
       }
     } finally {
       // Shutdown all nodes
@@ -140,7 +175,8 @@ public class ClusterTest extends BaseTest {
       for (Cluster node : otherNodes) {
         Optional<Member> memberOptional = node.member(metadataNode.member().id());
         assertTrue(memberOptional.isPresent());
-        assertEquals(metadata, memberOptional.get().metadata());
+        Member member = memberOptional.get();
+        assertEquals(metadata, node.metadata(member));
       }
 
       // Subscribe for membership update event all nodes
@@ -163,10 +199,10 @@ public class ClusterTest extends BaseTest {
         Optional<Member> memberOptional = node.member(metadataNode.member().id());
         assertTrue(memberOptional.isPresent());
         Member member = memberOptional.get();
-        Map<String, String> mnodemetadata = member.metadata();
-        assertEquals(2, member.metadata().size());
-        assertEquals("value1", mnodemetadata.get("key1"));
-        assertEquals("value3", mnodemetadata.get("key2"));
+        Map<String, String> actualMetadata = node.metadata(member);
+        assertEquals(2, actualMetadata.size());
+        assertEquals("value1", actualMetadata.get("key1"));
+        assertEquals("value3", actualMetadata.get("key2"));
       }
     } finally {
       // Shutdown all nodes

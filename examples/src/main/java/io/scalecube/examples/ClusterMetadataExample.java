@@ -4,7 +4,6 @@ import io.scalecube.cluster.Cluster;
 import io.scalecube.cluster.Member;
 import io.scalecube.transport.Message;
 import java.util.Collections;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -24,22 +23,35 @@ public class ClusterMetadataExample {
     Cluster alice = Cluster.joinAwait();
 
     // Join Joe to cluster with metadata
-    Map<String, String> metadata = Collections.singletonMap("name", "Joe");
-    Cluster joe = Cluster.joinAwait(metadata, alice.address());
+    Cluster joe = Cluster.joinAwait(Collections.singletonMap("name", "Joe"), alice.address());
 
     // Subscribe Joe to listen for incoming messages and print them to system out
-    joe.listen().map(Message::data).subscribe(System.out::println);
+    joe.listen()
+        .map(Message::data)
+        .subscribe(
+            o -> System.err.println("joe.listen(): " + o),
+            ex -> System.err.println("joe.listen(): " + ex));
 
     // Scan the list of members in the cluster and find Joe there
     Optional<Member> joeMemberOptional =
         alice
             .otherMembers()
             .stream()
-            .filter(member -> "Joe".equals(member.metadata().get("name")))
+            .filter(member -> "Joe".equals(alice.metadata(member).get("name")))
             .findAny();
 
+    System.err.println("### joeMemberOptional: " + joeMemberOptional);
+
     // Send hello to Joe
-    joeMemberOptional.ifPresent(member -> alice.send(member, Message.fromData("Hello Joe")));
+    joeMemberOptional.ifPresent(
+        member ->
+            alice
+                .send(member, Message.withData("Hello Joe").sender(alice.address()).build())
+                .subscribe(
+                    null,
+                    ex -> {
+                      // no-op
+                    }));
 
     TimeUnit.SECONDS.sleep(3);
   }
