@@ -354,9 +354,9 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                   LOGGER.debug(
                       "Failed to send {} to {}, cause: {}", syncMsg, address, ex.toString()));
     } else {
-      MembershipRecord notAliveRecord =
+      MembershipRecord record =
           new MembershipRecord(r0.member(), fdEvent.status(), r0.incarnation());
-      updateMembership(notAliveRecord, MembershipUpdateReason.FAILURE_DETECTOR_EVENT)
+      updateMembership(record, MembershipUpdateReason.FAILURE_DETECTOR_EVENT)
           .subscribe(null, this::onError);
     }
   }
