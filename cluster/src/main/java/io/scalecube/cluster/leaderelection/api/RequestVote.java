@@ -2,7 +2,7 @@ package io.scalecube.cluster.leaderelection.api;
 
 public class RequestVote {
 
-  long term;
+  private long term;
   
   public long term() {
     return term;
