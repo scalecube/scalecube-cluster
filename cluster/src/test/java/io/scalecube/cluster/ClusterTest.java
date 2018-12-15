@@ -4,8 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.scalecube.cluster.membership.MembershipEvent;
+import io.scalecube.transport.Address;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -22,6 +24,38 @@ import reactor.core.publisher.Mono;
 public class ClusterTest extends BaseTest {
 
   public static final Duration TIMEOUT = Duration.ofSeconds(30);
+
+  @Test
+  public void testJoinLocalhostIgnored() {
+    // Start seed node
+    Cluster seedNode =
+        Cluster.joinAwait(
+            ClusterConfig.builder()
+                .port(4801)
+                .connectTimeout(500)
+                .seedMembers(Address.from("localhost:4801"), Address.from("127.0.0.1:4801"))
+                .build());
+
+    Collection<Member> otherMembers = seedNode.otherMembers();
+    assertEquals(0, otherMembers.size(), "otherMembers: " + otherMembers);
+  }
+
+  @Test
+  public void testJoinLocalhostIgnoredWithOverride() {
+    // Start seed node
+    Cluster seedNode =
+        Cluster.joinAwait(
+            ClusterConfig.builder()
+                .port(7878)
+                .memberHost("localhost")
+                .memberPort(7878)
+                .connectTimeout(500)
+                .seedMembers(Address.from("localhost:7878"))
+                .build());
+
+    Collection<Member> otherMembers = seedNode.otherMembers();
+    assertEquals(0, otherMembers.size(), "otherMembers: " + otherMembers);
+  }
 
   @Test
   public void testJoinDynamicPort() {
