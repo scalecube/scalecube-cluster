@@ -26,8 +26,10 @@ public class StateMachine {
   }
 
   public static final class Builder {
+    
+    private State initState;
     private Map<State, List<State>> transitions = new HashMap<State, List<State>>();
-
+    
     public Builder addTransition(State from, State to) {
       if (transitions.containsKey(from)) {
         transitions.get(from).add(to);
@@ -37,8 +39,6 @@ public class StateMachine {
       }
       return this;
     }
-
-    private State initState;
 
     public Builder init(State state) {
       this.initState = state;

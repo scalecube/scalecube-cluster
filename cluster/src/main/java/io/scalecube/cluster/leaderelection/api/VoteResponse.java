@@ -2,11 +2,6 @@ package io.scalecube.cluster.leaderelection.api;
 
 public class VoteResponse {
 
-  @Override
-  public String toString() {
-    return "VoteResponse [granted=" + granted + ", memberId=" + memberId + "]";
-  }
-
   private boolean granted;
   private String memberId;
 
@@ -25,4 +20,8 @@ public class VoteResponse {
     return memberId;
   }
 
+  @Override
+  public String toString() {
+    return "VoteResponse [granted=" + granted + ", memberId=" + memberId + "]";
+  }
 }
