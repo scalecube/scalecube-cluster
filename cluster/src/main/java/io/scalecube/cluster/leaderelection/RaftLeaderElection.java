@@ -73,7 +73,7 @@ public class RaftLeaderElection implements ElectionTopic {
         .id(this.cluster.member().id())
         .timeout(timeout)
         .heartbeatInterval(config.heartbeatInterval())
-        .heartbeatSender(sendHeartbeat(Duration.ofMillis(1000)))
+        .heartbeatSender(sendHeartbeat(Duration.ofMillis(config.timeout())))
         .build();
 
     this.stateMachine.onFollower(asFollower -> {
@@ -84,18 +84,21 @@ public class RaftLeaderElection implements ElectionTopic {
       this.stateMachine.nextTerm();
       this.processor.onNext(ElectionEvent.candidate());
       
-      startElection(Duration.ofMillis(config.electionTimeout()+1000))
+      startElection(Duration.ofMillis(config.electionTimeout() + config.timeout()))
       .timeout(Duration.ofMillis(config.electionTimeout()))
       .subscribe(result -> {
         if(result) {
-          LOGGER.info("candidate [{}] granted votes and transition to leader", this.memberId);
+          LOGGER.info("[{}:{}] granted votes and transition to leader", this.memberId,
+              stateMachine.currentState());
           stateMachine.becomeLeader(stateMachine.currentTerm().getLong());
         } else {
-          LOGGER.info("candidate [{}] not votes and transition to follower", this.memberId);
+          LOGGER.info("[{}:{}] not granted with votes and transition to follower", this.memberId,
+              stateMachine.currentState());
           stateMachine.becomeFollower(stateMachine.currentTerm().getLong());
         }
       }, error -> {
-        LOGGER.info("candidate [{}] will transition to follower becouse it didnt recive votes due to timeout.", this.memberId);
+        LOGGER.info("[{}:{}] didnt recive votes due to timeout will become follower.", this.memberId,
+            stateMachine.currentState());
         stateMachine.becomeFollower(stateMachine.currentTerm().getLong());
       });
     });
@@ -142,7 +145,8 @@ public class RaftLeaderElection implements ElectionTopic {
   private Mono<Message> onHeartbeatRecived(Message request) {
     return Mono.create(sink -> {
       HeartbeatRequest data = request.data();
-      LOGGER.debug("member [{}] recived heartbeat request: [{}]", this.memberId, data);
+      LOGGER.trace("[{}:{}] recived heartbeat request: [{}]", this.memberId,
+          stateMachine.currentState(), data);
       stateMachine.heartbeat(data.memberId(), data.term());
       sink.success(heartbeatResponseMessage(request));
     });
@@ -154,7 +158,7 @@ public class RaftLeaderElection implements ElectionTopic {
     boolean voteGranted = stateMachine.currentTerm().isBefore(voteReq.term()) 
         && currentState().equals(State.FOLLOWER);
 
-    LOGGER.info("member [{}:{}] recived vote request: [{}] voteGranted: [{}].", this.memberId,
+    LOGGER.info("[{}:{}] recived vote request: [{}] voteGranted: [{}].", this.memberId,
         stateMachine.currentState(), request.data(), voteGranted);
 
     return Mono.just(voteResponseMessage(request, voteGranted));
