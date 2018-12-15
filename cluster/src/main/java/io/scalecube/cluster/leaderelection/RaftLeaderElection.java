@@ -85,12 +85,18 @@ public class RaftLeaderElection implements ElectionTopic {
       this.processor.onNext(ElectionEvent.candidate());
       
       startElection(Duration.ofMillis(config.electionTimeout()+1000))
-      .timeout(Duration.ofMillis(config.electionTimeout())).subscribe(result->{
+      .timeout(Duration.ofMillis(config.electionTimeout()))
+      .subscribe(result -> {
         if(result) {
+          LOGGER.info("candidate [{}] granted votes and transition to leader", this.memberId);
           stateMachine.becomeLeader(stateMachine.currentTerm().getLong());
         } else {
+          LOGGER.info("candidate [{}] not votes and transition to follower", this.memberId);
           stateMachine.becomeFollower(stateMachine.currentTerm().getLong());
         }
+      }, error -> {
+        LOGGER.info("candidate [{}] will transition to follower becouse it didnt recive votes due to timeout.", this.memberId);
+        stateMachine.becomeFollower(stateMachine.currentTerm().getLong());
       });
     });
 
@@ -144,13 +150,11 @@ public class RaftLeaderElection implements ElectionTopic {
 
   private Mono<Message> onVoteRequested(Message request) {
     VoteRequest voteReq = request.data();
-
-    boolean voteGranted = stateMachine.currentTerm().isBefore(voteReq.term());
+     
+    boolean voteGranted = stateMachine.currentTerm().isBefore(voteReq.term()) && currentState().equals(State.FOLLOWER);
 
     LOGGER.info("member [{}:{}] recived vote request: [{}] voteGranted: [{}].", this.memberId,
         stateMachine.currentState(), request.data(), voteGranted);
-
-    stateMachine.updateTerm(voteReq.term());
 
     return Mono.just(voteResponseMessage(request, voteGranted));
   }
