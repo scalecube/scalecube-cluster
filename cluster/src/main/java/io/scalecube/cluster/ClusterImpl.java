@@ -211,6 +211,11 @@ final class ClusterImpl implements Cluster {
   }
 
   @Override
+  public Mono<Message> requestResponse(Address address,Message request) {
+    return transport.requestResponse(request, address);
+  }
+  
+  @Override
   public Mono<Void> send(Member member, Message message) {
     return send(member.address(), message);
   }

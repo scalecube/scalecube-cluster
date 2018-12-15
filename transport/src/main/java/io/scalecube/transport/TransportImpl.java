@@ -218,6 +218,28 @@ final class TransportImpl implements Transport {
     return new TransportImpl(address, server, networkEmulator, this);
   }
 
+  public Mono<Message> requestResponse(final Message request, Address address) {
+    return Mono.create(s -> {
+      Objects.requireNonNull(request);
+      Objects.requireNonNull(request.correlationId());
+      Objects.requireNonNull(request.sender());
+      
+      listen().filter(resp -> resp.correlationId() != null)
+          .filter(resp -> resp.correlationId().equals(request.correlationId()))
+          .take(1)
+          .subscribe(m -> {
+            s.success(m);
+          }, error -> {
+            s.error(error);
+          });
+      
+      send(address, request).subscribe(null, ex -> { LOGGER
+          .warn("Unexpected exception on transport request-response, cause: {}", ex.toString());
+          s.error(ex);
+      });
+    });
+  }
+  
   private Mono<? extends Void> send0(Connection conn, Message message, Address address) {
     // check sender not null
     Objects.requireNonNull(message.sender(), "sender must be not null");

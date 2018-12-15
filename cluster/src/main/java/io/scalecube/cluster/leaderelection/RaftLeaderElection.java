@@ -175,7 +175,8 @@ public class RaftLeaderElection implements ElectionTopic {
     return heartbeat -> {
       findPeers().stream().forEach(instance -> {
         LOGGER.trace("member: [{}] sending heartbeat: [{}].", this.memberId, instance.id());
-        requestOne(heartbeatRequest(), instance.address(), timeout)
+        cluster.requestResponse(instance.address(), heartbeatRequest())
+        .timeout(timeout)
         .subscribe(next -> {
           HeartbeatResponse response = next.data();
           stateMachine.updateTerm(response.term());
@@ -192,7 +193,7 @@ public class RaftLeaderElection implements ElectionTopic {
     Collection<Member> peers = findPeers();
     if(!peers.isEmpty())
       return Flux.fromStream(peers.stream())
-          .concatMap(member  -> requestOne(voteRequest(), member.address(), timeout))
+          .concatMap(member  -> cluster.requestResponse(member.address(), voteRequest()).timeout(timeout))
           .map(result -> ((VoteResponse)result.data()).granted())
           .filter(vote -> vote)
           .take(peers.size() / 2)
@@ -227,30 +228,11 @@ public class RaftLeaderElection implements ElectionTopic {
         .build();
   }
 
-  private Mono<Message> requestOne(final Message request, Address address, Duration timeout) {
-    Objects.requireNonNull(request.correlationId());
-    Objects.requireNonNull(request.sender());
-    return Mono.create(s -> {
-      
-      cluster.listen()
-          .filter(resp -> resp.correlationId() != null)
-          .filter(resp -> resp.correlationId().equals(request.correlationId()))
-          .take(1)
-          .timeout(timeout)
-          .subscribe(m -> {
-            s.success(m);
-          },error->{
-            LOGGER.error(error.getMessage());
-          });
-      cluster.send(address, request).subscribe();
-    });
-  }
 
   private Collection<Member> findPeers() {
     return cluster.otherMembers().stream()
         .filter(m -> cluster.metadata(m).containsKey(topic))
-        .filter(m -> cluster.metadata(m)
-            .get(topic).equals(LEADER_ELECTION))
+        .filter(m -> cluster.metadata(m).get(topic).equals(LEADER_ELECTION))
         .collect(Collectors.toSet());
   }
 }
