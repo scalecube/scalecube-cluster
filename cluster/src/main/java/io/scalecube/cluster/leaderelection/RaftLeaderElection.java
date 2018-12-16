@@ -59,7 +59,7 @@ public class RaftLeaderElection implements ElectionTopic {
 
   /**
    * raft leader election contractor.
-   * 
+   *
    * @param cluser instance.
    * @param topic of this leader election.
    * @param config for this leader election.
