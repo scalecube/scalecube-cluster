@@ -85,7 +85,7 @@ public class RaftStateMachine {
     return new Builder();
   }
 
-  public RaftStateMachine(Builder builder) {
+  private RaftStateMachine(Builder builder) {
     this.id = builder.id;
     this.timeout = builder.timeout;
     this.heartbeatInterval = builder.heartbeatInterval;
@@ -104,6 +104,11 @@ public class RaftStateMachine {
     term.nextTerm();
   }
 
+  /**
+   * function to execute on follower state.
+   *
+   * @param func consumer to be executed.
+   */
   public void onFollower(Consumer func) {
     Consumer action =
         act -> {
@@ -114,6 +119,11 @@ public class RaftStateMachine {
     stateMachine.on(State.FOLLOWER, action.andThen(func).andThen(l -> logStateChanged()));
   }
 
+  /**
+   * function to execute on candidate state.
+   *
+   * @param func consumer to be executed.
+   */
   public void onCandidate(Consumer func) {
     Consumer action =
         act -> {
@@ -123,6 +133,11 @@ public class RaftStateMachine {
     stateMachine.on(State.CANDIDATE, action.andThen(func).andThen(l -> logStateChanged()));
   }
 
+  /**
+   * function to execute on leader state.
+   *
+   * @param func consumer to be executed.
+   */
   public void onLeader(Consumer func) {
     Consumer action =
         act -> {
@@ -132,15 +147,15 @@ public class RaftStateMachine {
     stateMachine.on(State.LEADER, action.andThen(func).andThen(l -> logStateChanged()));
   }
 
-  public void becomeFollower(long term) {
+  public void becomeFollower() {
     this.stateMachine.transition(State.FOLLOWER);
   }
 
-  public void becomeCandidate(long term) {
+  public void becomeCandidate() {
     this.stateMachine.transition(State.CANDIDATE);
   }
 
-  public void becomeLeader(long term) {
+  public void becomeLeader() {
     this.currentLeader.set(this.id);
     this.stateMachine.transition(State.LEADER);
   }
@@ -162,7 +177,7 @@ public class RaftStateMachine {
           "member [{}] currentState [{}] and recived heartbeat. becoming FOLLOWER.",
           this.id,
           stateMachine.currentState());
-      becomeFollower(term);
+      becomeFollower();
     } else {
       this.currentLeader.set(memberId);
     }
@@ -175,7 +190,7 @@ public class RaftStateMachine {
           this.id,
           currentTimeout,
           stateMachine.currentState());
-      becomeCandidate(term.nextTerm());
+      becomeCandidate();
     };
   }
 

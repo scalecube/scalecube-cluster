@@ -31,6 +31,13 @@ public class StateMachine {
     private State initState;
     private Map<State, List<State>> transitions = new HashMap<State, List<State>>();
 
+    /**
+     * Add allowed state transition.
+     *
+     * @param from transition the state is allowed.
+     * @param to transition the state is allowed.
+     * @return Builder.
+     */
     public Builder addTransition(State from, State to) {
       if (transitions.containsKey(from)) {
         transitions.get(from).add(to);

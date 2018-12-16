@@ -26,9 +26,9 @@ public class RaftLeaderElection implements ElectionTopic {
   private static final Logger LOGGER = LoggerFactory.getLogger(RaftLeaderElection.class);
 
   public static final String LEADER_ELECTION = "leader-election";
-  
-  private final static Duration REQ_TIMEOUT = Duration.ofMillis(100);
-  
+
+  private static final Duration REQ_TIMEOUT = Duration.ofMillis(100);
+
   private final RaftStateMachine stateMachine;
 
   private final DirectProcessor<ElectionEvent> processor = DirectProcessor.create();
@@ -79,7 +79,8 @@ public class RaftLeaderElection implements ElectionTopic {
           this.stateMachine.nextTerm();
           Duration electionTimeout = Duration.ofMillis(config.electionTimeout());
           this.processor.onNext(ElectionEvent.candidate());
-          startElection().timeout(electionTimeout)
+          startElection()
+              .timeout(electionTimeout)
               .subscribe(
                   result -> {
                     if (result) {
@@ -87,13 +88,13 @@ public class RaftLeaderElection implements ElectionTopic {
                           "[{}:{}] granted votes and transition to leader",
                           this.memberId,
                           stateMachine.currentState());
-                      stateMachine.becomeLeader(stateMachine.currentTerm().getLong());
+                      stateMachine.becomeLeader();
                     } else {
                       LOGGER.info(
                           "[{}:{}] not granted with votes and transition to follower",
                           this.memberId,
                           stateMachine.currentState());
-                      stateMachine.becomeFollower(stateMachine.currentTerm().getLong());
+                      stateMachine.becomeFollower();
                     }
                   },
                   error -> {
@@ -101,7 +102,7 @@ public class RaftLeaderElection implements ElectionTopic {
                         "[{}:{}] didnt recive votes due to timeout will become follower.",
                         this.memberId,
                         stateMachine.currentState());
-                    stateMachine.becomeFollower(stateMachine.currentTerm().getLong());
+                    stateMachine.becomeFollower();
                   });
         });
 
@@ -110,7 +111,7 @@ public class RaftLeaderElection implements ElectionTopic {
           this.processor.onNext(ElectionEvent.leader());
         });
 
-    this.stateMachine.becomeFollower(this.stateMachine.nextTerm());
+    this.stateMachine.becomeFollower();
   }
 
   @Override
@@ -118,12 +119,23 @@ public class RaftLeaderElection implements ElectionTopic {
     return processor;
   }
 
+  /**
+   * RaftLeaderElection contractor.
+   *
+   * @param cluster instance this leader election represents.
+   * @param name of topic for this leader election.
+   */
   public RaftLeaderElection(Cluster cluster, String name) {
     this(cluster, name, Config.build());
     this.cluster = cluster;
     this.cluster.updateMetadataProperty(name, LEADER_ELECTION).subscribe();
   }
 
+  /**
+   * start leader election protocol in the cluster.
+   *
+   * @return void when started.
+   */
   public Mono<Void> start() {
 
     cluster
@@ -148,7 +160,7 @@ public class RaftLeaderElection implements ElectionTopic {
     return Mono.create(
         sink -> {
           this.memberId = cluster.member().id();
-          this.stateMachine.becomeFollower(this.stateMachine.currentTerm().getLong());
+          this.stateMachine.becomeFollower();
           sink.success();
         });
   }
@@ -182,7 +194,7 @@ public class RaftLeaderElection implements ElectionTopic {
         voteGranted);
 
     if (stateMachine.isCandidate()) {
-      stateMachine.becomeFollower(voteReq.term());
+      stateMachine.becomeFollower();
     }
 
     return Mono.just(voteResponseMessage(request, voteGranted));
@@ -221,7 +233,7 @@ public class RaftLeaderElection implements ElectionTopic {
   // the election process is waiting until timeout of consensusTimeout in case
   // timeout reached the member transition to Follower state.
   private Mono<Boolean> startElection() {
-    
+
     Collection<Member> peers = findPeers();
 
     if (!peers.isEmpty()) {
@@ -235,7 +247,7 @@ public class RaftLeaderElection implements ElectionTopic {
           .take(peers.size()) // upper bound of requests made
           .map(result -> ((VoteResponse) result.data()).granted())
           .filter(vote -> vote == true)
-          .take(consensus) // lower bound of positive received votes. 
+          .take(consensus) // lower bound of positive received votes.
           .reduce((a, b) -> a && b); // collect all votes to final decision.
     } else {
       return Mono.just(true);
