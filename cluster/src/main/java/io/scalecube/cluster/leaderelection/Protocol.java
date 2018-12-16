@@ -15,8 +15,17 @@ public class Protocol {
   private static final String VOTE = "/vote";
 
   public static Mono<Message> FALSE_VOTE =
-      Mono.just(new VoteResponse(false, "")).map(Message::fromData);
+      Mono.just(new VoteResponse(false, null)).map(Message::fromData);
 
+  /**
+   * create request message in the context of a given election topic.
+   *
+   * @param sender of this request.
+   * @param topic of this election.
+   * @param action of the request.
+   * @param data to be sent.
+   * @return request message.
+   */
   public static Message asRequest(Address sender, String topic, String action, Object data) {
     return Message.builder()
         .sender(sender)

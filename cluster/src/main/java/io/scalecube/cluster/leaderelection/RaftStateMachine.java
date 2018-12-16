@@ -147,19 +147,30 @@ public class RaftStateMachine {
     stateMachine.on(State.LEADER, action.andThen(func).andThen(l -> logStateChanged()));
   }
 
+  /** Transition to state follower. */
   public void becomeFollower() {
     this.stateMachine.transition(State.FOLLOWER);
   }
 
+  /** Transition to state candidate. */
   public void becomeCandidate() {
     this.stateMachine.transition(State.CANDIDATE);
   }
 
+  /** Transition to state leader. */
   public void becomeLeader() {
     this.currentLeader.set(this.id);
     this.stateMachine.transition(State.LEADER);
   }
 
+  /**
+   * handle heartbeat. only leaders are sending heartbeats when heartbeat arrives it reset the
+   * current member timer expecting next heartbeat. in case not in state follower and heartbeat
+   * arrives then transition to state follower.
+   *
+   * @param memberId of the leader sending the hearbeat.
+   * @param term of the leader sending this heartbeat.
+   */
   public void heartbeat(String memberId, long term) {
     this.timeoutScheduler.reset(this.timeout);
     if (this.term.isBefore(term)) {
@@ -183,6 +194,40 @@ public class RaftStateMachine {
     }
   }
 
+  /**
+   * increment the next term.
+   *
+   * @return next term number.
+   */
+  public long nextTerm() {
+    return this.term.nextTerm();
+  }
+
+  /**
+   * get the current term.
+   *
+   * @return current term.
+   */
+  public Term currentTerm() {
+    return this.term;
+  }
+
+  /**
+   * update term value provided is after this term.
+   *
+   * @param value to evaluate as after.
+   */
+  public void updateTerm(long value) {
+    if (term.isBefore(value)) {
+      LOGGER.info(
+          "member: [{}] currentTerm: [{}] is before: [{}] setting new seen term.",
+          this.id,
+          currentTerm(),
+          value);
+      term.set(value);
+    }
+  }
+
   private Consumer onHeartbeatNotRecived() {
     return toCandidate -> {
       LOGGER.info(
@@ -192,25 +237,6 @@ public class RaftStateMachine {
           stateMachine.currentState());
       becomeCandidate();
     };
-  }
-
-  public long nextTerm() {
-    return this.term.nextTerm();
-  }
-
-  public Term currentTerm() {
-    return this.term;
-  }
-
-  public void updateTerm(long timestamp) {
-    if (term.isBefore(timestamp)) {
-      LOGGER.info(
-          "member: [{}] currentTerm: [{}] is before: [{}] setting new seen term.",
-          this.id,
-          currentTerm(),
-          timestamp);
-      term.set(timestamp);
-    }
   }
 
   private void logStateChanged() {

@@ -57,6 +57,13 @@ public class RaftLeaderElection implements ElectionTopic {
     return Mono.just(new Leader(this.memberId, stateMachine.leaderId()));
   }
 
+  /**
+   * raft leader election contractor.
+   * 
+   * @param cluser instance.
+   * @param topic of this leader election.
+   * @param config for this leader election.
+   */
   public RaftLeaderElection(Cluster cluser, String topic, Config config) {
     this.topic = topic;
     this.cluster = cluser;
