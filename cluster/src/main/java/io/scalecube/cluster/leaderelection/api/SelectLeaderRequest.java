@@ -7,5 +7,4 @@ public class SelectLeaderRequest {
   public String serviceName() {
     return serviceName;
   }
-
 }

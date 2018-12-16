@@ -7,7 +7,6 @@ public class HeartbeatRequest {
 
   public HeartbeatRequest() {};
 
-
   public HeartbeatRequest(long term, String memberId) {
     this.term = term;
     this.memberId = memberId;
@@ -25,6 +24,4 @@ public class HeartbeatRequest {
   public String toString() {
     return "HeartbeatRequest [term=" + term + ", memberId=" + memberId + "]";
   }
-
 }
-

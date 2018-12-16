@@ -12,5 +12,4 @@ public interface ElectionTopic {
   State currentState();
 
   Flux<ElectionEvent> listen();
-
 }

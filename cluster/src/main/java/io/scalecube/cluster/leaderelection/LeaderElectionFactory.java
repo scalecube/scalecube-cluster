@@ -16,10 +16,12 @@ public class LeaderElectionFactory {
   }
 
   public ElectionTopic leadership(String name) {
-    return topic.compute(name, (key, value) -> {
-      RaftLeaderElection le = new RaftLeaderElection(this.cluster, key);
-      le.start().subscribe();
-      return le;
-    });
+    return topic.compute(
+        name,
+        (key, value) -> {
+          RaftLeaderElection le = new RaftLeaderElection(this.cluster, key);
+          le.start().subscribe();
+          return le;
+        });
   }
 }

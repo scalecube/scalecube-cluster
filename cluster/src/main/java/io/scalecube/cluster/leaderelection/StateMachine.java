@@ -82,9 +82,13 @@ public class StateMachine {
   }
 
   public StateMachine on(final State state, Consumer consumer) {
-    onStateHandlers.filter(p -> p.equals(state)).doOnNext(s -> {
-      consumer.accept(s);
-    }).subscribe();
+    onStateHandlers
+        .filter(p -> p.equals(state))
+        .doOnNext(
+            s -> {
+              consumer.accept(s);
+            })
+        .subscribe();
     return this;
   }
 }

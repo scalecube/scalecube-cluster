@@ -7,5 +7,4 @@ public class RequestVote {
   public long term() {
     return term;
   }
-
 }

@@ -13,8 +13,12 @@ public class Protocol {
   private static final String VOTE = "/vote";
 
   public static Message asRequest(Address sender, String topic, String action, Object data) {
-    return Message.builder().sender(sender).correlationId(IdGenerator.generateId())
-        .qualifier(topic + action).data(data).build();
+    return Message.builder()
+        .sender(sender)
+        .correlationId(IdGenerator.generateId())
+        .qualifier(topic + action)
+        .data(data)
+        .build();
   }
 
   public static Message asHeartbeatRequest(Address sender, String topic, HeartbeatRequest data) {
@@ -32,5 +36,4 @@ public class Protocol {
   public static boolean isVote(String topic, String value) {
     return (topic + VOTE).equalsIgnoreCase(value);
   }
-
 }

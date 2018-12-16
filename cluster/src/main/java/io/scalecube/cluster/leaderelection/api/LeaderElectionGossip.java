@@ -1,6 +1,5 @@
 package io.scalecube.cluster.leaderelection.api;
 
-
 import io.scalecube.transport.Address;
 
 public class LeaderElectionGossip {
