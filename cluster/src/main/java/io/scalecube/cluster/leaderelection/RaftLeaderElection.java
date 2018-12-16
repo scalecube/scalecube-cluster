@@ -253,7 +253,7 @@ public class RaftLeaderElection implements ElectionTopic {
                       .timeout(REQ_TIMEOUT, Protocol.FALSE_VOTE))
           .take(peers.size()) // upper bound of requests made
           .map(result -> ((VoteResponse) result.data()).granted())
-          .filter(vote -> vote == true)
+          .filter(vote -> vote)
           .take(consensus) // lower bound of positive received votes.
           .reduce((a, b) -> a && b); // collect all votes to final decision.
     } else {
