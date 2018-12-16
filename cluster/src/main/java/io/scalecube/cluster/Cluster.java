@@ -252,10 +252,9 @@ public interface Cluster {
 
   /**
    * Factory leader election context protocol for a given group name.
-   * 
+   *
    * @param groupName partition / name to participate in leader election protocol in the cluster.
    * @return Leader election instance for a given context.
    */
   ElectionTopic leadership(String groupName);
-
 }

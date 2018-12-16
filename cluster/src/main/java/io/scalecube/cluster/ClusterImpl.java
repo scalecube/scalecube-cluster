@@ -56,9 +56,9 @@ final class ClusterImpl implements Cluster {
 
   private static final Set<String> SYSTEM_GOSSIPS =
       Collections.singleton(MembershipProtocolImpl.MEMBERSHIP_GOSSIP);
-  
+
   private final LeaderElectionFactory electionFactory = new LeaderElectionFactory(this);
-  
+
   private final ClusterConfig config;
 
   // State
@@ -80,7 +80,7 @@ final class ClusterImpl implements Cluster {
   private MembershipProtocolImpl membership;
   private MetadataStoreImpl metadataStore;
   private Scheduler scheduler;
-  
+
   private final MonoProcessor<Void> shutdown = MonoProcessor.create();
   private final MonoProcessor<Void> onShutdown = MonoProcessor.create();
 
@@ -211,10 +211,10 @@ final class ClusterImpl implements Cluster {
   }
 
   @Override
-  public Mono<Message> requestResponse(Address address,Message request) {
+  public Mono<Message> requestResponse(Address address, Message request) {
     return transport.requestResponse(request, address);
   }
-  
+
   @Override
   public Mono<Void> send(Member member, Message message) {
     return send(member.address(), message);
