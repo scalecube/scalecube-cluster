@@ -1,5 +1,6 @@
 package io.scalecube.cluster.leaderelection;
 
+import io.scalecube.cluster.leaderelection.api.State;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;

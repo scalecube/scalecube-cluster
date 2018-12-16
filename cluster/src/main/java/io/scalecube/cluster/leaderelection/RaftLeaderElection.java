@@ -7,6 +7,7 @@ import io.scalecube.cluster.leaderelection.api.ElectionTopic;
 import io.scalecube.cluster.leaderelection.api.HeartbeatRequest;
 import io.scalecube.cluster.leaderelection.api.HeartbeatResponse;
 import io.scalecube.cluster.leaderelection.api.Leader;
+import io.scalecube.cluster.leaderelection.api.State;
 import io.scalecube.cluster.leaderelection.api.VoteRequest;
 import io.scalecube.cluster.leaderelection.api.VoteResponse;
 import io.scalecube.transport.Message;
