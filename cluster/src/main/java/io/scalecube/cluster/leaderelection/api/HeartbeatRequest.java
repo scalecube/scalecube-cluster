@@ -5,7 +5,7 @@ public class HeartbeatRequest {
   private long term;
   private String memberId;
 
-  public HeartbeatRequest() {};
+  public HeartbeatRequest() {}
 
   public HeartbeatRequest(long term, String memberId) {
     this.term = term;

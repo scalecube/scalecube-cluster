@@ -16,20 +16,31 @@ public class JobScheduler {
     this.job = job;
   }
 
-  public void start(int millis) {
+  /**
+   * start running provided job in given interval.
+   *
+   * @param interval in milli sec to execute the job.
+   */
+  public void start(int interval) {
     if (disposables.get() == null || disposables.get().isDisposed()) {
-      disposables.set(Flux.interval(Duration.ofMillis(millis)).subscribe(job));
+      disposables.set(Flux.interval(Duration.ofMillis(interval)).subscribe(job));
     }
   }
 
+  /** stop executing the given job and dispose. */
   public void stop() {
     if (disposables.get() != null && !disposables.get().isDisposed()) {
       disposables.get().dispose();
     }
   }
 
-  public void reset(int millis) {
+  /**
+   * stop current running job and restart again.
+   *
+   * @param interval to execute this job in milli.
+   */
+  public void reset(int interval) {
     stop();
-    start(millis);
+    start(interval);
   }
 }

@@ -22,17 +22,17 @@ public class LeaderElectionApp {
 
     le1.listen().subscribe(e -> {
       System.out.println("Alice  -> " + e.state());
-      print(le1, le2);
+      print(le1, le2, le3, le4);
     });
 
     le2.listen().subscribe(e -> {
       System.out.println("Joe  -> " + e.state());
-      print(le1, le2);
+      print(le1, le2, le3, le4);
     });
 
     le3.listen().subscribe(e -> {
       System.out.println("David  -> " + e.state());
-      print(le1, le2, le3);
+      print(le1, le2, le3, le4);
     });
 
     le4.listen().subscribe(e -> {

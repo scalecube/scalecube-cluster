@@ -15,6 +15,12 @@ public class LeaderElectionFactory {
     this.cluster = cluster;
   }
 
+  /**
+   * Create a leadership topic for a given name.
+   *
+   * @param name of the topic for this leader election.
+   * @return election topic.
+   */
   public ElectionTopic leadership(String name) {
     return topic.compute(
         name,

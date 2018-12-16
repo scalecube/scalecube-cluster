@@ -60,7 +60,13 @@ public class StateMachine {
     this.currentState = new AtomicReference<State>(init);
   }
 
-  public void transition(State newState, Object obj) {
+  /**
+   * transition to new given allowed state.
+   *
+   * @param newState to transition to if allowed.
+   * @throws IllegalStateException if requested state is not allowed.
+   */
+  public void transition(State newState) {
     if (!currentState.get().equals(newState)) {
       if (allowed().contains(newState)) {
         LOGGER.info("start transition to {}", newState);
@@ -75,6 +81,11 @@ public class StateMachine {
     }
   }
 
+  /**
+   * return allowed states to transition to from the given current state.
+   *
+   * @return list of allowed states.
+   */
   public List<Enum> allowed() {
     if (transitions.containsKey(currentState.get())) {
       return Collections.unmodifiableList(transitions.get(currentState.get()));
@@ -82,6 +93,13 @@ public class StateMachine {
     return Collections.EMPTY_LIST;
   }
 
+  /**
+   * subscribe an consumer to be executed in a given state.
+   *
+   * @param state to execute consumer on.
+   * @param consumer function that will be executed.
+   * @return StateMachine configured.
+   */
   public StateMachine on(final State state, Consumer consumer) {
     onStateHandlers
         .filter(p -> p.equals(state))

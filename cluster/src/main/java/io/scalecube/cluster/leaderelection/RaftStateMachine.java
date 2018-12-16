@@ -133,16 +133,16 @@ public class RaftStateMachine {
   }
 
   public void becomeFollower(long term) {
-    this.stateMachine.transition(State.FOLLOWER, term);
+    this.stateMachine.transition(State.FOLLOWER);
   }
 
   public void becomeCandidate(long term) {
-    this.stateMachine.transition(State.CANDIDATE, term);
+    this.stateMachine.transition(State.CANDIDATE);
   }
 
   public void becomeLeader(long term) {
     this.currentLeader.set(this.id);
-    this.stateMachine.transition(State.LEADER, term);
+    this.stateMachine.transition(State.LEADER);
   }
 
   public void heartbeat(String memberId, long term) {

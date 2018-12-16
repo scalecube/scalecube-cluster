@@ -2,9 +2,11 @@ package io.scalecube.cluster.leaderelection;
 
 import io.scalecube.cluster.leaderelection.api.HeartbeatRequest;
 import io.scalecube.cluster.leaderelection.api.VoteRequest;
+import io.scalecube.cluster.leaderelection.api.VoteResponse;
 import io.scalecube.cluster.membership.IdGenerator;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
+import reactor.core.publisher.Mono;
 
 public class Protocol {
 
@@ -12,6 +14,8 @@ public class Protocol {
 
   private static final String VOTE = "/vote";
 
+  public static Mono<Message> FALSE_VOTE = Mono.just(new VoteResponse(false, "")).map(Message::fromData);
+  
   public static Message asRequest(Address sender, String topic, String action, Object data) {
     return Message.builder()
         .sender(sender)
@@ -20,7 +24,7 @@ public class Protocol {
         .data(data)
         .build();
   }
-
+  
   public static Message asHeartbeatRequest(Address sender, String topic, HeartbeatRequest data) {
     return asRequest(sender, topic, HEARTBEAT, data);
   }

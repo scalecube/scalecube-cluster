@@ -26,7 +26,9 @@ public class RaftLeaderElection implements ElectionTopic {
   private static final Logger LOGGER = LoggerFactory.getLogger(RaftLeaderElection.class);
 
   public static final String LEADER_ELECTION = "leader-election";
-
+  
+  private final static Duration REQ_TIMEOUT = Duration.ofMillis(100);
+  
   private final RaftStateMachine stateMachine;
 
   private final DirectProcessor<ElectionEvent> processor = DirectProcessor.create();
@@ -75,10 +77,9 @@ public class RaftLeaderElection implements ElectionTopic {
     this.stateMachine.onCandidate(
         asCandidate -> {
           this.stateMachine.nextTerm();
+          Duration electionTimeout = Duration.ofMillis(config.electionTimeout());
           this.processor.onNext(ElectionEvent.candidate());
-
-          startElection(Duration.ofMillis(config.electionTimeout() + config.timeout()))
-              .timeout(Duration.ofMillis(config.electionTimeout()))
+          startElection().timeout(electionTimeout)
               .subscribe(
                   result -> {
                     if (result) {
@@ -219,17 +220,23 @@ public class RaftLeaderElection implements ElectionTopic {
   // if most of peer members grant vote then member transition to a leader state.
   // the election process is waiting until timeout of consensusTimeout in case
   // timeout reached the member transition to Follower state.
-  private Mono<Boolean> startElection(Duration timeout) {
+  private Mono<Boolean> startElection() {
+    
     Collection<Member> peers = findPeers();
+
     if (!peers.isEmpty()) {
-      System.out.println(">>> peers [" + peers.size() + "] " + (peers.size() / 2));
+      long consensus = (long) (Math.ceil((double) peers.size() / 2d));
       return Flux.fromStream(peers.stream())
           .concatMap(
-              member -> cluster.requestResponse(member.address(), voteRequest()).timeout(timeout))
+              member ->
+                  cluster
+                      .requestResponse(member.address(), voteRequest())
+                      .timeout(REQ_TIMEOUT, Protocol.FALSE_VOTE))
+          .take(peers.size()) // upper bound of requests made
           .map(result -> ((VoteResponse) result.data()).granted())
-          .filter(vote -> vote)
-          .take((1 + peers.size()) / 2)
-          .reduce((a, b) -> a && b);
+          .filter(vote -> vote == true)
+          .take(consensus) // lower bound of positive received votes. 
+          .reduce((a, b) -> a && b); // collect all votes to final decision.
     } else {
       return Mono.just(true);
     }

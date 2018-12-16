@@ -5,7 +5,7 @@ public class Leader {
   private String memberId;
   private String leaderId;
 
-  public Leader() {};
+  public Leader() {}
 
   public Leader(String memberId, String leaderId) {
     this.memberId = memberId;

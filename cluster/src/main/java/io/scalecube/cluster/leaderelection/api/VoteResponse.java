@@ -5,7 +5,7 @@ public class VoteResponse {
   private boolean granted;
   private String memberId;
 
-  public VoteResponse() {};
+  public VoteResponse() {}
 
   public VoteResponse(boolean granted, String memberId) {
     this.granted = granted;

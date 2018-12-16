@@ -118,7 +118,7 @@ public interface Cluster {
    * response by a provided correlationId and sender address of the caller.
    *
    * @param address address where message will be sent.
-   * @param message to send message must contain correlctionId and sender to handle reply.
+   * @param request to send message must contain correlctionId and sender to handle reply.
    * @return promise which will be completed with result of sending (void or exception).
    * @throws IllegalArgumentException if {@code message} or {@code address} is null.
    */
@@ -253,7 +253,7 @@ public interface Cluster {
   /**
    * Factory leader election context protocol for a given group name.
    * 
-   * @param partition / group name to participate in leader election protocol in the cluster.
+   * @param groupName partition / name to participate in leader election protocol in the cluster.
    * @return Leader election instance for a given context.
    */
   ElectionTopic leadership(String groupName);
