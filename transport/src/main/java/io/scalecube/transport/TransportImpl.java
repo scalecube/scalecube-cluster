@@ -257,7 +257,6 @@ final class TransportImpl implements Transport {
           listen()
               .filter(resp -> resp.correlationId() != null)
               .filter(resp -> resp.correlationId().equals(request.correlationId()))
-              .take(1)
               .doOnComplete(() -> sink.complete())
               .subscribe(
                   msg -> {

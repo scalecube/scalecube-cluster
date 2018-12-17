@@ -17,9 +17,12 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import reactor.netty.ChannelBindException;
 
 public class TransportTest extends BaseTest {
@@ -160,6 +163,49 @@ public class TransportTest extends BaseTest {
             .block(Duration.ofSeconds(1));
 
     assertTrue(result.equals("hello: server"));
+  }
+
+  @Test
+  public void testShouldRequestStreamSuccess() throws Exception {
+    client = createTransport();
+    server = createTransport();
+
+    server
+        .listen()
+        .filter(req -> req.qualifier().equals("hello/server"))
+        .subscribe(
+            message -> {
+              Flux.range(0, 3)
+                  .doOnEach(
+                      each -> {
+                        send(
+                                server,
+                                message.sender(),
+                                Message.builder()
+                                    .correlationId(message.correlationId())
+                                    .data("hello: " + message.data())
+                                    .build())
+                            .subscribe();
+                      })
+                  .subscribe();
+            });
+    List<String> result =
+        client
+            .requestSteam(
+                Message.builder()
+                    .sender(client.address())
+                    .qualifier("hello/server")
+                    .correlationId("123xyz")
+                    .data("server")
+                    .build(),
+                server.address())
+            .map(msg -> msg.data().toString())
+            .take(3)
+            .collect(Collectors.toList())
+            .block(Duration.ofSeconds(1));
+
+    assertTrue(result.size() == 3);
+    assertTrue(result.get(2).equals("hello: server"));
   }
 
   @Test
