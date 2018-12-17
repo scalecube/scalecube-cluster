@@ -540,7 +540,8 @@ public class MembershipProtocolTest extends BaseTest {
         .syncInterval(2000)
         .syncTimeout(1000)
         .pingInterval(TEST_PING_INTERVAL)
-        .pingTimeout(100);
+        .pingTimeout(100)
+        .metadataTimeout(100);
   }
 
   private MembershipProtocolImpl createMembership(

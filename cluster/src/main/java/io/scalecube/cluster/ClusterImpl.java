@@ -304,7 +304,7 @@ final class ClusterImpl implements Cluster {
     return Flux.defer(
         () ->
             Flux.fromIterable(otherMembers())
-                .map(MembershipEvent::createAdded)
+                .map(member -> MembershipEvent.createAdded(member, metadata(member)))
                 .concatWith(membershipEvents)
                 .onBackpressureBuffer());
   }
