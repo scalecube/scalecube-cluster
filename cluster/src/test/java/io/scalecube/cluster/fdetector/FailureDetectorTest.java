@@ -405,6 +405,7 @@ public class FailureDetectorTest extends BaseTest {
             .pingTimeout(100)
             .pingInterval(200)
             .pingReqMembers(2)
+            .metadataTimeout(100)
             .build();
     return createFd(transport, members, failureDetectorConfig);
   }
@@ -418,7 +419,7 @@ public class FailureDetectorTest extends BaseTest {
         Flux.fromIterable(addresses)
             .filter(address -> !transport.address().equals(address))
             .map(address -> new Member("member-" + address.port(), address))
-            .map(member -> MembershipEvent.createAdded(member, null));
+            .map(member -> MembershipEvent.createAdded(member, Collections.emptyMap()));
 
     return new FailureDetectorImpl(localMember, transport, membershipFlux, config, scheduler);
   }
