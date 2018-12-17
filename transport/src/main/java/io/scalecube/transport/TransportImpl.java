@@ -263,7 +263,7 @@ final class TransportImpl implements Transport {
         .connect()
         .doOnError(
             th -> {
-              LOGGER.warn(
+              LOGGER.debug(
                   "Failed to connect to remote address {}, cause: {}", address, th.toString());
               connections.remove(address);
             })
