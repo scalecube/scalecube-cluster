@@ -127,6 +127,42 @@ public class TransportTest extends BaseTest {
   }
 
   @Test
+  public void testShouldRequestResponseSuccess() throws Exception {
+    client = createTransport();
+    server = createTransport();
+
+    server
+        .listen()
+        .filter(req -> req.qualifier().equals("hello/server"))
+        .subscribe(
+            message -> {
+              send(
+                      server,
+                      message.sender(),
+                      Message.builder()
+                          .correlationId(message.correlationId())
+                          .data("hello: " + message.data())
+                          .build())
+                  .subscribe();
+            });
+
+    String result =
+        client
+            .requestResponse(
+                Message.builder()
+                    .sender(client.address())
+                    .qualifier("hello/server")
+                    .correlationId("123xyz")
+                    .data("server")
+                    .build(),
+                server.address())
+            .map(msg -> msg.data().toString())
+            .block(Duration.ofSeconds(1));
+
+    assertTrue(result.equals("hello: server"));
+  }
+
+  @Test
   public void testNetworkSettings() throws InterruptedException {
     client = createTransport();
     server = createTransport();
