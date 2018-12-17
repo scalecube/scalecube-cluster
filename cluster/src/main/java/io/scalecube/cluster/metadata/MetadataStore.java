@@ -36,16 +36,18 @@ public interface MetadataStore {
    * #updateMetadata(Member, Map)}.
    *
    * @param metadata local member metadata
+   * @return old metadata or null
    */
-  void updateMetadata(Map<String, String> metadata);
+  Map<String, String> updateMetadata(Map<String, String> metadata);
 
   /**
    * Updates cluster member metadata locally.
    *
    * @param member member
    * @param metadata cluster member metadtaa
+   * @return old metadata or null
    */
-  void updateMetadata(Member member, Map<String, String> metadata);
+  Map<String, String> updateMetadata(Member member, Map<String, String> metadata);
 
   /**
    * Retrives cluster member metadata remotely.
@@ -60,6 +62,7 @@ public interface MetadataStore {
    * be ignored.
    *
    * @param member cluster member
+   * @return old metadata or null
    */
-  void removeMetadata(Member member);
+  Map<String, String> removeMetadata(Member member);
 }

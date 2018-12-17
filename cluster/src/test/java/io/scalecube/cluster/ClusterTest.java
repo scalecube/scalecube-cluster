@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.scalecube.cluster.membership.MembershipEvent;
+import io.scalecube.cluster.membership.MembershipEvent.Type;
 import io.scalecube.transport.Address;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -15,6 +16,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -238,6 +240,50 @@ public class ClusterTest extends BaseTest {
     assertTrue(node2.isShutdown());
 
     shutdown(Stream.of(seedNode, node1, node3).collect(Collectors.toList()));
+  }
+
+  @Test
+  public void testMemberMetadataRemoved() throws InterruptedException {
+    // Start seed member
+    Map<String, String> seedMetadata = new HashMap<>();
+    seedMetadata.put("seed", "shmid");
+    final Cluster seedNode = Cluster.joinAwait(seedMetadata);
+
+    // Start nodes
+    // Start member with metadata
+    Map<String, String> node1Metadata = new HashMap<>();
+    node1Metadata.put("node", "shmod");
+    final Cluster node1 = Cluster.joinAwait(node1Metadata, seedNode.address());
+
+    // Check events
+    MembershipEvent nodeAddedEvent =
+        seedNode.listenMembership().as(Mono::from).block(Duration.ofSeconds(3));
+    assertEquals(Type.ADDED, nodeAddedEvent.type());
+
+    MembershipEvent seedAddedEvent =
+        node1.listenMembership().as(Mono::from).block(Duration.ofSeconds(3));
+    assertEquals(Type.ADDED, seedAddedEvent.type());
+
+    // Check metadata
+    assertEquals(node1Metadata, seedNode.metadata(node1.member()));
+    assertEquals(seedMetadata, node1.metadata(seedNode.member()));
+
+    // Remove node1 from cluster
+    CountDownLatch latch = new CountDownLatch(1);
+    AtomicReference<Map<String, String>> removedMetadata = new AtomicReference<>();
+    seedNode
+        .listenMembership()
+        .filter(MembershipEvent::isRemoved)
+        .subscribe(
+            event -> {
+              removedMetadata.set(event.oldMetadata());
+              latch.countDown();
+            });
+
+    node1.shutdown().subscribe();
+
+    assertTrue(latch.await(TIMEOUT.getSeconds(), TimeUnit.SECONDS));
+    assertEquals(removedMetadata.get(), node1Metadata);
   }
 
   private void shutdown(List<Cluster> nodes) {
