@@ -264,7 +264,7 @@ class GossipProtocolTest extends BaseTest {
         Flux.fromIterable(members)
             .filter(address -> !transport.address().equals(address))
             .map(address -> new Member("member-" + address.port(), address))
-            .map(MembershipEvent::createAdded);
+            .map((Member member) -> MembershipEvent.createAdded(member, null));
 
     GossipProtocolImpl gossipProtocol =
         new GossipProtocolImpl(localMember, transport, membershipFlux, gossipConfig, scheduler);

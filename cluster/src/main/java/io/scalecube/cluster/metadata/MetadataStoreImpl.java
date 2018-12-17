@@ -67,9 +67,7 @@ public class MetadataStoreImpl implements MetadataStore {
     this.scheduler = Objects.requireNonNull(scheduler);
 
     // store local metadata
-    Map<String, String> localMetadata =
-        Collections.unmodifiableMap(new HashMap<>(Objects.requireNonNull(metadata)));
-    membersMetadata.put(localMember, localMetadata);
+    updateMetadata(Objects.requireNonNull(metadata));
   }
 
   @Override
@@ -102,31 +100,45 @@ public class MetadataStoreImpl implements MetadataStore {
   }
 
   @Override
-  public void updateMetadata(Map<String, String> metadata) {
-    updateMetadata(localMember, metadata);
+  public Map<String, String> updateMetadata(Map<String, String> metadata) {
+    return updateMetadata(localMember, metadata);
   }
 
   @Override
-  public void updateMetadata(Member member, Map<String, String> metadata) {
+  public Map<String, String> updateMetadata(Member member, Map<String, String> metadata) {
     Map<String, String> memberMetadata =
         Collections.unmodifiableMap(new HashMap<>(Objects.requireNonNull(metadata)));
+    Map<String, String> result = membersMetadata.put(member, memberMetadata);
+
     if (localMember.equals(member)) {
-      LOGGER.debug("Update local member with new metadata: {}", memberMetadata);
+      // added
+      if (result == null) {
+        LOGGER.debug("Added metadata: {} for local member ", memberMetadata);
+      } else {
+        LOGGER.debug("Updated metadata: {} for local member", memberMetadata);
+      }
     } else {
-      LOGGER.debug("Update member {} with new metadata: {}", member, memberMetadata);
+      // updated
+      if (result == null) {
+        LOGGER.debug("Added metadata: {} for member {}", memberMetadata, member);
+      } else {
+        LOGGER.debug("Updated metadata: {} for member {}", memberMetadata, member);
+      }
     }
-    membersMetadata.put(member, memberMetadata);
+    return result;
   }
 
   @Override
-  public void removeMetadata(Member member) {
+  public Map<String, String> removeMetadata(Member member) {
     if (!localMember.equals(member)) {
       // remove
-      Object map = membersMetadata.remove(member);
-      if (map != null) {
+      Map<String, String> metadata = membersMetadata.remove(member);
+      if (metadata != null) {
         LOGGER.debug("Removed metadata for member {}", member);
+        return metadata;
       }
     }
+    return null;
   }
 
   @Override

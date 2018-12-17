@@ -418,7 +418,7 @@ public class FailureDetectorTest extends BaseTest {
         Flux.fromIterable(addresses)
             .filter(address -> !transport.address().equals(address))
             .map(address -> new Member("member-" + address.port(), address))
-            .map(MembershipEvent::createAdded);
+            .map((Member member) -> MembershipEvent.createAdded(member, null));
 
     return new FailureDetectorImpl(localMember, transport, membershipFlux, config, scheduler);
   }

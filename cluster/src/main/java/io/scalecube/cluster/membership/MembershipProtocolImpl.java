@@ -500,34 +500,35 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private Mono<Void> emitMembershipEvent(MembershipRecord r0, MembershipRecord r1) {
     return Mono.defer(
         () -> {
-          final Member newMember = r1.member();
+          final Member member = r1.member();
 
           if (r1.isDead()) {
             return Mono.fromRunnable(
                 () -> {
-                  metadataStore.removeMetadata(newMember);
-                  sink.next(MembershipEvent.createRemoved(newMember));
+                  Map<String, String> metadata = metadataStore.removeMetadata(member);
+                  sink.next(MembershipEvent.createRemoved(member, metadata));
                 });
           }
 
           if (r0 == null && r1.isAlive()) {
             return metadataStore
-                .fetchMetadata(newMember)
+                .fetchMetadata(member)
                 .doOnSuccess(
                     metadata -> {
-                      metadataStore.updateMetadata(newMember, metadata);
-                      sink.next(MembershipEvent.createAdded(newMember));
+                      metadataStore.updateMetadata(member, metadata);
+                      sink.next(MembershipEvent.createAdded(member, metadata));
                     })
                 .then();
           }
 
           if (r0 != null && r0.incarnation() < r1.incarnation()) {
             return metadataStore
-                .fetchMetadata(newMember)
+                .fetchMetadata(member)
                 .doOnSuccess(
-                    metadata -> {
-                      metadataStore.updateMetadata(newMember, metadata);
-                      sink.next(MembershipEvent.createUpdated(r0.member(), newMember));
+                    metadata1 -> {
+                      Map<String, String> metadata0 =
+                          metadataStore.updateMetadata(member, metadata1);
+                      sink.next(MembershipEvent.createUpdated(member, metadata0, metadata1));
                     })
                 .then();
           }
