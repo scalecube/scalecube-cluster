@@ -67,7 +67,8 @@ final class ClusterImpl implements Cluster {
 
   // Disposables
   private final Disposable.Composite actionsDisposables = Disposables.composite();
-
+  private final MonoProcessor<Void> shutdown = MonoProcessor.create();
+  private final MonoProcessor<Void> onShutdown = MonoProcessor.create();
   // Cluster components
   private Transport transport;
   private Member localMember;
@@ -76,9 +77,6 @@ final class ClusterImpl implements Cluster {
   private MembershipProtocolImpl membership;
   private MetadataStoreImpl metadataStore;
   private Scheduler scheduler;
-
-  private final MonoProcessor<Void> shutdown = MonoProcessor.create();
-  private final MonoProcessor<Void> onShutdown = MonoProcessor.create();
 
   public ClusterImpl(ClusterConfig config) {
     this.config = Objects.requireNonNull(config);
@@ -272,7 +270,9 @@ final class ClusterImpl implements Cluster {
 
   @Override
   public Mono<Void> updateMetadata(Map<String, String> metadata) {
-    return Mono.fromRunnable(() -> metadataStore.updateMetadata(metadata))
+    return Mono.fromRunnable(
+            () -> metadataStore
+              .updateMetadata(metadata, membership.currIncarnation() + 1))
         .then(membership.updateIncarnation())
         .subscribeOn(scheduler);
   }

@@ -10,6 +10,8 @@ import reactor.core.publisher.Mono;
  */
 public interface MetadataStore {
 
+  String INCARNATION_KEY = "incarnation";
+
   /** Start listening on requests on getting local member metadata to remote callers. */
   void start();
 
@@ -31,23 +33,27 @@ public interface MetadataStore {
    */
   Map<String, String> metadata(Member member);
 
+  Integer metadataVersion(Member member);
+
   /**
    * Updates local cluster member metadata locally. Shortcut method for {@link
-   * #updateMetadata(Member, Map)}.
+   * #updateMetadata(Member, Map, int)}.
    *
    * @param metadata local member metadata
+   * @param incarnation
    * @return old metadata or null
    */
-  Map<String, String> updateMetadata(Map<String, String> metadata);
+  Map<String, String> updateMetadata(Map<String, String> metadata, int incarnation);
 
   /**
    * Updates cluster member metadata locally.
    *
    * @param member member
    * @param metadata cluster member metadtaa
+   * @param incarnation
    * @return old metadata or null
    */
-  Map<String, String> updateMetadata(Member member, Map<String, String> metadata);
+  Map<String, String> updateMetadata(Member member, Map<String, String> metadata, int incarnation);
 
   /**
    * Retrives cluster member metadata remotely.
@@ -65,4 +71,5 @@ public interface MetadataStore {
    * @return old metadata or null
    */
   Map<String, String> removeMetadata(Member member);
+
 }

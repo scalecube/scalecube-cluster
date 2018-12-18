@@ -1,11 +1,15 @@
 package io.scalecube.cluster.metadata;
 
+import static java.util.Optional.of;
+import static java.util.Optional.ofNullable;
+
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.Member;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.Transport;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -67,7 +71,7 @@ public class MetadataStoreImpl implements MetadataStore {
     this.scheduler = Objects.requireNonNull(scheduler);
 
     // store local metadata
-    updateMetadata(Objects.requireNonNull(metadata));
+    updateMetadata(Objects.requireNonNull(metadata), 0);
   }
 
   @Override
@@ -100,22 +104,33 @@ public class MetadataStoreImpl implements MetadataStore {
   }
 
   @Override
-  public Map<String, String> updateMetadata(Map<String, String> metadata) {
-    return updateMetadata(localMember, metadata);
+  public Integer metadataVersion(Member member) {
+    return ofNullable(metadata(member))
+        .flatMap(map -> of(map.get(INCARNATION_KEY)))
+        .flatMap(s -> of(Integer.valueOf(s)))
+        .orElse(-1);
   }
 
   @Override
-  public Map<String, String> updateMetadata(Member member, Map<String, String> metadata) {
+  public Map<String, String> updateMetadata(Map<String, String> metadata, int incarnation) {
+    return updateMetadata(localMember, metadata, incarnation);
+  }
+
+  @Override
+  public Map<String, String> updateMetadata(
+      Member member, Map<String, String> metadata, int incarnation) {
+    HashMap<String, String> metadata0 = new HashMap<>(metadata);
+    metadata0.put(INCARNATION_KEY, String.valueOf(incarnation));
     Map<String, String> memberMetadata =
-        Collections.unmodifiableMap(new HashMap<>(Objects.requireNonNull(metadata)));
+        Collections.unmodifiableMap(new HashMap<>(Objects.requireNonNull(metadata0)));
     Map<String, String> result = membersMetadata.put(member, memberMetadata);
 
     if (localMember.equals(member)) {
       // added
       if (result == null) {
-        LOGGER.debug("Added metadata: {} for local member ", memberMetadata);
+        LOGGER.debug("Added metadata: {} for local member ({})", memberMetadata, localMember);
       } else {
-        LOGGER.debug("Updated metadata: {} for local member", memberMetadata);
+        LOGGER.debug("Updated metadata: {} for local member ({})", memberMetadata, localMember);
       }
     } else {
       // updated

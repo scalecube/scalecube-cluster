@@ -71,7 +71,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   // Subject
 
   private final FluxProcessor<MembershipEvent, MembershipEvent> subject =
-      DirectProcessor.<MembershipEvent>create().serialize();
+    DirectProcessor.<MembershipEvent>create().serialize();
 
   private final FluxSink<MembershipEvent> sink = subject.sink();
 
@@ -94,13 +94,14 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
    * @param scheduler scheduler
    */
   public MembershipProtocolImpl(
-      Member localMember,
-      Transport transport,
-      FailureDetector failureDetector,
-      GossipProtocol gossipProtocol,
-      MetadataStore metadataStore,
-      MembershipConfig config,
-      Scheduler scheduler) {
+    Member localMember,
+    Transport transport,
+    FailureDetector failureDetector,
+    GossipProtocol gossipProtocol,
+    MetadataStore metadataStore,
+    MembershipConfig config,
+    Scheduler scheduler) {
+
 
     this.transport = Objects.requireNonNull(transport);
     this.config = Objects.requireNonNull(config);
@@ -264,10 +265,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     sink.complete();
   }
 
-  // ================================================
-  // ============== Action Methods ==================
-  // ================================================
-
   private void doSync() {
     Address address = selectSyncAddress();
     if (address == null) {
@@ -284,9 +281,9 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                     "Failed to send Sync: {} to {}, cause: {}", message, address, ex.toString()));
   }
 
-  // ================================================
-  // ============== Event Listeners =================
-  // ================================================
+  public int currIncarnation() {
+    return membershipTable.get(localMember.id()).incarnation();
+  }
 
   private void onMessage(Message message) {
     if (checkSyncGroup(message)) {
@@ -301,6 +298,10 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     }
   }
 
+  // ================================================
+  // ============== Action Methods ==================
+  // ================================================
+
   private Mono<Void> onSyncAck(Message syncAckMsg, boolean onStart) {
     return Mono.defer(
         () -> {
@@ -308,6 +309,10 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           return syncMembership(syncAckMsg.data(), onStart);
         });
   }
+
+  // ================================================
+  // ============== Event Listeners =================
+  // ================================================
 
   /** Merges incoming SYNC data, merges it and sending back merged data with SYNC_ACK. */
   private void onSync(Message syncMsg) {
@@ -372,10 +377,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     }
   }
 
-  // ================================================
-  // ============== Helper Methods ==================
-  // ================================================
-
   private Address selectSyncAddress() {
     // TODO [AK]: During running phase it should send to both seed or not seed members (issue #38)
     return !seedMembers.isEmpty()
@@ -390,6 +391,10 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     }
     return false;
   }
+
+  // ================================================
+  // ============== Helper Methods ==================
+  // ================================================
 
   private void schedulePeriodicSync() {
     int syncInterval = config.getSyncInterval();
@@ -502,6 +507,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
         () -> {
           final Member member = r1.member();
 
+          // removed member
           if (r1.isDead()) {
             return Mono.fromRunnable(
                 () -> {
@@ -510,29 +516,38 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                 });
           }
 
+          // added member
           if (r0 == null && r1.isAlive()) {
             return metadataStore
                 .fetchMetadata(member)
                 .doOnSuccess(
                     metadata -> {
-                      metadataStore.updateMetadata(member, metadata);
+                      metadataStore.updateMetadata(member, metadata, r1.incarnation());
                       sink.next(MembershipEvent.createAdded(member, metadata));
                     })
                 .then();
           }
 
+          // updated member
           if (r0 != null && r0.incarnation() < r1.incarnation()) {
-            return metadataStore
-                .fetchMetadata(member)
-                .doOnSuccess(
-                    metadata1 -> {
-                      Map<String, String> metadata0 =
-                          metadataStore.updateMetadata(member, metadata1);
-                      sink.next(MembershipEvent.createUpdated(member, metadata0, metadata1));
-                    })
-                .then();
+            LOGGER.info(
+                "Member updated: {}({}). Currently stored metadata for it: {}",
+                r1.member(),
+                r1.incarnation(),
+                metadataStore.metadataVersion(r1.member()));
+            if (metadataStore.metadataVersion(r1.member()) < r1.incarnation()) {
+              return metadataStore
+                  .fetchMetadata(member)
+                  .doOnSuccess(
+                      metadata1 -> {
+                        Map<String, String> metadata0 =
+                            metadataStore.updateMetadata(member, metadata1, r1.incarnation());
+                        sink.next(MembershipEvent.createUpdated(member, metadata0, metadata1));
+                      })
+                  .then();
+            }
+            return Mono.empty();
           }
-
           return Mono.empty();
         });
   }
