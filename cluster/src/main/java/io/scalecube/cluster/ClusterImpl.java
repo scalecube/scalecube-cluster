@@ -49,6 +49,9 @@ final class ClusterImpl implements Cluster {
                   MetadataStoreImpl.GET_METADATA_RESP)
               .collect(Collectors.toSet()));
 
+  private static final Set<String> SYSTEM_GOSSIPS =
+      Collections.singleton(MembershipProtocolImpl.MEMBERSHIP_GOSSIP);
+
   private final ClusterConfig config;
 
   // Subject
@@ -186,9 +189,7 @@ final class ClusterImpl implements Cluster {
   @Override
   public Flux<Message> listenGossips() {
     // filter out system gossips
-    return gossip
-        .listen()
-        .filter(msg -> !MembershipProtocolImpl.MEMBERSHIP_GOSSIP.equals(msg.qualifier()));
+    return gossip.listen().filter(msg -> !SYSTEM_GOSSIPS.contains(msg.qualifier()));
   }
 
   @Override

@@ -39,12 +39,24 @@ import reactor.core.scheduler.Scheduler;
 
 public final class MembershipProtocolImpl implements MembershipProtocol {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(MembershipProtocolImpl.class);
+
+  private enum MembershipUpdateReason {
+    FAILURE_DETECTOR_EVENT,
+    MEMBERSHIP_GOSSIP,
+    SYNC,
+    INITIAL_SYNC,
+    SUSPICION_TIMEOUT
+  }
+
+  // Qualifiers
+
   public static final String SYNC = "sc/membership/sync";
   public static final String SYNC_ACK = "sc/membership/syncAck";
 
   // Qualifiers
   public static final String MEMBERSHIP_GOSSIP = "sc/membership/gossip";
-  private static final Logger LOGGER = LoggerFactory.getLogger(MembershipProtocolImpl.class);
+
   private final Member localMember;
 
   // Injected
@@ -518,9 +530,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
             return Mono.fromRunnable(
                 () -> {
                   Map<String, String> metadata = metadataStore.removeMetadata(member);
-
-                  MembershipEvent removed = MembershipEvent.createRemoved(member, metadata);
-                  sink.next(removed);
+                  sink.next(MembershipEvent.createRemoved(member, metadata));
                 });
           }
 
@@ -532,8 +542,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                 .doOnSuccess(
                     metadata -> {
                       metadataStore.updateMetadata(member, metadata);
-                      MembershipEvent added = MembershipEvent.createAdded(member, metadata);
-                      sink.next(added);
+                      sink.next(MembershipEvent.createAdded(member, metadata));
                     })
                 .then();
           }
@@ -545,9 +554,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                     metadata1 -> {
                       Map<String, String> metadata0 =
                           metadataStore.updateMetadata(member, metadata1);
-                      MembershipEvent updated =
-                          MembershipEvent.createUpdated(member, metadata0, metadata1);
-                      sink.next(updated);
+                      sink.next(MembershipEvent.createUpdated(member, metadata0, metadata1));
                     })
                 .then();
           }
@@ -646,13 +653,5 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
    */
   List<MembershipRecord> getMembershipRecords() {
     return Collections.unmodifiableList(new ArrayList<>(membershipTable.values()));
-  }
-
-  private enum MembershipUpdateReason {
-    FAILURE_DETECTOR_EVENT,
-    MEMBERSHIP_GOSSIP,
-    SYNC,
-    INITIAL_SYNC,
-    SUSPICION_TIMEOUT
   }
 }
