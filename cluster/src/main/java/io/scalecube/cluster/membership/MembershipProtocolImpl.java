@@ -22,6 +22,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -54,25 +55,27 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   public static final String SYNC_ACK = "sc/membership/syncAck";
   public static final String MEMBERSHIP_GOSSIP = "sc/membership/gossip";
 
+  private final Member localMember;
+
   // Injected
 
-  private final Member localMember;
   private final Transport transport;
   private final MembershipConfig config;
   private final List<Address> seedMembers;
   private final FailureDetector failureDetector;
   private final GossipProtocol gossipProtocol;
   private final MetadataStore metadataStore;
+  private final Map<String, MembershipRecord> membershipTable = new HashMap<>();
 
   // State
 
-  private final Map<String, MembershipRecord> membershipTable = new HashMap<>();
+  private final Map<String, Member> members = new HashMap<>();
+  private final Map<Address, String> memberAddressIndex = new HashMap<>();
 
   // Subject
 
   private final FluxProcessor<MembershipEvent, MembershipEvent> subject =
       DirectProcessor.<MembershipEvent>create().serialize();
-
   private final FluxSink<MembershipEvent> sink = subject.sink();
 
   // Disposables
@@ -116,6 +119,10 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     // Init membership table with local member record
     membershipTable.put(localMember.id(), new MembershipRecord(localMember, ALIVE, 0));
 
+    // fill in the table of members with local member
+    memberAddressIndex.put(localMember.address(), localMember.id());
+    members.put(localMember.id(), localMember);
+
     actionsDisposables.addAll(
         Arrays.asList(
             // Listen to incoming SYNC and SYNC ACK requests from other members
@@ -148,15 +155,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   @Override
   public Flux<MembershipEvent> listen() {
     return subject.onBackpressureBuffer();
-  }
-
-  /**
-   * Returns local member.
-   *
-   * @return local member
-   */
-  public Member member() {
-    return localMember;
   }
 
   /**
@@ -242,10 +240,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
         });
   }
 
-  private void onError(Throwable throwable) {
-    LOGGER.error("Received unexpected error: ", throwable);
-  }
-
   @Override
   public void stop() {
     // Stop accepting requests, events and sending sync
@@ -264,9 +258,39 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     sink.complete();
   }
 
-  // ================================================
-  // ============== Action Methods ==================
-  // ================================================
+  @Override
+  public Collection<Member> members() {
+    return Mono.fromCallable(() -> Collections.unmodifiableCollection(members.values()))
+        .subscribeOn(scheduler)
+        .block();
+  }
+
+  @Override
+  public Collection<Member> otherMembers() {
+    ArrayList<Member> otherMembers = new ArrayList<>(members());
+    otherMembers.remove(localMember);
+    return Collections.unmodifiableCollection(otherMembers);
+  }
+
+  @Override
+  public Member member() {
+    return localMember;
+  }
+
+  @Override
+  public Optional<Member> member(String id) {
+    return Mono.fromCallable(() -> Optional.ofNullable(members.get(id)))
+        .subscribeOn(scheduler)
+        .block();
+  }
+
+  @Override
+  public Optional<Member> member(Address address) {
+    return Mono.fromCallable(() -> Optional.ofNullable(memberAddressIndex.get(address)))
+        .subscribeOn(scheduler)
+        .block()
+        .flatMap(this::member);
+  }
 
   private void doSync() {
     Address address = selectSyncAddress();
@@ -285,7 +309,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   }
 
   // ================================================
-  // ============== Event Listeners =================
+  // ============== Action Methods ==================
   // ================================================
 
   private void onMessage(Message message) {
@@ -300,6 +324,10 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       }
     }
   }
+
+  // ================================================
+  // ============== Event Listeners =================
+  // ================================================
 
   private Mono<Void> onSyncAck(Message syncAckMsg, boolean onStart) {
     return Mono.defer(
@@ -372,15 +400,19 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     }
   }
 
-  // ================================================
-  // ============== Helper Methods ==================
-  // ================================================
-
   private Address selectSyncAddress() {
     // TODO [AK]: During running phase it should send to both seed or not seed members (issue #38)
     return !seedMembers.isEmpty()
         ? seedMembers.get(ThreadLocalRandom.current().nextInt(seedMembers.size()))
         : null;
+  }
+
+  // ================================================
+  // ============== Helper Methods ==================
+  // ================================================
+
+  private void onError(Throwable throwable) {
+    LOGGER.error("Received unexpected error: ", throwable);
   }
 
   private boolean checkSyncGroup(Message message) {
@@ -503,6 +535,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           final Member member = r1.member();
 
           if (r1.isDead()) {
+            members.remove(member.id());
+            memberAddressIndex.remove(member.address());
             return Mono.fromRunnable(
                 () -> {
                   Map<String, String> metadata = metadataStore.removeMetadata(member);
@@ -511,6 +545,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           }
 
           if (r0 == null && r1.isAlive()) {
+            memberAddressIndex.put(member.address(), member.id());
+            members.put(member.id(), member);
             return metadataStore
                 .fetchMetadata(member)
                 .doOnSuccess(
