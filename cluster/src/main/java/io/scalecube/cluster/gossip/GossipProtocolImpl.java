@@ -122,8 +122,8 @@ public final class GossipProtocolImpl implements GossipProtocol {
 
   @Override
   public Mono<String> spread(Message message) {
-    return Mono.just(message)
-        .publishOn(scheduler)
+    return Mono.fromCallable(() -> message)
+        .subscribeOn(scheduler)
         .flatMap(msg -> Mono.create(sink -> futures.put(createAndPutGossip(msg), sink)));
   }
 

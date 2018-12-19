@@ -62,6 +62,7 @@ final class ClusterImpl implements Cluster {
   private final Disposable.Composite actionsDisposables = Disposables.composite();
   private final MonoProcessor<Void> shutdown = MonoProcessor.create();
   private final MonoProcessor<Void> onShutdown = MonoProcessor.create();
+
   // Cluster components
   private Transport transport;
   private Member localMember;

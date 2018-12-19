@@ -53,13 +53,12 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   public static final String SYNC = "sc/membership/sync";
   public static final String SYNC_ACK = "sc/membership/syncAck";
-
-  // Qualifiers
   public static final String MEMBERSHIP_GOSSIP = "sc/membership/gossip";
 
   private final Member localMember;
 
   // Injected
+
   private final Transport transport;
   private final MembershipConfig config;
   private final List<Address> seedMembers;
@@ -69,15 +68,19 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private final Map<String, MembershipRecord> membershipTable = new HashMap<>();
 
   // State
+
   private final Map<String, Member> members = new HashMap<>();
   private final Map<Address, String> memberAddressIndex = new HashMap<>();
-  private final FluxProcessor<MembershipEvent, MembershipEvent> subject =
-      DirectProcessor.<MembershipEvent>create().serialize();
 
   // Subject
+
+  private final FluxProcessor<MembershipEvent, MembershipEvent> subject =
+      DirectProcessor.<MembershipEvent>create().serialize();
   private final FluxSink<MembershipEvent> sink = subject.sink();
+
   // Disposables
   private final Disposable.Composite actionsDisposables = Disposables.composite();
+
   // Scheduled
   private final Scheduler scheduler;
   private final Map<String, Disposable> suspicionTimeoutTasks = new HashMap<>();
@@ -257,7 +260,9 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   @Override
   public Collection<Member> members() {
-    return Collections.unmodifiableCollection(members.values());
+    return Mono.fromCallable(() -> Collections.unmodifiableCollection(members.values()))
+        .subscribeOn(scheduler)
+        .block();
   }
 
   @Override
@@ -274,12 +279,17 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   @Override
   public Optional<Member> member(String id) {
-    return Optional.ofNullable(members.get(id));
+    return Mono.fromCallable(() -> Optional.ofNullable(members.get(id)))
+        .subscribeOn(scheduler)
+        .block();
   }
 
   @Override
   public Optional<Member> member(Address address) {
-    return Optional.ofNullable(memberAddressIndex.get(address)).flatMap(this::member);
+    return Mono.fromCallable(() -> Optional.ofNullable(memberAddressIndex.get(address)))
+        .subscribeOn(scheduler)
+        .block()
+        .flatMap(this::member);
   }
 
   private void doSync() {
