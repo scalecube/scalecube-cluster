@@ -92,23 +92,26 @@ public class RaftLeaderElection implements ElectionTopic {
                   result -> {
                     if (result) {
                       LOGGER.info(
-                          "[{}:{}] granted votes and transition to leader",
+                          "[{}:{}:{}] granted votes and transition to leader",
                           this.memberId,
-                          stateMachine.currentState());
+                          stateMachine.currentState(),
+                          stateMachine.currentTerm().getLong());
                       stateMachine.becomeLeader();
                     } else {
                       LOGGER.info(
-                          "[{}:{}] not granted with votes and transition to follower",
+                          "[{}:{}:{}] not granted with votes and transition to follower",
                           this.memberId,
-                          stateMachine.currentState());
+                          stateMachine.currentState(),
+                          stateMachine.currentTerm().getLong());
                       stateMachine.becomeFollower();
                     }
                   },
                   error -> {
                     LOGGER.info(
-                        "[{}:{}] didnt recive votes due to timeout will become follower.",
+                        "[{}:{}:{}] didnt recive votes due to timeout will become follower.",
                         this.memberId,
-                        stateMachine.currentState());
+                        stateMachine.currentState(),
+                        stateMachine.currentTerm().getLong());
                     stateMachine.becomeFollower();
                   });
         });
@@ -176,10 +179,11 @@ public class RaftLeaderElection implements ElectionTopic {
     return Mono.create(
         sink -> {
           HeartbeatRequest data = request.data();
-          LOGGER.trace(
-              "[{}:{}] recived heartbeat request: [{}]",
+          LOGGER.info(
+              "[{}:{}:{}] recived heartbeat request: [{}]",
               this.memberId,
               stateMachine.currentState(),
+              stateMachine.currentTerm().getLong(),
               data);
           stateMachine.heartbeat(data.memberId(), data.term());
           sink.success(heartbeatResponseMessage(request));
@@ -194,9 +198,10 @@ public class RaftLeaderElection implements ElectionTopic {
             && currentState().equals(State.FOLLOWER);
 
     LOGGER.info(
-        "[{}:{}] recived vote request: [{}] voteGranted: [{}].",
+        "[{}:{}:{}] recived vote request: [{}] voteGranted: [{}].",
         this.memberId,
         stateMachine.currentState(),
+        stateMachine.currentTerm().getLong(),
         request.data(),
         voteGranted);
 
@@ -219,9 +224,10 @@ public class RaftLeaderElection implements ElectionTopic {
           .forEach(
               instance -> {
                 LOGGER.trace(
-                    "member: [{}:{}] sending heartbeat: [{}].",
+                    "[{}:{}:{}] sending heartbeat: [{}].",
                     this.memberId,
                     currentState(),
+                    stateMachine.currentTerm().getLong(),
                     instance.id());
                 cluster
                     .requestResponse(instance.address(), heartbeatRequest())

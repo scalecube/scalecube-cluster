@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
-
 import java.io.IOException;
 import java.net.UnknownHostException;
 import java.time.Duration;
@@ -22,7 +21,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 import reactor.netty.ChannelBindException;
 
 public class TransportTest extends BaseTest {
@@ -162,7 +160,7 @@ public class TransportTest extends BaseTest {
             .map(msg -> msg.data().toString())
             .block(Duration.ofSeconds(1));
 
-    assertTrue(result.equals("hello: server"));
+    assertTrue("hello: server".equals(result));
   }
 
   @Test
