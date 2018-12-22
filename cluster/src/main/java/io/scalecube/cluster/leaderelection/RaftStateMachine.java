@@ -175,8 +175,9 @@ public class RaftStateMachine {
     this.timeoutScheduler.reset(this.timeout);
     if (this.term.isBefore(term)) {
       LOGGER.info(
-          "member: [{}] currentTerm: [{}] is before: [{}] setting new seen term.",
+          "[{},{},{}] term is before: [{}] setting new seen term.",
           this.id,
+          this.stateMachine.currentState(),
           this.term.getLong(),
           term);
       this.term.set(term);
@@ -185,9 +186,10 @@ public class RaftStateMachine {
     if (!isFollower()) {
 
       LOGGER.info(
-          "member [{}] currentState [{}] and recived heartbeat. becoming FOLLOWER.",
+          "[{},{},{}] and recived heartbeat. becoming FOLLOWER.",
           this.id,
-          stateMachine.currentState());
+          this.stateMachine.currentState(),
+          this.term.getLong());
       becomeFollower();
     } else {
       this.currentLeader.set(memberId);
@@ -220,9 +222,10 @@ public class RaftStateMachine {
   public void updateTerm(long value) {
     if (term.isBefore(value)) {
       LOGGER.info(
-          "member: [{}] currentTerm: [{}] is before: [{}] setting new seen term.",
+          "[{},{},{}] term is before: [{}] setting new seen term.",
           this.id,
-          currentTerm(),
+          this.stateMachine.currentState(),
+          this.term.getLong(),
           value);
       term.set(value);
     }
@@ -231,19 +234,21 @@ public class RaftStateMachine {
   private Consumer onHeartbeatNotRecived() {
     return toCandidate -> {
       LOGGER.info(
-          "member: [{}] didnt recive heartbeat until timeout: [{}ms] became: [{}]",
+          "[{},{},{}] didnt recive heartbeat until timeout: [{}ms] became: [CANDIDATE]",
           this.id,
-          currentTimeout,
-          stateMachine.currentState());
+          this.stateMachine.currentState(),
+          this.term.getLong(),
+          currentTimeout);
       becomeCandidate();
     };
   }
 
   private void logStateChanged() {
     LOGGER.info(
-        "member: [{}] has become: [{}] term: [{}].",
+        "[{},{},{}] State changed.",
         this.id,
-        stateMachine.currentState(),
+        this.stateMachine.currentState(),
+        this.term.getLong(),
         term.getLong());
   }
 }

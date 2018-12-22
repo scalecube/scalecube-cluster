@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
@@ -260,9 +261,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   @Override
   public Collection<Member> members() {
-    return Mono.fromCallable(() -> Collections.unmodifiableCollection(members.values()))
-        .subscribeOn(scheduler)
-        .block();
+    return Collections.unmodifiableCollection(members.values());
   }
 
   @Override

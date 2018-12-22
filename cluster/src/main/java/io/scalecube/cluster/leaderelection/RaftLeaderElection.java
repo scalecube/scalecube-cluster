@@ -179,7 +179,7 @@ public class RaftLeaderElection implements ElectionTopic {
     return Mono.create(
         sink -> {
           HeartbeatRequest data = request.data();
-          LOGGER.info(
+          LOGGER.trace(
               "[{}:{}:{}] recived heartbeat request: [{}]",
               this.memberId,
               stateMachine.currentState(),
