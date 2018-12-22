@@ -57,6 +57,42 @@ public class RaftLeaderElection implements ElectionTopic {
     return Mono.just(new Leader(this.memberId, stateMachine.leaderId()));
   }
 
+  public static class Builder {
+    final Cluster cluser;
+    final String topic;
+    int heartbeatInterval = 500;
+    int timeout = 1500;
+    long electionTimeout = 1000;
+
+    Builder(Cluster cluster, String topic) {
+      this.cluser = cluster;
+      this.topic = topic;
+    }
+
+    public Builder heartbeatInterval(int heartbeatInterval) {
+      this.heartbeatInterval = heartbeatInterval;
+      return this;
+    }
+
+    public Builder timeout(int timeout) {
+      this.timeout = timeout;
+      return this;
+    }
+
+    public Builder electionTimeout(int electionTimeout) {
+      this.electionTimeout = electionTimeout;
+      return this;
+    }
+
+    public RaftLeaderElection build() {
+      return new RaftLeaderElection(this);
+    }
+  }
+
+  public static Builder builder(Cluster cluster, String topic) {
+    return new Builder(cluster, topic);
+  }
+
   /**
    * raft leader election contractor.
    *
@@ -64,16 +100,17 @@ public class RaftLeaderElection implements ElectionTopic {
    * @param topic of this leader election.
    * @param config for this leader election.
    */
-  public RaftLeaderElection(Cluster cluser, String topic, Config config) {
-    this.topic = topic;
-    this.cluster = cluser;
-    int timeout = config.timeout();
+  private RaftLeaderElection(Builder builder) {
+    this.topic = builder.topic;
+    this.cluster = builder.cluser;
+    this.cluster.updateMetadataProperty(topic, LEADER_ELECTION).subscribe();
+
     this.stateMachine =
         RaftStateMachine.builder()
             .id(this.cluster.member().id())
-            .timeout(timeout)
-            .heartbeatInterval(config.heartbeatInterval())
-            .heartbeatSender(sendHeartbeat(Duration.ofMillis(config.timeout())))
+            .timeout(builder.timeout)
+            .heartbeatInterval(builder.heartbeatInterval)
+            .heartbeatSender(sendHeartbeat(Duration.ofMillis(builder.timeout)))
             .build();
 
     this.stateMachine.onFollower(
@@ -84,7 +121,7 @@ public class RaftLeaderElection implements ElectionTopic {
     this.stateMachine.onCandidate(
         asCandidate -> {
           this.stateMachine.nextTerm();
-          Duration electionTimeout = Duration.ofMillis(config.electionTimeout());
+          Duration electionTimeout = Duration.ofMillis(builder.electionTimeout);
           this.processor.onNext(ElectionEvent.candidate());
           startElection()
               .timeout(electionTimeout)
@@ -127,18 +164,6 @@ public class RaftLeaderElection implements ElectionTopic {
   @Override
   public Flux<ElectionEvent> listen() {
     return processor;
-  }
-
-  /**
-   * RaftLeaderElection contractor.
-   *
-   * @param cluster instance this leader election represents.
-   * @param name of topic for this leader election.
-   */
-  public RaftLeaderElection(Cluster cluster, String name) {
-    this(cluster, name, Config.build());
-    this.cluster = cluster;
-    this.cluster.updateMetadataProperty(name, LEADER_ELECTION).subscribe();
   }
 
   /**

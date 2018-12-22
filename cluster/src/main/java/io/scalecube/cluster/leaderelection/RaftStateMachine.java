@@ -13,21 +13,17 @@ public class RaftStateMachine {
 
   private final String id;
 
-  private final StateMachine stateMachine;
-
-  private final JobScheduler timeoutScheduler;
-
-  private final JobScheduler heartbeatScheduler;
+  private final Term term = new Term();
 
   private final AtomicReference<String> currentLeader = new AtomicReference<String>("");
 
-  private final Term term = new Term();
+  private final StateMachine stateMachine;
+
+  private final JobScheduler timeoutScheduler, heartbeatScheduler;
 
   private final int timeout;
 
   private final int heartbeatInterval;
-
-  private int currentTimeout;
 
   public boolean isFollower() {
     return this.currentState().equals(State.FOLLOWER);
@@ -87,7 +83,8 @@ public class RaftStateMachine {
 
   private RaftStateMachine(Builder builder) {
     this.id = builder.id;
-    this.timeout = builder.timeout;
+    this.timeout =
+        new Random().nextInt(builder.timeout - (builder.timeout / 2)) + (builder.timeout / 2);
     this.heartbeatInterval = builder.heartbeatInterval;
     this.stateMachine =
         StateMachine.builder()
@@ -113,8 +110,7 @@ public class RaftStateMachine {
     Consumer action =
         act -> {
           heartbeatScheduler.stop();
-          currentTimeout = new Random().nextInt(timeout - (timeout / 2)) + (timeout / 2);
-          timeoutScheduler.start(currentTimeout);
+          timeoutScheduler.start(this.timeout);
         };
     stateMachine.on(State.FOLLOWER, action.andThen(func).andThen(l -> logStateChanged()));
   }
@@ -238,7 +234,7 @@ public class RaftStateMachine {
           this.id,
           this.stateMachine.currentState(),
           this.term.getLong(),
-          currentTimeout);
+          this.timeout);
       becomeCandidate();
     };
   }

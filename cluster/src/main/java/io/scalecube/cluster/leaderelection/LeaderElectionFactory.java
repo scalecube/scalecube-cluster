@@ -25,7 +25,7 @@ public class LeaderElectionFactory {
     return topic.compute(
         name,
         (key, value) -> {
-          RaftLeaderElection le = new RaftLeaderElection(this.cluster, key);
+          RaftLeaderElection le = RaftLeaderElection.builder(this.cluster, key).build();
           le.start().subscribe();
           return le;
         });
