@@ -12,7 +12,6 @@ import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.NetworkEmulator;
 import io.scalecube.transport.Transport;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -20,8 +19,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
@@ -61,16 +58,14 @@ final class ClusterImpl implements Cluster {
 
   private final ClusterConfig config;
 
-  // State
-  private final ConcurrentMap<String, Member> members = new ConcurrentHashMap<>();
-  private final ConcurrentMap<Address, String> memberAddressIndex = new ConcurrentHashMap<>();
-
   // Subject
   private final DirectProcessor<MembershipEvent> membershipEvents = DirectProcessor.create();
   private final FluxSink<MembershipEvent> membershipSink = membershipEvents.sink();
 
   // Disposables
   private final Disposable.Composite actionsDisposables = Disposables.composite();
+  private final MonoProcessor<Void> shutdown = MonoProcessor.create();
+  private final MonoProcessor<Void> onShutdown = MonoProcessor.create();
 
   // Cluster components
   private Transport transport;
@@ -80,9 +75,6 @@ final class ClusterImpl implements Cluster {
   private MembershipProtocolImpl membership;
   private MetadataStoreImpl metadataStore;
   private Scheduler scheduler;
-
-  private final MonoProcessor<Void> shutdown = MonoProcessor.create();
-  private final MonoProcessor<Void> onShutdown = MonoProcessor.create();
 
   public ClusterImpl(ClusterConfig config) {
     this.config = Objects.requireNonNull(config);
@@ -140,7 +132,9 @@ final class ClusterImpl implements Cluster {
                       .listen()
                       /*.publishOn(scheduler)*/
                       // TODO [AV] : make otherMembers work
-                      .subscribe(event -> onMemberEvent(event, membershipSink), this::onError));
+                      .subscribe(
+                          membershipSink::next,
+                          th -> LOGGER.error("Received unexpected error: ", th)));
 
               failureDetector.start();
               gossip.start();
@@ -168,41 +162,7 @@ final class ClusterImpl implements Cluster {
         Optional.ofNullable(config.getMemberHost())
             .map(memberHost -> Address.create(memberHost, port))
             .orElseGet(() -> Address.create(localAddress, listenPort));
-
-    Member localMember = new Member(IdGenerator.generateId(), memberAddress);
-
-    // store local member at this phase
-    memberAddressIndex.put(localMember.address(), localMember.id());
-    members.put(localMember.id(), localMember);
-
-    return localMember;
-  }
-
-  /**
-   * Handler for membership events. Reacts on events and updates {@link #members} {@link
-   * #memberAddressIndex} hashmaps.
-   *
-   * @param event membership event
-   * @param membershipSink membership events sink
-   */
-  private void onMemberEvent(MembershipEvent event, FluxSink<MembershipEvent> membershipSink) {
-    Member member = event.member();
-    if (event.isAdded()) {
-      memberAddressIndex.put(member.address(), member.id());
-      members.put(member.id(), member);
-    }
-
-    if (event.isRemoved()) {
-      members.remove(member.id());
-      memberAddressIndex.remove(member.address());
-    }
-
-    // forward membershipevent to downstream components
-    membershipSink.next(event);
-  }
-
-  private void onError(Throwable throwable) {
-    LOGGER.error("Received unexpected error: ", throwable);
+    return new Member(IdGenerator.generateId(), memberAddress);
   }
 
   @Override
@@ -244,7 +204,12 @@ final class ClusterImpl implements Cluster {
 
   @Override
   public Collection<Member> members() {
-    return Collections.unmodifiableCollection(members.values());
+    return membership.members();
+  }
+
+  @Override
+  public Collection<Member> otherMembers() {
+    return membership.otherMembers();
   }
 
   @Override
@@ -264,19 +229,12 @@ final class ClusterImpl implements Cluster {
 
   @Override
   public Optional<Member> member(String id) {
-    return Optional.ofNullable(members.get(id));
+    return membership.member(id);
   }
 
   @Override
   public Optional<Member> member(Address address) {
-    return Optional.ofNullable(memberAddressIndex.get(address)).flatMap(this::member);
-  }
-
-  @Override
-  public Collection<Member> otherMembers() {
-    ArrayList<Member> otherMembers = new ArrayList<>(members());
-    otherMembers.remove(localMember);
-    return Collections.unmodifiableCollection(otherMembers);
+    return membership.member(address);
   }
 
   @Override
