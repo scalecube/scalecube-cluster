@@ -113,9 +113,9 @@ public class MetadataStoreImpl implements MetadataStore {
     if (localMember.equals(member)) {
       // added
       if (result == null) {
-        LOGGER.debug("Added metadata: {} for local member ", memberMetadata);
+        LOGGER.debug("Added metadata: {} for local member {}", memberMetadata, localMember);
       } else {
-        LOGGER.debug("Updated metadata: {} for local member", memberMetadata);
+        LOGGER.debug("Updated metadata: {} for local member {}", memberMetadata, localMember);
       }
     } else {
       // updated
@@ -130,13 +130,14 @@ public class MetadataStoreImpl implements MetadataStore {
 
   @Override
   public Map<String, String> removeMetadata(Member member) {
-    if (!localMember.equals(member)) {
-      // remove
-      Map<String, String> metadata = membersMetadata.remove(member);
-      if (metadata != null) {
-        LOGGER.debug("Removed metadata for member {}", member);
-        return metadata;
-      }
+    if (localMember.equals(member)) {
+      throw new IllegalArgumentException("removeMetadata must not accept local member");
+    }
+    // remove
+    Map<String, String> metadata = membersMetadata.remove(member);
+    if (metadata != null) {
+      LOGGER.debug("Removed metadata for member {}", member);
+      return metadata;
     }
     return null;
   }

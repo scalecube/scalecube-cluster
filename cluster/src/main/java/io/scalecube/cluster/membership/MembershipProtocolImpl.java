@@ -537,6 +537,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           if (r1.isDead()) {
             members.remove(member.id());
             memberAddressIndex.remove(member.address());
+            // removed
             return Mono.fromRunnable(
                 () -> {
                   Map<String, String> metadata = metadataStore.removeMetadata(member);
@@ -547,6 +548,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           if (r0 == null && r1.isAlive()) {
             memberAddressIndex.put(member.address(), member.id());
             members.put(member.id(), member);
+            // added
             return metadataStore
                 .fetchMetadata(member)
                 .doOnSuccess(
@@ -558,6 +560,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           }
 
           if (r0 != null && r0.incarnation() < r1.incarnation()) {
+            // updated
             return metadataStore
                 .fetchMetadata(member)
                 .doOnSuccess(

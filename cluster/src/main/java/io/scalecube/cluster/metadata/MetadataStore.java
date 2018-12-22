@@ -58,10 +58,9 @@ public interface MetadataStore {
   Mono<Map<String, String>> fetchMetadata(Member member);
 
   /**
-   * Removes cluster member metadata from store. Attemp to remove local cluster member metadata will
-   * be ignored.
+   * Removes cluster member metadata from store.
    *
-   * @param member cluster member
+   * @param member cluster member (local member is not allowed here)
    * @return old metadata or null
    */
   Map<String, String> removeMetadata(Member member);
