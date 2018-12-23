@@ -19,8 +19,9 @@ public class RaftStateMachine {
 
   private final StateMachine stateMachine;
 
-  private final JobScheduler timeoutScheduler, heartbeatScheduler;
-
+  private final JobScheduler timeoutScheduler;
+  private final JobScheduler heartbeatScheduler;
+  
   private final int timeout;
 
   private final int heartbeatInterval;
