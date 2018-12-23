@@ -59,6 +59,13 @@ public class RaftStateMachine {
       return this;
     }
 
+    /**
+     * Timeout from heartbeat till the time this node candidate it self. the timeout is calculated
+     * from the given value rand(T/2) + T/2.
+     *
+     * @param timeout duration rand(T/2) + T/2.
+     * @return builder.
+     */
     public Builder timeout(Duration timeout) {
       int t = new Long(timeout.toMillis()).intValue();
       this.timeout = Duration.ofMillis(new Random().nextInt(t - (t / 2)) + (t / 2));
