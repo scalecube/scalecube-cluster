@@ -1,6 +1,6 @@
-package io.scalecube.cluster.leaderelection;
+package io.scalecube.cluster.election;
 
-import io.scalecube.cluster.leaderelection.api.State;
+import io.scalecube.cluster.election.api.State;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;

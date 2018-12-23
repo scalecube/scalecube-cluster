@@ -1,8 +1,8 @@
-package io.scalecube.cluster.leaderelection.api;
+package io.scalecube.cluster.election.api;
 
 import reactor.core.publisher.Flux;
 
-public interface ElectionTopic {
+public interface ElectionService {
 
   String id();
 

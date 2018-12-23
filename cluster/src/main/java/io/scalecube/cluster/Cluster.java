@@ -1,6 +1,6 @@
 package io.scalecube.cluster;
 
-import io.scalecube.cluster.leaderelection.api.ElectionTopic;
+import io.scalecube.cluster.election.ElectionFactory;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
@@ -251,10 +251,9 @@ public interface Cluster {
   NetworkEmulator networkEmulator();
 
   /**
-   * Factory leader election context protocol for a given group name.
+   * Factory leader election context.
    *
-   * @param groupName partition / name to participate in leader election protocol in the cluster.
-   * @return Leader election instance for a given context.
+   * @return Leader election factory.
    */
-  ElectionTopic leadership(String groupName);
+  ElectionFactory election();
 }

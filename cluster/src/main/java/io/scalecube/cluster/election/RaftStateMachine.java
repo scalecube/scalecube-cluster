@@ -1,6 +1,6 @@
-package io.scalecube.cluster.leaderelection;
+package io.scalecube.cluster.election;
 
-import io.scalecube.cluster.leaderelection.api.State;
+import io.scalecube.cluster.election.api.State;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory;
 
 public class RaftStateMachine {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(RaftLeaderElection.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(ElectionProtocol.class);
 
   private final String id;
 

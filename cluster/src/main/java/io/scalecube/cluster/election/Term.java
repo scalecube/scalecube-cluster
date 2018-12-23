@@ -1,4 +1,4 @@
-package io.scalecube.cluster.leaderelection;
+package io.scalecube.cluster.election;
 
 import java.util.concurrent.atomic.AtomicLong;
 

@@ -1,9 +1,9 @@
 package io.scalecube.cluster;
 
+import io.scalecube.cluster.election.ElectionFactory;
+import io.scalecube.cluster.election.api.ElectionService;
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
-import io.scalecube.cluster.leaderelection.LeaderElectionFactory;
-import io.scalecube.cluster.leaderelection.api.ElectionTopic;
 import io.scalecube.cluster.membership.IdGenerator;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipProtocolImpl;
@@ -54,7 +54,7 @@ final class ClusterImpl implements Cluster {
   private static final Set<String> SYSTEM_GOSSIPS =
       Collections.singleton(MembershipProtocolImpl.MEMBERSHIP_GOSSIP);
 
-  private final LeaderElectionFactory electionFactory = new LeaderElectionFactory(this);
+  private final ElectionFactory electionFactory = new ElectionFactory(this);
 
   private final ClusterConfig config;
 
@@ -331,7 +331,7 @@ final class ClusterImpl implements Cluster {
   }
 
   @Override
-  public ElectionTopic leadership(String name) {
-    return electionFactory.leadership(name);
+  public ElectionFactory election() {
+    return electionFactory;
   }
 }

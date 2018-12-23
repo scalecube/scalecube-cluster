@@ -1,4 +1,4 @@
-package io.scalecube.cluster.leaderelection.api;
+package io.scalecube.cluster.election.api;
 
 public class VoteResponse {
 

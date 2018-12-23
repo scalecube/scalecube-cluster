@@ -1,8 +1,8 @@
-package io.scalecube.cluster.leaderelection;
+package io.scalecube.cluster.election;
 
-import io.scalecube.cluster.leaderelection.api.HeartbeatRequest;
-import io.scalecube.cluster.leaderelection.api.VoteRequest;
-import io.scalecube.cluster.leaderelection.api.VoteResponse;
+import io.scalecube.cluster.election.api.HeartbeatRequest;
+import io.scalecube.cluster.election.api.VoteRequest;
+import io.scalecube.cluster.election.api.VoteResponse;
 import io.scalecube.cluster.membership.IdGenerator;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;

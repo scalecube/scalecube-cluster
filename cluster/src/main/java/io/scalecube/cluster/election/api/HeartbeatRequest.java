@@ -1,14 +1,13 @@
-package io.scalecube.cluster.leaderelection.api;
+package io.scalecube.cluster.election.api;
 
-public class HeartbeatResponse {
+public class HeartbeatRequest {
 
   private long term;
-
   private String memberId;
 
-  public HeartbeatResponse() {}
+  public HeartbeatRequest() {}
 
-  public HeartbeatResponse(String memberId, long term) {
+  public HeartbeatRequest(long term, String memberId) {
     this.term = term;
     this.memberId = memberId;
   }
@@ -23,6 +22,6 @@ public class HeartbeatResponse {
 
   @Override
   public String toString() {
-    return "HeartbeatResponse [term=" + term + ", memberId=" + memberId + "]";
+    return "HeartbeatRequest [term=" + term + ", memberId=" + memberId + "]";
   }
 }

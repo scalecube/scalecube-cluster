@@ -1,15 +1,15 @@
-package io.scalecube.cluster.leaderelection;
+package io.scalecube.cluster.election;
 
 import io.scalecube.cluster.Cluster;
 import io.scalecube.cluster.Member;
-import io.scalecube.cluster.leaderelection.api.ElectionEvent;
-import io.scalecube.cluster.leaderelection.api.ElectionTopic;
-import io.scalecube.cluster.leaderelection.api.HeartbeatRequest;
-import io.scalecube.cluster.leaderelection.api.HeartbeatResponse;
-import io.scalecube.cluster.leaderelection.api.Leader;
-import io.scalecube.cluster.leaderelection.api.State;
-import io.scalecube.cluster.leaderelection.api.VoteRequest;
-import io.scalecube.cluster.leaderelection.api.VoteResponse;
+import io.scalecube.cluster.election.api.ElectionEvent;
+import io.scalecube.cluster.election.api.ElectionService;
+import io.scalecube.cluster.election.api.HeartbeatRequest;
+import io.scalecube.cluster.election.api.HeartbeatResponse;
+import io.scalecube.cluster.election.api.Leader;
+import io.scalecube.cluster.election.api.State;
+import io.scalecube.cluster.election.api.VoteRequest;
+import io.scalecube.cluster.election.api.VoteResponse;
 import io.scalecube.transport.Message;
 import java.time.Duration;
 import java.util.Collection;
@@ -21,9 +21,9 @@ import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-public class RaftLeaderElection implements ElectionTopic {
+public class ElectionProtocol implements ElectionService {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(RaftLeaderElection.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(ElectionProtocol.class);
 
   public static final String LEADER_ELECTION = "leader-election";
 
@@ -84,8 +84,8 @@ public class RaftLeaderElection implements ElectionTopic {
       return this;
     }
 
-    public RaftLeaderElection build() {
-      return new RaftLeaderElection(this);
+    public ElectionProtocol build() {
+      return new ElectionProtocol(this);
     }
   }
 
@@ -100,7 +100,7 @@ public class RaftLeaderElection implements ElectionTopic {
    * @param topic of this leader election.
    * @param config for this leader election.
    */
-  private RaftLeaderElection(Builder builder) {
+  private ElectionProtocol(Builder builder) {
     this.topic = builder.topic;
     this.cluster = builder.cluser;
     this.cluster.updateMetadataProperty(topic, LEADER_ELECTION).subscribe();
