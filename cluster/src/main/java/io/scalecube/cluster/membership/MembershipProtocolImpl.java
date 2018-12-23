@@ -35,6 +35,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxProcessor;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.MonoProcessor;
 import reactor.core.scheduler.Scheduler;
 
 public final class MembershipProtocolImpl implements MembershipProtocol {
@@ -260,9 +261,11 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   @Override
   public Collection<Member> members() {
-    return Mono.fromCallable(() -> Collections.unmodifiableCollection(members.values()))
+    MonoProcessor<Collection<Member>> promise = MonoProcessor.create();
+    Mono.fromCallable(() -> Collections.unmodifiableCollection(members.values()))
         .subscribeOn(scheduler)
-        .block();
+        .subscribe(promise::onNext, promise::onError, promise::onComplete);
+    return promise.block();
   }
 
   @Override
@@ -279,17 +282,20 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   @Override
   public Optional<Member> member(String id) {
-    return Mono.fromCallable(() -> Optional.ofNullable(members.get(id)))
+    MonoProcessor<Optional<Member>> promise = MonoProcessor.create();
+    Mono.fromCallable(() -> Optional.ofNullable(members.get(id)))
         .subscribeOn(scheduler)
-        .block();
+        .subscribe(promise::onNext, promise::onError, promise::onComplete);
+    return promise.block();
   }
 
   @Override
   public Optional<Member> member(Address address) {
-    return Mono.fromCallable(() -> Optional.ofNullable(memberAddressIndex.get(address)))
+    MonoProcessor<Optional<String>> promise = MonoProcessor.create();
+    Mono.fromCallable(() -> Optional.ofNullable(memberAddressIndex.get(address)))
         .subscribeOn(scheduler)
-        .block()
-        .flatMap(this::member);
+        .subscribe(promise::onNext, promise::onError, promise::onComplete);
+    return promise.block().flatMap(this::member);
   }
 
   private void doSync() {
