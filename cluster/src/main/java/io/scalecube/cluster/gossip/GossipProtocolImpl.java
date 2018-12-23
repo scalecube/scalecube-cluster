@@ -208,25 +208,30 @@ public final class GossipProtocolImpl implements GossipProtocol {
 
   private void spreadGossipsTo(Member member) {
     // Select gossips to send
-    List<Gossip> gossipsToSend = selectGossipsToSend(member);
-    if (gossipsToSend.isEmpty()) {
+    List<Gossip> gossips = selectGossipsToSend(member);
+    if (gossips.isEmpty()) {
       return; // nothing to spread
     }
 
     // Send gossip request
-    Message message = buildGossipRequestMessage(gossipsToSend);
     Address address = member.address();
-    transport
-        .send(address, message)
-        .subscribe(
-            null,
-            ex ->
-                LOGGER.debug(
-                    "Failed to send GossipReq[{}]: {} to {}, cause: {}",
-                    period,
-                    message,
-                    address,
-                    ex.toString()));
+
+    gossips
+        .stream()
+        .map(this::buildGossipRequestMessage)
+        .forEach(
+            message ->
+                transport
+                    .send(address, message)
+                    .subscribe(
+                        null,
+                        ex ->
+                            LOGGER.debug(
+                                "Failed to send GossipReq[{}]: {} to {}, cause: {}",
+                                period,
+                                message,
+                                address,
+                                ex.toString())));
   }
 
   private List<Gossip> selectGossipsToSend(Member member) {
@@ -265,9 +270,9 @@ public final class GossipProtocolImpl implements GossipProtocol {
     }
   }
 
-  private Message buildGossipRequestMessage(List<Gossip> gossipsToSend) {
-    GossipRequest gossipReqData = new GossipRequest(gossipsToSend, localMember.id());
-    return Message.withData(gossipReqData)
+  private Message buildGossipRequestMessage(Gossip gossip) {
+    GossipRequest gossipRequest = new GossipRequest(gossip, localMember.id());
+    return Message.withData(gossipRequest)
         .qualifier(GOSSIP_REQ)
         .sender(localMember.address())
         .build();
