@@ -1,6 +1,7 @@
 package io.scalecube.cluster.election;
 
 import io.scalecube.cluster.election.api.State;
+import java.time.Duration;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -21,10 +22,10 @@ public class RaftStateMachine {
 
   private final JobScheduler timeoutScheduler;
   private final JobScheduler heartbeatScheduler;
-  
-  private final int timeout;
 
-  private final int heartbeatInterval;
+  private final Duration timeout;
+
+  private final Duration heartbeatInterval;
 
   public boolean isFollower() {
     return this.currentState().equals(State.FOLLOWER);
@@ -49,8 +50,8 @@ public class RaftStateMachine {
   public static class Builder {
 
     private String id;
-    private int timeout;
-    private int heartbeatInterval;
+    private Duration timeout;
+    private Duration heartbeatInterval;
     private Consumer sendHeartbeat;
 
     public Builder id(String id) {
@@ -58,12 +59,13 @@ public class RaftStateMachine {
       return this;
     }
 
-    public Builder timeout(int timeout) {
-      this.timeout = timeout;
+    public Builder timeout(Duration timeout) {
+      int t = new Long(timeout.toMillis()).intValue();
+      this.timeout = Duration.ofMillis(new Random().nextInt(t - (t / 2)) + (t / 2));
       return this;
     }
 
-    public Builder heartbeatInterval(int heartbeatInterval) {
+    public Builder heartbeatInterval(Duration heartbeatInterval) {
       this.heartbeatInterval = heartbeatInterval;
       return this;
     }
@@ -84,8 +86,7 @@ public class RaftStateMachine {
 
   private RaftStateMachine(Builder builder) {
     this.id = builder.id;
-    this.timeout =
-        new Random().nextInt(builder.timeout - (builder.timeout / 2)) + (builder.timeout / 2);
+    this.timeout = builder.timeout;
     this.heartbeatInterval = builder.heartbeatInterval;
     this.stateMachine =
         StateMachine.builder()

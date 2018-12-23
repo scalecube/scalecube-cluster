@@ -60,26 +60,26 @@ public class ElectionProtocol implements ElectionService {
   public static class Builder {
     final Cluster cluser;
     final String topic;
-    int heartbeatInterval = 500;
-    int timeout = 1500;
-    long electionTimeout = 1000;
+    Duration heartbeatInterval = Duration.ofMillis(500);
+    Duration timeout = Duration.ofMillis(1500);
+    Duration electionTimeout = Duration.ofSeconds(1);
 
     Builder(Cluster cluster, String topic) {
       this.cluser = cluster;
       this.topic = topic;
     }
 
-    public Builder heartbeatInterval(int heartbeatInterval) {
+    public Builder heartbeatInterval(Duration heartbeatInterval) {
       this.heartbeatInterval = heartbeatInterval;
       return this;
     }
 
-    public Builder timeout(int timeout) {
+    public Builder timeout(Duration timeout) {
       this.timeout = timeout;
       return this;
     }
 
-    public Builder electionTimeout(int electionTimeout) {
+    public Builder electionTimeout(Duration electionTimeout) {
       this.electionTimeout = electionTimeout;
       return this;
     }
@@ -94,11 +94,9 @@ public class ElectionProtocol implements ElectionService {
   }
 
   /**
-   * raft leader election contractor.
+   * leader election contractor.
    *
-   * @param cluser instance.
-   * @param topic of this leader election.
-   * @param config for this leader election.
+   * @param builder instance.
    */
   private ElectionProtocol(Builder builder) {
     this.topic = builder.topic;
@@ -110,7 +108,7 @@ public class ElectionProtocol implements ElectionService {
             .id(this.cluster.member().id())
             .timeout(builder.timeout)
             .heartbeatInterval(builder.heartbeatInterval)
-            .heartbeatSender(sendHeartbeat(Duration.ofMillis(builder.timeout)))
+            .heartbeatSender(sendHeartbeat(builder.timeout))
             .build();
 
     this.stateMachine.onFollower(
@@ -121,10 +119,9 @@ public class ElectionProtocol implements ElectionService {
     this.stateMachine.onCandidate(
         asCandidate -> {
           this.stateMachine.nextTerm();
-          Duration electionTimeout = Duration.ofMillis(builder.electionTimeout);
           this.processor.onNext(ElectionEvent.candidate());
           startElection()
-              .timeout(electionTimeout)
+              .timeout(builder.electionTimeout)
               .subscribe(
                   result -> {
                     if (result) {

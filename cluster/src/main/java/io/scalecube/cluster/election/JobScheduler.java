@@ -21,9 +21,9 @@ public class JobScheduler {
    *
    * @param interval in milli sec to execute the job.
    */
-  public void start(int interval) {
+  public void start(Duration interval) {
     if (disposables.get() == null || disposables.get().isDisposed()) {
-      disposables.set(Flux.interval(Duration.ofMillis(interval)).subscribe(job));
+      disposables.set(Flux.interval(interval).subscribe(job));
     }
   }
 
@@ -39,7 +39,7 @@ public class JobScheduler {
    *
    * @param interval to execute this job in milli.
    */
-  public void reset(int interval) {
+  public void reset(Duration interval) {
     stop();
     start(interval);
   }
