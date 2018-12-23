@@ -2,6 +2,7 @@ package io.scalecube.cluster.membership;
 
 import static io.scalecube.cluster.membership.MemberStatus.ALIVE;
 import static io.scalecube.cluster.membership.MemberStatus.DEAD;
+
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.fdetector.FailureDetector;
