@@ -3,7 +3,6 @@ package io.scalecube.cluster.membership;
 import static io.scalecube.cluster.membership.MemberStatus.ALIVE;
 import static io.scalecube.cluster.membership.MemberStatus.DEAD;
 import static io.scalecube.cluster.membership.MemberStatus.SUSPECT;
-
 import io.scalecube.cluster.Member;
 import io.scalecube.transport.Address;
 import java.util.Objects;

@@ -1,7 +1,6 @@
 package io.scalecube.cluster;
 
 import io.scalecube.cluster.election.ElectionFactory;
-import io.scalecube.cluster.election.api.ElectionService;
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
 import io.scalecube.cluster.membership.IdGenerator;
