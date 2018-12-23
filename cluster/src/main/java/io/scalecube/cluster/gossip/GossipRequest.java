@@ -1,6 +1,7 @@
 package io.scalecube.cluster.gossip;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /** Gossip request which be transmitted through the network, contains list of gossips. */
@@ -11,6 +12,10 @@ final class GossipRequest {
 
   /** Instantiates empty gossip request for deserialization purpose. */
   GossipRequest() {}
+
+  public GossipRequest(Gossip gossip, String from) {
+    this(Collections.singletonList(gossip), from);
+  }
 
   public GossipRequest(List<Gossip> gossips, String from) {
     this.gossips = new ArrayList<>(gossips);
