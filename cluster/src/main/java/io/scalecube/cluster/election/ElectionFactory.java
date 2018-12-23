@@ -22,9 +22,9 @@ public class ElectionFactory {
    * @return election topic.
    */
   public ElectionService create(String quorumName) {
-    return topic.compute(
+    return topic.computeIfAbsent(
         quorumName,
-        (key, value) -> {
+        (key) -> {
           ElectionProtocol le = ElectionProtocol.builder(this.cluster, key).build();
           le.start().subscribe();
           return le;

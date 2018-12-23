@@ -286,7 +286,7 @@ public class ElectionProtocol implements ElectionService {
    */
   private Consumer sendHeartbeat(Duration timeout) {
     return heartbeat -> {
-      findPeers()
+      findElectionQuorum()
           .stream()
           .forEach(
               instance -> {
@@ -314,7 +314,7 @@ public class ElectionProtocol implements ElectionService {
   // timeout reached the member transition to Follower state.
   private Mono<Boolean> startElection() {
 
-    Collection<Member> peers = findPeers();
+    Collection<Member> peers = findElectionQuorum();
 
     if (!peers.isEmpty()) {
       long consensus = (long) (Math.ceil((double) peers.size() / 2d));
@@ -363,12 +363,11 @@ public class ElectionProtocol implements ElectionService {
         .build();
   }
 
-  private Collection<Member> findPeers() {
+  private Collection<Member> findElectionQuorum() {
     return cluster
         .otherMembers()
         .stream()
-        .filter(m -> cluster.metadata(m).containsKey(topic))
-        .filter(m -> cluster.metadata(m).get(topic).equals(LEADER_ELECTION))
+        .filter(m -> LEADER_ELECTION.equals(cluster.metadata(m).get(topic)))
         .collect(Collectors.toSet());
   }
 }
