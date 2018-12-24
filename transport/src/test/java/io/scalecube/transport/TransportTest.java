@@ -58,7 +58,7 @@ public class TransportTest extends BaseTest {
   }
 
   @Test
-  public void testUnresolvedHostConnection() throws Exception {
+  public void testUnresolvedHostConnection() {
     client = createTransport();
     // create transport with wrong host
     try {
@@ -73,7 +73,7 @@ public class TransportTest extends BaseTest {
   }
 
   @Test
-  public void testInteractWithNoConnection(TestInfo testInfo) throws Exception {
+  public void testInteractWithNoConnection(TestInfo testInfo) {
     Address serverAddress = Address.from("localhost:49255");
     for (int i = 0; i < 10; i++) {
       LOGGER.info("####### {} : iteration = {}", testInfo.getDisplayName(), i);
@@ -208,10 +208,7 @@ public class TransportTest extends BaseTest {
 
     client
         .requestResponse(q1, server.address())
-        .subscribe(
-            resp -> {
-              targetFuture.complete(resp.data());
-            });
+        .subscribe(resp -> targetFuture.complete(resp.data()));
 
     String value = targetFuture.get(1, TimeUnit.SECONDS);
     assertNotNull(value);
