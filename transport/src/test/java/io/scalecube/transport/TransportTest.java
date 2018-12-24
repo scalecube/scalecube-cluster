@@ -58,7 +58,7 @@ public class TransportTest extends BaseTest {
   }
 
   @Test
-  public void testUnresolvedHostConnection() {
+  public void testUnresolvedHostConnection() throws Exception {
     client = createTransport();
     // create transport with wrong host
     try {
@@ -73,7 +73,7 @@ public class TransportTest extends BaseTest {
   }
 
   @Test
-  public void testInteractWithNoConnection(TestInfo testInfo) {
+  public void testInteractWithNoConnection(TestInfo testInfo) throws Exception {
     Address serverAddress = Address.from("localhost:49255");
     for (int i = 0; i < 10; i++) {
       LOGGER.info("####### {} : iteration = {}", testInfo.getDisplayName(), i);
@@ -186,33 +186,39 @@ public class TransportTest extends BaseTest {
   }
 
   @Test
-  public void testRequestResponseSingleChannel() throws Exception {
-    server = createTransport();
+  public void testShouldRequestResponseSuccess() throws Exception {
     client = createTransport();
+    server = createTransport();
 
     server
         .listen()
+        .filter(req -> req.qualifier().equals("hello/server"))
         .subscribe(
             message -> {
-              Message echo =
-                  Message.withData("echo/" + message.data())
-                      .correlationId(message.correlationId())
-                      .sender(server.address())
-                      .build();
-              server.send(message.sender(), echo).subscribe();
+              send(
+                      server,
+                      message.sender(),
+                      Message.builder()
+                          .correlationId(message.correlationId())
+                          .data("hello: " + message.data())
+                          .build())
+                  .subscribe();
             });
 
-    final CompletableFuture<String> targetFuture = new CompletableFuture<>();
+    String result =
+        client
+            .requestResponse(
+                Message.builder()
+                    .sender(client.address())
+                    .qualifier("hello/server")
+                    .correlationId("123xyz")
+                    .data("server")
+                    .build(),
+                server.address())
+            .map(msg -> msg.data().toString())
+            .block(Duration.ofSeconds(1));
 
-    Message q1 = Message.withData("q1").correlationId("1").sender(client.address()).build();
-
-    client
-        .requestResponse(q1, server.address())
-        .subscribe(resp -> targetFuture.complete(resp.data()));
-
-    String value = targetFuture.get(1, TimeUnit.SECONDS);
-    assertNotNull(value);
-    assertEquals("echo/q1", value);
+    assertTrue("hello: server".equals(result));
   }
 
   @Test
