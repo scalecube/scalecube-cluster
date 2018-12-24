@@ -253,6 +253,74 @@ public class ClusterTest extends BaseTest {
   }
 
   @Test
+  public void testRemoveMetadataProperty() throws Exception {
+    // Start seed member
+    Cluster seedNode = Cluster.joinAwait();
+
+    Cluster metadataNode = null;
+    int testMembersNum = 10;
+    List<Cluster> otherNodes = new ArrayList<>(testMembersNum);
+
+    try {
+      // Start member with metadata
+      Map<String, String> metadata = new HashMap<>();
+      metadata.put("key1", "value1");
+      metadata.put("key2", "value2");
+      metadataNode = Cluster.joinAwait(metadata, seedNode.address());
+
+      // Start other test members
+      Flux.range(0, testMembersNum)
+          .flatMap(integer -> Cluster.join(seedNode.address()))
+          .doOnNext(otherNodes::add)
+          .blockLast(TIMEOUT);
+
+      TimeUnit.SECONDS.sleep(3);
+
+      // Check all test members know valid metadata
+      for (Cluster node : otherNodes) {
+        Optional<Member> memberOptional = node.member(metadataNode.member().id());
+        assertTrue(memberOptional.isPresent());
+        Member member = memberOptional.get();
+        assertEquals(metadata, node.metadata(member));
+      }
+
+      // Subscribe for membership update event all nodes
+      CountDownLatch updateLatch = new CountDownLatch(testMembersNum);
+      for (Cluster node : otherNodes) {
+        node.listenMembership()
+            .filter(MembershipEvent::isUpdated)
+            .subscribe(
+                event -> {
+                  LOGGER.info("Received membership update event: {}", event);
+                  updateLatch.countDown();
+                });
+      }
+
+      // Update metadata
+      metadataNode.removeMetadataProperty("key2").block(TIMEOUT);
+
+      // Check all nodes had updated metadata member
+      for (Cluster node : otherNodes) {
+        Optional<Member> memberOptional = node.member(metadataNode.member().id());
+        assertTrue(memberOptional.isPresent());
+        Member member = memberOptional.get();
+        Map<String, String> actualMetadata = node.metadata(member);
+        assertEquals(1, actualMetadata.size());
+        assertEquals("value1", actualMetadata.get("key1"));
+        assertEquals(null, actualMetadata.get("key2"));
+      }
+    } finally {
+      // Shutdown all nodes
+      shutdown(
+          Stream.concat(
+                  Stream.of(seedNode, metadataNode), //
+                  otherNodes.stream())
+              .collect(Collectors.toList()));
+    }
+  }
+
+  
+  @Test
   public void testShutdownCluster() throws Exception {
     // Start seed member
     final Cluster seedNode = Cluster.joinAwait();
