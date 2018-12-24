@@ -112,6 +112,30 @@ public interface Cluster {
   Mono<Void> send(Address address, Message message);
 
   /**
+   * Sends message to the given address. It will issue connect in case if no transport channel by
+   * given transport {@code address} exists already. Send is an async operation and expecting a
+   * response by a provided correlationId and sender address of the caller.
+   *
+   * @param address address where message will be sent
+   * @param request to send message must contain correlctionId and sender to handle reply.
+   * @return promise which will be completed with result of sending (message or exception)
+   * @throws IllegalArgumentException if {@code message} or {@code address} is null
+   */
+  Mono<Message> requestResponse(Address address, Message request);
+
+  /**
+   * Sends message to the given address. It will issue connect in case if no transport channel by
+   * given transport {@code address} exists already. Send is an async operation and expecting a
+   * response by a provided correlationId and sender address of the caller.
+   *
+   * @param member where message will be sent
+   * @param request to send message must contain correlctionId and sender to handle reply.
+   * @return promise which will be completed with result of sending (message or exception)
+   * @throws IllegalArgumentException if {@code message} or {@code address} is null
+   */
+  Mono<Message> requestResponse(Member member, Message request);
+
+  /**
    * Subscription point for listening incoming messages.
    *
    * @return stream of incoming messages
@@ -214,7 +238,7 @@ public interface Cluster {
    * @param key metadata key to remove.
    */
   Mono<Void> removeMetadataProperty(String key);
-  
+
   /**
    * Listen changes in cluster membership.
    *

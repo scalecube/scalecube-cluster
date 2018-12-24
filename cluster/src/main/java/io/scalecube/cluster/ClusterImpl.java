@@ -177,6 +177,16 @@ final class ClusterImpl implements Cluster {
   }
 
   @Override
+  public Mono<Message> requestResponse(Address address, Message request) {
+    return transport.requestResponse(request, address);
+  }
+
+  @Override
+  public Mono<Message> requestResponse(Member member, Message request) {
+    return transport.requestResponse(request, member.address());
+  }
+
+  @Override
   public Flux<Message> listen() {
     // filter out system messages
     return transport.listen().filter(msg -> !SYSTEM_MESSAGES.contains(msg.qualifier()));
@@ -247,20 +257,20 @@ final class ClusterImpl implements Cluster {
     metadata.put(key, value);
     return metadata;
   }
-  
+
   public Mono<Void> removeMetadataProperty(String key) {
     return Mono.fromCallable(() -> removeMetadataProperty0(key))
         .flatMap(this::updateMetadata)
         .subscribeOn(scheduler)
         .then();
   }
-  
+
   private Map<String, String> removeMetadataProperty0(String key) {
     Map<String, String> metadata = new HashMap<>(metadataStore.metadata());
     metadata.remove(key);
     return metadata;
   }
-  
+
   @Override
   public Flux<MembershipEvent> listenMembership() {
     return Flux.defer(
