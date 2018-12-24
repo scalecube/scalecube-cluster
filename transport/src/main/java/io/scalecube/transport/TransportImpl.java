@@ -19,6 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.Disposable;
 import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
@@ -195,46 +196,18 @@ final class TransportImpl implements Transport {
                     "Failed to send {} to {}, cause: {}", message, address, ex.toString()));
   }
 
-  @SuppressWarnings("unused")
-  private Mono<Void> onMessage(NettyInbound in, NettyOutbound out) {
-    return in.receive() //
-        .retain()
-        .map(this::toMessage)
-        .doOnNext(messageSink::next)
-        .then();
-  }
-
-  private Message toMessage(ByteBuf byteBuf) {
-    try (ByteBufInputStream stream = new ByteBufInputStream(byteBuf, true)) {
-      return MessageCodec.deserialize(stream);
-    } catch (Exception e) {
-      throw new DecoderException(e);
-    }
-  }
-
-  private TransportImpl onBind(DisposableServer server) {
-    Address address = Address.create(server.address().getHostString(), server.address().getPort());
-    NetworkEmulator networkEmulator = new NetworkEmulator(address, config.isUseNetworkEmulator());
-    return new TransportImpl(address, server, networkEmulator, this);
-  }
-
   public Mono<Message> requestResponse(final Message request, Address address) {
     return Mono.create(
         sink -> {
           Objects.requireNonNull(request, "request must be not null");
           Objects.requireNonNull(request.correlationId(), "correlationId must be not null");
 
-          listen()
-              .filter(resp -> resp.correlationId() != null)
-              .filter(resp -> resp.correlationId().equals(request.correlationId()))
-              .take(1)
-              .subscribe(
-                  msg -> {
-                    sink.success(msg);
-                  },
-                  error -> {
-                    sink.error(error);
-                  });
+          Disposable disposable =
+              listen()
+                  .filter(resp -> resp.correlationId() != null)
+                  .filter(resp -> resp.correlationId().equals(request.correlationId()))
+                  .take(1)
+                  .subscribe(sink::success, sink::error, sink::success);
 
           send(address, request)
               .subscribe(
@@ -244,6 +217,9 @@ final class TransportImpl implements Transport {
                         "Unexpected exception on transport request-response, cause: {}",
                         ex.toString());
                     sink.error(ex);
+                    if (!disposable.isDisposed()) {
+                      disposable.dispose();
+                    }
                   });
         });
   }
@@ -277,6 +253,30 @@ final class TransportImpl implements Transport {
                   });
         });
   }
+
+  @SuppressWarnings("unused")
+  private Mono<Void> onMessage(NettyInbound in, NettyOutbound out) {
+    return in.receive() //
+        .retain()
+        .map(this::toMessage)
+        .doOnNext(messageSink::next)
+        .then();
+  }
+
+  private Message toMessage(ByteBuf byteBuf) {
+    try (ByteBufInputStream stream = new ByteBufInputStream(byteBuf, true)) {
+      return MessageCodec.deserialize(stream);
+    } catch (Exception e) {
+      throw new DecoderException(e);
+    }
+  }
+
+  private TransportImpl onBind(DisposableServer server) {
+    Address address = Address.create(server.address().getHostString(), server.address().getPort());
+    NetworkEmulator networkEmulator = new NetworkEmulator(address, config.isUseNetworkEmulator());
+    return new TransportImpl(address, server, networkEmulator, this);
+  }
+
 
   private Mono<? extends Void> send0(Connection conn, Message message, Address address) {
     // check sender not null

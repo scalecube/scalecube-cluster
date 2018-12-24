@@ -170,11 +170,6 @@ final class ClusterImpl implements Cluster {
   }
 
   @Override
-  public Mono<Message> requestResponse(Address address, Message request) {
-    return transport.requestResponse(request, address);
-  }
-
-  @Override
   public Mono<Void> send(Member member, Message message) {
     return send(member.address(), message);
   }
@@ -182,6 +177,16 @@ final class ClusterImpl implements Cluster {
   @Override
   public Mono<Void> send(Address address, Message message) {
     return transport.send(address, message);
+  }
+
+  @Override
+  public Mono<Message> requestResponse(Address address, Message request) {
+    return transport.requestResponse(request, address);
+  }
+
+  @Override
+  public Mono<Message> requestResponse(Member member, Message request) {
+    return transport.requestResponse(request, member.address());
   }
 
   @Override
@@ -249,13 +254,6 @@ final class ClusterImpl implements Cluster {
         .flatMap(this::updateMetadata)
         .subscribeOn(scheduler);
   }
-
-  public Mono<Void> removeMetadataProperty(String key) {
-    return Mono.fromCallable(() -> removeMetadataProperty0(key))
-        .flatMap(this::updateMetadata)
-        .subscribeOn(scheduler)
-        .then();
-  }
   
   private Map<String, String> updateMetadataProperty0(String key, String value) {
     Map<String, String> metadata = new HashMap<>(metadataStore.metadata());
@@ -263,12 +261,19 @@ final class ClusterImpl implements Cluster {
     return metadata;
   }
 
+  public Mono<Void> removeMetadataProperty(String key) {
+    return Mono.fromCallable(() -> removeMetadataProperty0(key))
+        .flatMap(this::updateMetadata)
+        .subscribeOn(scheduler)
+        .then();
+  }
+
   private Map<String, String> removeMetadataProperty0(String key) {
     Map<String, String> metadata = new HashMap<>(metadataStore.metadata());
     metadata.remove(key);
     return metadata;
   }
-  
+
   @Override
   public Flux<MembershipEvent> listenMembership() {
     return Flux.defer(
