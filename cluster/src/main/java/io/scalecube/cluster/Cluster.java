@@ -122,7 +122,7 @@ public interface Cluster {
    * @throws IllegalArgumentException if {@code message} or {@code address} is null
    */
   Mono<Message> requestResponse(Address address, Message request);
-  
+
   /**
    * Sends message to the given address. It will issue connect in case if no transport channel by
    * given transport {@code address} exists already. Send is an async operation and expecting a
@@ -134,7 +134,7 @@ public interface Cluster {
    * @throws IllegalArgumentException if {@code message} or {@code address} is null
    */
   Mono<Message> requestResponse(Member member, Message request);
-  
+
   /**
    * Subscription point for listening incoming messages.
    *
@@ -238,7 +238,7 @@ public interface Cluster {
    * @param key metadata key to remove.
    */
   Mono<Void> removeMetadataProperty(String key);
-  
+
   /**
    * Listen changes in cluster membership.
    *
@@ -269,5 +269,4 @@ public interface Cluster {
    * @return network emulator object
    */
   NetworkEmulator networkEmulator();
-
 }
