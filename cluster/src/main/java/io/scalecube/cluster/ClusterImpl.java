@@ -247,7 +247,20 @@ final class ClusterImpl implements Cluster {
     metadata.put(key, value);
     return metadata;
   }
-
+  
+  public Mono<Void> removeMetadataProperty(String key) {
+    return Mono.fromCallable(() -> removeMetadataProperty0(key))
+        .flatMap(this::updateMetadata)
+        .subscribeOn(scheduler)
+        .then();
+  }
+  
+  private Map<String, String> removeMetadataProperty0(String key) {
+    Map<String, String> metadata = new HashMap<>(metadataStore.metadata());
+    metadata.remove(key);
+    return metadata;
+  }
+  
   @Override
   public Flux<MembershipEvent> listenMembership() {
     return Flux.defer(
