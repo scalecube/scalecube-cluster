@@ -196,8 +196,9 @@ public class TransportTest extends BaseTest {
             message -> {
               Message echo =
                   Message.withData("echo/" + message.data())
-                  .correlationId(message.correlationId())
-                  .sender(server.address()).build();
+                      .correlationId(message.correlationId())
+                      .sender(server.address())
+                      .build();
               server.send(message.sender(), echo).subscribe();
             });
 
@@ -205,9 +206,12 @@ public class TransportTest extends BaseTest {
 
     Message q1 = Message.withData("q1").correlationId("1").sender(client.address()).build();
 
-    client.requestResponse(q1, server.address()).subscribe(resp->{
-      targetFuture.complete(resp.data());
-    });
+    client
+        .requestResponse(q1, server.address())
+        .subscribe(
+            resp -> {
+              targetFuture.complete(resp.data());
+            });
 
     String value = targetFuture.get(1, TimeUnit.SECONDS);
     assertNotNull(value);

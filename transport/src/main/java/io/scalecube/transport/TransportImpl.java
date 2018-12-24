@@ -19,6 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.Disposable;
 import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
@@ -201,17 +202,12 @@ final class TransportImpl implements Transport {
           Objects.requireNonNull(request, "request must be not null");
           Objects.requireNonNull(request.correlationId(), "correlationId must be not null");
 
-          listen()
-              .filter(resp -> resp.correlationId() != null)
-              .filter(resp -> resp.correlationId().equals(request.correlationId()))
-              .take(1)
-              .subscribe(
-                  msg -> {
-                    sink.success(msg);
-                  },
-                  error -> {
-                    sink.error(error);
-                  });
+          Disposable disposable =
+              listen()
+                  .filter(resp -> resp.correlationId() != null)
+                  .filter(resp -> resp.correlationId().equals(request.correlationId()))
+                  .take(1)
+                  .subscribe(sink::success, sink::error, sink::success);
 
           send(address, request)
               .subscribe(
@@ -221,6 +217,9 @@ final class TransportImpl implements Transport {
                         "Unexpected exception on transport request-response, cause: {}",
                         ex.toString());
                     sink.error(ex);
+                    if (!disposable.isDisposed()) {
+                      disposable.dispose();
+                    }
                   });
         });
   }
