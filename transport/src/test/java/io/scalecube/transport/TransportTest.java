@@ -186,6 +186,35 @@ public class TransportTest extends BaseTest {
   }
 
   @Test
+  public void testRequestResponseSingleChannel() throws Exception {
+    server = createTransport();
+    client = createTransport();
+
+    server
+        .listen()
+        .subscribe(
+            message -> {
+              Message echo =
+                  Message.withData("echo/" + message.data())
+                  .correlationId(message.correlationId())
+                  .sender(server.address()).build();
+              server.send(message.sender(), echo).subscribe();
+            });
+
+    final CompletableFuture<String> targetFuture = new CompletableFuture<>();
+
+    Message q1 = Message.withData("q1").correlationId("1").sender(client.address()).build();
+
+    client.requestResponse(q1, server.address()).subscribe(resp->{
+      targetFuture.complete(resp.data());
+    });
+
+    String value = targetFuture.get(1, TimeUnit.SECONDS);
+    assertNotNull(value);
+    assertEquals("echo/q1", value);
+  }
+
+  @Test
   public void testPingPongOnSeparateChannel() throws Exception {
     server = createTransport();
     client = createTransport();
