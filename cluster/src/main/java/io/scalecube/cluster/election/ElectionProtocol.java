@@ -34,7 +34,7 @@ public class ElectionProtocol implements ElectionService {
 
   private final DirectProcessor<ElectionEvent> processor = DirectProcessor.create();
 
-  private final String topic;
+  private final String quorumName;
 
   private Cluster cluster;
 
@@ -91,7 +91,7 @@ public class ElectionProtocol implements ElectionService {
 
   @Override
   public String name() {
-    return this.topic;
+    return this.quorumName;
   }
 
   public State currentState() {
@@ -144,9 +144,9 @@ public class ElectionProtocol implements ElectionService {
    * @param builder instance.
    */
   private ElectionProtocol(Builder builder) {
-    this.topic = builder.topic;
+    this.quorumName = builder.topic;
     this.cluster = builder.cluser;
-    this.cluster.updateMetadataProperty(topic, LEADER_ELECTION).subscribe();
+    this.cluster.updateMetadataProperty(quorumName, LEADER_ELECTION).subscribe();
 
     this.stateMachine =
         RaftStateMachine.builder()
@@ -219,13 +219,13 @@ public class ElectionProtocol implements ElectionService {
         .listen()
         .subscribe(
             request -> {
-              if (Protocol.isVote(topic, request.qualifier())) {
+              if (Protocol.isVote(quorumName, request.qualifier())) {
                 onVoteRequested(request)
                     .subscribe(
                         resp -> {
                           cluster.send(request.sender(), resp).subscribe();
                         });
-              } else if (Protocol.isHeartbeat(topic, request.qualifier())) {
+              } else if (Protocol.isHeartbeat(quorumName, request.qualifier())) {
                 onHeartbeatRecived(request)
                     .subscribe(
                         resp -> {
@@ -242,6 +242,12 @@ public class ElectionProtocol implements ElectionService {
         });
   }
 
+  @Override
+  public Mono<Void> leave() {
+    cluster.removeMetadataProperty(quorumName);
+    return null;
+  }
+  
   private Mono<Message> onHeartbeatRecived(Message request) {
     return Mono.create(
         sink -> {
@@ -286,7 +292,7 @@ public class ElectionProtocol implements ElectionService {
    */
   private Consumer sendHeartbeat(Duration timeout) {
     return heartbeat -> {
-      findElectionQuorum()
+      findElectionQuorum(this.quorumName)
           .stream()
           .forEach(
               instance -> {
@@ -314,7 +320,7 @@ public class ElectionProtocol implements ElectionService {
   // timeout reached the member transition to Follower state.
   private Mono<Boolean> startElection() {
 
-    Collection<Member> peers = findElectionQuorum();
+    Collection<Member> peers = findElectionQuorum(this.quorumName);
 
     if (!peers.isEmpty()) {
       long consensus = (long) (Math.ceil((double) peers.size() / 2d));
@@ -337,7 +343,7 @@ public class ElectionProtocol implements ElectionService {
   private Message heartbeatRequest() {
     return Protocol.asHeartbeatRequest(
         this.cluster.address(),
-        topic,
+        quorumName,
         new HeartbeatRequest(stateMachine.currentTerm().getLong(), this.memberId));
   }
 
@@ -352,7 +358,7 @@ public class ElectionProtocol implements ElectionService {
 
   private Message voteRequest() {
     return Protocol.asVoteRequest(
-        this.cluster.address(), topic, new VoteRequest(stateMachine.currentTerm().getLong()));
+        this.cluster.address(), quorumName, new VoteRequest(stateMachine.currentTerm().getLong()));
   }
 
   private Message voteResponseMessage(Message request, boolean voteGranted) {
@@ -363,11 +369,11 @@ public class ElectionProtocol implements ElectionService {
         .build();
   }
 
-  private Collection<Member> findElectionQuorum() {
+  private Collection<Member> findElectionQuorum(String quorumTopic) {
     return cluster
         .otherMembers()
         .stream()
-        .filter(m -> LEADER_ELECTION.equals(cluster.metadata(m).get(topic)))
+        .filter(m -> LEADER_ELECTION.equals(cluster.metadata(m).get(quorumTopic)))
         .collect(Collectors.toSet());
   }
 }

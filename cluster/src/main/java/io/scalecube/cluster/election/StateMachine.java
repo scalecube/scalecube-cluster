@@ -6,11 +6,12 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Mono;
 import reactor.core.publisher.TopicProcessor;
+import reactor.core.scheduler.Schedulers;
 
 public class StateMachine {
 
@@ -20,10 +21,10 @@ public class StateMachine {
 
   private TopicProcessor<State> onStateHandlers = TopicProcessor.create();
 
-  private AtomicReference<State> currentState;
+  private State currentState;
 
   public State currentState() {
-    return currentState.get();
+    return currentState;
   }
 
   public static final class Builder {
@@ -64,28 +65,36 @@ public class StateMachine {
 
   private StateMachine(State init, Map<State, List<State>> transitions) {
     this.transitions = Collections.unmodifiableMap(transitions);
-    this.currentState = new AtomicReference<State>(init);
+    this.currentState = init;
   }
 
   /**
-   * transition to new given allowed state.
+   * transition to new given allowed state and set a new state. the transition is single threaded.
    *
    * @param newState to transition to if allowed.
    * @throws IllegalStateException if requested state is not allowed.
    */
   public void transition(State newState) {
-    if (!currentState.get().equals(newState)) {
-      if (allowed().contains(newState)) {
-        LOGGER.info("start transition to {}", newState);
-        currentState.set(newState);
-        onStateHandlers.onNext(newState);
-      } else {
-        throw new IllegalStateException(
-            "not allowed tranistion from: " + currentState.get() + " to: " + newState);
-      }
-    } else {
-      LOGGER.warn("no transition was done - already in state {}", newState);
-    }
+    Mono.create(
+            sink -> {
+              if (!currentState.equals(newState)) {
+                if (allowed().contains(newState)) {
+                  LOGGER.info("start transition to {}", newState);
+                  currentState = newState;
+                  onStateHandlers.onNext(newState);
+                  sink.success();
+                } else {
+                  sink.error(
+                      new IllegalStateException(
+                          "not allowed tranistion from: " + currentState + " to: " + newState));
+                }
+              } else {
+                LOGGER.warn("no transition was done - already in state {}", newState);
+                sink.success();
+              }
+            })
+        .subscribeOn(Schedulers.single())
+        .subscribe();
   }
 
   /**
@@ -94,8 +103,8 @@ public class StateMachine {
    * @return list of allowed states.
    */
   public List<Enum> allowed() {
-    if (transitions.containsKey(currentState.get())) {
-      return Collections.unmodifiableList(transitions.get(currentState.get()));
+    if (transitions.containsKey(currentState)) {
+      return Collections.unmodifiableList(transitions.get(currentState));
     }
     return Collections.EMPTY_LIST;
   }
