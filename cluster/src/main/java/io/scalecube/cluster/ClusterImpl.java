@@ -177,6 +177,16 @@ final class ClusterImpl implements Cluster {
   }
 
   @Override
+  public Mono<Message> requestResponse(Address address, Message request) {
+    return transport.requestResponse(request, address);
+  }
+  
+  @Override
+  public Mono<Message> requestResponse(Member member, Message request) {
+    return transport.requestResponse(request, member.address());
+  }
+  
+  @Override
   public Flux<Message> listen() {
     // filter out system messages
     return transport.listen().filter(msg -> !SYSTEM_MESSAGES.contains(msg.qualifier()));

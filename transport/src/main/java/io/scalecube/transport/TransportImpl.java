@@ -195,6 +195,36 @@ final class TransportImpl implements Transport {
                     "Failed to send {} to {}, cause: {}", message, address, ex.toString()));
   }
 
+  public Mono<Message> requestResponse(final Message request, Address address) {
+    return Mono.create(
+        sink -> {
+          Objects.requireNonNull(request, "request must be not null");
+          Objects.requireNonNull(request.correlationId(), "correlationId must be not null");
+
+          listen()
+              .filter(resp -> resp.correlationId() != null)
+              .filter(resp -> resp.correlationId().equals(request.correlationId()))
+              .take(1)
+              .subscribe(
+                  msg -> {
+                    sink.success(msg);
+                  },
+                  error -> {
+                    sink.error(error);
+                  });
+
+          send(address, request)
+              .subscribe(
+                  null,
+                  ex -> {
+                    LOGGER.warn(
+                        "Unexpected exception on transport request-response, cause: {}",
+                        ex.toString());
+                    sink.error(ex);
+                  });
+        });
+  }
+
   @SuppressWarnings("unused")
   private Mono<Void> onMessage(NettyInbound in, NettyOutbound out) {
     return in.receive() //
