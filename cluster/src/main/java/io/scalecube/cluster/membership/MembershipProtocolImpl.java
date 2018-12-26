@@ -26,6 +26,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
@@ -328,7 +329,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private void onMessage(Message message) {
     if (checkSyncGroup(message)) {
       if (SYNC.equals(message.qualifier())) {
-        onSync(message);
+        onSync(message).subscribe(null, this::onError);
       }
       if (SYNC_ACK.equals(message.qualifier())) {
         if (message.correlationId() == null) { // filter out initial sync
@@ -351,25 +352,27 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   }
 
   /** Merges incoming SYNC data, merges it and sending back merged data with SYNC_ACK. */
-  private void onSync(Message syncMsg) {
-    LOGGER.debug("Received Sync: {}", syncMsg);
-    syncMembership(syncMsg.data(), false)
-        .doOnSuccess(
-            avoid -> {
-              Message message = prepareSyncDataMsg(SYNC_ACK, syncMsg.correlationId());
-              Address address = syncMsg.sender();
-              transport
-                  .send(address, message)
-                  .subscribe(
-                      null,
-                      ex ->
-                          LOGGER.debug(
-                              "Failed to send SyncAck: {} to {}, cause: {}",
-                              message,
-                              address,
-                              ex.toString()));
-            })
-        .subscribe(null, this::onError);
+  private Mono<Void> onSync(Message syncMsg) {
+    return Mono.defer(
+        () -> {
+          LOGGER.debug("Received Sync: {}", syncMsg);
+          return syncMembership(syncMsg.data(), false)
+              .doOnSuccess(
+                  avoid -> {
+                    Message message = prepareSyncDataMsg(SYNC_ACK, syncMsg.correlationId());
+                    Address address = syncMsg.sender();
+                    transport
+                        .send(address, message)
+                        .subscribe(
+                            null,
+                            ex ->
+                                LOGGER.debug(
+                                    "Failed to send SyncAck: {} to {}, cause: {}",
+                                    message,
+                                    address,
+                                    ex.toString()));
+                  });
+        });
   }
 
   /** Merges FD updates and processes them. */
@@ -569,6 +572,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                       metadataStore.updateMetadata(member, metadata);
                       sink.next(MembershipEvent.createAdded(member, metadata));
                     })
+                .onErrorResume(TimeoutException.class, e -> Mono.empty())
                 .then();
           }
 
@@ -582,6 +586,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                           metadataStore.updateMetadata(member, metadata1);
                       sink.next(MembershipEvent.createUpdated(member, metadata0, metadata1));
                     })
+                .onErrorResume(TimeoutException.class, e -> Mono.empty())
                 .then();
           }
 
