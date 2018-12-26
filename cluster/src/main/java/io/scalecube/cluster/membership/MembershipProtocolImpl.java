@@ -18,7 +18,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -147,7 +147,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   // Remove duplicates and local address
   private List<Address> cleanUpSeedMembers(Collection<Address> seedMembers) {
-    Set<Address> seedMembersCopy = new HashSet<>(seedMembers); // remove duplicates
+    Set<Address> seedMembersCopy = new LinkedHashSet<>(seedMembers); // remove duplicates
     seedMembersCopy.remove(localMember.address()); // remove local address
     seedMembersCopy.remove(transport.address()); // remove local address
     return Collections.unmodifiableList(new ArrayList<>(seedMembersCopy));
@@ -228,13 +228,20 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                   ex -> LOGGER.info("Exception on initial SyncAck, cause: {}", ex.toString()));
 
           Message syncMsg = prepareSyncDataMsg(SYNC, cid);
-          Flux.fromIterable(seedMembers)
-              .flatMap(address -> transport.send(address, syncMsg))
+
+          Mono<?>[] sendSyncs =
+              seedMembers
+                  .stream()
+                  .map(address -> transport.send(address, syncMsg))
+                  .toArray(Mono[]::new);
+
+          Mono.whenDelayError(sendSyncs)
               .subscribe(
                   null,
                   ex ->
                       LOGGER.debug(
-                          "Failed to send initial Sync: {} to seed members: {}, cause: {}",
+                          "Failed to send initial Sync: {} to some "
+                              + "seed member from the list: {}, cause: {}",
                           syncMsg,
                           seedMembers,
                           ex.toString()));

@@ -1,6 +1,7 @@
 package io.scalecube.cluster;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.scalecube.cluster.membership.MembershipEvent;
@@ -39,7 +40,7 @@ public class ClusterTest extends BaseTest {
 
   @ParameterizedTest(name = "scheduler={0}")
   @MethodSource("schedulers")
-  public void testMembersAccessFromScheduler(Scheduler scheduler) throws Exception {
+  public void testMembersAccessFromScheduler(Scheduler scheduler) {
     // Start seed node
     Cluster seedNode = Cluster.joinAwait();
     Cluster otherNode = Cluster.joinAwait(seedNode.address());
@@ -307,7 +308,7 @@ public class ClusterTest extends BaseTest {
         Map<String, String> actualMetadata = node.metadata(member);
         assertEquals(1, actualMetadata.size());
         assertEquals("value1", actualMetadata.get("key1"));
-        assertEquals(null, actualMetadata.get("key2"));
+        assertNull(actualMetadata.get("key2"));
       }
     } finally {
       // Shutdown all nodes
@@ -319,7 +320,6 @@ public class ClusterTest extends BaseTest {
     }
   }
 
-  
   @Test
   public void testShutdownCluster() throws Exception {
     // Start seed member
@@ -388,6 +388,21 @@ public class ClusterTest extends BaseTest {
 
     assertTrue(latch.await(TIMEOUT.getSeconds(), TimeUnit.SECONDS));
     assertEquals(removedMetadata.get(), node1Metadata);
+  }
+
+  @Test
+  public void testJoinSeedClusterWithNoExistingSeedMember() {
+    // Start seed node
+    Cluster seedNode = Cluster.joinAwait();
+
+    Address nonExistingSeed1 = Address.from("localhost:1234");
+    Address nonExistingSeed2 = Address.from("localhost:5678");
+    Address[] seeds = new Address[] {nonExistingSeed1, nonExistingSeed2, seedNode.address()};
+
+    Cluster otherNode = Cluster.joinAwait(seeds);
+
+    assertEquals(otherNode.member(), seedNode.otherMembers().iterator().next());
+    assertEquals(seedNode.member(), otherNode.otherMembers().iterator().next());
   }
 
   private void shutdown(List<Cluster> nodes) {
