@@ -1,6 +1,7 @@
 package io.scalecube.cluster;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.scalecube.cluster.membership.MembershipEvent;
@@ -26,6 +27,28 @@ import reactor.core.publisher.Mono;
 public class ClusterTest extends BaseTest {
 
   public static final Duration TIMEOUT = Duration.ofSeconds(30);
+
+  @Test
+  public void testMembersAccessFromScheduler() {
+    // Start seed node
+    Cluster seedNode = Cluster.joinAwait();
+    Cluster otherNode = Cluster.joinAwait(seedNode.address());
+
+    // Other members
+    Collection<Member> seedNodeMembers = seedNode.members();
+    Collection<Member> otherNodeMembers = otherNode.members();
+
+    assertEquals(2, seedNodeMembers.size());
+    assertEquals(2, otherNodeMembers.size());
+
+    // Members by address
+
+    Optional<Member> otherNodeOnSeedNode = seedNode.member(otherNode.address());
+    Optional<Member> seedNodeOnOtherNode = otherNode.member(seedNode.address());
+
+    assertEquals(otherNode.member(), otherNodeOnSeedNode.get());
+    assertEquals(seedNode.member(), seedNodeOnOtherNode.get());
+  }
 
   @Test
   public void testJoinLocalhostIgnored() {
@@ -217,6 +240,73 @@ public class ClusterTest extends BaseTest {
   }
 
   @Test
+  public void testRemoveMetadataProperty() throws Exception {
+    // Start seed member
+    Cluster seedNode = Cluster.joinAwait();
+
+    Cluster metadataNode = null;
+    int testMembersNum = 10;
+    List<Cluster> otherNodes = new ArrayList<>(testMembersNum);
+
+    try {
+      // Start member with metadata
+      Map<String, String> metadata = new HashMap<>();
+      metadata.put("key1", "value1");
+      metadata.put("key2", "value2");
+      metadataNode = Cluster.joinAwait(metadata, seedNode.address());
+
+      // Start other test members
+      Flux.range(0, testMembersNum)
+          .flatMap(integer -> Cluster.join(seedNode.address()))
+          .doOnNext(otherNodes::add)
+          .blockLast(TIMEOUT);
+
+      TimeUnit.SECONDS.sleep(3);
+
+      // Check all test members know valid metadata
+      for (Cluster node : otherNodes) {
+        Optional<Member> memberOptional = node.member(metadataNode.member().id());
+        assertTrue(memberOptional.isPresent());
+        Member member = memberOptional.get();
+        assertEquals(metadata, node.metadata(member));
+      }
+
+      // Subscribe for membership update event all nodes
+      CountDownLatch updateLatch = new CountDownLatch(testMembersNum);
+      for (Cluster node : otherNodes) {
+        node.listenMembership()
+            .filter(MembershipEvent::isUpdated)
+            .subscribe(
+                event -> {
+                  LOGGER.info("Received membership update event: {}", event);
+                  updateLatch.countDown();
+                });
+      }
+
+      // Update metadata
+      metadataNode.removeMetadataProperty("key2").block(TIMEOUT);
+
+      // Check all nodes had updated metadata member
+      for (Cluster node : otherNodes) {
+        Optional<Member> memberOptional = node.member(metadataNode.member().id());
+        assertTrue(memberOptional.isPresent());
+        Member member = memberOptional.get();
+        Map<String, String> actualMetadata = node.metadata(member);
+        assertEquals(1, actualMetadata.size());
+        assertEquals("value1", actualMetadata.get("key1"));
+        assertNull(actualMetadata.get("key2"));
+      }
+    } finally {
+      // Shutdown all nodes
+      shutdown(
+          Stream.concat(
+                  Stream.of(seedNode, metadataNode), //
+                  otherNodes.stream())
+              .collect(Collectors.toList()));
+    }
+  }
+
+  @Test
   public void testShutdownCluster() throws Exception {
     // Start seed member
     final Cluster seedNode = Cluster.joinAwait();
@@ -284,6 +374,21 @@ public class ClusterTest extends BaseTest {
 
     assertTrue(latch.await(TIMEOUT.getSeconds(), TimeUnit.SECONDS));
     assertEquals(removedMetadata.get(), node1Metadata);
+  }
+
+  @Test
+  public void testJoinSeedClusterWithNoExistingSeedMember() {
+    // Start seed node
+    Cluster seedNode = Cluster.joinAwait();
+
+    Address nonExistingSeed1 = Address.from("localhost:1234");
+    Address nonExistingSeed2 = Address.from("localhost:5678");
+    Address[] seeds = new Address[] {nonExistingSeed1, nonExistingSeed2, seedNode.address()};
+
+    Cluster otherNode = Cluster.joinAwait(seeds);
+
+    assertEquals(otherNode.member(), seedNode.otherMembers().iterator().next());
+    assertEquals(seedNode.member(), otherNode.otherMembers().iterator().next());
   }
 
   private void shutdown(List<Cluster> nodes) {

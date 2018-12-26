@@ -87,13 +87,15 @@ public class MembershipProtocolTest extends BaseTest {
     MembershipProtocolImpl cmB = createMembership(b, members);
     MembershipProtocolImpl cmC = createMembership(c, members);
 
+    awaitSeconds(3);
+
     // Block traffic
     a.networkEmulator().block(members);
     b.networkEmulator().block(members);
     c.networkEmulator().block(members);
 
     try {
-      awaitSeconds(6);
+      awaitSeconds(3);
 
       assertTrusted(cmA, a.address());
       assertNoSuspected(cmA);
@@ -106,7 +108,7 @@ public class MembershipProtocolTest extends BaseTest {
       b.networkEmulator().unblockAll();
       c.networkEmulator().unblockAll();
 
-      awaitSeconds(6);
+      awaitSeconds(3);
 
       assertTrusted(cmA, a.address(), b.address(), c.address());
       assertNoSuspected(cmA);

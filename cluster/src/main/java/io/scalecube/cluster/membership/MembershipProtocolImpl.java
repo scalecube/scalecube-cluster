@@ -18,13 +18,15 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
+import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
@@ -54,9 +56,10 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   public static final String SYNC_ACK = "sc/membership/syncAck";
   public static final String MEMBERSHIP_GOSSIP = "sc/membership/gossip";
 
+  private final Member localMember;
+
   // Injected
 
-  private final Member localMember;
   private final Transport transport;
   private final MembershipConfig config;
   private final List<Address> seedMembers;
@@ -67,12 +70,12 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   // State
 
   private final Map<String, MembershipRecord> membershipTable = new HashMap<>();
+  private final Map<String, Member> members = new HashMap<>();
 
   // Subject
 
   private final FluxProcessor<MembershipEvent, MembershipEvent> subject =
       DirectProcessor.<MembershipEvent>create().serialize();
-
   private final FluxSink<MembershipEvent> sink = subject.sink();
 
   // Disposables
@@ -116,6 +119,9 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     // Init membership table with local member record
     membershipTable.put(localMember.id(), new MembershipRecord(localMember, ALIVE, 0));
 
+    // fill in the table of members with local member
+    members.put(localMember.id(), localMember);
+
     actionsDisposables.addAll(
         Arrays.asList(
             // Listen to incoming SYNC and SYNC ACK requests from other members
@@ -139,24 +145,16 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   // Remove duplicates and local address
   private List<Address> cleanUpSeedMembers(Collection<Address> seedMembers) {
-    Set<Address> seedMembersCopy = new HashSet<>(seedMembers); // remove duplicates
-    seedMembersCopy.remove(localMember.address()); // remove local address
-    seedMembersCopy.remove(transport.address()); // remove local address
-    return Collections.unmodifiableList(new ArrayList<>(seedMembersCopy));
+    return new LinkedHashSet<>(seedMembers)
+        .stream()
+        .filter(address -> !address.equals(localMember.address()))
+        .filter(address -> !address.equals(transport.address()))
+        .collect(Collectors.toList());
   }
 
   @Override
   public Flux<MembershipEvent> listen() {
     return subject.onBackpressureBuffer();
-  }
-
-  /**
-   * Returns local member.
-   *
-   * @return local member
-   */
-  public Member member() {
-    return localMember;
   }
 
   /**
@@ -229,21 +227,24 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                   ex -> LOGGER.info("Exception on initial SyncAck, cause: {}", ex.toString()));
 
           Message syncMsg = prepareSyncDataMsg(SYNC, cid);
-          Flux.fromIterable(seedMembers)
-              .flatMap(address -> transport.send(address, syncMsg))
+
+          Mono<?>[] sendSyncs =
+              seedMembers
+                  .stream()
+                  .map(address -> transport.send(address, syncMsg))
+                  .toArray(Mono[]::new);
+
+          Mono.whenDelayError(sendSyncs)
               .subscribe(
                   null,
                   ex ->
                       LOGGER.debug(
-                          "Failed to send initial Sync: {} to seed members: {}, cause: {}",
+                          "Failed to send initial Sync: {} to some "
+                              + "seed member from the list: {}, cause: {}",
                           syncMsg,
                           seedMembers,
                           ex.toString()));
         });
-  }
-
-  private void onError(Throwable throwable) {
-    LOGGER.error("Received unexpected error: ", throwable);
   }
 
   @Override
@@ -264,9 +265,36 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     sink.complete();
   }
 
-  // ================================================
-  // ============== Action Methods ==================
-  // ================================================
+  @Override
+  public Collection<Member> members() {
+    return new ArrayList<>(members.values());
+  }
+
+  @Override
+  public Collection<Member> otherMembers() {
+    return new ArrayList<>(members.values())
+        .stream()
+        .filter(member -> !member.equals(localMember))
+        .collect(Collectors.toList());
+  }
+
+  @Override
+  public Member member() {
+    return localMember;
+  }
+
+  @Override
+  public Optional<Member> member(String id) {
+    return Optional.ofNullable(members.get(id));
+  }
+
+  @Override
+  public Optional<Member> member(Address address) {
+    return new ArrayList<>(members.values())
+        .stream()
+        .filter(member -> member.address().equals(address))
+        .findFirst();
+  }
 
   private void doSync() {
     Address address = selectSyncAddress();
@@ -285,13 +313,13 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   }
 
   // ================================================
-  // ============== Event Listeners =================
+  // ============== Action Methods ==================
   // ================================================
 
   private void onMessage(Message message) {
     if (checkSyncGroup(message)) {
       if (SYNC.equals(message.qualifier())) {
-        onSync(message);
+        onSync(message).subscribe(null, this::onError);
       }
       if (SYNC_ACK.equals(message.qualifier())) {
         if (message.correlationId() == null) { // filter out initial sync
@@ -300,6 +328,10 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       }
     }
   }
+
+  // ================================================
+  // ============== Event Listeners =================
+  // ================================================
 
   private Mono<Void> onSyncAck(Message syncAckMsg, boolean onStart) {
     return Mono.defer(
@@ -310,25 +342,27 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   }
 
   /** Merges incoming SYNC data, merges it and sending back merged data with SYNC_ACK. */
-  private void onSync(Message syncMsg) {
-    LOGGER.debug("Received Sync: {}", syncMsg);
-    syncMembership(syncMsg.data(), false)
-        .doOnSuccess(
-            avoid -> {
-              Message message = prepareSyncDataMsg(SYNC_ACK, syncMsg.correlationId());
-              Address address = syncMsg.sender();
-              transport
-                  .send(address, message)
-                  .subscribe(
-                      null,
-                      ex ->
-                          LOGGER.debug(
-                              "Failed to send SyncAck: {} to {}, cause: {}",
-                              message,
-                              address,
-                              ex.toString()));
-            })
-        .subscribe(null, this::onError);
+  private Mono<Void> onSync(Message syncMsg) {
+    return Mono.defer(
+        () -> {
+          LOGGER.debug("Received Sync: {}", syncMsg);
+          return syncMembership(syncMsg.data(), false)
+              .doOnSuccess(
+                  avoid -> {
+                    Message message = prepareSyncDataMsg(SYNC_ACK, syncMsg.correlationId());
+                    Address address = syncMsg.sender();
+                    transport
+                        .send(address, message)
+                        .subscribe(
+                            null,
+                            ex ->
+                                LOGGER.debug(
+                                    "Failed to send SyncAck: {} to {}, cause: {}",
+                                    message,
+                                    address,
+                                    ex.toString()));
+                  });
+        });
   }
 
   /** Merges FD updates and processes them. */
@@ -372,15 +406,19 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     }
   }
 
-  // ================================================
-  // ============== Helper Methods ==================
-  // ================================================
-
   private Address selectSyncAddress() {
     // TODO [AK]: During running phase it should send to both seed or not seed members (issue #38)
     return !seedMembers.isEmpty()
         ? seedMembers.get(ThreadLocalRandom.current().nextInt(seedMembers.size()))
         : null;
+  }
+
+  // ================================================
+  // ============== Helper Methods ==================
+  // ================================================
+
+  private void onError(Throwable throwable) {
+    LOGGER.error("Received unexpected error: ", throwable);
   }
 
   private boolean checkSyncGroup(Message message) {
@@ -503,6 +541,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           final Member member = r1.member();
 
           if (r1.isDead()) {
+            members.remove(member.id());
+            // removed
             return Mono.fromRunnable(
                 () -> {
                   Map<String, String> metadata = metadataStore.removeMetadata(member);
@@ -511,6 +551,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           }
 
           if (r0 == null && r1.isAlive()) {
+            members.put(member.id(), member);
+            // added
             return metadataStore
                 .fetchMetadata(member)
                 .doOnSuccess(
@@ -518,10 +560,12 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                       metadataStore.updateMetadata(member, metadata);
                       sink.next(MembershipEvent.createAdded(member, metadata));
                     })
+                .onErrorResume(TimeoutException.class, e -> Mono.empty())
                 .then();
           }
 
           if (r0 != null && r0.incarnation() < r1.incarnation()) {
+            // updated
             return metadataStore
                 .fetchMetadata(member)
                 .doOnSuccess(
@@ -530,6 +574,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                           metadataStore.updateMetadata(member, metadata1);
                       sink.next(MembershipEvent.createUpdated(member, metadata0, metadata1));
                     })
+                .onErrorResume(TimeoutException.class, e -> Mono.empty())
                 .then();
           }
 
