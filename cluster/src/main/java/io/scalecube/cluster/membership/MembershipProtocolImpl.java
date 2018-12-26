@@ -2,6 +2,8 @@ package io.scalecube.cluster.membership;
 
 import static io.scalecube.cluster.membership.MemberStatus.ALIVE;
 import static io.scalecube.cluster.membership.MemberStatus.DEAD;
+import static java.util.Optional.empty;
+import static java.util.Optional.of;
 
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.Member;
@@ -26,6 +28,7 @@ import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,6 +74,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   private final Map<String, MembershipRecord> membershipTable = new HashMap<>();
   private final Map<String, Member> members = new HashMap<>();
+  private AtomicBoolean started = new AtomicBoolean(false);
 
   // Subject
 
@@ -251,6 +255,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   public void stop() {
     // Stop accepting requests, events and sending sync
     actionsDisposables.dispose();
+    started.set(false);
 
     // Cancel remove members tasks
     for (String memberId : suspicionTimeoutTasks.keySet()) {
@@ -297,14 +302,14 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   }
 
   private void doSync() {
-    Address address = selectSyncAddress();
-    if (address == null) {
+    Optional<Address> address = selectSyncAddress();
+    if (!address.isPresent()) {
       return;
     }
     Message message = prepareSyncDataMsg(SYNC, null);
     LOGGER.debug("Send Sync: {} to {}", message, address);
     transport
-        .send(address, message)
+        .send(address.get(), message)
         .subscribe(
             null,
             ex ->
@@ -406,11 +411,15 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     }
   }
 
-  private Address selectSyncAddress() {
-    // TODO [AK]: During running phase it should send to both seed or not seed members (issue #38)
-    return !seedMembers.isEmpty()
-        ? seedMembers.get(ThreadLocalRandom.current().nextInt(seedMembers.size()))
-        : null;
+  private Optional<Address> selectSyncAddress() {
+    boolean initSync = started.compareAndSet(false, true);
+    List<Address> syncCandidates =
+        initSync
+            ? seedMembers
+            : otherMembers().stream().map(Member::address).collect(Collectors.toList());
+    return !syncCandidates.isEmpty()
+        ? of(syncCandidates.get(ThreadLocalRandom.current().nextInt(syncCandidates.size())))
+        : empty();
   }
 
   // ================================================
