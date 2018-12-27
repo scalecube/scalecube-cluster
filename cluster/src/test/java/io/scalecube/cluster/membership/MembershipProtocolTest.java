@@ -98,8 +98,9 @@ public class MembershipProtocolTest extends BaseTest {
 
     try {
 
+      int suspicionMult = ClusterConfig.DEFAULT_SUSPICION_MULT;
       long suspicionTimeoutSec =
-          ClusterMath.suspicionTimeout(ClusterConfig.DEFAULT_SUSPICION_MULT, 3, TEST_PING_INTERVAL) / 1000;
+          ClusterMath.suspicionTimeout(suspicionMult, 3, TEST_PING_INTERVAL) / 1000;
       awaitSeconds(suspicionTimeoutSec + 2);
 
       assertTrusted(cmA, a.address());
