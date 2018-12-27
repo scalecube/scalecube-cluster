@@ -33,10 +33,10 @@ import reactor.core.scheduler.Schedulers;
 
 public class MembershipProtocolTest extends BaseTest {
 
-  private static final int TEST_PING_INTERVAL = 200;
-
   public static final Duration TIMEOUT = Duration.ofSeconds(10);
-
+  public static final int TEST_SYNC_INTERVAL = 500;
+  public static final int TEST_SYNC_TIMEOUT = 100;
+  private static final int TEST_PING_INTERVAL = 200;
   private Scheduler scheduler;
 
   @BeforeEach
@@ -95,7 +95,10 @@ public class MembershipProtocolTest extends BaseTest {
     c.networkEmulator().block(members);
 
     try {
-      awaitSeconds(3);
+
+      long suspicionTimeoutSec =
+          ClusterMath.suspicionTimeout(ClusterConfig.DEFAULT_SUSPICION_MULT, 3, TEST_PING_INTERVAL) / 1000;
+      awaitSeconds(suspicionTimeoutSec + 2);
 
       assertTrusted(cmA, a.address());
       assertNoSuspected(cmA);
@@ -108,7 +111,7 @@ public class MembershipProtocolTest extends BaseTest {
       b.networkEmulator().unblockAll();
       c.networkEmulator().unblockAll();
 
-      awaitSeconds(3);
+      awaitSeconds(TEST_SYNC_INTERVAL * 2 / 1000);
 
       assertTrusted(cmA, a.address(), b.address(), c.address());
       assertNoSuspected(cmA);
@@ -539,8 +542,8 @@ public class MembershipProtocolTest extends BaseTest {
     // Create faster config for local testing
     return ClusterConfig.builder()
         .seedMembers(seedAddresses)
-        .syncInterval(2000)
-        .syncTimeout(1000)
+        .syncInterval(TEST_SYNC_INTERVAL)
+        .syncTimeout(TEST_SYNC_TIMEOUT)
         .pingInterval(TEST_PING_INTERVAL)
         .pingTimeout(100)
         .metadataTimeout(100);
