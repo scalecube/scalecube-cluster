@@ -1,13 +1,13 @@
 package io.scalecube.cluster;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipEvent.Type;
 import io.scalecube.transport.Address;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -20,43 +20,30 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Scheduler;
-import reactor.core.scheduler.Schedulers;
 
 public class ClusterTest extends BaseTest {
 
   public static final Duration TIMEOUT = Duration.ofSeconds(30);
 
-  private static final List<Scheduler> schedulers =
-      Arrays.asList(
-          Schedulers.immediate(), Schedulers.parallel(), Schedulers.elastic(), Schedulers.single());
-
-  @ParameterizedTest(name = "scheduler={0}")
-  @MethodSource("schedulers")
-  public void testMembersAccessFromScheduler(Scheduler scheduler) throws Exception {
+  @Test
+  public void testMembersAccessFromScheduler() {
     // Start seed node
     Cluster seedNode = Cluster.joinAwait();
     Cluster otherNode = Cluster.joinAwait(seedNode.address());
 
     // Other members
-    Collection<Member> seedNodeMembers =
-        Mono.fromCallable(seedNode::members).subscribeOn(scheduler).block();
-    Collection<Member> otherNodeMembers =
-        Mono.fromCallable(otherNode::members).subscribeOn(scheduler).block();
+    Collection<Member> seedNodeMembers = seedNode.members();
+    Collection<Member> otherNodeMembers = otherNode.members();
 
     assertEquals(2, seedNodeMembers.size());
     assertEquals(2, otherNodeMembers.size());
 
     // Members by address
-    Optional<Member> otherNodeOnSeedNode =
-        Mono.fromCallable(otherNode::address).map(seedNode::member).subscribeOn(scheduler).block();
-    Optional<Member> seedNodeOnOtherNode =
-        Mono.fromCallable(seedNode::address).map(otherNode::member).subscribeOn(scheduler).block();
+
+    Optional<Member> otherNodeOnSeedNode = seedNode.member(otherNode.address());
+    Optional<Member> seedNodeOnOtherNode = otherNode.member(seedNode.address());
 
     assertEquals(otherNode.member(), otherNodeOnSeedNode.get());
     assertEquals(seedNode.member(), seedNodeOnOtherNode.get());
@@ -306,7 +293,7 @@ public class ClusterTest extends BaseTest {
         Map<String, String> actualMetadata = node.metadata(member);
         assertEquals(1, actualMetadata.size());
         assertEquals("value1", actualMetadata.get("key1"));
-        assertEquals(null, actualMetadata.get("key2"));
+        assertNull(actualMetadata.get("key2"));
       }
     } finally {
       // Shutdown all nodes
@@ -318,7 +305,6 @@ public class ClusterTest extends BaseTest {
     }
   }
 
-  
   @Test
   public void testShutdownCluster() throws Exception {
     // Start seed member
@@ -389,6 +375,21 @@ public class ClusterTest extends BaseTest {
     assertEquals(removedMetadata.get(), node1Metadata);
   }
 
+  @Test
+  public void testJoinSeedClusterWithNoExistingSeedMember() {
+    // Start seed node
+    Cluster seedNode = Cluster.joinAwait();
+
+    Address nonExistingSeed1 = Address.from("localhost:1234");
+    Address nonExistingSeed2 = Address.from("localhost:5678");
+    Address[] seeds = new Address[] {nonExistingSeed1, nonExistingSeed2, seedNode.address()};
+
+    Cluster otherNode = Cluster.joinAwait(seeds);
+
+    assertEquals(otherNode.member(), seedNode.otherMembers().iterator().next());
+    assertEquals(seedNode.member(), otherNode.otherMembers().iterator().next());
+  }
+
   private void shutdown(List<Cluster> nodes) {
     try {
       Mono.when(
@@ -400,9 +401,5 @@ public class ClusterTest extends BaseTest {
     } catch (Exception ex) {
       LOGGER.error("Exception on cluster shutdown", ex);
     }
-  }
-
-  static Stream<Arguments> schedulers() {
-    return schedulers.stream().map(Arguments::of);
   }
 }

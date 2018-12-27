@@ -22,6 +22,7 @@ import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxProcessor;
 import reactor.core.publisher.FluxSink;
+import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 
 public final class FailureDetectorImpl implements FailureDetector {
@@ -226,8 +227,13 @@ public final class FailureDetectorImpl implements FailureDetector {
             .build();
     LOGGER.trace("Send PingReq[{}] to {} for {}", period, pingReqMembers, pingMember);
 
-    Flux.fromIterable(pingReqMembers)
-        .flatMap(member -> transport.send(member.address(), pingReqMsg))
+    Mono<?>[] sendPingReqs =
+        pingReqMembers
+            .stream()
+            .map(member -> transport.send(member.address(), pingReqMsg))
+            .toArray(Mono[]::new);
+
+    Mono.whenDelayError(sendPingReqs)
         .subscribe(
             null,
             ex ->

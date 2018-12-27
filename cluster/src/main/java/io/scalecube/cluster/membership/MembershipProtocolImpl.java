@@ -18,14 +18,15 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
@@ -35,7 +36,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxProcessor;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
-import reactor.core.publisher.MonoProcessor;
 import reactor.core.scheduler.Scheduler;
 
 public final class MembershipProtocolImpl implements MembershipProtocol {
@@ -66,12 +66,11 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private final FailureDetector failureDetector;
   private final GossipProtocol gossipProtocol;
   private final MetadataStore metadataStore;
-  private final Map<String, MembershipRecord> membershipTable = new HashMap<>();
 
   // State
 
+  private final Map<String, MembershipRecord> membershipTable = new HashMap<>();
   private final Map<String, Member> members = new HashMap<>();
-  private final Map<Address, String> memberAddressIndex = new HashMap<>();
 
   // Subject
 
@@ -121,7 +120,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     membershipTable.put(localMember.id(), new MembershipRecord(localMember, ALIVE, 0));
 
     // fill in the table of members with local member
-    memberAddressIndex.put(localMember.address(), localMember.id());
     members.put(localMember.id(), localMember);
 
     actionsDisposables.addAll(
@@ -147,10 +145,11 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   // Remove duplicates and local address
   private List<Address> cleanUpSeedMembers(Collection<Address> seedMembers) {
-    Set<Address> seedMembersCopy = new HashSet<>(seedMembers); // remove duplicates
-    seedMembersCopy.remove(localMember.address()); // remove local address
-    seedMembersCopy.remove(transport.address()); // remove local address
-    return Collections.unmodifiableList(new ArrayList<>(seedMembersCopy));
+    return new LinkedHashSet<>(seedMembers)
+        .stream()
+        .filter(address -> !address.equals(localMember.address()))
+        .filter(address -> !address.equals(transport.address()))
+        .collect(Collectors.toList());
   }
 
   @Override
@@ -228,13 +227,20 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                   ex -> LOGGER.info("Exception on initial SyncAck, cause: {}", ex.toString()));
 
           Message syncMsg = prepareSyncDataMsg(SYNC, cid);
-          Flux.fromIterable(seedMembers)
-              .flatMap(address -> transport.send(address, syncMsg))
+
+          Mono<?>[] sendSyncs =
+              seedMembers
+                  .stream()
+                  .map(address -> transport.send(address, syncMsg))
+                  .toArray(Mono[]::new);
+
+          Mono.whenDelayError(sendSyncs)
               .subscribe(
                   null,
                   ex ->
                       LOGGER.debug(
-                          "Failed to send initial Sync: {} to seed members: {}, cause: {}",
+                          "Failed to send initial Sync: {} to some "
+                              + "seed member from the list: {}, cause: {}",
                           syncMsg,
                           seedMembers,
                           ex.toString()));
@@ -261,18 +267,15 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   @Override
   public Collection<Member> members() {
-    MonoProcessor<Collection<Member>> promise = MonoProcessor.create();
-    Mono.fromCallable(() -> Collections.unmodifiableCollection(members.values()))
-        .subscribeOn(scheduler)
-        .subscribe(promise::onNext, promise::onError, promise::onComplete);
-    return promise.block();
+    return new ArrayList<>(members.values());
   }
 
   @Override
   public Collection<Member> otherMembers() {
-    ArrayList<Member> otherMembers = new ArrayList<>(members());
-    otherMembers.remove(localMember);
-    return Collections.unmodifiableCollection(otherMembers);
+    return new ArrayList<>(members.values())
+        .stream()
+        .filter(member -> !member.equals(localMember))
+        .collect(Collectors.toList());
   }
 
   @Override
@@ -282,20 +285,15 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   @Override
   public Optional<Member> member(String id) {
-    MonoProcessor<Optional<Member>> promise = MonoProcessor.create();
-    Mono.fromCallable(() -> Optional.ofNullable(members.get(id)))
-        .subscribeOn(scheduler)
-        .subscribe(promise::onNext, promise::onError, promise::onComplete);
-    return promise.block();
+    return Optional.ofNullable(members.get(id));
   }
 
   @Override
   public Optional<Member> member(Address address) {
-    MonoProcessor<Optional<String>> promise = MonoProcessor.create();
-    Mono.fromCallable(() -> Optional.ofNullable(memberAddressIndex.get(address)))
-        .subscribeOn(scheduler)
-        .subscribe(promise::onNext, promise::onError, promise::onComplete);
-    return promise.block().flatMap(this::member);
+    return new ArrayList<>(members.values())
+        .stream()
+        .filter(member -> member.address().equals(address))
+        .findFirst();
   }
 
   private void doSync() {
@@ -321,7 +319,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private void onMessage(Message message) {
     if (checkSyncGroup(message)) {
       if (SYNC.equals(message.qualifier())) {
-        onSync(message);
+        onSync(message).subscribe(null, this::onError);
       }
       if (SYNC_ACK.equals(message.qualifier())) {
         if (message.correlationId() == null) { // filter out initial sync
@@ -344,25 +342,27 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   }
 
   /** Merges incoming SYNC data, merges it and sending back merged data with SYNC_ACK. */
-  private void onSync(Message syncMsg) {
-    LOGGER.debug("Received Sync: {}", syncMsg);
-    syncMembership(syncMsg.data(), false)
-        .doOnSuccess(
-            avoid -> {
-              Message message = prepareSyncDataMsg(SYNC_ACK, syncMsg.correlationId());
-              Address address = syncMsg.sender();
-              transport
-                  .send(address, message)
-                  .subscribe(
-                      null,
-                      ex ->
-                          LOGGER.debug(
-                              "Failed to send SyncAck: {} to {}, cause: {}",
-                              message,
-                              address,
-                              ex.toString()));
-            })
-        .subscribe(null, this::onError);
+  private Mono<Void> onSync(Message syncMsg) {
+    return Mono.defer(
+        () -> {
+          LOGGER.debug("Received Sync: {}", syncMsg);
+          return syncMembership(syncMsg.data(), false)
+              .doOnSuccess(
+                  avoid -> {
+                    Message message = prepareSyncDataMsg(SYNC_ACK, syncMsg.correlationId());
+                    Address address = syncMsg.sender();
+                    transport
+                        .send(address, message)
+                        .subscribe(
+                            null,
+                            ex ->
+                                LOGGER.debug(
+                                    "Failed to send SyncAck: {} to {}, cause: {}",
+                                    message,
+                                    address,
+                                    ex.toString()));
+                  });
+        });
   }
 
   /** Merges FD updates and processes them. */
@@ -542,7 +542,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
           if (r1.isDead()) {
             members.remove(member.id());
-            memberAddressIndex.remove(member.address());
             // removed
             return Mono.fromRunnable(
                 () -> {
@@ -552,7 +551,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           }
 
           if (r0 == null && r1.isAlive()) {
-            memberAddressIndex.put(member.address(), member.id());
             members.put(member.id(), member);
             // added
             return metadataStore
@@ -562,6 +560,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                       metadataStore.updateMetadata(member, metadata);
                       sink.next(MembershipEvent.createAdded(member, metadata));
                     })
+                .onErrorResume(TimeoutException.class, e -> Mono.empty())
                 .then();
           }
 
@@ -575,6 +574,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                           metadataStore.updateMetadata(member, metadata1);
                       sink.next(MembershipEvent.createUpdated(member, metadata0, metadata1));
                     })
+                .onErrorResume(TimeoutException.class, e -> Mono.empty())
                 .then();
           }
 
