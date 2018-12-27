@@ -27,6 +27,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
@@ -297,10 +298,12 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   }
 
   private void doSync() {
-    Address address = selectSyncAddress();
-    if (address == null) {
+    Optional<Address> addressOptional = selectSyncAddress();
+    if (!addressOptional.isPresent()) {
       return;
     }
+
+    Address address = addressOptional.get();
     Message message = prepareSyncDataMsg(SYNC, null);
     LOGGER.debug("Send Sync: {} to {}", message, address);
     transport
@@ -406,11 +409,17 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     }
   }
 
-  private Address selectSyncAddress() {
-    // TODO [AK]: During running phase it should send to both seed or not seed members (issue #38)
-    return !seedMembers.isEmpty()
-        ? seedMembers.get(ThreadLocalRandom.current().nextInt(seedMembers.size()))
-        : null;
+  private Optional<Address> selectSyncAddress() {
+    List<Address> addresses =
+        Stream.concat(seedMembers.stream(), otherMembers().stream().map(Member::address))
+            .collect(Collectors.toList());
+    Collections.shuffle(addresses);
+    if (addresses.isEmpty()) {
+      return Optional.empty();
+    } else {
+      int i = ThreadLocalRandom.current().nextInt(addresses.size());
+      return Optional.of(addresses.get(i));
+    }
   }
 
   // ================================================
