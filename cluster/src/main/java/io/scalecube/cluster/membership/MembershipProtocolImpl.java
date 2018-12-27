@@ -412,7 +412,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private Optional<Address> selectSyncAddress() {
     List<Address> addresses =
         Stream.concat(seedMembers.stream(), otherMembers().stream().map(Member::address))
-            .collect(Collectors.toList());
+            .collect(Collectors.collectingAndThen(Collectors.toSet(), ArrayList::new));
     Collections.shuffle(addresses);
     if (addresses.isEmpty()) {
       return Optional.empty();
