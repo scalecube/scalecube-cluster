@@ -37,7 +37,6 @@ public class MembershipProtocolTest extends BaseTest {
 
   public static final int TEST_SYNC_INTERVAL = 500;
   public static final int TEST_SYNC_TIMEOUT = 100;
-  public static final int TEST_SUSPICION_MULT = 3;
   private static final int TEST_PING_INTERVAL = 200;
 
   private Scheduler scheduler;
@@ -100,7 +99,7 @@ public class MembershipProtocolTest extends BaseTest {
     try {
 
       long suspicionTimeoutSec =
-          ClusterMath.suspicionTimeout(TEST_SUSPICION_MULT, 3, TEST_PING_INTERVAL) / 1000;
+          ClusterMath.suspicionTimeout(ClusterConfig.DEFAULT_SUSPICION_MULT, 3, TEST_PING_INTERVAL) / 1000;
       awaitSeconds(suspicionTimeoutSec + 2);
 
       assertTrusted(cmA, a.address());
@@ -547,7 +546,6 @@ public class MembershipProtocolTest extends BaseTest {
         .seedMembers(seedAddresses)
         .syncInterval(TEST_SYNC_INTERVAL)
         .syncTimeout(TEST_SYNC_TIMEOUT)
-        .suspicionMult(TEST_SUSPICION_MULT)
         .pingInterval(TEST_PING_INTERVAL)
         .pingTimeout(100)
         .metadataTimeout(100);
