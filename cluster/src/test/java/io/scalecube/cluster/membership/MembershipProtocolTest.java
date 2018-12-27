@@ -34,10 +34,12 @@ import reactor.core.scheduler.Schedulers;
 public class MembershipProtocolTest extends BaseTest {
 
   public static final Duration TIMEOUT = Duration.ofSeconds(10);
+
   public static final int TEST_SYNC_INTERVAL = 500;
   public static final int TEST_SYNC_TIMEOUT = 100;
   public static final int TEST_SUSPICION_MULT = 3;
   private static final int TEST_PING_INTERVAL = 200;
+
   private Scheduler scheduler;
 
   @BeforeEach
