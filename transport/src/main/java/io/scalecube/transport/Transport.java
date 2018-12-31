@@ -103,8 +103,8 @@ public interface Transport {
    * given transport {@code address} exists already. Send is an async operation and expecting a
    * response by a provided correlationId and sender address of the caller.
    *
-   * @param address address where message will be sent
    * @param request to send message must contain correlctionId and sender to handle reply.
+   * @param address address where message will be sent
    * @return promise which will be completed with result of sending (message or exception)
    * @throws IllegalArgumentException if {@code message} or {@code address} is null
    */

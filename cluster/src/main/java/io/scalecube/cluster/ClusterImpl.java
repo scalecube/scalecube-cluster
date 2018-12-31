@@ -71,6 +71,7 @@ final class ClusterImpl implements Cluster {
   private MembershipProtocolImpl membership;
   private MetadataStoreImpl metadataStore;
   private Scheduler scheduler;
+  private CorellationIdGenerator cidGenerator;
 
   public ClusterImpl(ClusterConfig config) {
     this.config = Objects.requireNonNull(config);
@@ -83,6 +84,7 @@ final class ClusterImpl implements Cluster {
               transport = boundTransport;
               localMember = createLocalMember(boundTransport.address().port());
 
+              cidGenerator = new CorellationIdGenerator(localMember.id());
               scheduler = Schedulers.newSingle("sc-cluster-" + localMember.address().port(), true);
 
               // Setup shutdown
@@ -99,7 +101,8 @@ final class ClusterImpl implements Cluster {
                       transport,
                       membershipEvents.onBackpressureBuffer(),
                       config,
-                      scheduler);
+                      scheduler
+                  );
 
               gossip =
                   new GossipProtocolImpl(
@@ -111,7 +114,12 @@ final class ClusterImpl implements Cluster {
 
               metadataStore =
                   new MetadataStoreImpl(
-                      localMember, transport, config.getMetadata(), config, scheduler);
+                      localMember,
+                      transport,
+                      config.getMetadata(),
+                      config,
+                      scheduler,
+                      cidGenerator);
 
               membership =
                   new MembershipProtocolImpl(
@@ -121,7 +129,8 @@ final class ClusterImpl implements Cluster {
                       gossip,
                       metadataStore,
                       config,
-                      scheduler);
+                      scheduler,
+                      cidGenerator);
 
               actionsDisposables.add(
                   membership

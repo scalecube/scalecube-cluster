@@ -34,12 +34,8 @@ public class ClusterTest extends BaseTest {
     Cluster seedNode = Cluster.joinAwait();
     Cluster otherNode = Cluster.joinAwait(seedNode.address());
 
-    // Other members
-    Collection<Member> seedNodeMembers = seedNode.members();
-    Collection<Member> otherNodeMembers = otherNode.members();
-
-    assertEquals(2, seedNodeMembers.size());
-    assertEquals(2, otherNodeMembers.size());
+    assertEquals(2, seedNode.members().size());
+    assertEquals(2, otherNode.members().size());
 
     // Members by address
 
