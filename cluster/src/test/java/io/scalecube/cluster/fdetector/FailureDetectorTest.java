@@ -422,7 +422,6 @@ public class FailureDetectorTest extends BaseTest {
             .map(address -> new Member("member-" + address.port(), address))
             .map(member -> MembershipEvent.createAdded(member, Collections.emptyMap()));
 
-    CorellationIdGenerator cidGenerator = new CorellationIdGenerator(localMember.id());
     return new FailureDetectorImpl(localMember, transport, membershipFlux, config, scheduler);
   }
 
