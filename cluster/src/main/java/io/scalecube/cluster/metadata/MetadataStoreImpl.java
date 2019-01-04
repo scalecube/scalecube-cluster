@@ -1,7 +1,7 @@
 package io.scalecube.cluster.metadata;
 
 import io.scalecube.cluster.ClusterConfig;
-import io.scalecube.cluster.CorellationIdGenerator;
+import io.scalecube.cluster.CorrelationIdGenerator;
 import io.scalecube.cluster.Member;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
@@ -33,7 +33,7 @@ public class MetadataStoreImpl implements MetadataStore {
   private final Member localMember;
   private final Transport transport;
   private final ClusterConfig config;
-  private final CorellationIdGenerator cidGenerator;
+  private final CorrelationIdGenerator cidGenerator;
 
   // State
 
@@ -63,7 +63,7 @@ public class MetadataStoreImpl implements MetadataStore {
       Map<String, String> metadata,
       ClusterConfig config,
       Scheduler scheduler,
-      CorellationIdGenerator cidGenerator) {
+      CorrelationIdGenerator cidGenerator) {
     this.localMember = Objects.requireNonNull(localMember);
     this.transport = Objects.requireNonNull(transport);
     this.config = Objects.requireNonNull(config);

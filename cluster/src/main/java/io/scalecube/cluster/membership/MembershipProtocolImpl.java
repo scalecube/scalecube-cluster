@@ -4,7 +4,7 @@ import static io.scalecube.cluster.membership.MemberStatus.ALIVE;
 import static io.scalecube.cluster.membership.MemberStatus.DEAD;
 
 import io.scalecube.cluster.ClusterMath;
-import io.scalecube.cluster.CorellationIdGenerator;
+import io.scalecube.cluster.CorrelationIdGenerator;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.fdetector.FailureDetector;
 import io.scalecube.cluster.fdetector.FailureDetectorEvent;
@@ -68,7 +68,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private final FailureDetector failureDetector;
   private final GossipProtocol gossipProtocol;
   private final MetadataStore metadataStore;
-  private final CorellationIdGenerator cidGenerator;
+  private final CorrelationIdGenerator cidGenerator;
 
   // State
 
@@ -108,7 +108,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       MetadataStore metadataStore,
       MembershipConfig config,
       Scheduler scheduler,
-      CorellationIdGenerator cidGenerator) {
+      CorrelationIdGenerator cidGenerator) {
 
     this.transport = Objects.requireNonNull(transport);
     this.config = Objects.requireNonNull(config);

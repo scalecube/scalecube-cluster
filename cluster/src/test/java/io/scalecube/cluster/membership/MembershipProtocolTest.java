@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.scalecube.cluster.BaseTest;
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterMath;
-import io.scalecube.cluster.CorellationIdGenerator;
+import io.scalecube.cluster.CorrelationIdGenerator;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
@@ -564,7 +564,7 @@ public class MembershipProtocolTest extends BaseTest {
     DirectProcessor<MembershipEvent> membershipProcessor = DirectProcessor.create();
     FluxSink<MembershipEvent> membershipSink = membershipProcessor.sink();
 
-    CorellationIdGenerator cidGenerator = new CorellationIdGenerator(localMember.id());
+    CorrelationIdGenerator cidGenerator = new CorrelationIdGenerator(localMember.id());
     FailureDetectorImpl failureDetector =
         new FailureDetectorImpl(localMember, transport, membershipProcessor, config, scheduler
         );

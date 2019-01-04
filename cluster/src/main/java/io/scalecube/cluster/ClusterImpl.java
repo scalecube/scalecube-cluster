@@ -71,7 +71,7 @@ final class ClusterImpl implements Cluster {
   private MembershipProtocolImpl membership;
   private MetadataStoreImpl metadataStore;
   private Scheduler scheduler;
-  private CorellationIdGenerator cidGenerator;
+  private CorrelationIdGenerator cidGenerator;
 
   public ClusterImpl(ClusterConfig config) {
     this.config = Objects.requireNonNull(config);
@@ -84,7 +84,7 @@ final class ClusterImpl implements Cluster {
               transport = boundTransport;
               localMember = createLocalMember(boundTransport.address().port());
 
-              cidGenerator = new CorellationIdGenerator(localMember.id());
+              cidGenerator = new CorrelationIdGenerator(localMember.id());
               scheduler = Schedulers.newSingle("sc-cluster-" + localMember.address().port(), true);
 
               // Setup shutdown
