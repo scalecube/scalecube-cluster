@@ -117,7 +117,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     this.metadataStore = Objects.requireNonNull(metadataStore);
     this.localMember = Objects.requireNonNull(localMember);
     this.scheduler = Objects.requireNonNull(scheduler);
-    this.cidGenerator = cidGenerator;
+    this.cidGenerator = Objects.requireNonNull(cidGenerator);
 
     // Prepare seeds
     seedMembers = cleanUpSeedMembers(config.getSeedMembers());

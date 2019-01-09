@@ -68,7 +68,7 @@ public class MetadataStoreImpl implements MetadataStore {
     this.transport = Objects.requireNonNull(transport);
     this.config = Objects.requireNonNull(config);
     this.scheduler = Objects.requireNonNull(scheduler);
-    this.cidGenerator = cidGenerator;
+    this.cidGenerator = Objects.requireNonNull(cidGenerator);
     // store local metadata
     updateMetadata(Objects.requireNonNull(metadata));
   }
@@ -173,15 +173,14 @@ public class MetadataStoreImpl implements MetadataStore {
                     Map<String, String> metadata = respData.getMetadata();
                     sink.success(metadata);
                   },
-                  throwable -> {
+                  th -> {
                     LOGGER.warn(
-                        "Failed getting GetMetadataResp[{}] from {} within {} ms. Cause : {}",
+                        "Failed getting GetMetadataResp[{}] from {} within {} ms, cause : {}",
                         cid,
                         targetAddress,
                         config.getMetadataTimeout(),
-                        throwable,
-                        toString());
-                    sink.error(throwable);
+                        th.toString());
+                    sink.error(th);
                   });
         });
   }
