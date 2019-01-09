@@ -1,6 +1,7 @@
 package io.scalecube.cluster.metadata;
 
 import io.scalecube.cluster.ClusterConfig;
+import io.scalecube.cluster.CorrelationIdGenerator;
 import io.scalecube.cluster.Member;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
@@ -32,10 +33,10 @@ public class MetadataStoreImpl implements MetadataStore {
   private final Member localMember;
   private final Transport transport;
   private final ClusterConfig config;
+  private final CorrelationIdGenerator cidGenerator;
 
   // State
 
-  private long cidCounter = 0;
   private final Map<Member, Map<String, String>> membersMetadata = new ConcurrentHashMap<>();
 
   // Scheduler
@@ -54,18 +55,20 @@ public class MetadataStoreImpl implements MetadataStore {
    * @param metadata local metadata
    * @param config config
    * @param scheduler scheduler
+   * @param cidGenerator correlationId generator
    */
   public MetadataStoreImpl(
       Member localMember,
       Transport transport,
       Map<String, String> metadata,
       ClusterConfig config,
-      Scheduler scheduler) {
+      Scheduler scheduler,
+      CorrelationIdGenerator cidGenerator) {
     this.localMember = Objects.requireNonNull(localMember);
     this.transport = Objects.requireNonNull(transport);
     this.config = Objects.requireNonNull(config);
     this.scheduler = Objects.requireNonNull(scheduler);
-
+    this.cidGenerator = Objects.requireNonNull(cidGenerator);
     // store local metadata
     updateMetadata(Objects.requireNonNull(metadata));
   }
@@ -149,36 +152,8 @@ public class MetadataStoreImpl implements MetadataStore {
           LOGGER.debug("Getting metadata for member {}", member);
 
           // Increment counter
-          cidCounter++;
-
-          final String cid = localMember.id() + "-" + cidCounter;
-          final long cidCounter0 = cidCounter;
+          final String cid = cidGenerator.nextCid();
           final Address targetAddress = member.address();
-
-          transport
-              .listen()
-              .filter(this::isGetMetadataResp)
-              .filter(message -> cid.equals(message.correlationId()))
-              .take(1)
-              .timeout(Duration.ofMillis(config.getMetadataTimeout()), scheduler)
-              .publishOn(scheduler)
-              .subscribe(
-                  response -> {
-                    LOGGER.debug(
-                        "Received GetMetadataResp[{}] from {}", cidCounter0, targetAddress);
-                    GetMetadataResponse respData = response.data();
-                    Map<String, String> metadata = respData.getMetadata();
-                    sink.success(metadata);
-                  },
-                  throwable -> {
-                    LOGGER.warn(
-                        "Timeout getting GetMetadataResp[{}] from {} within {} ms",
-                        cidCounter0,
-                        targetAddress,
-                        config.getMetadataTimeout());
-                    sink.error(throwable);
-                  });
-
           Message request =
               Message.builder()
                   .qualifier(GET_METADATA_REQ)
@@ -188,15 +163,25 @@ public class MetadataStoreImpl implements MetadataStore {
                   .build();
 
           transport
-              .send(targetAddress, request)
+              .requestResponse(request, targetAddress)
+              .timeout(Duration.ofMillis(config.getMetadataTimeout()), scheduler)
+              .publishOn(scheduler)
               .subscribe(
-                  null,
-                  ex ->
-                      LOGGER.warn(
-                          "Failed to send GetMetadataReq[{}] to {}, cause: {}",
-                          cidCounter0,
-                          targetAddress,
-                          ex.toString()));
+                  response -> {
+                    LOGGER.debug("Received GetMetadataResp[{}] from {}", cid, targetAddress);
+                    GetMetadataResponse respData = response.data();
+                    Map<String, String> metadata = respData.getMetadata();
+                    sink.success(metadata);
+                  },
+                  th -> {
+                    LOGGER.warn(
+                        "Failed getting GetMetadataResp[{}] from {} within {} ms, cause : {}",
+                        cid,
+                        targetAddress,
+                        config.getMetadataTimeout(),
+                        th.toString());
+                    sink.error(th);
+                  });
         });
   }
 

@@ -22,7 +22,6 @@ import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxProcessor;
 import reactor.core.publisher.FluxSink;
-import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 
 public final class FailureDetectorImpl implements FailureDetector {
@@ -141,11 +140,10 @@ public final class FailureDetectorImpl implements FailureDetector {
             .sender(localMember.address())
             .build();
 
+    LOGGER.trace("Send Ping[{}] to {}", period, pingMember);
+    Address address = pingMember.address();
     transport
-        .listen()
-        .filter(this::isPingAck)
-        .filter(message -> cid.equals(message.correlationId()))
-        .take(1)
+        .requestResponse(pingMsg, address)
         .timeout(Duration.ofMillis(config.getPingTimeout()), scheduler)
         .publishOn(scheduler)
         .subscribe(
@@ -153,24 +151,14 @@ public final class FailureDetectorImpl implements FailureDetector {
               LOGGER.trace("Received PingAck[{}] from {}", period, pingMember);
               publishPingResult(pingMember, MemberStatus.ALIVE);
             },
-            throwable -> {
-              LOGGER.trace(
-                  "Timeout getting PingAck[{}] from {} within {} ms",
+            ex -> {
+              LOGGER.debug(
+                  "Failed to get PingAck[{}] from {} within {} ms",
                   period,
                   pingMember,
                   config.getPingTimeout());
               doPingReq(pingMember, cid);
             });
-
-    LOGGER.trace("Send Ping[{}] to {}", period, pingMember);
-    Address address = pingMember.address();
-    transport
-        .send(address, pingMsg)
-        .subscribe(
-            null,
-            ex ->
-                LOGGER.debug(
-                    "Failed to send Ping[{}] to {}, cause: {}", period, address, ex.toString()));
   }
 
   private void doPingReq(final Member pingMember, String cid) {
@@ -191,57 +179,38 @@ public final class FailureDetectorImpl implements FailureDetector {
       publishPingResult(pingMember, MemberStatus.SUSPECT);
       return;
     }
-
-    transport
-        .listen()
-        .filter(this::isPingAck)
-        .filter(message -> cid.equals(message.correlationId()))
-        .take(1)
-        .timeout(Duration.ofMillis(timeout), scheduler)
-        .publishOn(scheduler)
-        .subscribe(
-            message -> {
-              LOGGER.trace(
-                  "Received transit PingAck[{}] from {} to {}",
-                  period,
-                  message.sender(),
-                  pingMember);
-              publishPingResult(pingMember, MemberStatus.ALIVE);
-            },
-            throwable -> {
-              LOGGER.trace(
-                  "Timeout getting transit PingAck[{}] from {} to {} within {} ms",
-                  period,
-                  pingReqMembers,
-                  pingMember,
-                  timeout);
-              publishPingResult(pingMember, MemberStatus.SUSPECT);
-            });
-
-    PingData pingReqData = new PingData(localMember, pingMember);
     Message pingReqMsg =
-        Message.withData(pingReqData)
+        Message.withData(new PingData(localMember, pingMember))
             .qualifier(PING_REQ)
             .correlationId(cid)
             .sender(localMember.address())
             .build();
     LOGGER.trace("Send PingReq[{}] to {} for {}", period, pingReqMembers, pingMember);
 
-    Mono<?>[] sendPingReqs =
-        pingReqMembers
-            .stream()
-            .map(member -> transport.send(member.address(), pingReqMsg))
-            .toArray(Mono[]::new);
-
-    Mono.whenDelayError(sendPingReqs)
-        .subscribe(
-            null,
-            ex ->
-                LOGGER.debug(
-                    "Failed to send PingReq[{}] for {}, cause: {}",
-                    period,
-                    pingMember,
-                    ex.toString()));
+    pingReqMembers.forEach(
+        member ->
+            transport
+                .requestResponse(pingReqMsg, member.address())
+                .timeout(Duration.ofMillis(timeout), scheduler)
+                .publishOn(scheduler)
+                .subscribe(
+                    message -> {
+                      LOGGER.trace(
+                          "Received transit PingAck[{}] from {} to {}",
+                          period,
+                          message.sender(),
+                          pingMember);
+                      publishPingResult(pingMember, MemberStatus.ALIVE);
+                    },
+                    throwable -> {
+                      LOGGER.trace(
+                          "Timeout getting transit PingAck[{}] from {} to {} within {} ms",
+                          period,
+                          pingReqMembers,
+                          pingMember,
+                          timeout);
+                      publishPingResult(pingMember, MemberStatus.SUSPECT);
+                    }));
   }
 
   // ================================================
