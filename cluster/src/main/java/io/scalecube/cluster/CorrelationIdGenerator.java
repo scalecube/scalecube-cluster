@@ -5,7 +5,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class CorrelationIdGenerator {
   private final String cidPrefix;
-  private final AtomicLong counter = new AtomicLong();
+  private final AtomicLong counter = new AtomicLong(System.currentTimeMillis());
 
   public CorrelationIdGenerator(String cidPrefix) {
     this.cidPrefix = Objects.requireNonNull(cidPrefix, "cidPrefix");

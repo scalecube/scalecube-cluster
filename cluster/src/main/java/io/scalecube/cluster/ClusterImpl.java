@@ -101,7 +101,8 @@ final class ClusterImpl implements Cluster {
                       transport,
                       membershipEvents.onBackpressureBuffer(),
                       config,
-                      scheduler);
+                      scheduler,
+                      cidGenerator);
 
               gossip =
                   new GossipProtocolImpl(
