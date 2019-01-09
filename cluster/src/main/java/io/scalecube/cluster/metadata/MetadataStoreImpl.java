@@ -168,8 +168,7 @@ public class MetadataStoreImpl implements MetadataStore {
               .publishOn(scheduler)
               .subscribe(
                   response -> {
-                    LOGGER.debug(
-                        "Received GetMetadataResp[{}] from {}", cid, targetAddress);
+                    LOGGER.debug("Received GetMetadataResp[{}] from {}", cid, targetAddress);
                     GetMetadataResponse respData = response.data();
                     Map<String, String> metadata = respData.getMetadata();
                     sink.success(metadata);

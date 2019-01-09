@@ -42,8 +42,8 @@ public class ClusterTest extends BaseTest {
     Optional<Member> otherNodeOnSeedNode = seedNode.member(otherNode.address());
     Optional<Member> seedNodeOnOtherNode = otherNode.member(seedNode.address());
 
-    assertEquals(otherNode.member(), otherNodeOnSeedNode.get());
-    assertEquals(seedNode.member(), seedNodeOnOtherNode.get());
+    assertEquals(otherNode.member(), otherNodeOnSeedNode.orElse(null));
+    assertEquals(seedNode.member(), seedNodeOnOtherNode.orElse(null));
   }
 
   @Test

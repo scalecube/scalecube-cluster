@@ -101,8 +101,7 @@ final class ClusterImpl implements Cluster {
                       transport,
                       membershipEvents.onBackpressureBuffer(),
                       config,
-                      scheduler
-                  );
+                      scheduler);
 
               gossip =
                   new GossipProtocolImpl(
@@ -136,7 +135,7 @@ final class ClusterImpl implements Cluster {
                   membership
                       .listen()
                       /*.publishOn(scheduler)*/
-                      // TODO [AV] : make otherMembers work
+                      // dont uncomment, already beign executed inside sc-cluster thread
                       .subscribe(
                           membershipSink::next,
                           th -> LOGGER.error("Received unexpected error: ", th)));
@@ -152,8 +151,7 @@ final class ClusterImpl implements Cluster {
 
   /**
    * Creates and prepares local cluster member. An address of member that's being constructed may be
-   * overriden from config variables. See {@link io.scalecube.cluster.ClusterConfig#memberHost},
-   * {@link ClusterConfig#memberPort}.
+   * overriden from config variables.
    *
    * @param listenPort transport listen port
    * @return local cluster member with cluster address and cluster member id

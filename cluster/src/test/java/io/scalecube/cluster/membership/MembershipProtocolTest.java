@@ -566,14 +566,14 @@ public class MembershipProtocolTest extends BaseTest {
 
     CorrelationIdGenerator cidGenerator = new CorrelationIdGenerator(localMember.id());
     FailureDetectorImpl failureDetector =
-        new FailureDetectorImpl(localMember, transport, membershipProcessor, config, scheduler
-        );
+        new FailureDetectorImpl(localMember, transport, membershipProcessor, config, scheduler);
 
     GossipProtocolImpl gossipProtocol =
         new GossipProtocolImpl(localMember, transport, membershipProcessor, config, scheduler);
 
     MetadataStoreImpl metadataStore =
-        new MetadataStoreImpl(localMember, transport, Collections.emptyMap(), config, scheduler, cidGenerator);
+        new MetadataStoreImpl(
+            localMember, transport, Collections.emptyMap(), config, scheduler, cidGenerator);
 
     MembershipProtocolImpl membership =
         new MembershipProtocolImpl(
@@ -583,7 +583,8 @@ public class MembershipProtocolTest extends BaseTest {
             gossipProtocol,
             metadataStore,
             config,
-            scheduler, cidGenerator);
+            scheduler,
+            cidGenerator);
 
     membership.listen().subscribe(membershipSink::next);
 

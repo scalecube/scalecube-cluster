@@ -203,6 +203,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     // Make initial sync with all seed members
     return Mono.create(
         sink -> {
+          // In case no members at the moment just schedule periodic sync
           if (seedMembers.isEmpty()) {
             schedulePeriodicSync();
             sink.success();
@@ -211,19 +212,25 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           // If seed addresses are specified in config - send initial sync to those nodes
           LOGGER.debug("Making initial Sync to all seed members: {}", seedMembers);
 
-          final List<Mono<Void>> collect =
+          //noinspection unchecked
+          Mono<Message>[] syncs =
               seedMembers
                   .stream()
                   .map(
-                      seedAddr ->
-                          transport
-                              .requestResponse(
-                                  prepareSyncDataMsg(SYNC, cidGenerator.nextCid()), seedAddr)
-                              .timeout(Duration.ofMillis(config.getSyncTimeout()), scheduler)
-                              .publishOn(scheduler)
-                              .flatMap(message -> onSyncAck(message, true)))
-                  .collect(Collectors.toList());
-          Mono.whenDelayError(collect)
+                      address -> {
+                        String cid = cidGenerator.nextCid();
+                        return transport
+                            .requestResponse(prepareSyncDataMsg(SYNC, cid), address)
+                            .filter(this::checkSyncGroup);
+                      })
+                  .toArray(Mono[]::new);
+
+          // Process initial SyncAck
+          Flux.mergeDelayError(syncs.length, syncs)
+              .take(1)
+              .timeout(Duration.ofMillis(config.getSyncTimeout()), scheduler)
+              .publishOn(scheduler)
+              .flatMap(message -> onSyncAck(message, true))
               .doFinally(
                   s -> {
                     schedulePeriodicSync();
