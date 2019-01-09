@@ -185,10 +185,6 @@ public class MetadataStoreImpl implements MetadataStore {
         });
   }
 
-  private boolean isGetMetadataResp(Message message) {
-    return GET_METADATA_RESP.equals(message.qualifier());
-  }
-
   // ================================================
   // ============== Event Listeners =================
   // ================================================

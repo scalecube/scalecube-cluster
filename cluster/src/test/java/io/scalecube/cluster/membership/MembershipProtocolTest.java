@@ -565,8 +565,10 @@ public class MembershipProtocolTest extends BaseTest {
     FluxSink<MembershipEvent> membershipSink = membershipProcessor.sink();
 
     CorrelationIdGenerator cidGenerator = new CorrelationIdGenerator(localMember.id());
+
     FailureDetectorImpl failureDetector =
-        new FailureDetectorImpl(localMember, transport, membershipProcessor, config, scheduler);
+        new FailureDetectorImpl(
+            localMember, transport, membershipProcessor, config, scheduler, cidGenerator);
 
     GossipProtocolImpl gossipProtocol =
         new GossipProtocolImpl(localMember, transport, membershipProcessor, config, scheduler);

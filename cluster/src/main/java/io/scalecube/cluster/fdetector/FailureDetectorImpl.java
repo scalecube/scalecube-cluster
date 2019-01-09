@@ -1,5 +1,6 @@
 package io.scalecube.cluster.fdetector;
 
+import io.scalecube.cluster.CorrelationIdGenerator;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.membership.MemberStatus;
 import io.scalecube.cluster.membership.MembershipEvent;
@@ -39,6 +40,7 @@ public final class FailureDetectorImpl implements FailureDetector {
   private final Member localMember;
   private final Transport transport;
   private final FailureDetectorConfig config;
+  private final CorrelationIdGenerator cidGenerator;
 
   // State
 
@@ -67,18 +69,21 @@ public final class FailureDetectorImpl implements FailureDetector {
    * @param membershipProcessor membership event processor
    * @param config failure detector settings
    * @param scheduler scheduler
+   * @param cidGenerator correlationId generator
    */
   public FailureDetectorImpl(
       Member localMember,
       Transport transport,
       Flux<MembershipEvent> membershipProcessor,
       FailureDetectorConfig config,
-      Scheduler scheduler) {
+      Scheduler scheduler,
+      CorrelationIdGenerator cidGenerator) {
 
     this.localMember = Objects.requireNonNull(localMember);
     this.transport = Objects.requireNonNull(transport);
     this.config = Objects.requireNonNull(config);
     this.scheduler = Objects.requireNonNull(scheduler);
+    this.cidGenerator = Objects.requireNonNull(cidGenerator);
 
     // Subscribe
     actionsDisposables.addAll(
@@ -131,7 +136,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     }
 
     // Send ping
-    String cid = localMember.id() + "-" + period;
+    String cid = cidGenerator.nextCid();
     PingData pingData = new PingData(localMember, pingMember);
     Message pingMsg =
         Message.withData(pingData)
