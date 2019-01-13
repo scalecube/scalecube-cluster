@@ -5,6 +5,7 @@ public final class TransportConfig {
   public static final int DEFAULT_PORT = 0;
   public static final int DEFAULT_CONNECT_TIMEOUT = 3000;
   public static final boolean DEFAULT_USE_NETWORK_EMULATOR = false;
+  public static final MessageCodec DEFAULT_MESSAGE_CODEC = new JacksonMessageCodec();
 
   private final int port;
   private final int connectTimeout;
@@ -60,7 +61,7 @@ public final class TransportConfig {
     private int port = DEFAULT_PORT;
     private boolean useNetworkEmulator = DEFAULT_USE_NETWORK_EMULATOR;
     private int connectTimeout = DEFAULT_CONNECT_TIMEOUT;
-    private MessageCodec messageCodec;
+    private MessageCodec messageCodec = DEFAULT_MESSAGE_CODEC;
 
     private Builder() {}
 
@@ -73,6 +74,7 @@ public final class TransportConfig {
       this.port = config.port;
       this.connectTimeout = config.connectTimeout;
       this.useNetworkEmulator = config.useNetworkEmulator;
+      this.messageCodec = config.messageCodec;
       return this;
     }
 
@@ -91,7 +93,7 @@ public final class TransportConfig {
       return this;
     }
 
-    public Builder withMessageCodec(MessageCodec messageCodec) {
+    public Builder messageCodec(MessageCodec messageCodec) {
       this.messageCodec = messageCodec;
       return this;
     }
@@ -102,9 +104,6 @@ public final class TransportConfig {
      * @return transport config
      */
     public TransportConfig build() {
-      if (messageCodec == null) {
-        messageCodec = new JacksonMessageCodec();
-      }
       return new TransportConfig(this);
     }
   }
