@@ -70,6 +70,9 @@ final class TransportImpl implements Transport {
   private final Address address;
   private final DisposableServer server;
 
+  // Message codec
+  private final MessageCodec messageCodec;
+
   /**
    * Constructor with cofig as parameter.
    *
@@ -85,6 +88,7 @@ final class TransportImpl implements Transport {
     this.channelInitializer = new TransportChannelInitializer();
     this.stop = MonoProcessor.create();
     this.onStop = MonoProcessor.create();
+    this.messageCodec = config.getMessageCodec();
     this.networkEmulator = null;
     this.address = null;
     this.server = null;
@@ -115,6 +119,7 @@ final class TransportImpl implements Transport {
     this.channelInitializer = other.channelInitializer;
     this.stop = other.stop;
     this.onStop = other.onStop;
+    this.messageCodec = other.messageCodec;
 
     // Setup cleanup
     stop.then(doStop())
@@ -236,7 +241,7 @@ final class TransportImpl implements Transport {
 
   private Message toMessage(ByteBuf byteBuf) {
     try (ByteBufInputStream stream = new ByteBufInputStream(byteBuf, true)) {
-      return MessageCodec.deserialize(stream);
+      return messageCodec.deserialize(stream);
     } catch (Exception e) {
       throw new DecoderException(e);
     }
@@ -266,7 +271,7 @@ final class TransportImpl implements Transport {
     ByteBuf bb = ByteBufAllocator.DEFAULT.buffer();
     ByteBufOutputStream stream = new ByteBufOutputStream(bb);
     try {
-      MessageCodec.serialize(message, stream);
+      messageCodec.serialize(message, stream);
     } catch (Exception e) {
       bb.release();
       throw new EncoderException(e);

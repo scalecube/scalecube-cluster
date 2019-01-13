@@ -8,13 +8,15 @@ import io.scalecube.cluster.BaseTest;
 import io.scalecube.cluster.Member;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
-import io.scalecube.transport.MessageCodec;
+import io.scalecube.transport.JacksonMessageCodec;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import io.scalecube.transport.MessageCodec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -23,6 +25,7 @@ public class GossipRequestTest extends BaseTest {
   private static final String testDataQualifier = "scalecube/testData";
 
   private TestData testData;
+  private MessageCodec messageCodec;
 
   /** Setup. */
   @BeforeEach
@@ -31,6 +34,7 @@ public class GossipRequestTest extends BaseTest {
     properties.put("key", "123");
     testData = new TestData();
     testData.setProperties(properties);
+    messageCodec = new JacksonMessageCodec();
   }
 
   @Test
@@ -42,12 +46,12 @@ public class GossipRequestTest extends BaseTest {
         Message.withData(new GossipRequest(gossips, from.id())).correlationId("CORR_ID").build();
 
     ByteArrayOutputStream out = new ByteArrayOutputStream();
-    MessageCodec.serialize(message, out);
+    messageCodec.serialize(message, out);
 
     assertTrue(out.size() > 0);
 
     Message deserializedMessage =
-        MessageCodec.deserialize(new ByteArrayInputStream(out.toByteArray()));
+      messageCodec.deserialize(new ByteArrayInputStream(out.toByteArray()));
 
     assertNotNull(deserializedMessage);
     assertEquals(deserializedMessage.data().getClass(), GossipRequest.class);
