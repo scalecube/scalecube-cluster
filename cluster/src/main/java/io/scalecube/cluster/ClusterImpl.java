@@ -71,6 +71,7 @@ final class ClusterImpl implements Cluster {
   private MembershipProtocolImpl membership;
   private MetadataStoreImpl metadataStore;
   private Scheduler scheduler;
+  private CorrelationIdGenerator cidGenerator;
 
   public ClusterImpl(ClusterConfig config) {
     this.config = Objects.requireNonNull(config);
@@ -83,6 +84,7 @@ final class ClusterImpl implements Cluster {
               transport = boundTransport;
               localMember = createLocalMember(boundTransport.address().port());
 
+              cidGenerator = new CorrelationIdGenerator(localMember.id());
               scheduler = Schedulers.newSingle("sc-cluster-" + localMember.address().port(), true);
 
               // Setup shutdown
@@ -99,7 +101,8 @@ final class ClusterImpl implements Cluster {
                       transport,
                       membershipEvents.onBackpressureBuffer(),
                       config,
-                      scheduler);
+                      scheduler,
+                      cidGenerator);
 
               gossip =
                   new GossipProtocolImpl(
@@ -111,7 +114,12 @@ final class ClusterImpl implements Cluster {
 
               metadataStore =
                   new MetadataStoreImpl(
-                      localMember, transport, config.getMetadata(), config, scheduler);
+                      localMember,
+                      transport,
+                      config.getMetadata(),
+                      config,
+                      scheduler,
+                      cidGenerator);
 
               membership =
                   new MembershipProtocolImpl(
@@ -121,13 +129,14 @@ final class ClusterImpl implements Cluster {
                       gossip,
                       metadataStore,
                       config,
-                      scheduler);
+                      scheduler,
+                      cidGenerator);
 
               actionsDisposables.add(
                   membership
                       .listen()
                       /*.publishOn(scheduler)*/
-                      // TODO [AV] : make otherMembers work
+                      // dont uncomment, already beign executed inside sc-cluster thread
                       .subscribe(
                           membershipSink::next,
                           th -> LOGGER.error("Received unexpected error: ", th)));
@@ -143,8 +152,7 @@ final class ClusterImpl implements Cluster {
 
   /**
    * Creates and prepares local cluster member. An address of member that's being constructed may be
-   * overriden from config variables. See {@link io.scalecube.cluster.ClusterConfig#memberHost},
-   * {@link ClusterConfig#memberPort}.
+   * overriden from config variables.
    *
    * @param listenPort transport listen port
    * @return local cluster member with cluster address and cluster member id

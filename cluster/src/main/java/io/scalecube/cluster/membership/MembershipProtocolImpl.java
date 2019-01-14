@@ -4,6 +4,7 @@ import static io.scalecube.cluster.membership.MemberStatus.ALIVE;
 import static io.scalecube.cluster.membership.MemberStatus.DEAD;
 
 import io.scalecube.cluster.ClusterMath;
+import io.scalecube.cluster.CorrelationIdGenerator;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.fdetector.FailureDetector;
 import io.scalecube.cluster.fdetector.FailureDetectorEvent;
@@ -27,6 +28,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
@@ -66,6 +68,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private final FailureDetector failureDetector;
   private final GossipProtocol gossipProtocol;
   private final MetadataStore metadataStore;
+  private final CorrelationIdGenerator cidGenerator;
 
   // State
 
@@ -95,6 +98,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
    * @param metadataStore metadata store
    * @param config membership config parameters
    * @param scheduler scheduler
+   * @param cidGenerator correlation id generator
    */
   public MembershipProtocolImpl(
       Member localMember,
@@ -103,7 +107,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       GossipProtocol gossipProtocol,
       MetadataStore metadataStore,
       MembershipConfig config,
-      Scheduler scheduler) {
+      Scheduler scheduler,
+      CorrelationIdGenerator cidGenerator) {
 
     this.transport = Objects.requireNonNull(transport);
     this.config = Objects.requireNonNull(config);
@@ -112,6 +117,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     this.metadataStore = Objects.requireNonNull(metadataStore);
     this.localMember = Objects.requireNonNull(localMember);
     this.scheduler = Objects.requireNonNull(scheduler);
+    this.cidGenerator = Objects.requireNonNull(cidGenerator);
 
     // Prepare seeds
     seedMembers = cleanUpSeedMembers(config.getSeedMembers());
@@ -203,16 +209,24 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
             sink.success();
             return;
           }
-
+          // If seed addresses are specified in config - send initial sync to those nodes
           LOGGER.debug("Making initial Sync to all seed members: {}", seedMembers);
 
-          // Listen initial Sync Ack
-          String cid = localMember.id();
-          transport
-              .listen()
-              .filter(msg -> SYNC_ACK.equals(msg.qualifier()))
-              .filter(msg -> cid.equals(msg.correlationId()))
-              .filter(this::checkSyncGroup)
+          //noinspection unchecked
+          Mono<Message>[] syncs =
+              seedMembers
+                  .stream()
+                  .map(
+                      address -> {
+                        String cid = cidGenerator.nextCid();
+                        return transport
+                            .requestResponse(prepareSyncDataMsg(SYNC, cid), address)
+                            .filter(this::checkSyncGroup);
+                      })
+                  .toArray(Mono[]::new);
+
+          // Process initial SyncAck
+          Flux.mergeDelayError(syncs.length, syncs)
               .take(1)
               .timeout(Duration.ofMillis(config.getSyncTimeout()), scheduler)
               .publishOn(scheduler)
@@ -225,25 +239,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
               .subscribe(
                   null,
                   ex -> LOGGER.info("Exception on initial SyncAck, cause: {}", ex.toString()));
-
-          Message syncMsg = prepareSyncDataMsg(SYNC, cid);
-
-          Mono<?>[] sendSyncs =
-              seedMembers
-                  .stream()
-                  .map(address -> transport.send(address, syncMsg))
-                  .toArray(Mono[]::new);
-
-          Mono.whenDelayError(sendSyncs)
-              .subscribe(
-                  null,
-                  ex ->
-                      LOGGER.debug(
-                          "Failed to send initial Sync: {} to some "
-                              + "seed member from the list: {}, cause: {}",
-                          syncMsg,
-                          seedMembers,
-                          ex.toString()));
         });
   }
 
@@ -297,10 +292,12 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   }
 
   private void doSync() {
-    Address address = selectSyncAddress();
-    if (address == null) {
+    Optional<Address> addressOptional = selectSyncAddress();
+    if (!addressOptional.isPresent()) {
       return;
     }
+
+    Address address = addressOptional.get();
     Message message = prepareSyncDataMsg(SYNC, null);
     LOGGER.debug("Send Sync: {} to {}", message, address);
     transport
@@ -406,11 +403,17 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     }
   }
 
-  private Address selectSyncAddress() {
-    // TODO [AK]: During running phase it should send to both seed or not seed members (issue #38)
-    return !seedMembers.isEmpty()
-        ? seedMembers.get(ThreadLocalRandom.current().nextInt(seedMembers.size()))
-        : null;
+  private Optional<Address> selectSyncAddress() {
+    List<Address> addresses =
+        Stream.concat(seedMembers.stream(), otherMembers().stream().map(Member::address))
+            .collect(Collectors.collectingAndThen(Collectors.toSet(), ArrayList::new));
+    Collections.shuffle(addresses);
+    if (addresses.isEmpty()) {
+      return Optional.empty();
+    } else {
+      int i = ThreadLocalRandom.current().nextInt(addresses.size());
+      return Optional.of(addresses.get(i));
+    }
   }
 
   // ================================================
