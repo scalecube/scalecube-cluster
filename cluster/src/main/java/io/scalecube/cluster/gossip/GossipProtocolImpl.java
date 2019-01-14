@@ -44,7 +44,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
 
   // Local State
 
-  private long period = 0;
+  private long currentPeriod = 0;
   private long gossipCounter = 0;
   private Map<String, GossipState> gossips = new HashMap<>();
   private Map<String, MonoSink<String>> futures = new HashMap<>();
@@ -138,7 +138,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
 
   private void doSpreadGossip() {
     // Increment period
-    period++;
+    long period = currentPeriod++;
 
     // Check any gossips exists
     if (gossips.isEmpty()) {
@@ -147,10 +147,10 @@ public final class GossipProtocolImpl implements GossipProtocol {
 
     try {
       // Spread gossips to randomly selected member(s)
-      selectGossipMembers().forEach(this::spreadGossipsTo);
+      selectGossipMembers().forEach(member -> spreadGossipsTo(period, member));
 
       // Sweep gossips
-      sweepGossips();
+      sweepGossips(period);
     } catch (Exception ex) {
       LOGGER.warn("Exception at doSpreadGossip[{}]: {}", period, ex.getMessage(), ex);
     }
@@ -161,6 +161,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
   // ================================================
 
   private String createAndPutGossip(Message message) {
+    long period = this.currentPeriod;
     Gossip gossip = new Gossip(generateGossipId(), message);
     GossipState gossipState = new GossipState(gossip, period);
     gossips.put(gossip.gossipId(), gossipState);
@@ -168,6 +169,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
   }
 
   private void onGossipReq(Message message) {
+    long period = this.currentPeriod;
     GossipRequest gossipRequest = message.data();
     for (Gossip gossip : gossipRequest.gossips()) {
       GossipState gossipState = gossips.get(gossip.gossipId());
@@ -191,7 +193,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
   }
 
   private void onError(Throwable throwable) {
-    LOGGER.error("Received unexpected error[{}]: ", period, throwable);
+    LOGGER.error("Received unexpected error: ", throwable);
   }
 
   // ================================================
@@ -206,9 +208,9 @@ public final class GossipProtocolImpl implements GossipProtocol {
     return localMember.id() + "-" + gossipCounter++;
   }
 
-  private void spreadGossipsTo(Member member) {
+  private void spreadGossipsTo(long period, Member member) {
     // Select gossips to send
-    List<Gossip> gossips = selectGossipsToSend(member);
+    List<Gossip> gossips = selectGossipsToSend(period, member);
     if (gossips.isEmpty()) {
       return; // nothing to spread
     }
@@ -234,7 +236,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
                                 ex.toString())));
   }
 
-  private List<Gossip> selectGossipsToSend(Member member) {
+  private List<Gossip> selectGossipsToSend(long period, Member member) {
     int periodsToSpread =
         ClusterMath.gossipPeriodsToSpread(config.getGossipRepeatMult(), remoteMembers.size() + 1);
     return gossips
@@ -278,7 +280,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
         .build();
   }
 
-  private void sweepGossips() {
+  private void sweepGossips(long period) {
     // Select gossips to sweep
     int periodsToSweep =
         ClusterMath.gossipPeriodsToSweep(config.getGossipRepeatMult(), remoteMembers.size() + 1);
