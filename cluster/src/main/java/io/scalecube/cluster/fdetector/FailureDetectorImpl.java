@@ -44,7 +44,7 @@ public final class FailureDetectorImpl implements FailureDetector {
 
   // State
 
-  private long period = 0;
+  private long currentPeriod = 0;
   private List<Member> pingMembers = new ArrayList<>();
   private int pingMemberIndex = 0; // index for sequential ping member selection
 
@@ -127,7 +127,7 @@ public final class FailureDetectorImpl implements FailureDetector {
 
   private void doPing() {
     // Increment period counter
-    period++;
+    long period = currentPeriod++;
 
     // Select ping member
     Member pingMember = selectPingMember();
@@ -154,7 +154,7 @@ public final class FailureDetectorImpl implements FailureDetector {
         .subscribe(
             message -> {
               LOGGER.trace("Received PingAck[{}] from {}", period, pingMember);
-              publishPingResult(pingMember, MemberStatus.ALIVE);
+              publishPingResult(period, pingMember, MemberStatus.ALIVE);
             },
             ex -> {
               LOGGER.debug(
@@ -162,28 +162,21 @@ public final class FailureDetectorImpl implements FailureDetector {
                   period,
                   pingMember,
                   config.getPingTimeout());
-              doPingReq(pingMember, cid);
+
+              final int timeLeft = config.getPingInterval() - config.getPingTimeout();
+              final List<Member> pingReqMembers = selectPingReqMembers(pingMember);
+
+              if (timeLeft <= 0 || pingReqMembers.isEmpty()) {
+                LOGGER.trace("No PingReq[{}] occurred", period);
+                publishPingResult(period, pingMember, MemberStatus.SUSPECT);
+              } else {
+                doPingReq(currentPeriod, pingMember, pingReqMembers, cid);
+              }
             });
   }
 
-  private void doPingReq(final Member pingMember, String cid) {
-    final int timeout = config.getPingInterval() - config.getPingTimeout();
-    if (timeout <= 0) {
-      LOGGER.trace(
-          "No PingReq[{}] occurred, because no time left (pingInterval={}, pingTimeout={})",
-          period,
-          config.getPingInterval(),
-          config.getPingTimeout());
-      publishPingResult(pingMember, MemberStatus.SUSPECT);
-      return;
-    }
-
-    final List<Member> pingReqMembers = selectPingReqMembers(pingMember);
-    if (pingReqMembers.isEmpty()) {
-      LOGGER.trace("No PingReq[{}] occurred, because member selection is empty", period);
-      publishPingResult(pingMember, MemberStatus.SUSPECT);
-      return;
-    }
+  private void doPingReq(
+      long period, final Member pingMember, final List<Member> pingReqMembers, String cid) {
     Message pingReqMsg =
         Message.withData(new PingData(localMember, pingMember))
             .qualifier(PING_REQ)
@@ -192,11 +185,12 @@ public final class FailureDetectorImpl implements FailureDetector {
             .build();
     LOGGER.trace("Send PingReq[{}] to {} for {}", period, pingReqMembers, pingMember);
 
+    Duration timeout = Duration.ofMillis(config.getPingInterval() - config.getPingTimeout());
     pingReqMembers.forEach(
         member ->
             transport
                 .requestResponse(pingReqMsg, member.address())
-                .timeout(Duration.ofMillis(timeout), scheduler)
+                .timeout(timeout, scheduler)
                 .publishOn(scheduler)
                 .subscribe(
                     message -> {
@@ -205,7 +199,7 @@ public final class FailureDetectorImpl implements FailureDetector {
                           period,
                           message.sender(),
                           pingMember);
-                      publishPingResult(pingMember, MemberStatus.ALIVE);
+                      publishPingResult(period, pingMember, MemberStatus.ALIVE);
                     },
                     throwable -> {
                       LOGGER.trace(
@@ -214,7 +208,7 @@ public final class FailureDetectorImpl implements FailureDetector {
                           pingReqMembers,
                           pingMember,
                           timeout);
-                      publishPingResult(pingMember, MemberStatus.SUSPECT);
+                      publishPingResult(period, pingMember, MemberStatus.SUSPECT);
                     }));
   }
 
@@ -234,6 +228,7 @@ public final class FailureDetectorImpl implements FailureDetector {
 
   /** Listens to PING message and answers with ACK. */
   private void onPing(Message message) {
+    long period = this.currentPeriod;
     LOGGER.trace("Received Ping[{}]", period);
     PingData data = message.data();
     if (!data.getTo().id().equals(localMember.id())) {
@@ -261,6 +256,7 @@ public final class FailureDetectorImpl implements FailureDetector {
 
   /** Listens to PING_REQ message and sends PING to requested cluster member. */
   private void onPingReq(Message message) {
+    long period = this.currentPeriod;
     LOGGER.trace("Received PingReq[{}]", period);
     PingData data = message.data();
     Member target = data.getTo();
@@ -292,6 +288,7 @@ public final class FailureDetectorImpl implements FailureDetector {
    * sends it to ORIGINAL_ISSUER.
    */
   private void onTransitPingAck(Message message) {
+    long period = this.currentPeriod;
     LOGGER.trace("Received transit PingAck[{}]", period);
     PingData data = message.data();
     Member target = data.getOriginalIssuer();
@@ -318,7 +315,7 @@ public final class FailureDetectorImpl implements FailureDetector {
   }
 
   private void onError(Throwable throwable) {
-    LOGGER.error("Received unexpected error[{}]: ", period, throwable);
+    LOGGER.error("Received unexpected error: ", throwable);
   }
 
   private void onMemberEvent(MembershipEvent event) {
@@ -363,7 +360,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     return selectAll ? candidates : candidates.subList(0, config.getPingReqMembers());
   }
 
-  private void publishPingResult(Member member, MemberStatus status) {
+  private void publishPingResult(long period, Member member, MemberStatus status) {
     LOGGER.debug("Member {} detected as {} at [{}]", member, status, period);
     sink.next(new FailureDetectorEvent(member, status));
   }
@@ -374,11 +371,6 @@ public final class FailureDetectorImpl implements FailureDetector {
 
   private boolean isPingReq(Message message) {
     return PING_REQ.equals(message.qualifier());
-  }
-
-  private boolean isPingAck(Message message) {
-    return PING_ACK.equals(message.qualifier())
-        && message.<PingData>data().getOriginalIssuer() == null;
   }
 
   private boolean isTransitPingAck(Message message) {
