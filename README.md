@@ -4,7 +4,7 @@ ScaleCube Cluster is a lightweight decentralized cluster membership, failure det
 It provides an implementation of [SWIM](http://www.cs.cornell.edu/~asdas/research/dsn02-swim.pdf) cluster membership protocol for Java VM.
 
 It is an efficient and scalable weakly-consistent distributed group membership protocol based on gossip-style communication between the 
-nodes in the cluster. Read my [blog post](http://www.antonkharenko.com/2015/09/swim-distributed-group-membership.html) with distilled 
+nodes in the cluster. Read [blog post](http://www.antonkharenko.com/2015/09/swim-distributed-group-membership.html) with distilled 
 notes on the SWIM paper for more details.
 
 It is using a [random-probing failure detection algorithm](http://www.antonkharenko.com/2015/08/scalable-and-efficient-distributed.html) which provides 
