@@ -36,32 +36,6 @@ carol.otherMembers().forEach(member -> carol.send(member, Message.fromData("Gree
 
 You are welcome to explore javadoc documentation on cluster API and examples module for more advanced use cases.
 
-### TRANSPORT
-
-ScaleCube Transport is a network communication layer which provides high throughput and low latency peer-to-peer messaging. 
-It is based on [Netty](http://netty.io/) asynchronous networking framework and is using [RxJava](https://github.com/ReactiveX/RxJava) 
-in order to provide convenient reactive API on top of network handlers pipelines.
-
-Using ScaleCube Transport as simple as few lines of code:
-
-``` java
-// Bind first transport to port 5000
-TransportConfig config1 = TransportConfig.builder().port(5000).build();
-Transport transport1 = Transport.bindAwait(config1);
-
-// Make first transport to listen and print all incoming messages
-transport1.listen().subscribe(System.out::println);
-
-// Get 'host:port' address of the first transport
-Address address1 = transport1.address(); 
-
-// Bind second transport on available port and send message to the first transport
-Transport transport2 = Transport.bindAwait();
-transport2.send(address1, Message.fromData("Hello World"));
-```
-
-You are welcome to explore javadoc documentation on transport API for more advanced use cases.
-
 ## Support
 
 For improvement requests, bugs and discussions please use the [GitHub Issues](https://github.com/scalecube/scalecube/issues) 
