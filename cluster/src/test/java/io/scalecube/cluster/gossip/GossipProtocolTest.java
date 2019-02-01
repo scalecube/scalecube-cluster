@@ -244,7 +244,7 @@ class GossipProtocolTest extends BaseTest {
     List<Transport> transports = new ArrayList<>(count);
     TransportConfig transportConfig = TransportConfig.builder().useNetworkEmulator(true).build();
     for (int i = 0; i < count; i++) {
-      Transport transport = Transport.bindAwait(transportConfig);
+      Transport transport = Transport.nettyAwait(transportConfig);
       transport.networkEmulator().setDefaultLinkSettings(lostPercent, meanDelay);
       transports.add(transport);
     }

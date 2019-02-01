@@ -56,9 +56,9 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testInitialPhaseOk() {
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
+    Transport a = Transport.nettyAwait(true);
+    Transport b = Transport.nettyAwait(true);
+    Transport c = Transport.nettyAwait(true);
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
 
     MembershipProtocolImpl cmA = createMembership(a, members);
@@ -81,9 +81,9 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testNetworkPartitionThenRecovery() {
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
+    Transport a = Transport.nettyAwait(true);
+    Transport b = Transport.nettyAwait(true);
+    Transport c = Transport.nettyAwait(true);
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
 
     MembershipProtocolImpl cmA = createMembership(a, members);
@@ -130,9 +130,9 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testMemberLostNetworkThenRecover() {
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
+    Transport a = Transport.nettyAwait(true);
+    Transport b = Transport.nettyAwait(true);
+    Transport c = Transport.nettyAwait(true);
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
 
     MembershipProtocolImpl cmA = createMembership(a, members);
@@ -186,9 +186,9 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testDoublePartitionThenRecover() {
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
+    Transport a = Transport.nettyAwait(true);
+    Transport b = Transport.nettyAwait(true);
+    Transport c = Transport.nettyAwait(true);
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
 
     MembershipProtocolImpl cmA = createMembership(a, members);
@@ -256,9 +256,9 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testNetworkDisabledThenRecovered() {
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
+    Transport a = Transport.nettyAwait(true);
+    Transport b = Transport.nettyAwait(true);
+    Transport c = Transport.nettyAwait(true);
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
 
     MembershipProtocolImpl cmA = createMembership(a, members);
@@ -311,10 +311,10 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testLongNetworkPartitionNoRecovery() {
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
-    Transport d = Transport.bindAwait(true);
+    Transport a = Transport.nettyAwait(true);
+    Transport b = Transport.nettyAwait(true);
+    Transport c = Transport.nettyAwait(true);
+    Transport d = Transport.nettyAwait(true);
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address(), d.address());
 
     MembershipProtocolImpl cmA = createMembership(a, members);
@@ -367,10 +367,10 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testRestartFailedMembers() {
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
-    Transport d = Transport.bindAwait(true);
+    Transport a = Transport.nettyAwait(true);
+    Transport b = Transport.nettyAwait(true);
+    Transport c = Transport.nettyAwait(true);
+    Transport d = Transport.nettyAwait(true);
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address(), d.address());
 
     MembershipProtocolImpl cmA = createMembership(a, members);
@@ -409,8 +409,8 @@ public class MembershipProtocolTest extends BaseTest {
       assertTrusted(cmB, a.address(), b.address());
       assertNoSuspected(cmB);
 
-      c = Transport.bindAwait(true);
-      d = Transport.bindAwait(true);
+      c = Transport.nettyAwait(true);
+      d = Transport.nettyAwait(true);
       cmRestartedC = createMembership(c, Arrays.asList(a.address(), b.address()));
       cmRestartedD = createMembership(d, Arrays.asList(a.address(), b.address()));
 
@@ -431,11 +431,11 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testLimitedSeedMembers() {
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
-    Transport d = Transport.bindAwait(true);
-    Transport e = Transport.bindAwait(true);
+    Transport a = Transport.nettyAwait(true);
+    Transport b = Transport.nettyAwait(true);
+    Transport c = Transport.nettyAwait(true);
+    Transport d = Transport.nettyAwait(true);
+    Transport e = Transport.nettyAwait(true);
 
     MembershipProtocolImpl cmA = createMembership(a, Collections.emptyList());
     MembershipProtocolImpl cmB = createMembership(b, Collections.singletonList(a.address()));
@@ -465,11 +465,11 @@ public class MembershipProtocolTest extends BaseTest {
   public void testOverrideMemberAddress() throws UnknownHostException {
     String localAddress = InetAddress.getLocalHost().getHostName();
 
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
-    Transport d = Transport.bindAwait(true);
-    Transport e = Transport.bindAwait(true);
+    Transport a = Transport.nettyAwait(true);
+    Transport b = Transport.nettyAwait(true);
+    Transport c = Transport.nettyAwait(true);
+    Transport d = Transport.nettyAwait(true);
+    Transport e = Transport.nettyAwait(true);
 
     MembershipProtocolImpl cmA =
         createMembership(a, testConfig(Collections.emptyList()).memberHost(localAddress).build());

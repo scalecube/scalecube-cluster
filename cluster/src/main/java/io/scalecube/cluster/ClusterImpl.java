@@ -78,7 +78,7 @@ final class ClusterImpl implements Cluster {
   }
 
   public Mono<Cluster> join0() {
-    return Transport.bind(config.getTransportConfig())
+    return Transport.netty(config.getTransportConfig())
         .flatMap(
             boundTransport -> {
               transport = boundTransport;

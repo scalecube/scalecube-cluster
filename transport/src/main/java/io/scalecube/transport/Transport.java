@@ -1,5 +1,8 @@
 package io.scalecube.transport;
 
+import io.scalecube.transport.rsocket.RSocketTransportImpl;
+import java.util.function.Consumer;
+import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -8,14 +11,6 @@ import reactor.core.publisher.Mono;
  * allows to send messages to other transports and listen for incoming messages.
  */
 public interface Transport {
-
-  /**
-   * Init transport with the default configuration synchronously. Starts to accept connections on
-   * local address.
-   *
-   * @return transport
-   */
-  Transport bindAwait();
 
   /**
    * Init transport with the default configuration and network emulator flag synchronously. Starts
@@ -33,13 +28,29 @@ public interface Transport {
    */
   Transport bindAwait(TransportConfig config);
 
-  /**
-   * Init transport with the default configuration asynchronously. Starts to accept connections on
-   * local address.
-   *
-   * @return promise for bind operation
-   */
-  Mono<Transport> bind();
+  static Transport rsocketAwait(TransportConfig config) {
+    try {
+      return rsocket(config).block();
+    } catch (Exception e) {
+      throw Exceptions.propagate(e.getCause() != null ? e.getCause() : e);
+    }
+  }
+
+  static Transport nettyAwait(TransportConfig config) {
+    try {
+      return netty(config).block();
+    } catch (Exception e) {
+      throw Exceptions.propagate(e.getCause() != null ? e.getCause() : e);
+    }
+  }
+
+  static Transport rsocketAwait(boolean useNetworkEmulator) {
+    return rsocketAwait(TransportConfig.builder().useNetworkEmulator(useNetworkEmulator).build());
+  }
+
+  static Transport nettyAwait(boolean useNetworkEmulator) {
+    return nettyAwait(TransportConfig.builder().useNetworkEmulator(useNetworkEmulator).build());
+  }
 
   /**
    * Init transport with the given configuration asynchronously. Starts to accept connections on
@@ -49,6 +60,14 @@ public interface Transport {
    * @return promise for bind operation
    */
   Mono<Transport> bind(TransportConfig config);
+
+  static Mono<Transport> rsocket(TransportConfig config) {
+    return new RSocketTransportImpl(config).bind0();
+  }
+
+  static Mono<Transport> netty(TransportConfig config) {
+    return new TransportImpl(config).bind0();
+  }
 
   /**
    * Returns local {@link Address} on which current instance of transport listens for incoming
@@ -99,16 +118,26 @@ public interface Transport {
    * Returns stream of received messages. For each observers subscribed to the returned observable:
    *
    * <ul>
-   *   <li>{@code rx.Observer#onNext(Object)} will be invoked when some message arrived to current
-   *       transport
-   *   <li>{@code rx.Observer#onCompleted()} will be invoked when there is no possibility that
-   *       server will receive new message observable for already closed transport
-   *   <li>{@code rx.Observer#onError(Throwable)} will not be invoked
+   * <li>{@code rx.Observer#onNext(Object)} will be invoked when some message arrived to current
+   * transport
+   * <li>{@code rx.Observer#onCompleted()} will be invoked when there is no possibility that
+   * server will receive new message observable for already closed transport
+   * <li>{@code rx.Observer#onError(Throwable)} will not be invoked
    * </ul>
    *
    * @return Observable which emit received messages or complete event when transport is closed
    */
   Flux<Message> listen();
+
+  /**
+   * Register callback to be called once server receives message with given qualifier
+   *
+   * @param qualifier messages to react
+   * @param handler callback to be called upon receiving message with given qualifier
+   * @return true if that was the first handler to be registered
+   */
+  boolean registerServerHandler(String qualifier, Consumer<Message> handler);
+
 
   /**
    * Returns network emulator associated with this instance of transport. It always returns non null

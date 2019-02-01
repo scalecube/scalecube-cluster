@@ -30,7 +30,9 @@ public class TransportTest extends BaseTest {
   private Transport client;
   private Transport server;
 
-  /** Tear down. */
+  /**
+   * Tear down.
+   */
   @AfterEach
   public final void tearDown() {
     destroyTransport(client);
@@ -43,14 +45,14 @@ public class TransportTest extends BaseTest {
     Transport transport1 = null;
     Transport transport2 = null;
     try {
-      transport1 = Transport.bindAwait(config);
-      transport2 = Transport.bindAwait(config);
+      transport1 = Transport.nettyAwait(config);
+      transport2 = Transport.nettyAwait(config);
       fail("Didn't get expected bind exception");
     } catch (Throwable throwable) {
       // Check that get address already in use exception
       assertTrue(
-          throwable instanceof ChannelBindException
-              || throwable.getMessage().contains("Address already in use"));
+        throwable instanceof ChannelBindException
+          || throwable.getMessage().contains("Address already in use"));
     } finally {
       destroyTransport(transport1);
       destroyTransport(transport2);
@@ -68,7 +70,7 @@ public class TransportTest extends BaseTest {
       fail();
     } catch (Exception e) {
       assertEquals(
-          UnknownHostException.class, e.getCause().getClass(), "Unexpected exception class");
+        UnknownHostException.class, e.getCause().getClass(), "Unexpected exception class");
     }
   }
 
@@ -108,13 +110,13 @@ public class TransportTest extends BaseTest {
     server = createTransport();
 
     server
-        .listen()
-        .subscribe(
-            message -> {
-              Address address = message.sender();
-              assertEquals(client.address(), address, "Expected clientAddress");
-              send(server, address, Message.fromQualifier("hi client")).subscribe();
-            });
+      .listen()
+      .subscribe(
+        message -> {
+          Address address = message.sender();
+          assertEquals(client.address(), address, "Expected clientAddress");
+          send(server, address, Message.fromQualifier("hi client")).subscribe();
+        });
 
     CompletableFuture<Message> messageFuture = new CompletableFuture<>();
     client.listen().subscribe(messageFuture::complete);
@@ -147,7 +149,7 @@ public class TransportTest extends BaseTest {
     Thread.sleep(1000);
 
     int expectedMax =
-        total / 100 * lostPercent + total / 100 * 5; // +5% for maximum possible lost messages
+      total / 100 * lostPercent + total / 100 * 5; // +5% for maximum possible lost messages
     int size = serverMessageList.size();
     assertTrue(size < expectedMax, "expectedMax=" + expectedMax + ", actual size=" + size);
   }
@@ -158,18 +160,18 @@ public class TransportTest extends BaseTest {
     client = createTransport();
 
     server
-        .listen()
-        .buffer(2)
-        .subscribe(
-            messages -> {
-              for (Message message : messages) {
-                Message echo =
-                    Message.withData("echo/" + message.qualifier())
-                        .sender(server.address())
-                        .build();
-                server.send(message.sender(), echo).subscribe();
-              }
-            });
+      .listen()
+      .buffer(2)
+      .subscribe(
+        messages -> {
+          for (Message message : messages) {
+            Message echo =
+              Message.withData("echo/" + message.qualifier())
+                .sender(server.address())
+                .build();
+            server.send(message.sender(), echo).subscribe();
+          }
+        });
 
     final CompletableFuture<List<Message>> targetFuture = new CompletableFuture<>();
     client.listen().buffer(2).subscribe(targetFuture::complete);
@@ -191,32 +193,32 @@ public class TransportTest extends BaseTest {
     server = createTransport();
 
     server
-        .listen()
-        .filter(req -> req.qualifier().equals("hello/server"))
-        .subscribe(
-            message -> {
-              send(
-                      server,
-                      message.sender(),
-                      Message.builder()
-                          .correlationId(message.correlationId())
-                          .data("hello: " + message.data())
-                          .build())
-                  .subscribe();
-            });
+      .listen()
+      .filter(req -> req.qualifier().equals("hello/server"))
+      .subscribe(
+        message -> {
+          send(
+            server,
+            message.sender(),
+            Message.builder()
+              .correlationId(message.correlationId())
+              .data("hello: " + message.data())
+              .build())
+            .subscribe();
+        });
 
     String result =
-        client
-            .requestResponse(
-                Message.builder()
-                    .sender(client.address())
-                    .qualifier("hello/server")
-                    .correlationId("123xyz")
-                    .data("server")
-                    .build(),
-                server.address())
-            .map(msg -> msg.data().toString())
-            .block(Duration.ofSeconds(1));
+      client
+        .requestResponse(
+          Message.builder()
+            .sender(client.address())
+            .qualifier("hello/server")
+            .correlationId("123xyz")
+            .data("server")
+            .build(),
+          server.address())
+        .map(msg -> msg.data().toString())
+        .block(Duration.ofSeconds(1));
 
     assertTrue("hello: server".equals(result));
   }
@@ -227,18 +229,18 @@ public class TransportTest extends BaseTest {
     client = createTransport();
 
     server
-        .listen()
-        .buffer(2)
-        .subscribe(
-            messages -> {
-              for (Message message : messages) {
-                Message echo =
-                    Message.withData("echo/" + message.qualifier())
-                        .sender(server.address())
-                        .build();
-                server.send(message.sender(), echo).subscribe();
-              }
-            });
+      .listen()
+      .buffer(2)
+      .subscribe(
+        messages -> {
+          for (Message message : messages) {
+            Message echo =
+              Message.withData("echo/" + message.qualifier())
+                .sender(server.address())
+                .build();
+            server.send(message.sender(), echo).subscribe();
+          }
+        });
 
     final CompletableFuture<List<Message>> targetFuture = new CompletableFuture<>();
     client.listen().buffer(2).subscribe(targetFuture::complete);
@@ -263,17 +265,17 @@ public class TransportTest extends BaseTest {
     final CompletableFuture<Message> messageLatch = new CompletableFuture<>();
 
     server
-        .listen()
-        .subscribe(
-            messageLatch::complete,
-            errorConsumer -> {
-              // no-op
-            },
-            () -> completeLatch.complete(true));
+      .listen()
+      .subscribe(
+        messageLatch::complete,
+        errorConsumer -> {
+          // no-op
+        },
+        () -> completeLatch.complete(true));
 
     client
-        .send(server.address(), Message.withData("q").sender(client.address()).build())
-        .block(Duration.ofSeconds(1));
+      .send(server.address(), Message.withData("q").sender(client.address()).build())
+      .block(Duration.ofSeconds(1));
 
     assertNotNull(messageLatch.get(1, TimeUnit.SECONDS));
 
@@ -288,22 +290,22 @@ public class TransportTest extends BaseTest {
     client = createTransport();
 
     server
-        .listen()
-        .subscribe(
-            message -> {
-              String qualifier = message.data();
-              if (qualifier.startsWith("throw")) {
-                throw new RuntimeException("" + message);
-              }
-              if (qualifier.startsWith("q")) {
-                Message echo =
-                    Message.withData("echo/" + message.qualifier())
-                        .sender(server.address())
-                        .build();
-                server.send(message.sender(), echo).subscribe();
-              }
-            },
-            Throwable::printStackTrace);
+      .listen()
+      .subscribe(
+        message -> {
+          String qualifier = message.data();
+          if (qualifier.startsWith("throw")) {
+            throw new RuntimeException("" + message);
+          }
+          if (qualifier.startsWith("q")) {
+            Message echo =
+              Message.withData("echo/" + message.qualifier())
+                .sender(server.address())
+                .build();
+            server.send(message.sender(), echo).subscribe();
+          }
+        },
+        Throwable::printStackTrace);
 
     // send "throw" and raise exception on server subscriber
     final CompletableFuture<Message> messageFuture0 = new CompletableFuture<>();

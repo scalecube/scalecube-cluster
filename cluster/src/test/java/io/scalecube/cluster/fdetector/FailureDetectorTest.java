@@ -51,9 +51,9 @@ public class FailureDetectorTest extends BaseTest {
   @Test
   public void testTrusted() {
     // Create transports
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
+    Transport a = Transport.nettyAwait(true);
+    Transport b = Transport.nettyAwait(true);
+    Transport c = Transport.nettyAwait(true);
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
 
     // Create failure detectors
@@ -80,9 +80,9 @@ public class FailureDetectorTest extends BaseTest {
   @Test
   public void testSuspected() {
     // Create transports
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
+    Transport a = Transport.nettyAwait(true);
+    Transport b = Transport.nettyAwait(true);
+    Transport c = Transport.nettyAwait(true);
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
 
     // Create failure detectors
@@ -117,9 +117,9 @@ public class FailureDetectorTest extends BaseTest {
   @Test
   public void testTrustedDespiteBadNetwork() throws Exception {
     // Create transports
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
+    Transport a = Transport.nettyAwait(true);
+    Transport b = Transport.nettyAwait(true);
+    Transport c = Transport.nettyAwait(true);
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
 
     // Create failure detectors
@@ -149,9 +149,9 @@ public class FailureDetectorTest extends BaseTest {
   @Test
   public void testTrustedDespiteDifferentPingTimings() throws Exception {
     // Create transports
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
+    Transport a = Transport.nettyAwait(true);
+    Transport b = Transport.nettyAwait(true);
+    Transport c = Transport.nettyAwait(true);
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
 
     // Create failure detectors
@@ -180,10 +180,10 @@ public class FailureDetectorTest extends BaseTest {
   @Test
   public void testSuspectedMemberWithBadNetworkGetsPartitioned() throws Exception {
     // Create transports
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
-    Transport d = Transport.bindAwait(true);
+    Transport a = Transport.nettyAwait(true);
+    Transport b = Transport.nettyAwait(true);
+    Transport c = Transport.nettyAwait(true);
+    Transport d = Transport.nettyAwait(true);
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address(), d.address());
 
     // Create failure detectors
@@ -239,10 +239,10 @@ public class FailureDetectorTest extends BaseTest {
   @Test
   public void testSuspectedMemberWithNormalNetworkGetsPartitioned() throws Exception {
     // Create transports
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
-    Transport d = Transport.bindAwait(true);
+    Transport a = Transport.nettyAwait(true);
+    Transport b = Transport.nettyAwait(true);
+    Transport c = Transport.nettyAwait(true);
+    Transport d = Transport.nettyAwait(true);
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address(), d.address());
 
     // Create failure detectors
@@ -302,8 +302,8 @@ public class FailureDetectorTest extends BaseTest {
   @Test
   public void testMemberStatusChangeAfterNetworkRecovery() throws Exception {
     // Create transports
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
+    Transport a = Transport.nettyAwait(true);
+    Transport b = Transport.nettyAwait(true);
     List<Address> members = Arrays.asList(a.address(), b.address());
 
     // Create failure detectors
@@ -344,9 +344,9 @@ public class FailureDetectorTest extends BaseTest {
   @Test
   public void testStatusChangeAfterMemberRestart() throws Exception {
     // Create transports
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport x = Transport.bindAwait(true);
+    Transport a = Transport.nettyAwait(true);
+    Transport b = Transport.nettyAwait(true);
+    Transport x = Transport.nettyAwait(true);
     List<Address> members = Arrays.asList(a.address(), b.address(), x.address());
 
     // Create failure detectors
@@ -376,7 +376,7 @@ public class FailureDetectorTest extends BaseTest {
 
       // restart node X as XX
       xx =
-          Transport.bindAwait(
+          Transport.nettyAwait(
               TransportConfig.builder().port(x.address().port()).useNetworkEmulator(true).build());
       assertEquals(x.address(), xx.address());
       fdetectors = Arrays.asList(fdA, fdB, fdXx = createFd(xx, members));

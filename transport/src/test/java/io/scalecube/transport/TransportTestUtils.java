@@ -24,7 +24,7 @@ public final class TransportTestUtils {
   public static Transport createTransport() {
     TransportConfig config =
         TransportConfig.builder().connectTimeout(CONNECT_TIMEOUT).useNetworkEmulator(true).build();
-    return Transport.bindAwait(config);
+    return Transport.nettyAwait(config);
   }
 
   /**

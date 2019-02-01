@@ -17,6 +17,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
@@ -133,7 +134,7 @@ final class TransportImpl implements Transport {
    *
    * @return mono transport
    */
-  private Mono<Transport> bind0() {
+  protected Mono<Transport> bind0() {
     return newTcpServer()
         .handle(this::onMessage)
         .bind()
@@ -150,11 +151,6 @@ final class TransportImpl implements Transport {
   }
 
   @Override
-  public Transport bindAwait() {
-    return bindAwait(TransportConfig.defaultConfig());
-  }
-
-  @Override
   public Transport bindAwait(boolean useNetworkEmulator) {
     return bindAwait(TransportConfig.builder().useNetworkEmulator(useNetworkEmulator).build());
   }
@@ -166,11 +162,6 @@ final class TransportImpl implements Transport {
     } catch (Exception e) {
       throw Exceptions.propagate(e.getCause() != null ? e.getCause() : e);
     }
-  }
-
-  @Override
-  public Mono<Transport> bind() {
-    return bind(TransportConfig.defaultConfig());
   }
 
   @Override
@@ -218,6 +209,12 @@ final class TransportImpl implements Transport {
   @Override
   public final Flux<Message> listen() {
     return messagesSubject.onBackpressureBuffer();
+  }
+
+  @Override
+  public boolean registerServerHandler(String qualifier, Consumer<Message> handler) {
+
+    return false;
   }
 
   @Override
