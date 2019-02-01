@@ -22,7 +22,6 @@ import org.slf4j.LoggerFactory;
 import reactor.core.Exceptions;
 import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoProcessor;
 import reactor.netty.resources.LoopResources;
@@ -48,8 +47,8 @@ public class RsocketTransportImpl implements Transport {
   // Use for legacy contract only. Consider adding , message listeners for every component and
   // register them to rsocket server before starting it
   private final DirectProcessor<Message> messagesSubject;
-  private final FluxSink<Message> messageSink;
   // Message codec
+
   private final MessageCodec messageCodec;
   private final Map<String, Consumer<Message>> serverMessageListeners = new HashMap<>();
   private CloseableChannel server;
@@ -118,20 +117,6 @@ public class RsocketTransportImpl implements Transport {
         });
   }
 
-  private Mono<Void> closeServer() {
-    return Mono.defer(
-        () ->
-            Optional.ofNullable(rsocketServer)
-                .map(
-                    server -> {
-                      // TODO: shutdown Rsocket server here
-                      return rsocketServer
-                          .onDispose()
-                          .doOnError(e -> LOGGER.warn("Failed to close server: " + e));
-                    })
-                .orElse(Mono.empty()));
-  }
-
   @Override
   public boolean isStopped() {
     return onStop.isDisposed();
@@ -156,7 +141,6 @@ public class RsocketTransportImpl implements Transport {
   public NetworkEmulator networkEmulator() {
     return networkEmulator;
   }
-
 
   /////////////////////////////////////////////
   //  Server bind methods
@@ -193,11 +177,13 @@ public class RsocketTransportImpl implements Transport {
 
   private Mono<Transport> bind0() {
     TcpServer tcpServer = newTcpServer();
-    RSocketFactory.receive()
+    return RSocketFactory.receive()
         .frameDecoder(
             frame ->
                 ByteBufPayload.create(frame.sliceData().retain(), frame.sliceMetadata().retain()))
-        .acceptor(new RSocketTransportAcceptor())
+        .acceptor(
+            new RSocketTransportAcceptor(
+                messagesSubject.sink(), serverMessageListeners, messageCodec))
         .transport(() -> TcpServerTransport.create(tcpServer))
         .start()
         .map(server -> this.server = server)
@@ -220,23 +206,21 @@ public class RsocketTransportImpl implements Transport {
         .addressSupplier(() -> new InetSocketAddress(config.getPort()));
   }
 
-
-
   /////////////////////////////////////////////
   //  Shutdown area
   /////////////////////////////////////////////
-  private Mono<Void> shutdownServer() {
+  private Mono<Void> closeServer() {
     return Mono.defer(
-      () ->
-        Optional.ofNullable(server)
-          .map(
-            server -> {
-              server.dispose();
-              return server
-                .onClose()
-                .doOnError(e -> LOGGER.warn("Failed to close server: " + e))
-                .onErrorResume(e -> Mono.empty());
-            })
-          .orElse(Mono.empty()));
+        () ->
+            Optional.ofNullable(server)
+                .map(
+                    server -> {
+                      server.dispose();
+                      return server
+                          .onClose()
+                          .doOnError(e -> LOGGER.warn("Failed to close server: " + e))
+                          .onErrorResume(e -> Mono.empty());
+                    })
+                .orElse(Mono.empty()));
   }
 }
