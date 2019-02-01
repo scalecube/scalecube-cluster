@@ -20,6 +20,7 @@ import java.util.function.BiConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
+import reactor.core.Exceptions;
 import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
@@ -132,7 +133,7 @@ final class TransportImpl implements Transport {
    *
    * @return mono transport
    */
-  public Mono<Transport> bind0() {
+  private Mono<Transport> bind0() {
     return newTcpServer()
         .handle(this::onMessage)
         .bind()
@@ -146,6 +147,35 @@ final class TransportImpl implements Transport {
                     config.getPort(),
                     ex.toString()))
         .map(this::onBind);
+  }
+
+  @Override
+  public Transport bindAwait() {
+    return bindAwait(TransportConfig.defaultConfig());
+  }
+
+  @Override
+  public Transport bindAwait(boolean useNetworkEmulator) {
+    return bindAwait(TransportConfig.builder().useNetworkEmulator(useNetworkEmulator).build());
+  }
+
+  @Override
+  public Transport bindAwait(TransportConfig config) {
+    try {
+      return bind(config).block();
+    } catch (Exception e) {
+      throw Exceptions.propagate(e.getCause() != null ? e.getCause() : e);
+    }
+  }
+
+  @Override
+  public Mono<Transport> bind() {
+    return bind(TransportConfig.defaultConfig());
+  }
+
+  @Override
+  public Mono<Transport> bind(TransportConfig config) {
+    return new TransportImpl(config).bind0();
   }
 
   @Override

@@ -1,6 +1,5 @@
 package io.scalecube.transport;
 
-import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -16,9 +15,7 @@ public interface Transport {
    *
    * @return transport
    */
-  static Transport bindAwait() {
-    return bindAwait(TransportConfig.defaultConfig());
-  }
+  Transport bindAwait();
 
   /**
    * Init transport with the default configuration and network emulator flag synchronously. Starts
@@ -26,9 +23,7 @@ public interface Transport {
    *
    * @return transport
    */
-  static Transport bindAwait(boolean useNetworkEmulator) {
-    return bindAwait(TransportConfig.builder().useNetworkEmulator(useNetworkEmulator).build());
-  }
+  Transport bindAwait(boolean useNetworkEmulator);
 
   /**
    * Init transport with the given configuration synchronously. Starts to accept connections on
@@ -36,13 +31,7 @@ public interface Transport {
    *
    * @return transport
    */
-  static Transport bindAwait(TransportConfig config) {
-    try {
-      return bind(config).block();
-    } catch (Exception e) {
-      throw Exceptions.propagate(e.getCause() != null ? e.getCause() : e);
-    }
-  }
+  Transport bindAwait(TransportConfig config);
 
   /**
    * Init transport with the default configuration asynchronously. Starts to accept connections on
@@ -50,9 +39,7 @@ public interface Transport {
    *
    * @return promise for bind operation
    */
-  static Mono<Transport> bind() {
-    return bind(TransportConfig.defaultConfig());
-  }
+  Mono<Transport> bind();
 
   /**
    * Init transport with the given configuration asynchronously. Starts to accept connections on
@@ -61,9 +48,7 @@ public interface Transport {
    * @param config transport config
    * @return promise for bind operation
    */
-  static Mono<Transport> bind(TransportConfig config) {
-    return new TransportImpl(config).bind0();
-  }
+  Mono<Transport> bind(TransportConfig config);
 
   /**
    * Returns local {@link Address} on which current instance of transport listens for incoming

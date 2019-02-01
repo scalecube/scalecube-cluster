@@ -1,5 +1,6 @@
 package io.scalecube.cluster.fdetector;
 
+import io.rsocket.RSocket;
 import io.scalecube.cluster.CorrelationIdGenerator;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.membership.MemberStatus;
@@ -39,6 +40,7 @@ public final class FailureDetectorImpl implements FailureDetector {
 
   private final Member localMember;
   private final Transport transport;
+  private RSocket rSocket;
   private final FailureDetectorConfig config;
   private final CorrelationIdGenerator cidGenerator;
 
@@ -147,6 +149,7 @@ public final class FailureDetectorImpl implements FailureDetector {
 
     LOGGER.trace("Send Ping[{}] to {}", period, pingMember);
     Address address = pingMember.address();
+
     transport
         .requestResponse(pingMsg, address)
         .timeout(Duration.ofMillis(config.getPingTimeout()), scheduler)

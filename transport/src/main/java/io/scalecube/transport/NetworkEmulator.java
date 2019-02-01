@@ -43,7 +43,7 @@ public final class NetworkEmulator {
    * @param address local address
    * @param enabled either network emulator is enabled
    */
-  NetworkEmulator(Address address, boolean enabled) {
+  public NetworkEmulator(Address address, boolean enabled) {
     this.address = address;
     this.enabled = enabled;
   }
