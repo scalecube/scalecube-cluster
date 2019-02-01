@@ -17,7 +17,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
@@ -105,10 +104,10 @@ final class TransportImpl implements Transport {
    * @param other instance of transport to copy from
    */
   private TransportImpl(
-      Address address,
-      DisposableServer server,
-      NetworkEmulator networkEmulator,
-      TransportImpl other) {
+    Address address,
+    DisposableServer server,
+    NetworkEmulator networkEmulator,
+    TransportImpl other) {
     this.address = Objects.requireNonNull(address);
     this.server = Objects.requireNonNull(server);
     this.networkEmulator = Objects.requireNonNull(networkEmulator);
@@ -125,8 +124,8 @@ final class TransportImpl implements Transport {
 
     // Setup cleanup
     stop.then(doStop())
-        .doFinally(s -> onStop.onComplete())
-        .subscribe(null, ex -> LOGGER.warn("Exception occurred on transport stop: " + ex));
+      .doFinally(s -> onStop.onComplete())
+      .subscribe(null, ex -> LOGGER.warn("Exception occurred on transport stop: " + ex));
   }
 
   /**
@@ -136,18 +135,18 @@ final class TransportImpl implements Transport {
    */
   protected Mono<Transport> bind0() {
     return newTcpServer()
-        .handle(this::onMessage)
-        .bind()
-        .doOnSuccess(
-            server ->
-                LOGGER.debug("Bound cluster transport on {}:{}", server.host(), server.port()))
-        .doOnError(
-            ex ->
-                LOGGER.error(
-                    "Failed to bind cluster transport on port={}, cause: {}",
-                    config.getPort(),
-                    ex.toString()))
-        .map(this::onBind);
+      .handle(this::onMessage)
+      .bind()
+      .doOnSuccess(
+        server ->
+          LOGGER.debug("Bound cluster transport on {}:{}", server.host(), server.port()))
+      .doOnError(
+        ex ->
+          LOGGER.error(
+            "Failed to bind cluster transport on port={}, cause: {}",
+            config.getPort(),
+            ex.toString()))
+      .map(this::onBind);
   }
 
   @Override
@@ -187,23 +186,23 @@ final class TransportImpl implements Transport {
   @Override
   public final Mono<Void> stop() {
     return Mono.defer(
-        () -> {
-          stop.onComplete();
-          return onStop;
-        });
+      () -> {
+        stop.onComplete();
+        return onStop;
+      });
   }
 
   private Mono<Void> doStop() {
     return Mono.defer(
-        () -> {
-          LOGGER.debug("Transport is shutting down on {}", address);
-          // Complete incoming messages observable
-          messageSink.complete();
-          return Flux.concatDelayError(closeServer(), closeConnections())
-              .doOnTerminate(loopResources::dispose)
-              .then()
-              .doOnSuccess(avoid -> LOGGER.debug("Transport has shut down on {}", address));
-        });
+      () -> {
+        LOGGER.debug("Transport is shutting down on {}", address);
+        // Complete incoming messages observable
+        messageSink.complete();
+        return Flux.concatDelayError(closeServer(), closeConnections())
+          .doOnTerminate(loopResources::dispose)
+          .then()
+          .doOnSuccess(avoid -> LOGGER.debug("Transport has shut down on {}", address));
+      });
   }
 
   @Override
@@ -212,58 +211,58 @@ final class TransportImpl implements Transport {
   }
 
   @Override
-  public boolean registerServerHandler(String qualifier, Consumer<Message> handler) {
-
+  public boolean registerServerHandler(String qualifier, BiConsumer<Message, Responder> handler) {
+    // no-op
     return false;
   }
 
   @Override
   public Mono<Void> send(Address address, Message message) {
     return getOrConnect(address)
-        .flatMap(conn -> send0(conn, message, address))
-        .then()
-        .doOnError(
-            ex ->
-                LOGGER.debug(
-                    "Failed to send {} to {}, cause: {}", message, address, ex.toString()));
+      .flatMap(conn -> send0(conn, message, address))
+      .then()
+      .doOnError(
+        ex ->
+          LOGGER.debug(
+            "Failed to send {} to {}, cause: {}", message, address, ex.toString()));
   }
 
   @Override
   public Mono<Message> requestResponse(final Message request, Address address) {
     return Mono.create(
-        sink -> {
-          Objects.requireNonNull(request, "request must be not null");
-          Objects.requireNonNull(request.correlationId(), "correlationId must be not null");
+      sink -> {
+        Objects.requireNonNull(request, "request must be not null");
+        Objects.requireNonNull(request.correlationId(), "correlationId must be not null");
 
-          Disposable disposable =
-              listen()
-                  .filter(resp -> resp.correlationId() != null)
-                  .filter(resp -> resp.correlationId().equals(request.correlationId()))
-                  .take(1)
-                  .subscribe(sink::success, sink::error, sink::success);
+        Disposable disposable =
+          listen()
+            .filter(resp -> resp.correlationId() != null)
+            .filter(resp -> resp.correlationId().equals(request.correlationId()))
+            .take(1)
+            .subscribe(sink::success, sink::error, sink::success);
 
-          send(address, request)
-              .subscribe(
-                  null,
-                  ex -> {
-                    LOGGER.warn(
-                        "Unexpected exception on transport request-response, cause: {}",
-                        ex.toString());
-                    sink.error(ex);
-                    if (!disposable.isDisposed()) {
-                      disposable.dispose();
-                    }
-                  });
-        });
+        send(address, request)
+          .subscribe(
+            null,
+            ex -> {
+              LOGGER.warn(
+                "Unexpected exception on transport request-response, cause: {}",
+                ex.toString());
+              sink.error(ex);
+              if (!disposable.isDisposed()) {
+                disposable.dispose();
+              }
+            });
+      });
   }
 
   @SuppressWarnings("unused")
   private Mono<Void> onMessage(NettyInbound in, NettyOutbound out) {
     return in.receive() //
-        .retain()
-        .map(this::toMessage)
-        .doOnNext(messageSink::next)
-        .then();
+      .retain()
+      .map(this::toMessage)
+      .doOnNext(messageSink::next)
+      .then();
   }
 
   private Message toMessage(ByteBuf byteBuf) {
@@ -285,13 +284,13 @@ final class TransportImpl implements Transport {
     Objects.requireNonNull(message.sender(), "sender must be not null");
     // do send
     return conn.outbound()
-        .options(SendOptions::flushOnEach)
-        .send(
-            Mono.just(message)
-                .flatMap(msg -> networkEmulator.tryFail(msg, address))
-                .flatMap(msg -> networkEmulator.tryDelay(msg, address))
-                .map(this::toByteBuf))
-        .then();
+      .options(SendOptions::flushOnEach)
+      .send(
+        Mono.just(message)
+          .flatMap(msg -> networkEmulator.tryFail(msg, address))
+          .flatMap(msg -> networkEmulator.tryDelay(msg, address))
+          .map(this::toByteBuf))
+      .then();
   }
 
   private ByteBuf toByteBuf(Message message) {
@@ -308,56 +307,56 @@ final class TransportImpl implements Transport {
 
   private Mono<Connection> getOrConnect(Address address) {
     return Mono.create(
-        sink ->
-            connections
-                .computeIfAbsent(address, this::connect0)
-                .subscribe(sink::success, sink::error));
+      sink ->
+        connections
+          .computeIfAbsent(address, this::connect0)
+          .subscribe(sink::success, sink::error));
   }
 
   private Mono<? extends Connection> connect0(Address address) {
     return newTcpClient(address)
-        .doOnDisconnected(
-            c -> {
-              LOGGER.debug("Disconnected from: {} {}", address, c.channel());
-              connections.remove(address);
-            })
-        .doOnConnected(c -> LOGGER.debug("Connected to {}: {}", address, c.channel()))
-        .connect()
-        .doOnError(
-            th -> {
-              LOGGER.debug(
-                  "Failed to connect to remote address {}, cause: {}", address, th.toString());
-              connections.remove(address);
-            })
-        .cache();
+      .doOnDisconnected(
+        c -> {
+          LOGGER.debug("Disconnected from: {} {}", address, c.channel());
+          connections.remove(address);
+        })
+      .doOnConnected(c -> LOGGER.debug("Connected to {}: {}", address, c.channel()))
+      .connect()
+      .doOnError(
+        th -> {
+          LOGGER.debug(
+            "Failed to connect to remote address {}, cause: {}", address, th.toString());
+          connections.remove(address);
+        })
+      .cache();
   }
 
   private Mono<Void> closeServer() {
     return Mono.defer(
-        () ->
-            Optional.ofNullable(server)
-                .map(
-                    server -> {
-                      server.dispose();
-                      return server
-                          .onDispose()
-                          .doOnError(e -> LOGGER.warn("Failed to close server: " + e));
-                    })
-                .orElse(Mono.empty()));
+      () ->
+        Optional.ofNullable(server)
+          .map(
+            server -> {
+              server.dispose();
+              return server
+                .onDispose()
+                .doOnError(e -> LOGGER.warn("Failed to close server: " + e));
+            })
+          .orElse(Mono.empty()));
   }
 
   private Mono<Void> closeConnections() {
     return Mono.fromRunnable(
-        () ->
-            connections
-                .values()
-                .forEach(
-                    connectionMono ->
-                        connectionMono
-                            .doOnNext(DisposableChannel::dispose)
-                            .flatMap(DisposableChannel::onDispose)
-                            .subscribe(
-                                null, e -> LOGGER.warn("Failed to close connection: " + e))));
+      () ->
+        connections
+          .values()
+          .forEach(
+            connectionMono ->
+              connectionMono
+                .doOnNext(DisposableChannel::dispose)
+                .flatMap(DisposableChannel::onDispose)
+                .subscribe(
+                  null, e -> LOGGER.warn("Failed to close connection: " + e))));
   }
 
   /**
@@ -367,12 +366,12 @@ final class TransportImpl implements Transport {
    */
   private TcpServer newTcpServer() {
     return TcpServer.create()
-        .runOn(loopResources)
-        .option(ChannelOption.TCP_NODELAY, true)
-        .option(ChannelOption.SO_KEEPALIVE, true)
-        .option(ChannelOption.SO_REUSEADDR, true)
-        .addressSupplier(() -> new InetSocketAddress(config.getPort()))
-        .bootstrap(b -> BootstrapHandlers.updateConfiguration(b, "inbound", channelInitializer));
+      .runOn(loopResources)
+      .option(ChannelOption.TCP_NODELAY, true)
+      .option(ChannelOption.SO_KEEPALIVE, true)
+      .option(ChannelOption.SO_REUSEADDR, true)
+      .addressSupplier(() -> new InetSocketAddress(config.getPort()))
+      .bootstrap(b -> BootstrapHandlers.updateConfiguration(b, "inbound", channelInitializer));
   }
 
   /**
@@ -383,18 +382,18 @@ final class TransportImpl implements Transport {
    */
   private TcpClient newTcpClient(Address address) {
     return TcpClient.create(ConnectionProvider.newConnection())
-        .runOn(loopResources)
-        .host(address.host())
-        .port(address.port())
-        .option(ChannelOption.TCP_NODELAY, true)
-        .option(ChannelOption.SO_KEEPALIVE, true)
-        .option(ChannelOption.SO_REUSEADDR, true)
-        .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.getConnectTimeout())
-        .bootstrap(b -> BootstrapHandlers.updateConfiguration(b, "outbound", channelInitializer));
+      .runOn(loopResources)
+      .host(address.host())
+      .port(address.port())
+      .option(ChannelOption.TCP_NODELAY, true)
+      .option(ChannelOption.SO_KEEPALIVE, true)
+      .option(ChannelOption.SO_REUSEADDR, true)
+      .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.getConnectTimeout())
+      .bootstrap(b -> BootstrapHandlers.updateConfiguration(b, "outbound", channelInitializer));
   }
 
   private final class TransportChannelInitializer
-      implements BiConsumer<ConnectionObserver, Channel> {
+    implements BiConsumer<ConnectionObserver, Channel> {
 
     private static final int MAX_FRAME_LENGTH = 8192;
     private static final int LENGTH_FIELD_LENGTH = 2;
@@ -404,8 +403,8 @@ final class TransportImpl implements Transport {
       ChannelPipeline pipeline = channel.pipeline();
       pipeline.addLast(new LengthFieldPrepender(LENGTH_FIELD_LENGTH));
       pipeline.addLast(
-          new LengthFieldBasedFrameDecoder(
-              MAX_FRAME_LENGTH, 0, LENGTH_FIELD_LENGTH, 0, LENGTH_FIELD_LENGTH));
+        new LengthFieldBasedFrameDecoder(
+          MAX_FRAME_LENGTH, 0, LENGTH_FIELD_LENGTH, 0, LENGTH_FIELD_LENGTH));
       pipeline.addLast(exceptionHandler);
     }
   }

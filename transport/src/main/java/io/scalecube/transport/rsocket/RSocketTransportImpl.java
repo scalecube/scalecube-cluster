@@ -9,6 +9,7 @@ import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.MessageCodec;
 import io.scalecube.transport.NetworkEmulator;
+import io.scalecube.transport.Responder;
 import io.scalecube.transport.Transport;
 import io.scalecube.transport.TransportConfig;
 import java.net.InetSocketAddress;
@@ -17,7 +18,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Exceptions;
@@ -53,7 +54,7 @@ public class RSocketTransportImpl implements Transport {
   private final MonoProcessor<Void> onStop;
 
   // State
-  private final Map<String, Consumer<Message>> messageHandlers = new HashMap<>();
+  private final Map<String, BiConsumer<Message, Responder>> messageHandlers = new HashMap<>();
   private final Map<Address, Mono<? extends Connection>> connections;
 
   /**
@@ -116,8 +117,8 @@ public class RSocketTransportImpl implements Transport {
   }
 
   @Override
-  public boolean registerServerHandler(String qualifier, Consumer<Message> handler) {
-    return messageHandlers.put(qualifier,handler) == null;
+  public boolean registerServerHandler(String qualifier, BiConsumer<Message, Responder> handler) {
+    return messageHandlers.put(qualifier, handler) == null;
   }
 
   @Override

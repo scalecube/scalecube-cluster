@@ -1,7 +1,8 @@
 package io.scalecube.transport;
 
 import io.scalecube.transport.rsocket.RSocketTransportImpl;
-import java.util.function.Consumer;
+import io.scalecube.transport.rsocket.RSocketResponder;
+import java.util.function.BiConsumer;
 import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -136,7 +137,7 @@ public interface Transport {
    * @param handler callback to be called upon receiving message with given qualifier
    * @return true if that was the first handler to be registered
    */
-  boolean registerServerHandler(String qualifier, Consumer<Message> handler);
+  boolean registerServerHandler(String qualifier, BiConsumer<Message, Responder> handler);
 
 
   /**
