@@ -1,7 +1,9 @@
 package io.scalecube.transport.rsocket;
 
 import io.netty.channel.ChannelOption;
+import io.rsocket.RSocket;
 import io.rsocket.RSocketFactory;
+import io.rsocket.transport.netty.client.TcpClientTransport;
 import io.rsocket.transport.netty.server.CloseableChannel;
 import io.rsocket.transport.netty.server.TcpServerTransport;
 import io.rsocket.util.ByteBufPayload;
@@ -9,7 +11,6 @@ import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.MessageCodec;
 import io.scalecube.transport.NetworkEmulator;
-import io.scalecube.transport.Responder;
 import io.scalecube.transport.Transport;
 import io.scalecube.transport.TransportConfig;
 import java.net.InetSocketAddress;
@@ -18,17 +19,17 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.BiConsumer;
+import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.Disposable;
 import reactor.core.Exceptions;
 import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoProcessor;
-import reactor.netty.Connection;
-import reactor.netty.DisposableChannel;
 import reactor.netty.resources.LoopResources;
+import reactor.netty.tcp.TcpClient;
 import reactor.netty.tcp.TcpServer;
 
 public class RSocketTransportImpl implements Transport {
@@ -54,8 +55,8 @@ public class RSocketTransportImpl implements Transport {
   private final MonoProcessor<Void> onStop;
 
   // State
-  private final Map<String, BiConsumer<Message, Responder>> messageHandlers = new HashMap<>();
-  private final Map<Address, Mono<? extends Connection>> connections;
+  private final Map<String, Function<Message, Mono<Message>>> messageHandlers = new HashMap<>();
+  private final Map<Address, Mono<? extends RSocket>> clients;
 
   /**
    * Constructor with config as parameter.
@@ -66,7 +67,7 @@ public class RSocketTransportImpl implements Transport {
     this.config = Objects.requireNonNull(config, "TransportConfig can't be null");
     this.loopResources = LoopResources.create(THREAD_PREFIX, 1, true);
     this.messagesSubject = DirectProcessor.create();
-    this.connections = new ConcurrentHashMap<>();
+    this.clients = new ConcurrentHashMap<>();
     this.stop = MonoProcessor.create();
     this.onStop = MonoProcessor.create();
     this.messageCodec = config.getMessageCodec();
@@ -85,7 +86,7 @@ public class RSocketTransportImpl implements Transport {
     this.config = other.config;
     this.loopResources = other.loopResources;
     this.messagesSubject = other.messagesSubject;
-    this.connections = other.connections;
+    this.clients = other.clients;
     this.stop = other.stop;
     this.onStop = other.onStop;
     this.messageCodec = other.messageCodec;
@@ -102,22 +103,13 @@ public class RSocketTransportImpl implements Transport {
   }
 
   @Override
-  public Mono<Void> send(Address address, Message message) {
-    return null;
-  }
-
-  @Override
-  public Mono<Message> requestResponse(Message request, Address address) {
-    return null;
-  }
-
-  @Override
   public Flux<Message> listen() {
     return messagesSubject.onBackpressureBuffer();
   }
 
   @Override
-  public boolean registerServerHandler(String qualifier, BiConsumer<Message, Responder> handler) {
+  public boolean registerServerHandler(String qualifier,
+    Function<Message, Mono<Message>> handler) {
     return messageHandlers.put(qualifier, handler) == null;
   }
 
@@ -181,6 +173,72 @@ public class RSocketTransportImpl implements Transport {
   }
 
   /////////////////////////////////////////////
+  //  Client area
+  /////////////////////////////////////////////
+  @Override
+  public Mono<Void> fireAndForget(Address dst, Message request) {
+    return Mono.just(request)
+      .flatMap(msg -> networkEmulator.tryFail(msg, address))
+      .flatMap(msg -> networkEmulator.tryDelay(msg, address))
+      .flatMap(msg -> {
+        Mono<? extends RSocket> rsocketMono = clients.computeIfAbsent(dst, this::connect);
+        return rsocketMono.flatMap(rsocket ->
+          rsocket.fireAndForget(messageCodec.toPayload(request)));
+      });
+  }
+
+  @Override
+  public Mono<Message> requestResponse(Address dst, Message request) {
+    return Mono.just(request)
+      .flatMap(msg -> networkEmulator.tryFail(msg, address))
+      .flatMap(msg -> networkEmulator.tryDelay(msg, address))
+      .flatMap(msg -> {
+        Mono<? extends RSocket> rsocketMono = clients.computeIfAbsent(dst, this::connect);
+        return rsocketMono.flatMap(rsocket ->
+          rsocket.requestResponse(messageCodec.toPayload(request)))
+          .map(messageCodec::toMessage);
+      });
+  }
+
+  private Mono<RSocket> connect(Address address) {
+    TcpClient tcpClient =
+      TcpClient.newConnection() // create non-pooled
+        .runOn(loopResources)
+        .host(address.host())
+        .port(address.port());
+
+    Mono<RSocket> rsocketMono =
+      RSocketFactory.connect()
+        .frameDecoder(
+          frame ->
+            ByteBufPayload.create(
+              frame.sliceData().retain(), frame.sliceMetadata().retain()))
+        .transport(() -> TcpClientTransport.create(tcpClient))
+        .start();
+
+    return rsocketMono
+      .doOnSuccess(
+        rsocket -> {
+          LOGGER.info("Connected successfully on {}", address);
+          // setup shutdown hook
+          rsocket
+            .onClose()
+            .doOnTerminate(
+              () -> {
+                clients.remove(address);
+                LOGGER.info("Connection closed on {} and removed from the pool", address);
+              })
+            .subscribe(null, th -> LOGGER.warn("Exception on closing rSocket: {}", th));
+        })
+      .doOnError(
+        throwable -> {
+          LOGGER.warn("Connect failed on {}, cause: {}", address, throwable);
+          clients.remove(address);
+        })
+      .cache();
+  }
+
+  /////////////////////////////////////////////
   //  Shutdown area
   /////////////////////////////////////////////
 
@@ -227,13 +285,12 @@ public class RSocketTransportImpl implements Transport {
   private Mono<Void> closeConnections() {
     return Mono.fromRunnable(
       () ->
-        connections
+        clients
           .values()
           .forEach(
-            connectionMono ->
-              connectionMono
-                .doOnNext(DisposableChannel::dispose)
-                .flatMap(DisposableChannel::onDispose)
+            rsocketMono ->
+              rsocketMono
+                .doOnNext(Disposable::dispose)
                 .subscribe(
                   null, e -> LOGGER.warn("Failed to close connection: " + e))));
   }

@@ -17,6 +17,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
@@ -211,24 +212,24 @@ final class TransportImpl implements Transport {
   }
 
   @Override
-  public boolean registerServerHandler(String qualifier, BiConsumer<Message, Responder> handler) {
+  public boolean registerServerHandler(String qualifier, Function<Message, Mono<Message>> handler) {
     // no-op
     return false;
   }
 
   @Override
-  public Mono<Void> send(Address address, Message message) {
+  public Mono<Void> fireAndForget(Address address, Message message) {
     return getOrConnect(address)
       .flatMap(conn -> send0(conn, message, address))
       .then()
       .doOnError(
         ex ->
           LOGGER.debug(
-            "Failed to send {} to {}, cause: {}", message, address, ex.toString()));
+            "Failed to fireAndForget {} to {}, cause: {}", message, address, ex.toString()));
   }
 
   @Override
-  public Mono<Message> requestResponse(final Message request, Address address) {
+  public Mono<Message> requestResponse(Address address, final Message request) {
     return Mono.create(
       sink -> {
         Objects.requireNonNull(request, "request must be not null");
@@ -241,7 +242,7 @@ final class TransportImpl implements Transport {
             .take(1)
             .subscribe(sink::success, sink::error, sink::success);
 
-        send(address, request)
+        fireAndForget(address, request)
           .subscribe(
             null,
             ex -> {
@@ -282,7 +283,7 @@ final class TransportImpl implements Transport {
   private Mono<? extends Void> send0(Connection conn, Message message, Address address) {
     // check sender not null
     Objects.requireNonNull(message.sender(), "sender must be not null");
-    // do send
+    // do fireAndForget
     return conn.outbound()
       .options(SendOptions::flushOnEach)
       .send(

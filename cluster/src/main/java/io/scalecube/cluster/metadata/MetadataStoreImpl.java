@@ -163,7 +163,7 @@ public class MetadataStoreImpl implements MetadataStore {
                   .build();
 
           transport
-              .requestResponse(request, targetAddress)
+              .requestResponse(targetAddress, request)
               .timeout(Duration.ofMillis(config.getMetadataTimeout()), scheduler)
               .publishOn(scheduler)
               .subscribe(
@@ -229,12 +229,12 @@ public class MetadataStoreImpl implements MetadataStore {
     Address responseAddress = message.sender();
     LOGGER.debug("Send GetMetadataResp: {} to {}", response, responseAddress);
     transport
-        .send(responseAddress, response)
+        .fireAndForget(responseAddress, response)
         .subscribe(
             null,
             ex ->
                 LOGGER.debug(
-                    "Failed to send GetMetadataResp: {} to {}, cause: {}",
+                    "Failed to fireAndForget GetMetadataResp: {} to {}, cause: {}",
                     response,
                     responseAddress,
                     ex.toString()));

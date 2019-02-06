@@ -209,7 +209,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
   }
 
   private void spreadGossipsTo(long period, Member member) {
-    // Select gossips to send
+    // Select gossips to fireAndForget
     List<Gossip> gossips = selectGossipsToSend(period, member);
     if (gossips.isEmpty()) {
       return; // nothing to spread
@@ -224,12 +224,12 @@ public final class GossipProtocolImpl implements GossipProtocol {
         .forEach(
             message ->
                 transport
-                    .send(address, message)
+                    .fireAndForget(address, message)
                     .subscribe(
                         null,
                         ex ->
                             LOGGER.debug(
-                                "Failed to send GossipReq[{}]: {} to {}, cause: {}",
+                                "Failed to fireAndForget GossipReq[{}]: {} to {}, cause: {}",
                                 period,
                                 message,
                                 address,

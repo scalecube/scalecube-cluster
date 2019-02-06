@@ -24,7 +24,7 @@ public final class TransportTestUtils {
   public static Transport createTransport() {
     TransportConfig config =
         TransportConfig.builder().connectTimeout(CONNECT_TIMEOUT).useNetworkEmulator(true).build();
-    return Transport.nettyAwait(config);
+    return Transport.rsocketAwait(config);
   }
 
   /**
@@ -51,11 +51,11 @@ public final class TransportTestUtils {
    */
   public static Mono<Void> send(final Transport from, final Address to, final Message msg) {
     Message message = Message.with(msg).sender(from.address()).build();
-    return from.send(to, message)
+    return from.fireAndForget(to, message)
         .doOnError(
             th ->
                 LOGGER.error(
-                    "Failed to send {} to {} from transport: {}, cause: {}",
+                    "Failed to fireAndForget {} to {} from transport: {}, cause: {}",
                     message,
                     to,
                     from,

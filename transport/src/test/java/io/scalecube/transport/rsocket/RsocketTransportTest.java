@@ -1,4 +1,4 @@
-package io.scalecube.transport;
+package io.scalecube.transport.rsocket;
 
 import static io.scalecube.transport.TransportTestUtils.createTransport;
 import static io.scalecube.transport.TransportTestUtils.destroyTransport;
@@ -9,6 +9,11 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import io.scalecube.transport.Address;
+import io.scalecube.transport.BaseTest;
+import io.scalecube.transport.Message;
+import io.scalecube.transport.Transport;
+import io.scalecube.transport.TransportConfig;
 import java.io.IOException;
 import java.net.UnknownHostException;
 import java.time.Duration;
@@ -22,7 +27,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import reactor.netty.ChannelBindException;
 
-public class TransportTest extends BaseTest {
+public class RsocketTransportTest extends BaseTest {
 
   public static final Duration TIMEOUT = Duration.ofSeconds(10);
 
@@ -79,9 +84,7 @@ public class TransportTest extends BaseTest {
     Address serverAddress = Address.from("localhost:49255");
     for (int i = 0; i < 10; i++) {
       LOGGER.info("####### {} : iteration = {}", testInfo.getDisplayName(), i);
-
       client = createTransport();
-
       // create transport and don't wait just fireAndForget message
       try {
         Message msg = Message.withData("q").sender(client.address()).build();
@@ -338,7 +341,8 @@ public class TransportTest extends BaseTest {
     client = createTransport();
     server = createTransport();
 
-    server.listen().subscribe(message -> server.fireAndForget(message.sender(), message).subscribe());
+    server.listen()
+      .subscribe(message -> server.fireAndForget(message.sender(), message).subscribe());
 
     final List<Message> resp = new ArrayList<>();
     client.listen().subscribe(resp::add);

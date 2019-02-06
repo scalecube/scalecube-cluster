@@ -62,7 +62,7 @@ public class TransportSendOrderTest extends BaseTest {
       long startAt = System.currentTimeMillis();
       for (int j = 0; j < sentPerIteration; j++) {
         Message message = Message.withQualifier("q" + j).sender(client.address()).build();
-        client.send(server.address(), message).subscribe();
+        client.fireAndForget(server.address(), message).subscribe();
       }
       latch.await(20, TimeUnit.SECONDS);
       long iterationTime = System.currentTimeMillis() - startAt;
@@ -112,12 +112,12 @@ public class TransportSendOrderTest extends BaseTest {
         long sentAt = System.currentTimeMillis();
         Message message = Message.withQualifier("q" + j).sender(client.address()).build();
         client
-            .send(server.address(), message)
+            .fireAndForget(server.address(), message)
             .subscribe(
                 avoid -> iterSentTimeSeries.add(System.currentTimeMillis() - sentAt),
                 th ->
                     LOGGER.error(
-                        "Failed to send message in {} ms",
+                        "Failed to fireAndForget message in {} ms",
                         System.currentTimeMillis() - sentAt,
                         th));
       }
@@ -227,9 +227,9 @@ public class TransportSendOrderTest extends BaseTest {
                   .correlationId(correlationId)
                   .sender(client.address())
                   .build();
-          client.send(address, message).block(Duration.ofSeconds(3));
+          client.fireAndForget(address, message).block(Duration.ofSeconds(3));
         } catch (Exception e) {
-          LOGGER.error("Failed to send message: j = {} id = {}", j, id, e);
+          LOGGER.error("Failed to fireAndForget message: j = {} id = {}", j, id, e);
           throw Exceptions.propagate(e);
         }
       }

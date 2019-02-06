@@ -12,7 +12,7 @@ import reactor.core.publisher.Flux;
 public interface FailureDetector {
 
   /**
-   * Starts running failure detection algorithm. After started it begins to receive and send ping
+   * Starts running failure detection algorithm. After started it begins to receive and fireAndForget ping
    * messages.
    */
   void start();

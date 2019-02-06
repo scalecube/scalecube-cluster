@@ -11,7 +11,7 @@ import reactor.core.publisher.Mono;
  */
 public interface GossipProtocol {
 
-  /** Starts running gossip protocol. After started it begins to receive and send gossip messages */
+  /** Starts running gossip protocol. After started it begins to receive and fireAndForget gossip messages */
   void start();
 
   /** Stops running gossip protocol and releases occupied resources. */

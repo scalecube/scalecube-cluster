@@ -14,7 +14,7 @@ import reactor.core.publisher.Mono;
 public interface MembershipProtocol {
 
   /**
-   * Starts running cluster membership protocol. After started it begins to receive and send cluster
+   * Starts running cluster membership protocol. After started it begins to receive and fireAndForget cluster
    * membership messages
    */
   Mono<Void> start();

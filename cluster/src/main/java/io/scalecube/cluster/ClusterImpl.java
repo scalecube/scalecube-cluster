@@ -181,17 +181,17 @@ final class ClusterImpl implements Cluster {
 
   @Override
   public Mono<Void> send(Address address, Message message) {
-    return transport.send(address, message);
+    return transport.fireAndForget(address, message);
   }
 
   @Override
   public Mono<Message> requestResponse(Address address, Message request) {
-    return transport.requestResponse(request, address);
+    return transport.requestResponse(address, request);
   }
 
   @Override
   public Mono<Message> requestResponse(Member member, Message request) {
-    return transport.requestResponse(request, member.address());
+    return transport.requestResponse(member.address(), request);
   }
 
   @Override

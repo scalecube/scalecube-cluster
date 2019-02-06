@@ -5,7 +5,7 @@ import io.scalecube.transport.Message;
 
 /**
  * Basic example for member transport between cluster members to run the example Start ClusterNodeA
- * and cluster ClusterNodeB A listen on transport messages B send message to member A.
+ * and cluster ClusterNodeB A listen on transport messages B fireAndForget message to member A.
  *
  * @author ronen hamias, Anton Kharenko
  */

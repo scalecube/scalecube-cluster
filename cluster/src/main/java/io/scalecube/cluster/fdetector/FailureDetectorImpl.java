@@ -151,7 +151,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     Address address = pingMember.address();
 
     transport
-        .requestResponse(pingMsg, address)
+        .requestResponse(address, pingMsg)
         .timeout(Duration.ofMillis(config.getPingTimeout()), scheduler)
         .publishOn(scheduler)
         .subscribe(
@@ -192,7 +192,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     pingReqMembers.forEach(
         member ->
             transport
-                .requestResponse(pingReqMsg, member.address())
+                .requestResponse(member.address(), pingReqMsg)
                 .timeout(timeout, scheduler)
                 .publishOn(scheduler)
                 .subscribe(
@@ -249,12 +249,12 @@ public final class FailureDetectorImpl implements FailureDetector {
     Address address = data.getFrom().address();
     LOGGER.trace("Send PingAck[{}] to {}", period, address);
     transport
-        .send(address, ackMessage)
+        .fireAndForget(address, ackMessage)
         .subscribe(
             null,
             ex ->
                 LOGGER.debug(
-                    "Failed to send PingAck[{}] to {}, cause: {}", period, address, ex.toString()));
+                    "Failed to fireAndForget PingAck[{}] to {}, cause: {}", period, address, ex.toString()));
   }
 
   /** Listens to PING_REQ message and sends PING to requested cluster member. */
@@ -275,12 +275,12 @@ public final class FailureDetectorImpl implements FailureDetector {
     Address address = target.address();
     LOGGER.trace("Send transit Ping[{}] to {}", period, address);
     transport
-        .send(address, pingMessage)
+        .fireAndForget(address, pingMessage)
         .subscribe(
             null,
             ex ->
                 LOGGER.debug(
-                    "Failed to send transit Ping[{}] to {}, cause: {}",
+                    "Failed to fireAndForget transit Ping[{}] to {}, cause: {}",
                     period,
                     address,
                     ex.toString()));
@@ -306,7 +306,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     Address address = target.address();
     LOGGER.trace("Resend transit PingAck[{}] to {}", period, address);
     transport
-        .send(address, originalAckMessage)
+        .fireAndForget(address, originalAckMessage)
         .subscribe(
             null,
             ex ->

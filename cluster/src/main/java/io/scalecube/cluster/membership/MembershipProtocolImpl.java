@@ -209,7 +209,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
             sink.success();
             return;
           }
-          // If seed addresses are specified in config - send initial sync to those nodes
+          // If seed addresses are specified in config - fireAndForget initial sync to those nodes
           LOGGER.debug("Making initial Sync to all seed members: {}", seedMembers);
 
           //noinspection unchecked
@@ -220,7 +220,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                       address -> {
                         String cid = cidGenerator.nextCid();
                         return transport
-                            .requestResponse(prepareSyncDataMsg(SYNC, cid), address)
+                            .requestResponse(address, prepareSyncDataMsg(SYNC, cid))
                             .filter(this::checkSyncGroup);
                       })
                   .toArray(Mono[]::new);
@@ -301,12 +301,12 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     Message message = prepareSyncDataMsg(SYNC, null);
     LOGGER.debug("Send Sync: {} to {}", message, address);
     transport
-        .send(address, message)
+        .fireAndForget(address, message)
         .subscribe(
             null,
             ex ->
                 LOGGER.debug(
-                    "Failed to send Sync: {} to {}, cause: {}", message, address, ex.toString()));
+                    "Failed to fireAndForget Sync: {} to {}, cause: {}", message, address, ex.toString()));
   }
 
   // ================================================
@@ -349,12 +349,12 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                     Message message = prepareSyncDataMsg(SYNC_ACK, syncMsg.correlationId());
                     Address address = syncMsg.sender();
                     transport
-                        .send(address, message)
+                        .fireAndForget(address, message)
                         .subscribe(
                             null,
                             ex ->
                                 LOGGER.debug(
-                                    "Failed to send SyncAck: {} to {}, cause: {}",
+                                    "Failed to fireAndForget SyncAck: {} to {}, cause: {}",
                                     message,
                                     address,
                                     ex.toString()));
@@ -379,12 +379,12 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       Message syncMsg = prepareSyncDataMsg(SYNC, null);
       Address address = fdEvent.member().address();
       transport
-          .send(address, syncMsg)
+          .fireAndForget(address, syncMsg)
           .subscribe(
               null,
               ex ->
                   LOGGER.debug(
-                      "Failed to send {} to {}, cause: {}", syncMsg, address, ex.toString()));
+                      "Failed to fireAndForget {} to {}, cause: {}", syncMsg, address, ex.toString()));
     } else {
       MembershipRecord record =
           new MembershipRecord(r0.member(), fdEvent.status(), r0.incarnation());

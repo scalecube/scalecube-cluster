@@ -1,15 +1,14 @@
 package io.scalecube.transport;
 
 import io.scalecube.transport.rsocket.RSocketTransportImpl;
-import io.scalecube.transport.rsocket.RSocketResponder;
-import java.util.function.BiConsumer;
+import java.util.function.Function;
 import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
  * Transport is responsible for maintaining existing p2p connections to/from other transports. It
- * allows to send messages to other transports and listen for incoming messages.
+ * allows to fireAndForget messages to other transports and listen for incoming messages.
  */
 public interface Transport {
 
@@ -97,23 +96,23 @@ public interface Transport {
    * given transport {@code address} exists already. Send is an async operation.
    *
    * @param address address where message will be sent
-   * @param message message to send
+   * @param message message to fireAndForget
    * @return promise which will be completed with result of sending (void or exception)
    * @throws IllegalArgumentException if {@code message} or {@code address} is null
    */
-  Mono<Void> send(Address address, Message message);
+  Mono<Void> fireAndForget(Address address, Message message);
 
   /**
    * Sends message to the given address. It will issue connect in case if no transport channel by
    * given transport {@code address} exists already. Send is an async operation and expecting a
    * response by a provided correlationId and sender address of the caller.
    *
-   * @param request to send message must contain correlctionId and sender to handle reply.
    * @param address address where message will be sent
+   * @param request to fireAndForget message must contain correlctionId and sender to handle reply.
    * @return promise which will be completed with result of sending (message or exception)
    * @throws IllegalArgumentException if {@code message} or {@code address} is null
    */
-  Mono<Message> requestResponse(final Message request, Address address);
+  Mono<Message> requestResponse(Address address, final Message request);
 
   /**
    * Returns stream of received messages. For each observers subscribed to the returned observable:
@@ -137,7 +136,8 @@ public interface Transport {
    * @param handler callback to be called upon receiving message with given qualifier
    * @return true if that was the first handler to be registered
    */
-  boolean registerServerHandler(String qualifier, BiConsumer<Message, Responder> handler);
+  boolean registerServerHandler(String qualifier,
+    Function<Message, Mono<Message>> handler);
 
 
   /**
