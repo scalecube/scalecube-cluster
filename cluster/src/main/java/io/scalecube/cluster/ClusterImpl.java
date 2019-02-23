@@ -3,6 +3,7 @@ package io.scalecube.cluster;
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
 import io.scalecube.cluster.membership.IdGenerator;
+import io.scalecube.cluster.membership.JmxMembershipProvider;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipProtocolImpl;
 import io.scalecube.cluster.metadata.MetadataStoreImpl;
@@ -10,13 +11,9 @@ import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.NetworkEmulator;
 import io.scalecube.transport.Transport;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
+
+import java.lang.management.ManagementFactory;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
@@ -30,6 +27,9 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoProcessor;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
+
+import javax.management.MBeanServer;
+import javax.management.ObjectName;
 
 /** Cluster implementation. */
 final class ClusterImpl implements Cluster {
@@ -72,6 +72,7 @@ final class ClusterImpl implements Cluster {
   private MetadataStoreImpl metadataStore;
   private Scheduler scheduler;
   private CorrelationIdGenerator cidGenerator;
+  private ClusterMonitor clusterMonitor;
 
   public ClusterImpl(ClusterConfig config) {
     this.config = Objects.requireNonNull(config);
@@ -144,7 +145,7 @@ final class ClusterImpl implements Cluster {
               failureDetector.start();
               gossip.start();
               metadataStore.start();
-
+              clusterMonitor = new ClusterMonitor(this);
               return membership.start();
             })
         .thenReturn(this);
@@ -351,4 +352,57 @@ final class ClusterImpl implements Cluster {
   public boolean isShutdown() {
     return onShutdown.isDisposed();
   }
+
+  public static class ClusterMonitor implements ClusterMonitorMBean {
+
+    private final ClusterImpl cluster;
+    private final JmxMembershipProvider membershipProvider;
+
+    public ClusterMonitor(ClusterImpl cluster) {
+
+      //this.cluster = ClusterImpl.this;
+      this.cluster = cluster;
+
+      MBeanServer server = ManagementFactory.getPlatformMBeanServer();
+      try {
+
+        membershipProvider = new JmxMembershipProvider(cluster,
+                                                       cluster.membership);
+        server.registerMBean(this, new ObjectName("io.scalecube.cluster:name=Cluster{"+cluster.member().id()+"}"));
+      } catch (Exception ex){
+        throw new RuntimeException(ex);
+      }
+    }
+
+    @Override
+    public String getMember() {
+      return cluster.member().id();
+    }
+
+    @Override
+    public int getIncarnation() {
+      return membershipProvider.incarnation();
+    }
+
+    @Override
+    public Map<String, String> getMetadata() {
+      return cluster.metadata();
+    }
+
+    @Override
+    public List<String> getAliveMembers() {
+      return membershipProvider.aliveMembers();
+    }
+
+    @Override
+    public List<String> getDeadMembers() {
+      return membershipProvider.deadMembers();
+    }
+
+    @Override
+    public List<String> getSuspectedMembers() {
+      return membershipProvider.suspectedMembers();
+    }
+  }
+
 }
