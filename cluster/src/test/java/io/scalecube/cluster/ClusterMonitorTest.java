@@ -15,7 +15,7 @@ public class ClusterMonitorTest {
     //System.out.println(clusterMonitor.getAliveMembers());
     //System.out.println(clusterMonitor.getIncarnation());
 
-    Thread.sleep(100_000);
+    Thread.sleep(50_000);
 
   }
 
