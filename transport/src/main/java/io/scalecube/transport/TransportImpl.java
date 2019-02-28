@@ -370,7 +370,7 @@ final class TransportImpl implements Transport {
       implements BiConsumer<ConnectionObserver, Channel> {
 
     private static final int MAX_FRAME_LENGTH = 2 * 1024 * 1024; // 2MB
-    private static final int LENGTH_FIELD_LENGTH = 3;
+    private static final int LENGTH_FIELD_LENGTH = 4;
 
     @Override
     public void accept(ConnectionObserver connectionObserver, Channel channel) {
