@@ -369,7 +369,6 @@ final class TransportImpl implements Transport {
   private final class TransportChannelInitializer
       implements BiConsumer<ConnectionObserver, Channel> {
 
-    private static final int MAX_FRAME_LENGTH = 2 * 1024 * 1024; // 2MB
     private static final int LENGTH_FIELD_LENGTH = 4;
 
     @Override
@@ -378,7 +377,7 @@ final class TransportImpl implements Transport {
       pipeline.addLast(new LengthFieldPrepender(LENGTH_FIELD_LENGTH));
       pipeline.addLast(
           new LengthFieldBasedFrameDecoder(
-              MAX_FRAME_LENGTH, 0, LENGTH_FIELD_LENGTH, 0, LENGTH_FIELD_LENGTH));
+              config.getMaxFrameLength(), 0, LENGTH_FIELD_LENGTH, 0, LENGTH_FIELD_LENGTH));
       pipeline.addLast(exceptionHandler);
     }
   }
