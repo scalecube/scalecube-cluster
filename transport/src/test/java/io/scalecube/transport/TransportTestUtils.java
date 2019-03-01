@@ -5,6 +5,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 
+import static io.scalecube.transport.TransportConfig.DEFAULT_MAX_FRAME_LENGTH;
+
 /** Transport test utility class. */
 public final class TransportTestUtils {
 
@@ -23,7 +25,11 @@ public final class TransportTestUtils {
    */
   public static Transport createTransport() {
     TransportConfig config =
-        TransportConfig.builder().connectTimeout(CONNECT_TIMEOUT).useNetworkEmulator(true).build();
+        TransportConfig.builder()
+          .connectTimeout(CONNECT_TIMEOUT)
+          .useNetworkEmulator(true)
+          .maxFrameLength(DEFAULT_MAX_FRAME_LENGTH)
+          .build();
     return Transport.bindAwait(config);
   }
 

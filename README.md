@@ -1,10 +1,10 @@
 # ScaleCube - Cluster
 
 ScaleCube Cluster is a lightweight decentralized cluster membership, failure detection, and gossip protocol library. 
-It provides an implementation of [SWIM](http://www.cs.cornell.edu/~asdas/research/dsn02-swim.pdf) cluster membership protocol for Java VM.
+It provides an implementation of [SWIM](http://www.cs.cornell.edu/projects/Quicksilver/public_pdfs/SWIM.pdf)  cluster membership protocol for Java VM.
 
 It is an efficient and scalable weakly-consistent distributed group membership protocol based on gossip-style communication between the 
-nodes in the cluster. Read my [blog post](http://www.antonkharenko.com/2015/09/swim-distributed-group-membership.html) with distilled 
+nodes in the cluster. Read [blog post](http://www.antonkharenko.com/2015/09/swim-distributed-group-membership.html) with distilled 
 notes on the SWIM paper for more details.
 
 It is using a [random-probing failure detection algorithm](http://www.antonkharenko.com/2015/08/scalable-and-efficient-distributed.html) which provides 
@@ -35,32 +35,6 @@ carol.otherMembers().forEach(member -> carol.send(member, Message.fromData("Gree
 ```
 
 You are welcome to explore javadoc documentation on cluster API and examples module for more advanced use cases.
-
-### TRANSPORT
-
-ScaleCube Transport is a network communication layer which provides high throughput and low latency peer-to-peer messaging. 
-It is based on [Netty](http://netty.io/) asynchronous networking framework and is using [RxJava](https://github.com/ReactiveX/RxJava) 
-in order to provide convenient reactive API on top of network handlers pipelines.
-
-Using ScaleCube Transport as simple as few lines of code:
-
-``` java
-// Bind first transport to port 5000
-TransportConfig config1 = TransportConfig.builder().port(5000).build();
-Transport transport1 = Transport.bindAwait(config1);
-
-// Make first transport to listen and print all incoming messages
-transport1.listen().subscribe(System.out::println);
-
-// Get 'host:port' address of the first transport
-Address address1 = transport1.address(); 
-
-// Bind second transport on available port and send message to the first transport
-Transport transport2 = Transport.bindAwait();
-transport2.send(address1, Message.fromData("Hello World"));
-```
-
-You are welcome to explore javadoc documentation on transport API for more advanced use cases.
 
 ## Support
 

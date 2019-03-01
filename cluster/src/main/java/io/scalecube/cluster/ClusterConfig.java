@@ -372,6 +372,11 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
       return this;
     }
 
+    public Builder maxFrameLength(int maxFrameLength) {
+      this.transportConfigBuilder.maxFrameLength(maxFrameLength);
+      return this;
+    }
+
     /**
      * Override the member host in cases when the transport address is not the address to be
      * broadcast.

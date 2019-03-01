@@ -6,17 +6,20 @@ public final class TransportConfig {
   public static final int DEFAULT_CONNECT_TIMEOUT = 3000;
   public static final boolean DEFAULT_USE_NETWORK_EMULATOR = false;
   public static final MessageCodec DEFAULT_MESSAGE_CODEC = new JacksonMessageCodec();
+  public static final int DEFAULT_MAX_FRAME_LENGTH = 2 * 1024 * 1024; // 2MB
 
   private final int port;
   private final int connectTimeout;
   private final boolean useNetworkEmulator;
   private final MessageCodec messageCodec;
+  private final int maxFrameLength;
 
   private TransportConfig(Builder builder) {
     this.port = builder.port;
     this.connectTimeout = builder.connectTimeout;
     this.useNetworkEmulator = builder.useNetworkEmulator;
     this.messageCodec = builder.messageCodec;
+    this.maxFrameLength = builder.maxFrameLength;
   }
 
   public static TransportConfig defaultConfig() {
@@ -43,6 +46,10 @@ public final class TransportConfig {
     return messageCodec;
   }
 
+  public int getMaxFrameLength() {
+    return maxFrameLength;
+  }
+
   @Override
   public String toString() {
     return "TransportConfig{port="
@@ -53,6 +60,8 @@ public final class TransportConfig {
         + useNetworkEmulator
         + ", messageCodec="
         + messageCodec
+        + ", maxFrameLength="
+        + maxFrameLength
         + '}';
   }
 
@@ -62,6 +71,7 @@ public final class TransportConfig {
     private boolean useNetworkEmulator = DEFAULT_USE_NETWORK_EMULATOR;
     private int connectTimeout = DEFAULT_CONNECT_TIMEOUT;
     private MessageCodec messageCodec = DEFAULT_MESSAGE_CODEC;
+    private int maxFrameLength = DEFAULT_MAX_FRAME_LENGTH;
 
     private Builder() {}
 
@@ -75,6 +85,7 @@ public final class TransportConfig {
       this.connectTimeout = config.connectTimeout;
       this.useNetworkEmulator = config.useNetworkEmulator;
       this.messageCodec = config.messageCodec;
+      this.maxFrameLength = config.maxFrameLength;
       return this;
     }
 
@@ -95,6 +106,11 @@ public final class TransportConfig {
 
     public Builder messageCodec(MessageCodec messageCodec) {
       this.messageCodec = messageCodec;
+      return this;
+    }
+
+    public Builder maxFrameLength(int maxFrameLength) {
+      this.maxFrameLength = maxFrameLength;
       return this;
     }
 
