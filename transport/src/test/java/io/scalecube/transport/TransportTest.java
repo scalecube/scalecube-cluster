@@ -65,7 +65,7 @@ public class TransportTest extends BaseTest {
       Address address = Address.from("wronghost:49255");
       Message message = Message.withData("q").sender(client.address()).build();
       client.send(address, message).block(Duration.ofSeconds(5));
-      fail();
+      fail("fail");
     } catch (Exception e) {
       assertEquals(
           UnknownHostException.class, e.getCause().getClass(), "Unexpected exception class");
@@ -84,7 +84,7 @@ public class TransportTest extends BaseTest {
       try {
         Message msg = Message.withData("q").sender(client.address()).build();
         client.send(serverAddress, msg).block(Duration.ofSeconds(3));
-        fail();
+        fail("fail");
       } catch (Exception e) {
         assertTrue(e.getCause() instanceof IOException, "Unexpected exception type: " + e);
       }
@@ -93,7 +93,7 @@ public class TransportTest extends BaseTest {
       try {
         Message msg = Message.withData("q").sender(client.address()).build();
         client.send(serverAddress, msg).block(Duration.ofSeconds(3));
-        fail();
+        fail("fail");
       } catch (Exception e) {
         assertTrue(e.getCause() instanceof IOException, "Unexpected exception type: " + e);
       }
