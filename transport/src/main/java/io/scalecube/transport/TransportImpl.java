@@ -220,7 +220,8 @@ final class TransportImpl implements Transport {
                   null,
                   ex -> {
                     LOGGER.warn(
-                        "Unexpected exception on transport request-response, cause: {}",
+                        "Unexpected exception on transport request-response: {}, cause: {}",
+                        request,
                         ex.toString());
                     sink.error(ex);
                     if (!disposable.isDisposed()) {
