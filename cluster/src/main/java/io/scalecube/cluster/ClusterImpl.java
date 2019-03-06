@@ -10,19 +10,16 @@ import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.NetworkEmulator;
 import io.scalecube.transport.Transport;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
+
+import java.lang.management.ManagementFactory;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
+import reactor.core.Exceptions;
 import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
@@ -30,6 +27,9 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoProcessor;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
+
+import javax.management.MBeanServer;
+import javax.management.ObjectName;
 
 /** Cluster implementation. */
 final class ClusterImpl implements Cluster {
@@ -72,6 +72,7 @@ final class ClusterImpl implements Cluster {
   private MetadataStoreImpl metadataStore;
   private Scheduler scheduler;
   private CorrelationIdGenerator cidGenerator;
+  private ClusterMonitor clusterMonitor;
 
   public ClusterImpl(ClusterConfig config) {
     this.config = Objects.requireNonNull(config);
@@ -144,7 +145,7 @@ final class ClusterImpl implements Cluster {
               failureDetector.start();
               gossip.start();
               metadataStore.start();
-
+              clusterMonitor = new ClusterMonitor(this);
               return membership.start();
             })
         .thenReturn(this);
@@ -350,5 +351,42 @@ final class ClusterImpl implements Cluster {
   @Override
   public boolean isShutdown() {
     return onShutdown.isDisposed();
+  }
+
+  public interface ClusterMonitorMBean {
+    String getMember();
+
+    Map<String, String> getMetadata();
+  }
+
+  public static class ClusterMonitor implements ClusterMonitorMBean {
+
+    private final ClusterImpl cluster;
+
+    public ClusterMonitor(ClusterImpl cluster) {
+      this.cluster = cluster;
+      registerMBean(cluster);
+    }
+
+    private void registerMBean(ClusterImpl cluster) {
+      MBeanServer server = ManagementFactory.getPlatformMBeanServer();
+      try {
+        server.registerMBean(
+            this,
+            new ObjectName("io.scalecube.cluster:name=Cluster{" + cluster.member().id() + "}"));
+      } catch (Exception ex) {
+        Exceptions.propagate(ex);
+      }
+    }
+
+    @Override
+    public String getMember() {
+      return cluster.member().id();
+    }
+
+    @Override
+    public Map<String, String> getMetadata() {
+      return cluster.metadata();
+    }
   }
 }

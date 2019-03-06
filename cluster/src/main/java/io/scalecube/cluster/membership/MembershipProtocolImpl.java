@@ -13,6 +13,7 @@ import io.scalecube.cluster.metadata.MetadataStore;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.Transport;
+import java.lang.management.ManagementFactory;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,12 +28,16 @@ import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.management.MBeanServer;
+import javax.management.ObjectName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
+import reactor.core.Exceptions;
 import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxProcessor;
@@ -88,6 +93,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private final Scheduler scheduler;
   private final Map<String, Disposable> suspicionTimeoutTasks = new HashMap<>();
 
+  private final MembershipProtocolMonitor monitor;
   /**
    * Creates new instantiates of cluster membership protocol with given transport and config.
    *
@@ -147,6 +153,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                 .listen()
                 .publishOn(scheduler)
                 .subscribe(this::onMembershipGossip, this::onError)));
+
+    monitor = new MembershipProtocolMonitor();
   }
 
   // Remove duplicates and local address
@@ -675,5 +683,64 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
    */
   List<MembershipRecord> getMembershipRecords() {
     return Collections.unmodifiableList(new ArrayList<>(membershipTable.values()));
+  }
+
+  public interface MembershipProtocolMonitorMBean {
+    List<String> getAliveMembers(); // all alive members except local one
+
+    List<String> getDeadMembers(); // let's keep recent N dead members for full-filling this method
+
+    List<String> getSuspectedMembers();
+
+    int getIncarnation();
+  }
+
+  public class MembershipProtocolMonitor implements MembershipProtocolMonitorMBean {
+
+    public MembershipProtocolMonitor() {
+      registerMBean();
+    }
+
+    private void registerMBean() {
+      MBeanServer server = ManagementFactory.getPlatformMBeanServer();
+      try {
+        server.registerMBean(
+            this, new ObjectName("io.scalecube.cluster:name=Membership{" + localMember.id() + "}"));
+      } catch (Exception ex) {
+        Exceptions.propagate(ex);
+      }
+    }
+
+    @Override
+    public int getIncarnation() {
+      return getMembershipRecords().stream()
+          .filter(rec -> rec.id().equals(localMember.id()))
+          .map(MembershipRecord::incarnation)
+          .findFirst()
+          .orElse(-1);
+    }
+
+    @Override
+    public List<String> getAliveMembers() {
+      return findRecordsByCondition(MembershipRecord::isAlive);
+    }
+
+    @Override
+    public List<String> getDeadMembers() {
+      return findRecordsByCondition(MembershipRecord::isDead);
+    }
+
+    @Override
+    public List<String> getSuspectedMembers() {
+      return findRecordsByCondition(MembershipRecord::isSuspect);
+    }
+
+    private List<String> findRecordsByCondition(Predicate<MembershipRecord> condition) {
+      return getMembershipRecords().stream()
+          .filter(condition)
+          .map(record -> new Member(record.id(), record.address()))
+          .map(Member::toString)
+          .collect(Collectors.toList());
+    }
   }
 }
