@@ -42,6 +42,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxProcessor;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.ReplayProcessor;
 import reactor.core.scheduler.Scheduler;
 
 public final class MembershipProtocolImpl implements MembershipProtocol {
@@ -243,7 +244,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                       null,
                       ex -> LOGGER.info("Exception on initial SyncAck, cause: {}", ex.toString()));
             })
-        .flatMap(o -> MembershipProtocolMonitor.start(this));
+        .then(Mono.defer(() -> Monitor.start(this)));
   }
 
   @Override
@@ -675,7 +676,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     return Collections.unmodifiableList(new ArrayList<>(membershipTable.values()));
   }
 
-  public interface MembershipProtocolMonitorMBean {
+  public interface MonitorMBean {
 
     int getIncarnation();
 
@@ -686,19 +687,23 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     List<String> getDeadMembers();
   }
 
-  public static class MembershipProtocolMonitor implements MembershipProtocolMonitorMBean {
+  public static class Monitor implements MonitorMBean {
+
+    public static final int REMOVED_MEMBERS_HISTORY_SIZE = 42;
 
     private final MembershipProtocolImpl membershipProtocol;
+    private final ReplayProcessor<MembershipEvent> replayProcessor;
 
-    public MembershipProtocolMonitor(MembershipProtocolImpl membershipProtocol) {
+    public Monitor(MembershipProtocolImpl membershipProtocol) {
       this.membershipProtocol = membershipProtocol;
+      this.replayProcessor = ReplayProcessor.create(REMOVED_MEMBERS_HISTORY_SIZE);
+      membershipProtocol.listen().filter(MembershipEvent::isRemoved).subscribe(replayProcessor);
     }
 
     public static Mono<Void> start(MembershipProtocolImpl membershipProtocol) {
       return Mono.fromCallable(
           () -> {
-            MembershipProtocolMonitor membershipProtocolMonitor =
-                new MembershipProtocolMonitor(membershipProtocol);
+            Monitor membershipProtocolMonitor = new Monitor(membershipProtocol);
             MBeanServer server = ManagementFactory.getPlatformMBeanServer();
             server.registerMBean(
                 membershipProtocolMonitor,
@@ -723,8 +728,9 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
     @Override
     public List<String> getDeadMembers() {
-      // return findRecordsByCondition(MembershipRecord::isDead);
-      // todo
+      List<String> deadMembers = new ArrayList<>();
+      replayProcessor.map(MembershipEvent::toString).subscribe(deadMembers::add);
+      return deadMembers;
     }
 
     @Override

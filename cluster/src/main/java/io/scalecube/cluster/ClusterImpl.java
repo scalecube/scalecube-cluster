@@ -147,7 +147,7 @@ final class ClusterImpl implements Cluster {
               failureDetector.start();
               gossip.start();
               metadataStore.start();
-              return membership.start().flatMap(avoid -> ClusterMonitor.start(this));
+              return membership.start().then(Mono.defer(() -> Monitor.start(this)));
             })
         .thenReturn(this);
   }
@@ -354,25 +354,25 @@ final class ClusterImpl implements Cluster {
     return onShutdown.isDisposed();
   }
 
-  public interface ClusterMonitorMBean {
+  public interface MonitorMBean {
 
     String getMember();
 
     Map<String, String> getMetadata();
   }
 
-  public static class ClusterMonitor implements ClusterMonitorMBean {
+  public static class Monitor implements MonitorMBean {
 
     private final Cluster cluster;
 
-    public ClusterMonitor(Cluster cluster) {
+    public Monitor(Cluster cluster) {
       this.cluster = cluster;
     }
 
     public static Mono<Void> start(Cluster cluster) {
       return Mono.fromCallable(
           () -> {
-            ClusterMonitor clusterMonitor = new ClusterMonitor(cluster);
+            Monitor clusterMonitor = new Monitor(cluster);
             MBeanServer server = ManagementFactory.getPlatformMBeanServer();
             server.registerMBean(
                 clusterMonitor,
