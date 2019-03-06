@@ -10,16 +10,22 @@ import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.NetworkEmulator;
 import io.scalecube.transport.Transport;
-
 import java.lang.management.ManagementFactory;
-import java.util.*;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.management.MBeanServer;
+import javax.management.ObjectName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
-import reactor.core.Exceptions;
 import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
@@ -27,9 +33,6 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoProcessor;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
-
-import javax.management.MBeanServer;
-import javax.management.ObjectName;
 
 /** Cluster implementation. */
 final class ClusterImpl implements Cluster {
@@ -72,7 +75,6 @@ final class ClusterImpl implements Cluster {
   private MetadataStoreImpl metadataStore;
   private Scheduler scheduler;
   private CorrelationIdGenerator cidGenerator;
-  private ClusterMonitor clusterMonitor;
 
   public ClusterImpl(ClusterConfig config) {
     this.config = Objects.requireNonNull(config);
@@ -145,8 +147,7 @@ final class ClusterImpl implements Cluster {
               failureDetector.start();
               gossip.start();
               metadataStore.start();
-              clusterMonitor = new ClusterMonitor(this);
-              return membership.start();
+              return membership.start().flatMap(avoid -> ClusterMonitor.start(this));
             })
         .thenReturn(this);
   }
@@ -354,6 +355,7 @@ final class ClusterImpl implements Cluster {
   }
 
   public interface ClusterMonitorMBean {
+
     String getMember();
 
     Map<String, String> getMetadata();
@@ -361,22 +363,22 @@ final class ClusterImpl implements Cluster {
 
   public static class ClusterMonitor implements ClusterMonitorMBean {
 
-    private final ClusterImpl cluster;
+    private final Cluster cluster;
 
-    public ClusterMonitor(ClusterImpl cluster) {
+    public ClusterMonitor(Cluster cluster) {
       this.cluster = cluster;
-      registerMBean(cluster);
     }
 
-    private void registerMBean(ClusterImpl cluster) {
-      MBeanServer server = ManagementFactory.getPlatformMBeanServer();
-      try {
-        server.registerMBean(
-            this,
-            new ObjectName("io.scalecube.cluster:name=Cluster{" + cluster.member().id() + "}"));
-      } catch (Exception ex) {
-        Exceptions.propagate(ex);
-      }
+    public static Mono<Void> start(Cluster cluster) {
+      return Mono.fromCallable(
+          () -> {
+            ClusterMonitor clusterMonitor = new ClusterMonitor(cluster);
+            MBeanServer server = ManagementFactory.getPlatformMBeanServer();
+            server.registerMBean(
+                clusterMonitor,
+                new ObjectName("io.scalecube.cluster:name=Cluster@" + cluster.member().id()));
+            return null;
+          });
     }
 
     @Override

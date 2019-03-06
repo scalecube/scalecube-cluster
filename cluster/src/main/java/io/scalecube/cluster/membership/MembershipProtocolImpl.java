@@ -37,7 +37,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
-import reactor.core.Exceptions;
 import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxProcessor;
@@ -93,7 +92,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private final Scheduler scheduler;
   private final Map<String, Disposable> suspicionTimeoutTasks = new HashMap<>();
 
-  private final MembershipProtocolMonitor monitor;
   /**
    * Creates new instantiates of cluster membership protocol with given transport and config.
    *
@@ -153,17 +151,15 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                 .listen()
                 .publishOn(scheduler)
                 .subscribe(this::onMembershipGossip, this::onError)));
-
-    monitor = new MembershipProtocolMonitor();
   }
 
   // Remove duplicates and local address
   private List<Address> cleanUpSeedMembers(Collection<Address> seedMembers) {
     return new LinkedHashSet<>(seedMembers)
         .stream()
-        .filter(address -> !address.equals(localMember.address()))
-        .filter(address -> !address.equals(transport.address()))
-        .collect(Collectors.toList());
+            .filter(address -> !address.equals(localMember.address()))
+            .filter(address -> !address.equals(transport.address()))
+            .collect(Collectors.toList());
   }
 
   @Override
@@ -210,44 +206,44 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   public Mono<Void> start() {
     // Make initial sync with all seed members
     return Mono.create(
-        sink -> {
-          // In case no members at the moment just schedule periodic sync
-          if (seedMembers.isEmpty()) {
-            schedulePeriodicSync();
-            sink.success();
-            return;
-          }
-          // If seed addresses are specified in config - send initial sync to those nodes
-          LOGGER.debug("Making initial Sync to all seed members: {}", seedMembers);
+            sink -> {
+              // In case no members at the moment just schedule periodic sync
+              if (seedMembers.isEmpty()) {
+                schedulePeriodicSync();
+                sink.success();
+                return;
+              }
+              // If seed addresses are specified in config - send initial sync to those nodes
+              LOGGER.debug("Making initial Sync to all seed members: {}", seedMembers);
 
-          //noinspection unchecked
-          Mono<Message>[] syncs =
-              seedMembers
-                  .stream()
-                  .map(
-                      address -> {
-                        String cid = cidGenerator.nextCid();
-                        return transport
-                            .requestResponse(prepareSyncDataMsg(SYNC, cid), address)
-                            .filter(this::checkSyncGroup);
+              //noinspection unchecked
+              Mono<Message>[] syncs =
+                  seedMembers.stream()
+                      .map(
+                          address -> {
+                            String cid = cidGenerator.nextCid();
+                            return transport
+                                .requestResponse(prepareSyncDataMsg(SYNC, cid), address)
+                                .filter(this::checkSyncGroup);
+                          })
+                      .toArray(Mono[]::new);
+
+              // Process initial SyncAck
+              Flux.mergeDelayError(syncs.length, syncs)
+                  .take(1)
+                  .timeout(Duration.ofMillis(config.getSyncTimeout()), scheduler)
+                  .publishOn(scheduler)
+                  .flatMap(message -> onSyncAck(message, true))
+                  .doFinally(
+                      s -> {
+                        schedulePeriodicSync();
+                        sink.success();
                       })
-                  .toArray(Mono[]::new);
-
-          // Process initial SyncAck
-          Flux.mergeDelayError(syncs.length, syncs)
-              .take(1)
-              .timeout(Duration.ofMillis(config.getSyncTimeout()), scheduler)
-              .publishOn(scheduler)
-              .flatMap(message -> onSyncAck(message, true))
-              .doFinally(
-                  s -> {
-                    schedulePeriodicSync();
-                    sink.success();
-                  })
-              .subscribe(
-                  null,
-                  ex -> LOGGER.info("Exception on initial SyncAck, cause: {}", ex.toString()));
-        });
+                  .subscribe(
+                      null,
+                      ex -> LOGGER.info("Exception on initial SyncAck, cause: {}", ex.toString()));
+            })
+        .flatMap(o -> MembershipProtocolMonitor.start(this));
   }
 
   @Override
@@ -276,9 +272,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   @Override
   public Collection<Member> otherMembers() {
     return new ArrayList<>(members.values())
-        .stream()
-        .filter(member -> !member.equals(localMember))
-        .collect(Collectors.toList());
+        .stream().filter(member -> !member.equals(localMember)).collect(Collectors.toList());
   }
 
   @Override
@@ -294,9 +288,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   @Override
   public Optional<Member> member(Address address) {
     return new ArrayList<>(members.values())
-        .stream()
-        .filter(member -> member.address().equals(address))
-        .findFirst();
+        .stream().filter(member -> member.address().equals(address)).findFirst();
   }
 
   private void doSync() {
@@ -463,9 +455,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           MembershipUpdateReason reason =
               onStart ? MembershipUpdateReason.INITIAL_SYNC : MembershipUpdateReason.SYNC;
           return Mono.whenDelayError(
-              syncData
-                  .getMembership()
-                  .stream()
+              syncData.getMembership().stream()
                   .filter(r1 -> !r1.equals(membershipTable.get(r1.id())))
                   .map(r1 -> updateMembership(r1, reason))
                   .toArray(Mono[]::new));
@@ -686,38 +676,44 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   }
 
   public interface MembershipProtocolMonitorMBean {
-    List<String> getAliveMembers(); // all alive members except local one
 
-    List<String> getDeadMembers(); // let's keep recent N dead members for full-filling this method
+    int getIncarnation();
+
+    List<String> getAliveMembers();
 
     List<String> getSuspectedMembers();
 
-    int getIncarnation();
+    List<String> getDeadMembers();
   }
 
-  public class MembershipProtocolMonitor implements MembershipProtocolMonitorMBean {
+  public static class MembershipProtocolMonitor implements MembershipProtocolMonitorMBean {
 
-    public MembershipProtocolMonitor() {
-      registerMBean();
+    private final MembershipProtocolImpl membershipProtocol;
+
+    public MembershipProtocolMonitor(MembershipProtocolImpl membershipProtocol) {
+      this.membershipProtocol = membershipProtocol;
     }
 
-    private void registerMBean() {
-      MBeanServer server = ManagementFactory.getPlatformMBeanServer();
-      try {
-        server.registerMBean(
-            this, new ObjectName("io.scalecube.cluster:name=Membership{" + localMember.id() + "}"));
-      } catch (Exception ex) {
-        Exceptions.propagate(ex);
-      }
+    public static Mono<Void> start(MembershipProtocolImpl membershipProtocol) {
+      return Mono.fromCallable(
+          () -> {
+            MembershipProtocolMonitor membershipProtocolMonitor =
+                new MembershipProtocolMonitor(membershipProtocol);
+            MBeanServer server = ManagementFactory.getPlatformMBeanServer();
+            server.registerMBean(
+                membershipProtocolMonitor,
+                new ObjectName(
+                    "io.scalecube.cluster:name=Membership@" + membershipProtocol.localMember.id()));
+            return null;
+          });
     }
 
     @Override
     public int getIncarnation() {
-      return getMembershipRecords().stream()
-          .filter(rec -> rec.id().equals(localMember.id()))
-          .map(MembershipRecord::incarnation)
-          .findFirst()
-          .orElse(-1);
+      return membershipProtocol
+          .membershipTable
+          .get(membershipProtocol.localMember.id())
+          .incarnation();
     }
 
     @Override
@@ -727,7 +723,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
     @Override
     public List<String> getDeadMembers() {
-      return findRecordsByCondition(MembershipRecord::isDead);
+      // return findRecordsByCondition(MembershipRecord::isDead);
+      // todo
     }
 
     @Override
@@ -736,7 +733,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     }
 
     private List<String> findRecordsByCondition(Predicate<MembershipRecord> condition) {
-      return getMembershipRecords().stream()
+      return membershipProtocol.getMembershipRecords().stream()
           .filter(condition)
           .map(record -> new Member(record.id(), record.address()))
           .map(Member::toString)
