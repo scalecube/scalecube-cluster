@@ -3,7 +3,6 @@ package io.scalecube.cluster;
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
 import io.scalecube.cluster.membership.IdGenerator;
-import io.scalecube.cluster.membership.JmxMembershipProvider;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipProtocolImpl;
 import io.scalecube.cluster.metadata.MetadataStoreImpl;
@@ -20,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
+import reactor.core.Exceptions;
 import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
@@ -355,31 +355,27 @@ final class ClusterImpl implements Cluster {
 
   public interface ClusterMonitorMBean {
     String getMember();
-    int getIncarnation();
+
     Map<String, String> getMetadata();
-    List<String> getAliveMembers(); // all alive members except local one
-    List<String> getDeadMembers(); // let's keep recent N dead members for full-filling this method
-    List<String> getSuspectedMembers();
   }
 
   public static class ClusterMonitor implements ClusterMonitorMBean {
 
     private final ClusterImpl cluster;
-    private final JmxMembershipProvider membershipProvider;
 
     public ClusterMonitor(ClusterImpl cluster) {
-
-      //this.cluster = ClusterImpl.this;
       this.cluster = cluster;
+      registerMBean(cluster);
+    }
 
+    private void registerMBean(ClusterImpl cluster) {
       MBeanServer server = ManagementFactory.getPlatformMBeanServer();
       try {
-
-        membershipProvider = new JmxMembershipProvider(cluster,
-                                                       cluster.membership);
-        server.registerMBean(this, new ObjectName("io.scalecube.cluster:name=Cluster{"+cluster.member().id()+"}"));
-      } catch (Exception ex){
-        throw new RuntimeException(ex);
+        server.registerMBean(
+            this,
+            new ObjectName("io.scalecube.cluster:name=Cluster{" + cluster.member().id() + "}"));
+      } catch (Exception ex) {
+        Exceptions.propagate(ex);
       }
     }
 
@@ -389,29 +385,8 @@ final class ClusterImpl implements Cluster {
     }
 
     @Override
-    public int getIncarnation() {
-      return membershipProvider.incarnation();
-    }
-
-    @Override
     public Map<String, String> getMetadata() {
       return cluster.metadata();
     }
-
-    @Override
-    public List<String> getAliveMembers() {
-      return membershipProvider.aliveMembers();
-    }
-
-    @Override
-    public List<String> getDeadMembers() {
-      return membershipProvider.deadMembers();
-    }
-
-    @Override
-    public List<String> getSuspectedMembers() {
-      return membershipProvider.suspectedMembers();
-    }
   }
-
 }
