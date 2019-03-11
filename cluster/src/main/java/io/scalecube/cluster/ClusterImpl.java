@@ -22,6 +22,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
+import javax.management.StandardMBean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
@@ -147,7 +148,7 @@ final class ClusterImpl implements Cluster {
               failureDetector.start();
               gossip.start();
               metadataStore.start();
-              return membership.start().then(Mono.defer(() -> Monitor.start(this)));
+              return membership.start().then(Mono.fromCallable(() -> JmxMonitorMBean.start(this)));
             })
         .thenReturn(this);
   }
@@ -361,24 +362,22 @@ final class ClusterImpl implements Cluster {
     Map<String, String> getMetadata();
   }
 
-  public static class Monitor implements MonitorMBean {
+  public static class JmxMonitorMBean implements MonitorMBean {
 
     private final Cluster cluster;
 
-    public Monitor(Cluster cluster) {
+    public JmxMonitorMBean(Cluster cluster) {
       this.cluster = cluster;
     }
 
-    public static Mono<Void> start(Cluster cluster) {
-      return Mono.fromCallable(
-          () -> {
-            Monitor clusterMonitor = new Monitor(cluster);
-            MBeanServer server = ManagementFactory.getPlatformMBeanServer();
-            server.registerMBean(
-                clusterMonitor,
-                new ObjectName("io.scalecube.cluster:name=Cluster@" + cluster.member().id()));
-            return null;
-          });
+    public static JmxMonitorMBean start(Cluster cluster) throws Exception {
+      JmxMonitorMBean clusterMonitor = new JmxMonitorMBean(cluster);
+      MBeanServer server = ManagementFactory.getPlatformMBeanServer();
+      StandardMBean standardMBean = new StandardMBean(clusterMonitor, MonitorMBean.class);
+      ObjectName objectName =
+          new ObjectName("io.scalecube.cluster:name=Cluster@" + cluster.member().id());
+      server.registerMBean(standardMBean, objectName);
+      return clusterMonitor;
     }
 
     @Override
