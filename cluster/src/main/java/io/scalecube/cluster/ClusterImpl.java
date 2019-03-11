@@ -10,6 +10,8 @@ import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.NetworkEmulator;
 import io.scalecube.transport.Transport;
+import java.lang.management.ManagementFactory;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -19,6 +21,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.management.MBeanServer;
+import javax.management.ObjectName;
+import javax.management.StandardMBean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
@@ -144,8 +149,7 @@ final class ClusterImpl implements Cluster {
               failureDetector.start();
               gossip.start();
               metadataStore.start();
-
-              return membership.start();
+              return membership.start().then(Mono.fromCallable(() -> JmxMonitorMBean.start(this)));
             })
         .thenReturn(this);
   }
@@ -350,5 +354,43 @@ final class ClusterImpl implements Cluster {
   @Override
   public boolean isShutdown() {
     return onShutdown.isDisposed();
+  }
+
+  public interface MonitorMBean {
+
+    Collection<String> getMember();
+
+    Collection<String> getMetadata();
+  }
+
+  public static class JmxMonitorMBean implements MonitorMBean {
+
+    private final Cluster cluster;
+
+    private JmxMonitorMBean(Cluster cluster) {
+      this.cluster = cluster;
+    }
+
+    private static JmxMonitorMBean start(Cluster cluster) throws Exception {
+      JmxMonitorMBean monitorMBean = new JmxMonitorMBean(cluster);
+      MBeanServer server = ManagementFactory.getPlatformMBeanServer();
+      StandardMBean standardMBean = new StandardMBean(monitorMBean, MonitorMBean.class);
+      ObjectName objectName =
+          new ObjectName("io.scalecube.cluster:name=Cluster@" + cluster.member().id());
+      server.registerMBean(standardMBean, objectName);
+      return monitorMBean;
+    }
+
+    @Override
+    public Collection<String> getMember() {
+      return Collections.singleton(cluster.member().id());
+    }
+
+    @Override
+    public Collection<String> getMetadata() {
+      return cluster.metadata().entrySet().stream()
+          .map(e -> e.getKey() + " : " + e.getValue())
+          .collect(Collectors.toCollection(ArrayList::new));
+    }
   }
 }
