@@ -11,6 +11,7 @@ import io.scalecube.transport.Message;
 import io.scalecube.transport.NetworkEmulator;
 import io.scalecube.transport.Transport;
 import java.lang.management.ManagementFactory;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -357,9 +358,9 @@ final class ClusterImpl implements Cluster {
 
   public interface MonitorMBean {
 
-    String getMember();
+    Collection<String> getMember();
 
-    Map<String, String> getMetadata();
+    Collection<String> getMetadata();
   }
 
   public static class JmxMonitorMBean implements MonitorMBean {
@@ -381,13 +382,15 @@ final class ClusterImpl implements Cluster {
     }
 
     @Override
-    public String getMember() {
-      return cluster.member().id();
+    public Collection<String> getMember() {
+      return Collections.singleton(cluster.member().id());
     }
 
     @Override
-    public Map<String, String> getMetadata() {
-      return cluster.metadata();
+    public Collection<String> getMetadata() {
+      return cluster.metadata().entrySet().stream()
+          .map(e -> e.getKey() + " : " + e.getValue())
+          .collect(Collectors.toCollection(ArrayList::new));
     }
   }
 }
