@@ -33,6 +33,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
+import javax.management.StandardMBean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
@@ -42,6 +43,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxProcessor;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.MonoSink;
 import reactor.core.publisher.ReplayProcessor;
 import reactor.core.scheduler.Scheduler;
 
@@ -206,45 +208,46 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   @Override
   public Mono<Void> start() {
     // Make initial sync with all seed members
-    return Mono.create(
-            sink -> {
-              // In case no members at the moment just schedule periodic sync
-              if (seedMembers.isEmpty()) {
-                schedulePeriodicSync();
-                sink.success();
-                return;
-              }
-              // If seed addresses are specified in config - send initial sync to those nodes
-              LOGGER.debug("Making initial Sync to all seed members: {}", seedMembers);
+    return Mono.create(this::start0)
+        .then(Mono.fromCallable(() -> JmxMonitorMBean.start(this)))
+        .then();
+  }
 
-              //noinspection unchecked
-              Mono<Message>[] syncs =
-                  seedMembers.stream()
-                      .map(
-                          address -> {
-                            String cid = cidGenerator.nextCid();
-                            return transport
-                                .requestResponse(prepareSyncDataMsg(SYNC, cid), address)
-                                .filter(this::checkSyncGroup);
-                          })
-                      .toArray(Mono[]::new);
+  private void start0(MonoSink<Object> sink) {
+    // In case no members at the moment just schedule periodic sync
+    if (seedMembers.isEmpty()) {
+      schedulePeriodicSync();
+      sink.success();
+      return;
+    }
+    // If seed addresses are specified in config - send initial sync to those nodes
+    LOGGER.debug("Making initial Sync to all seed members: {}", seedMembers);
 
-              // Process initial SyncAck
-              Flux.mergeDelayError(syncs.length, syncs)
-                  .take(1)
-                  .timeout(Duration.ofMillis(config.getSyncTimeout()), scheduler)
-                  .publishOn(scheduler)
-                  .flatMap(message -> onSyncAck(message, true))
-                  .doFinally(
-                      s -> {
-                        schedulePeriodicSync();
-                        sink.success();
-                      })
-                  .subscribe(
-                      null,
-                      ex -> LOGGER.info("Exception on initial SyncAck, cause: {}", ex.toString()));
+    //noinspection unchecked
+    Mono<Message>[] syncs =
+        seedMembers.stream()
+            .map(
+                address -> {
+                  String cid = cidGenerator.nextCid();
+                  return transport
+                      .requestResponse(prepareSyncDataMsg(SYNC, cid), address)
+                      .filter(this::checkSyncGroup);
+                })
+            .toArray(Mono[]::new);
+
+    // Process initial SyncAck
+    Flux.mergeDelayError(syncs.length, syncs)
+        .take(1)
+        .timeout(Duration.ofMillis(config.getSyncTimeout()), scheduler)
+        .publishOn(scheduler)
+        .flatMap(message -> onSyncAck(message, true))
+        .doFinally(
+            s -> {
+              schedulePeriodicSync();
+              sink.success();
             })
-        .then(Mono.defer(() -> Monitor.start(this)));
+        .subscribe(
+            null, ex -> LOGGER.info("Exception on initial SyncAck, cause: {}", ex.toString()));
   }
 
   @Override
@@ -687,38 +690,36 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     List<String> getDeadMembers();
   }
 
-  public static class Monitor implements MonitorMBean {
+  public static class JmxMonitorMBean implements MonitorMBean {
 
     public static final int REMOVED_MEMBERS_HISTORY_SIZE = 42;
 
     private final MembershipProtocolImpl membershipProtocol;
     private final ReplayProcessor<MembershipEvent> replayProcessor;
 
-    public Monitor(MembershipProtocolImpl membershipProtocol) {
+    private JmxMonitorMBean(MembershipProtocolImpl membershipProtocol) {
       this.membershipProtocol = membershipProtocol;
       this.replayProcessor = ReplayProcessor.create(REMOVED_MEMBERS_HISTORY_SIZE);
       membershipProtocol.listen().filter(MembershipEvent::isRemoved).subscribe(replayProcessor);
     }
 
-    public static Mono<Void> start(MembershipProtocolImpl membershipProtocol) {
-      return Mono.fromCallable(
-          () -> {
-            Monitor membershipProtocolMonitor = new Monitor(membershipProtocol);
-            MBeanServer server = ManagementFactory.getPlatformMBeanServer();
-            server.registerMBean(
-                membershipProtocolMonitor,
-                new ObjectName(
-                    "io.scalecube.cluster:name=Membership@" + membershipProtocol.localMember.id()));
-            return null;
-          });
+    private static JmxMonitorMBean start(MembershipProtocolImpl membershipProtocol)
+        throws Exception {
+      JmxMonitorMBean monitorMBean = new JmxMonitorMBean(membershipProtocol);
+      MBeanServer server = ManagementFactory.getPlatformMBeanServer();
+      ObjectName objectName =
+          new ObjectName(
+              "io.scalecube.cluster:name=Membership@" + membershipProtocol.localMember.id());
+      StandardMBean standardMBean = new StandardMBean(monitorMBean, MonitorMBean.class);
+      server.registerMBean(standardMBean, objectName);
+      return monitorMBean;
     }
 
     @Override
     public int getIncarnation() {
-      return membershipProtocol
-          .membershipTable
-          .get(membershipProtocol.localMember.id())
-          .incarnation();
+      Map<String, MembershipRecord> membershipTable = membershipProtocol.membershipTable;
+      String localMemberId = membershipProtocol.localMember.id();
+      return membershipTable.get(localMemberId).incarnation();
     }
 
     @Override
@@ -727,15 +728,15 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     }
 
     @Override
+    public List<String> getSuspectedMembers() {
+      return findRecordsByCondition(MembershipRecord::isSuspect);
+    }
+
+    @Override
     public List<String> getDeadMembers() {
       List<String> deadMembers = new ArrayList<>();
       replayProcessor.map(MembershipEvent::toString).subscribe(deadMembers::add);
       return deadMembers;
-    }
-
-    @Override
-    public List<String> getSuspectedMembers() {
-      return findRecordsByCondition(MembershipRecord::isSuspect);
     }
 
     private List<String> findRecordsByCondition(Predicate<MembershipRecord> condition) {

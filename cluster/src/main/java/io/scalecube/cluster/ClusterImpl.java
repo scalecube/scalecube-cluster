@@ -366,18 +366,18 @@ final class ClusterImpl implements Cluster {
 
     private final Cluster cluster;
 
-    public JmxMonitorMBean(Cluster cluster) {
+    private JmxMonitorMBean(Cluster cluster) {
       this.cluster = cluster;
     }
 
-    public static JmxMonitorMBean start(Cluster cluster) throws Exception {
-      JmxMonitorMBean clusterMonitor = new JmxMonitorMBean(cluster);
+    private static JmxMonitorMBean start(Cluster cluster) throws Exception {
+      JmxMonitorMBean monitorMBean = new JmxMonitorMBean(cluster);
       MBeanServer server = ManagementFactory.getPlatformMBeanServer();
-      StandardMBean standardMBean = new StandardMBean(clusterMonitor, MonitorMBean.class);
+      StandardMBean standardMBean = new StandardMBean(monitorMBean, MonitorMBean.class);
       ObjectName objectName =
           new ObjectName("io.scalecube.cluster:name=Cluster@" + cluster.member().id());
       server.registerMBean(standardMBean, objectName);
-      return clusterMonitor;
+      return monitorMBean;
     }
 
     @Override
