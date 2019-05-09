@@ -11,7 +11,7 @@ public class NodeIthRunner {
 
   public static final Logger logger = LoggerFactory.getLogger(NodeIthRunner.class);
 
-  public static final int SEED_PORT = 4545;
+  public static final int DEFAULT_SEED_PORT = 4545;
 
   /**
    * Maibn.
@@ -20,7 +20,8 @@ public class NodeIthRunner {
    * @throws Exception exception
    */
   public static void main(String[] args) throws Exception {
-    Address address = getSeedAddress(args).orElseGet(() -> Address.create("localhost", SEED_PORT));
+    Address address =
+        getSeedAddress(args).orElseGet(() -> Address.create("localhost", DEFAULT_SEED_PORT));
 
     ClusterConfig config =
         ClusterConfig.builder()
@@ -47,7 +48,7 @@ public class NodeIthRunner {
   }
 
   private static Optional<Address> getSeedAddress(String[] args) {
-    if (args.length == 0) {
+    if (args.length < 1) {
       return Optional.empty();
     }
     String addressArg = args[0];
@@ -57,6 +58,7 @@ public class NodeIthRunner {
     try {
       return Optional.of(Address.from(addressArg));
     } catch (Exception ex) {
+      logger.error("Error in getSeedAddress: " + ex);
       return Optional.empty();
     }
   }

@@ -11,8 +11,8 @@ public class NodeNoInboundRunner {
 
   public static final Logger logger = LoggerFactory.getLogger(NodeNoInboundRunner.class);
 
-  public static final int PORT = 9090;
-  public static final int SEED_PORT = 4545;
+  public static final int DEFAULT_PORT = 9090;
+  public static final int DEFAULT_SEED_PORT = 4545;
 
   /**
    * Main.
@@ -21,7 +21,9 @@ public class NodeNoInboundRunner {
    * @throws Exception exceptoin
    */
   public static void main(String[] args) throws Exception {
-    Address address = getSeedAddress(args).orElseGet(() -> Address.create("localhost", SEED_PORT));
+    Address address =
+        getSeedAddress(args).orElseGet(() -> Address.create("localhost", DEFAULT_SEED_PORT));
+    int port = getPort(args).orElse(DEFAULT_PORT);
 
     ClusterConfig config =
         ClusterConfig.builder()
@@ -38,28 +40,45 @@ public class NodeNoInboundRunner {
             .pingReqMembers(3)
             .metadataTimeout(1000)
             .connectTimeout(1000)
-            .port(PORT)
+            .port(port)
             .build();
 
-    logger.debug("Starting Node-With-No-Inbound-Traffic with config {}", config);
+    logger.debug("Starting Node-With-No-Inbound with config {}", config);
     Cluster cluster = Cluster.joinAwait(config);
     logger.debug(
-        "Started Node-With-No-Inbound-Traffic: {}, address: {}", cluster, cluster.address());
+        "Started Node-With-No-Inbound: {}, address: {}", cluster, cluster.address());
 
     Thread.currentThread().join();
   }
 
-  private static Optional<Address> getSeedAddress(String[] args) {
-    if (args.length == 0) {
+  private static Optional<Integer> getPort(String[] args) {
+    if (args.length < 2) {
       return Optional.empty();
     }
-    String addressArg = args[0];
+    String portArg = args[0];
+    if (portArg.isEmpty()) {
+      return Optional.empty();
+    }
+    try {
+      return Optional.of(Integer.parseInt(portArg));
+    } catch (Exception ex) {
+      logger.error("Error in getPort: " + ex);
+      return Optional.empty();
+    }
+  }
+
+  private static Optional<Address> getSeedAddress(String[] args) {
+    if (args.length < 2) {
+      return Optional.empty();
+    }
+    String addressArg = args[1];
     if (addressArg.isEmpty()) {
       return Optional.empty();
     }
     try {
       return Optional.of(Address.from(addressArg));
     } catch (Exception ex) {
+      logger.error("Error in getSeedAddress: " + ex);
       return Optional.empty();
     }
   }
