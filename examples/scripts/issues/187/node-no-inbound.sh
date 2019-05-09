@@ -25,4 +25,4 @@ java \
 -Dlog4j.configurationFile="log4j2-debug.xml" \
 -Dlog4j2.contextSelector="org.apache.logging.log4j.core.async.AsyncLoggerContextSelector" \
 ${JVM_OPTS} ${DEFAULT_JMX_OPTS} ${DEFAULT_OOM_OPTS} \
-io.scalecube.issues.i187.NodeNoInboundRunner SEED
+io.scalecube.issues.i187.NodeNoInboundRunner $SEED
