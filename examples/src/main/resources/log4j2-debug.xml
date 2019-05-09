@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="warn">
+
+  <Properties>
+    <Property name="patternLayout">%date{MMdd-HHmm:ss,SSS} [%thread] %level{length=1} %logger{1.} %message %n</Property>
+  </Properties>
+
+  <Appenders>
+    <RollingFile name="file"
+      fileName="logs/issue187-${env:INSTANCE_ID}.log"
+      filePattern="logs/issue187-${env:INSTANCE_ID}-%d{yyyy-MM-dd-HH}.log">
+      <PatternLayout pattern="${patternLayout}"/>
+      <Policies>
+        <OnStartupTriggeringPolicy/>
+        <TimeBasedTriggeringPolicy/>
+        <SizeBasedTriggeringPolicy size="50 MB"/>
+      </Policies>
+    </RollingFile>
+
+    <Console name="console" target="SYSTEM_OUT">
+      <PatternLayout pattern="${patternLayout}"/>
+    </Console>
+  </Appenders>
+
+
+  <Loggers>
+    <Logger name="reactor.netty" level="warn"/>
+    <Logger name="io.netty" level="warn"/>
+    <Logger name="io.scalecube" level="trace"/>
+
+    <Root level="${env:LOG_LEVEL:-trace}">
+      <AppenderRef ref="file"/>
+      <AppenderRef ref="console"/>
+    </Root>
+  </Loggers>
+
+</Configuration>
