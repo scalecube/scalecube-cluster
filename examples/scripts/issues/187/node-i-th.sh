@@ -14,7 +14,7 @@ DEFAULT_OOM_OPTS="-XX:+HeapDumpOnOutOfMemoryError
 -XX:HeapDumpPath=dumps/node-i-th<pid>_\`date\`.hprof
 -XX:+UseGCOverheadLimit"
 
-SEED=$0
+SEED=localhost:4545
 
 export INSTANCE_ID=node-i-th-"$(date +%s%N | cut -b1-13)"
 

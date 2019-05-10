@@ -6,7 +6,7 @@ cd ../../../
 JAR_FILE=$(ls target |grep jar)
 echo $JAR_FILE
 
-PORT=$0
+PORT=4545
 
 DEFAULT_JMX_OPTS="-Djava.rmi.server.hostname=0.0.0.0
 -Dcom.sun.management.jmxremote.port=5678

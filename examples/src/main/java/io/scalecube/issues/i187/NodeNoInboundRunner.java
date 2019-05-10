@@ -45,8 +45,7 @@ public class NodeNoInboundRunner {
 
     logger.debug("Starting Node-With-No-Inbound with config {}", config);
     Cluster cluster = Cluster.joinAwait(config);
-    logger.debug(
-        "Started Node-With-No-Inbound: {}, address: {}", cluster, cluster.address());
+    logger.debug("Started Node-With-No-Inbound: {}, address: {}", cluster, cluster.address());
 
     Thread.currentThread().join();
   }

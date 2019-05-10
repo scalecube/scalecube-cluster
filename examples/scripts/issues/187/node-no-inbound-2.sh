@@ -6,7 +6,7 @@ cd ../../../
 JAR_FILE=$(ls target |grep jar)
 echo $JAR_FILE
 
-SEED=$0
+SEED=localhost:4545
 PORT=5800
 
 DEFAULT_JMX_OPTS="-Djava.rmi.server.hostname=0.0.0.0
