@@ -321,13 +321,17 @@ public final class FailureDetectorImpl implements FailureDetector {
   private void onMemberEvent(MembershipEvent event) {
     Member member = event.member();
     if (event.isRemoved()) {
-      pingMembers.remove(member);
+      boolean removed = pingMembers.remove(member);
+      if (removed) {
+        LOGGER.debug("Removed {} from pingMembers list (size={})", member, pingMembers.size());
+      }
     }
     if (event.isAdded()) {
       // insert member into random positions
       int size = pingMembers.size();
       int index = size > 0 ? ThreadLocalRandom.current().nextInt(size) : 0;
       pingMembers.add(index, member);
+      LOGGER.debug("Added {} to pingMembers list (size={}))", member, pingMembers.size());
     }
   }
 
