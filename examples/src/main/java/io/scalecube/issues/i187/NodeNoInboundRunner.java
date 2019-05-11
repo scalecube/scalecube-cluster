@@ -29,7 +29,7 @@ public class NodeNoInboundRunner {
         ClusterConfig.builder()
             .syncGroup("issue187")
             .seedMembers(address)
-            .addMetadata("node-i-th", Integer.toHexString(new Object().hashCode()))
+            .addMetadata("node-no-inbound", Integer.toHexString(new Object().hashCode()))
             .syncInterval(1000)
             .syncTimeout(500)
             .gossipInterval(100)

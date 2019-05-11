@@ -27,7 +27,7 @@ public class NodeIthRunner {
         ClusterConfig.builder()
             .syncGroup("issue187")
             .seedMembers(address)
-            .addMetadata("node-no-inbound", Integer.toHexString(new Object().hashCode()))
+            .addMetadata("node-i-th", Integer.toHexString(new Object().hashCode()))
             .syncInterval(1000)
             .syncTimeout(500)
             .gossipInterval(100)

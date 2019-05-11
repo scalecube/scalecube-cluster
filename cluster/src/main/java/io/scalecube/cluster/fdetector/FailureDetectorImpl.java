@@ -331,7 +331,7 @@ public final class FailureDetectorImpl implements FailureDetector {
       int size = pingMembers.size();
       int index = size > 0 ? ThreadLocalRandom.current().nextInt(size) : 0;
       pingMembers.add(index, member);
-      LOGGER.debug("Added {} to pingMembers list (size={}))", member, pingMembers.size());
+      LOGGER.debug("Added {} to pingMembers list (size={})", member, pingMembers.size());
     }
   }
 

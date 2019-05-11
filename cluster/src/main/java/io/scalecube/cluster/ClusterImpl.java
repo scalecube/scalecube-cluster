@@ -140,7 +140,7 @@ final class ClusterImpl implements Cluster {
               actionsDisposables.add(
                   membership
                       .listen()
-                      .doOnNext(event -> LOGGER.debug("Membership received {}", event))
+                      .doOnNext(event -> LOGGER.debug("Received membership event {}", event))
                       /*.publishOn(scheduler)*/
                       // dont uncomment, already beign executed inside sc-cluster thread
                       .subscribe(

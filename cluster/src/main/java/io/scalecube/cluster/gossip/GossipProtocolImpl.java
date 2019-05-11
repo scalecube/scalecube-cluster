@@ -192,7 +192,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
     }
     if (event.isAdded()) {
       remoteMembers.add(member);
-      LOGGER.debug("Added {} to remoteMembers list (size={}))", member, remoteMembers.size());
+      LOGGER.debug("Added {} to remoteMembers list (size={})", member, remoteMembers.size());
     }
   }
 

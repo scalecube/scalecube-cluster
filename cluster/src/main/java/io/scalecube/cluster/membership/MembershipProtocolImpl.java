@@ -479,13 +479,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           // Get current record
           MembershipRecord r0 = membershipTable.get(r1.id());
 
-          // Check if new record r1 overrides existing membership record r0
-          if (!r1.isOverrides(r0)) {
-            return Mono.empty();
-          }
-
           // If received updated for local member then increase incarnation and spread Alive gossip
-          if (r1.member().id().equals(localMember.id())) {
+          if (r0 != null && r0.id().equals(localMember.id()) && r1.isOverrides(r0)) {
             int currentIncarnation = Math.max(r0.incarnation(), r1.incarnation());
             MembershipRecord r2 =
                 new MembershipRecord(localMember, r0.status(), currentIncarnation + 1);
@@ -505,14 +500,13 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                     ex -> {
                       // on-op
                     });
+
             return Mono.empty();
           }
 
-          // Update membership
-          if (r1.isDead()) {
-            membershipTable.remove(r1.id());
-          } else {
-            membershipTable.put(r1.id(), r1);
+          // Check if new record r1 overrides existing membership record r0
+          if (!r1.isOverrides(r0)) {
+            return Mono.empty();
           }
 
           // Schedule/cancel suspicion timeout task
@@ -546,22 +540,27 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           final Member member = r1.member();
 
           if (r1.isDead()) {
-            members.remove(member.id());
             // removed
             return Mono.fromRunnable(
                 () -> {
+                  // Update metadata
                   Map<String, String> metadata = metadataStore.removeMetadata(member);
+                  // Update membership
+                  members.remove(member.id());
+                  membershipTable.remove(member.id());
                   sink.next(MembershipEvent.createRemoved(member, metadata));
                 });
           }
 
           if (r0 == null && r1.isAlive()) {
-            members.put(member.id(), member);
-            // added
+            // Fetch metadata
             return metadataStore
                 .fetchMetadata(member)
                 .doOnSuccess(
                     metadata -> {
+                      // Update membership
+                      members.put(member.id(), member);
+                      membershipTable.put(member.id(), r1);
                       metadataStore.updateMetadata(member, metadata);
                       sink.next(MembershipEvent.createAdded(member, metadata));
                     })
