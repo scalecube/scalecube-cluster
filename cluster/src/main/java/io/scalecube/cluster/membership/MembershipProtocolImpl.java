@@ -479,8 +479,13 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           // Get current record
           MembershipRecord r0 = membershipTable.get(r1.id());
 
+          // Check if new record r1 overrides existing membership record r0
+          if (!r1.isOverrides(r0)) {
+            return Mono.empty();
+          }
+
           // If received updated for local member then increase incarnation and spread Alive gossip
-          if (r0 != null && r0.id().equals(localMember.id()) && r1.isOverrides(r0)) {
+          if (r1.member().id().equals(localMember.id())) {
             int currentIncarnation = Math.max(r0.incarnation(), r1.incarnation());
             MembershipRecord r2 =
                 new MembershipRecord(localMember, r0.status(), currentIncarnation + 1);
@@ -500,17 +505,16 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                     ex -> {
                       // on-op
                     });
-
             return Mono.empty();
           }
 
-          // Check if new record r1 overrides existing membership record r0
-          if (!r1.isOverrides(r0)) {
-            return Mono.empty();
-          }
-
-          // Schedule/cancel suspicion timeout task
-          if (r1.isSuspect()) {
+          if (r1.isDead()) {
+            // Update membership
+            members.remove(r1.id());
+            membershipTable.remove(r1.id());
+          } else if (r1.isSuspect()) {
+            // Update membership and schedule/cancel suspicion timeout task
+            membershipTable.put(r1.id(), r1);
             scheduleSuspicionTimeoutTask(r1);
           } else {
             cancelSuspicionTimeoutTask(r1.id());
@@ -543,43 +547,38 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
             // removed
             return Mono.fromRunnable(
                 () -> {
-                  // Update metadata
                   Map<String, String> metadata = metadataStore.removeMetadata(member);
-                  // Update membership
-                  members.remove(member.id());
-                  membershipTable.remove(member.id());
                   sink.next(MembershipEvent.createRemoved(member, metadata));
                 });
           }
 
-          if (r0 == null && r1.isAlive()) {
-            // Fetch metadata
-            return metadataStore
-                .fetchMetadata(member)
-                .doOnSuccess(
-                    metadata -> {
-                      // Update membership
-                      members.put(member.id(), member);
-                      membershipTable.put(member.id(), r1);
-                      metadataStore.updateMetadata(member, metadata);
-                      sink.next(MembershipEvent.createAdded(member, metadata));
-                    })
-                .onErrorResume(TimeoutException.class, e -> Mono.empty())
-                .then();
-          }
+          if (r1.isAlive()) {
+            // new or updated alive
+            if (r0 == null || r0.incarnation() < r1.incarnation()) {
+              return metadataStore
+                  .fetchMetadata(member)
+                  .doOnSuccess(
+                      metadata1 -> {
+                        // Update membership
+                        members.put(member.id(), member);
+                        membershipTable.put(member.id(), r1);
 
-          if (r0 != null && r0.incarnation() < r1.incarnation()) {
-            // updated
-            return metadataStore
-                .fetchMetadata(member)
-                .doOnSuccess(
-                    metadata1 -> {
-                      Map<String, String> metadata0 =
-                          metadataStore.updateMetadata(member, metadata1);
-                      sink.next(MembershipEvent.createUpdated(member, metadata0, metadata1));
-                    })
-                .onErrorResume(TimeoutException.class, e -> Mono.empty())
-                .then();
+                        Map<String, String> metadata0 =
+                            metadataStore.updateMetadata(member, metadata1);
+
+                        MembershipEvent membershipEvent;
+                        if (metadata0 == null) {
+                          membershipEvent = MembershipEvent.createAdded(member, metadata1);
+                        } else {
+                          membershipEvent =
+                              MembershipEvent.createUpdated(member, metadata0, metadata1);
+                        }
+
+                        sink.next(membershipEvent);
+                      })
+                  .onErrorResume(TimeoutException.class, e -> Mono.empty())
+                  .then();
+            }
           }
 
           return Mono.empty();
