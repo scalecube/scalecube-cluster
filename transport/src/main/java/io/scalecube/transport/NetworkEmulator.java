@@ -137,7 +137,7 @@ public final class NetworkEmulator {
     LOGGER.debug("Unblocked outbound from {} to {}", address, destinations);
   }
 
-  /** Unblock outbound messages to all destinations. */
+  /** Unblocks outbound messages to all destinations. */
   public void unblockOutboundAll() {
     if (!enabled) {
       return;
@@ -254,7 +254,7 @@ public final class NetworkEmulator {
    * @param lossPercent loss in percents
    * @param meanDelay mean delay
    */
-  public void setDefaultOutboundSettings(boolean shallPass) {
+  public void setDefaultInboundSettings(boolean shallPass) {
     if (!enabled) {
       return;
     }

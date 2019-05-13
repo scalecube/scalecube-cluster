@@ -187,7 +187,9 @@ final class TransportImpl implements Transport {
 
   @Override
   public final Flux<Message> listen() {
-    return messagesSubject.onBackpressureBuffer();
+    return messagesSubject
+        .filter(message -> networkEmulator.inboundSettings(message.sender()).shallPass())
+        .onBackpressureBuffer();
   }
 
   @Override
