@@ -91,6 +91,11 @@ public final class NetworkEmulator {
     LOGGER.debug("Set default outbound settings {} for {}", defaultOutboundSettings, address);
   }
 
+  /** Blocks outbound messages to all destinations. */
+  public void blockAllOutbound() {
+    setDefaultOutboundSettings(100, 0);
+  }
+
   /**
    * Blocks outbound messages to the given destinations.
    *
@@ -138,11 +143,12 @@ public final class NetworkEmulator {
   }
 
   /** Unblocks outbound messages to all destinations. */
-  public void unblockOutboundAll() {
+  public void unblockAllOutbound() {
     if (!enabled) {
       return;
     }
     outboundSettings.clear();
+    setDefaultOutboundSettings(0, 0);
     LOGGER.debug("Unblocked outbound from {} to all destinations", address);
   }
 
@@ -260,6 +266,11 @@ public final class NetworkEmulator {
     LOGGER.debug("Set default inbound settings {} for {}", defaultInboundSettings, address);
   }
 
+  /** Blocks inbound messages from all destinations. */
+  public void blockAllInbound() {
+    setDefaultInboundSettings(false);
+  }
+
   /**
    * Blocks inbound messages to the given destinations.
    *
@@ -307,11 +318,12 @@ public final class NetworkEmulator {
   }
 
   /** Unblocks inbound messages to all destinations. */
-  public void unblockInboundAll() {
+  public void unblockAllInbound() {
     if (!enabled) {
       return;
     }
     inboundSettings.clear();
+    setDefaultInboundSettings(true);
     LOGGER.debug("Unblocked inbound from {} to all destinations", address);
   }
 

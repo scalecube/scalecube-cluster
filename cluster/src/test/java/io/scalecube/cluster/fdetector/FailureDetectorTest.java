@@ -107,9 +107,9 @@ public class FailureDetectorTest extends BaseTest {
       assertStatus(b.address(), SUSPECT, awaitEvents(listB), a.address(), c.address());
       assertStatus(c.address(), SUSPECT, awaitEvents(listC), a.address(), b.address());
     } finally {
-      a.networkEmulator().unblockOutboundAll();
-      b.networkEmulator().unblockOutboundAll();
-      c.networkEmulator().unblockOutboundAll();
+      a.networkEmulator().unblockAllOutbound();
+      b.networkEmulator().unblockAllOutbound();
+      c.networkEmulator().unblockAllOutbound();
       stop(fdetectors);
     }
   }
@@ -217,7 +217,7 @@ public class FailureDetectorTest extends BaseTest {
       assertStatus(d.address(), SUSPECT, awaitEvents(listD), a.address());
 
       // Unblock traffic on member A
-      a.networkEmulator().unblockOutboundAll();
+      a.networkEmulator().unblockAllOutbound();
       TimeUnit.SECONDS.sleep(4);
 
       final Future<List<FailureDetectorEvent>> listA0 = listenNextEventFor(fdA, members);
@@ -278,9 +278,9 @@ public class FailureDetectorTest extends BaseTest {
       // partitioned
 
       // Unblock traffic to member D on other members
-      a.networkEmulator().unblockOutboundAll();
-      b.networkEmulator().unblockOutboundAll();
-      c.networkEmulator().unblockOutboundAll();
+      a.networkEmulator().unblockAllOutbound();
+      b.networkEmulator().unblockAllOutbound();
+      c.networkEmulator().unblockAllOutbound();
       TimeUnit.SECONDS.sleep(4);
 
       final Future<List<FailureDetectorEvent>> listA0 = listenNextEventFor(fdA, members);
@@ -325,8 +325,8 @@ public class FailureDetectorTest extends BaseTest {
       assertStatus(b.address(), SUSPECT, awaitEvents(listB), a.address());
 
       // Unblock A and B members: A-->B, B-->A
-      a.networkEmulator().unblockOutboundAll();
-      b.networkEmulator().unblockOutboundAll();
+      a.networkEmulator().unblockAllOutbound();
+      b.networkEmulator().unblockAllOutbound();
       TimeUnit.SECONDS.sleep(2);
 
       // Check that members recover
