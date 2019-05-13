@@ -1,11 +1,11 @@
 package io.scalecube.transport;
 
-import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,29 +16,30 @@ import reactor.core.publisher.Mono;
  * of message loss, message delay, cluster partitions cluster recovery and other network related
  * conditions.
  *
- * <p>NOTE: used for test purposes.
+ * <p><b>NOTE:</b> used for test purposes.
+ *
+ * <p><b>NOTE:</b> if emulator is disabled then side effect functions does nothing.
  */
 public final class NetworkEmulator {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(NetworkEmulator.class);
 
-  public static final NetworkLinkSettings DEAD_LINK_SETTINGS = new NetworkLinkSettings(100, 0);
-  public static final NetworkLinkSettings ALIVE_LINK_SETTINGS = new NetworkLinkSettings(0, 0);
+  private volatile OutboundSettings defaultOutboundSettings = new OutboundSettings(0, 0);
+  private volatile InboundSettings defaultInboundSettings = new InboundSettings(true);
 
-  private volatile NetworkLinkSettings defaultLinkSettings = ALIVE_LINK_SETTINGS;
-
-  private final Map<Address, NetworkLinkSettings> customLinkSettings = new ConcurrentHashMap<>();
+  private final Map<Address, OutboundSettings> outboundSettings = new ConcurrentHashMap<>();
+  private final Map<Address, InboundSettings> inboundSettings = new ConcurrentHashMap<>();
 
   private final AtomicLong totalMessageSentCount = new AtomicLong();
-
-  private final AtomicLong totalMessageLostCount = new AtomicLong();
+  private final AtomicLong totalOutboundMessageLostCount = new AtomicLong();
+  private final AtomicLong totalInboundMessageLostCount = new AtomicLong();
 
   private final boolean enabled;
 
   private final Address address;
 
   /**
-   * Creates new instance of network emulator. Should be always created internally by Transport.
+   * Creates new instance of network emulator.
    *
    * @param address local address
    * @param enabled either network emulator is enabled
@@ -48,187 +49,142 @@ public final class NetworkEmulator {
     this.enabled = enabled;
   }
 
+  //// OUTBOUND functions
+
   /**
-   * Returns link settings applied to the given destination.
+   * Returns network outbound settings applied to the given destination.
    *
    * @param destination address of target endpoint
-   * @return network settings
+   * @return network outbound settings
    */
-  public NetworkLinkSettings getLinkSettings(Address destination) {
-    return customLinkSettings.getOrDefault(destination, defaultLinkSettings);
+  public OutboundSettings outboundSettings(Address destination) {
+    return outboundSettings.getOrDefault(destination, defaultOutboundSettings);
   }
 
   /**
-   * Returns link settings applied to the given destination.
-   *
-   * @param address socket address of target endpoint
-   * @return network settings
-   */
-  public NetworkLinkSettings getLinkSettings(InetSocketAddress address) {
-    // Check hostname:port
-    Address address1 = Address.create(address.getHostName(), address.getPort());
-    if (customLinkSettings.containsKey(address1)) {
-      return customLinkSettings.get(address1);
-    }
-
-    // Check ip:port
-    Address address2 = Address.create(address.getAddress().getHostAddress(), address.getPort());
-    if (customLinkSettings.containsKey(address2)) {
-      return customLinkSettings.get(address2);
-    }
-
-    // Use default
-    return defaultLinkSettings;
-  }
-
-  /**
-   * Sets given network emulator settings for specific link. If network emulator is disabled do
-   * nothing.
+   * Sets given network emulator outbound settings for specific destination.
    *
    * @param destination address of target endpoint
    * @param lossPercent loss in percents
    * @param meanDelay mean delay
    */
-  public void setLinkSettings(Address destination, int lossPercent, int meanDelay) {
+  public void outboundSettings(Address destination, int lossPercent, int meanDelay) {
     if (!enabled) {
-      LOGGER.warn(
-          "Can't set network settings (loss={}%, mean={}ms) "
-              + "from {} to {} since network emulator is disabled",
-          lossPercent, meanDelay, address, destination);
       return;
     }
-    NetworkLinkSettings settings = new NetworkLinkSettings(lossPercent, meanDelay);
-    customLinkSettings.put(destination, settings);
-    LOGGER.debug(
-        "Set network settings (loss={}%, mean={}ms) from {} to {}",
-        lossPercent, meanDelay, address, destination);
+    OutboundSettings settings = new OutboundSettings(lossPercent, meanDelay);
+    outboundSettings.put(destination, settings);
+    LOGGER.debug("Set outbound settings {} from {} to {}", settings, address, destination);
   }
 
   /**
-   * Sets default network emulator settings. If network emulator is disabled do nothing.
+   * Sets default network emulator outbound settings.
    *
    * @param lossPercent loss in percents
    * @param meanDelay mean delay
    */
-  public void setDefaultLinkSettings(int lossPercent, int meanDelay) {
+  public void setDefaultOutboundSettings(int lossPercent, int meanDelay) {
     if (!enabled) {
-      LOGGER.warn(
-          "Can't set default network settings (loss={}%, mean={}ms) "
-              + "for {} since network emulator is disabled",
-          lossPercent, meanDelay, address);
       return;
     }
-    defaultLinkSettings = new NetworkLinkSettings(lossPercent, meanDelay);
-    LOGGER.debug(
-        "Set default network settings (loss={}%, mean={}ms) for {}",
-        lossPercent, meanDelay, address);
+    defaultOutboundSettings = new OutboundSettings(lossPercent, meanDelay);
+    LOGGER.debug("Set default outbound settings {} for {}", defaultOutboundSettings, address);
+  }
+
+  /** Blocks outbound messages to all destinations. */
+  public void blockAllOutbound() {
+    setDefaultOutboundSettings(100, 0);
   }
 
   /**
-   * Blocks messages to the given destinations. If network emulator is disabled do nothing.
+   * Blocks outbound messages to the given destinations.
    *
    * @param destinations collection of target endpoints where to apply
    */
-  public void block(Address... destinations) {
-    block(Arrays.asList(destinations));
+  public void blockOutbound(Address... destinations) {
+    blockOutbound(Arrays.asList(destinations));
   }
 
   /**
-   * Blocks messages to the given destinations. If network emulator is disabled do nothing.
+   * Blocks outbound messages to the given destinations.
    *
    * @param destinations collection of target endpoints where to apply
    */
-  public void block(Collection<Address> destinations) {
+  public void blockOutbound(Collection<Address> destinations) {
     if (!enabled) {
-      LOGGER.warn("Can't block network from {} to {} since network emulator is disabled");
-      return;
-    }
-    for (Address destination : destinations) {
-      customLinkSettings.put(destination, DEAD_LINK_SETTINGS);
-    }
-    LOGGER.debug("Blocked network from {} to {}", address, destinations);
-  }
-
-  /**
-   * Unblocks messages to given destinations. If network emulator is disabled do nothing.
-   *
-   * @param destinations collection of target endpoints where to apply
-   */
-  public void unblock(Address... destinations) {
-    unblock(Arrays.asList(destinations));
-  }
-
-  /**
-   * Unblocks messages to given destinations. If network emulator is disabled do nothing.
-   *
-   * @param destinations collection of target endpoints where to apply
-   */
-  public void unblock(Collection<Address> destinations) {
-    if (!enabled) {
-      LOGGER.warn(
-          "Can't unblock network from {} to {} since network emulator is disabled",
-          address,
-          destinations);
       return;
     }
     for (Address destination : destinations) {
-      customLinkSettings.remove(destination);
+      outboundSettings.put(destination, new OutboundSettings(100, 0));
     }
-    LOGGER.debug("Unblocked network from {} to {}", address, destinations);
+    LOGGER.debug("Blocked outbound from {} to {}", address, destinations);
   }
 
   /**
-   * Unblock messages to all destinations.
+   * Unblocks outbound messages to given destinations.
    *
-   * <p>If network emulator is disabled do nothing.
+   * @param destinations collection of target endpoints where to apply
    */
-  public void unblockAll() {
+  public void unblockOutbound(Address... destinations) {
+    unblockOutbound(Arrays.asList(destinations));
+  }
+
+  /**
+   * Unblocks outbound messages to given destinations.
+   *
+   * @param destinations collection of target endpoints where to apply
+   */
+  public void unblockOutbound(Collection<Address> destinations) {
     if (!enabled) {
-      LOGGER.warn("Can't unblock network from {} since network emulator is disabled", address);
       return;
     }
-    customLinkSettings.clear();
-    LOGGER.debug("Unblocked all network from {}", address);
+    destinations.forEach(outboundSettings::remove);
+    LOGGER.debug("Unblocked outbound from {} to {}", address, destinations);
+  }
+
+  /** Unblocks outbound messages to all destinations. */
+  public void unblockAllOutbound() {
+    if (!enabled) {
+      return;
+    }
+    outboundSettings.clear();
+    setDefaultOutboundSettings(0, 0);
+    LOGGER.debug("Unblocked outbound from {} to all destinations", address);
   }
 
   /**
-   * Returns total message sent count computed by network emulator. If network emulator is disabled
-   * returns zero.
+   * Returns total message sent count computed by network emulator.
    *
-   * @return total message sent
+   * @return total message sent; 0 if emulator is disabled
    */
   public long totalMessageSentCount() {
     if (!enabled) {
-      LOGGER.warn(
-          "Can't compute total messages sent from {} since network emulator is disabled", address);
       return 0;
     }
     return totalMessageSentCount.get();
   }
 
   /**
-   * Returns total message lost count computed by network emulator. If network emulator is disabled
-   * returns zero.
+   * Returns total outbound message lost count computed by network emulator.
    *
-   * @return total message lost
+   * @return total message lost; 0 if emulator is disabled
    */
-  public long totalMessageLostCount() {
+  public long totalOutboundMessageLostCount() {
     if (!enabled) {
-      LOGGER.warn(
-          "Can't compute total messages lost from {} since network emulator is disabled", address);
       return 0;
     }
-    return totalMessageLostCount.get();
+    return totalOutboundMessageLostCount.get();
   }
 
   /**
-   * Conditionally fails given message onto given address with {@link NetworkEmulatorException}.
+   * Conditionally fails given outbound message onto given address with {@link
+   * NetworkEmulatorException}.
    *
-   * @param msg message
+   * @param msg outbound message
    * @param address target address
    * @return mono message
    */
-  public Mono<Message> tryFail(Message msg, Address address) {
+  public Mono<Message> tryFailOutbound(Message msg, Address address) {
     return Mono.defer(
         () -> {
           if (!enabled) {
@@ -236,9 +192,9 @@ public final class NetworkEmulator {
           }
           totalMessageSentCount.incrementAndGet();
           // Emulate message loss
-          boolean isLost = getLinkSettings(address).evaluateLoss();
+          boolean isLost = outboundSettings(address).evaluateLoss();
           if (isLost) {
-            totalMessageLostCount.incrementAndGet();
+            totalOutboundMessageLostCount.incrementAndGet();
             return Mono.error(
                 new NetworkEmulatorException("NETWORK_BREAK detected, not sent " + msg));
           } else {
@@ -248,13 +204,13 @@ public final class NetworkEmulator {
   }
 
   /**
-   * Conditionally delays given message onto given address.
+   * Conditionally delays given outbound message onto given address.
    *
-   * @param msg message
+   * @param msg outbound message
    * @param address target address
    * @return mono message
    */
-  public Mono<Message> tryDelay(Message msg, Address address) {
+  public Mono<Message> tryDelayOutbound(Message msg, Address address) {
     return Mono.defer(
         () -> {
           if (!enabled) {
@@ -262,12 +218,237 @@ public final class NetworkEmulator {
           }
           totalMessageSentCount.incrementAndGet();
           // Emulate message delay
-          int delay = (int) getLinkSettings(address).evaluateDelay();
+          int delay = (int) outboundSettings(address).evaluateDelay();
           if (delay > 0) {
             return Mono.just(msg).delayElement(Duration.ofMillis(delay));
           } else {
             return Mono.just(msg);
           }
         });
+  }
+
+  //// INBOUND functions
+
+  /**
+   * Returns network inbound settings applied to the given destination.
+   *
+   * @param destination address of target endpoint
+   * @return network inbound settings
+   */
+  public InboundSettings inboundSettings(Address destination) {
+    return inboundSettings.getOrDefault(destination, defaultInboundSettings);
+  }
+
+  /**
+   * Sets given network emulator inbound settings for specific destination.
+   *
+   * @param shallPass shallPass inbound flag
+   */
+  public void inboundSettings(Address destination, boolean shallPass) {
+    if (!enabled) {
+      return;
+    }
+    InboundSettings settings = new InboundSettings(shallPass);
+    inboundSettings.put(destination, settings);
+    LOGGER.debug("Set inbound settings {} from {} to {}", settings, address, destination);
+  }
+
+  /**
+   * Sets default network emulator inbound settings.
+   *
+   * @param shallPass shallPass inbound flag
+   */
+  public void setDefaultInboundSettings(boolean shallPass) {
+    if (!enabled) {
+      return;
+    }
+    defaultInboundSettings = new InboundSettings(shallPass);
+    LOGGER.debug("Set default inbound settings {} for {}", defaultInboundSettings, address);
+  }
+
+  /** Blocks inbound messages from all destinations. */
+  public void blockAllInbound() {
+    setDefaultInboundSettings(false);
+  }
+
+  /**
+   * Blocks inbound messages to the given destinations.
+   *
+   * @param destinations collection of target endpoints where to apply
+   */
+  public void blockInbound(Address... destinations) {
+    blockInbound(Arrays.asList(destinations));
+  }
+
+  /**
+   * Blocks inbound messages to the given destinations.
+   *
+   * @param destinations collection of target endpoints where to apply
+   */
+  public void blockInbound(Collection<Address> destinations) {
+    if (!enabled) {
+      return;
+    }
+    for (Address destination : destinations) {
+      inboundSettings.put(destination, new InboundSettings(false));
+    }
+    LOGGER.debug("Blocked inbound from {} to {}", address, destinations);
+  }
+
+  /**
+   * Unblocks inbound messages to given destinations.
+   *
+   * @param destinations collection of target endpoints where to apply
+   */
+  public void unblockInbound(Address... destinations) {
+    unblockInbound(Arrays.asList(destinations));
+  }
+
+  /**
+   * Unblocks inbound messages to given destinations.
+   *
+   * @param destinations collection of target endpoints where to apply
+   */
+  public void unblockInbound(Collection<Address> destinations) {
+    if (!enabled) {
+      return;
+    }
+    destinations.forEach(inboundSettings::remove);
+    LOGGER.debug("Unblocked inbound from {} to {}", address, destinations);
+  }
+
+  /** Unblocks inbound messages to all destinations. */
+  public void unblockAllInbound() {
+    if (!enabled) {
+      return;
+    }
+    inboundSettings.clear();
+    setDefaultInboundSettings(true);
+    LOGGER.debug("Unblocked inbound from {} to all destinations", address);
+  }
+
+  /**
+   * Returns total inbound message lost count computed by network emulator.
+   *
+   * @return total message lost; 0 if emulator is disabled
+   */
+  public long totalInboundMessageLostCount() {
+    if (!enabled) {
+      return 0;
+    }
+    return totalInboundMessageLostCount.get();
+  }
+
+  /**
+   * This class contains settings and computations for the network outbound link to evaluate message
+   * loss and message delay on outbound path. Parameters:
+   *
+   * <ul>
+   *   <li>Percent of losing messages.
+   *   <li>Mean network delays in milliseconds. Delays are emulated using exponential distribution
+   *       of probabilities.
+   * </ul>
+   */
+  public static final class OutboundSettings {
+
+    private final int lossPercent;
+    private final int meanDelay;
+
+    /**
+     * Constructor for outbound link settings.
+     *
+     * @param lossPercent loss in percent
+     * @param meanDelay mean dealy
+     */
+    public OutboundSettings(int lossPercent, int meanDelay) {
+      this.lossPercent = lossPercent;
+      this.meanDelay = meanDelay;
+    }
+
+    /**
+     * Returns probability of message loss in percents.
+     *
+     * @return loss in percents
+     */
+    public int lossPercent() {
+      return lossPercent;
+    }
+
+    /**
+     * Returns mean network delay for message in milliseconds.
+     *
+     * @return mean delay
+     */
+    public int meanDelay() {
+      return meanDelay;
+    }
+
+    /**
+     * Indicator function telling is loss enabled.
+     *
+     * @return boolean indicating would loss occur
+     */
+    public boolean evaluateLoss() {
+      return lossPercent > 0
+          && (lossPercent >= 100 || ThreadLocalRandom.current().nextInt(100) < lossPercent);
+    }
+
+    /**
+     * Evaluates network delay according to exponential distribution of probabilities.
+     *
+     * @return delay
+     */
+    public long evaluateDelay() {
+      if (meanDelay > 0) {
+        // Network delays (network delays). Delays should be emulated using exponential distribution
+        // of probabilities.
+        // log(1-x)/(1/mean)
+        double x0 = ThreadLocalRandom.current().nextDouble();
+        double y0 = -Math.log(1 - x0) * meanDelay;
+        return (long) y0;
+      }
+      return 0;
+    }
+
+    @Override
+    public String toString() {
+      return "OutboundSettings{loss=" + lossPercent + ", delay=" + meanDelay + '}';
+    }
+  }
+
+  /**
+   * This class contains settings and computations for the network inbound link to evaluate message
+   * blocking on inbound path. Parameters:
+   *
+   * <ul>
+   *   <li>ShallPass boolean flag for controlling inbound messages.
+   * </ul>
+   */
+  public static class InboundSettings {
+
+    private final boolean shallPass;
+
+    /**
+     * Constructor for inbound link settings.
+     *
+     * @param shallPass shall pass flag
+     */
+    public InboundSettings(boolean shallPass) {
+      this.shallPass = shallPass;
+    }
+
+    /**
+     * Returns shallPass inbound flag.
+     *
+     * @return shallPass flag
+     */
+    public boolean shallPass() {
+      return shallPass;
+    }
+
+    @Override
+    public String toString() {
+      return "InboundSettings{shallPass=" + shallPass + '}';
+    }
   }
 }
