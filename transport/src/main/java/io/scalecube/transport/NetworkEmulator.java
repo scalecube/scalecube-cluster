@@ -358,11 +358,11 @@ public final class NetworkEmulator {
      * Constructor for outbound link settings.
      *
      * @param lossPercent loss in percent
-     * @param mean mean dealy
+     * @param meanDelay mean dealy
      */
-    public OutboundSettings(int lossPercent, int mean) {
+    public OutboundSettings(int lossPercent, int meanDelay) {
       this.lossPercent = lossPercent;
-      this.meanDelay = mean;
+      this.meanDelay = meanDelay;
     }
 
     /**
