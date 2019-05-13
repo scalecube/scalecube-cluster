@@ -603,7 +603,6 @@ public class MembershipProtocolTest extends BaseTest {
     }
   }
 
-  @Disabled
   @Test
   public void testNetworkPartitionDueNoInboundThenRemoved() {
     Transport a = Transport.bindAwait(true);
@@ -616,7 +615,7 @@ public class MembershipProtocolTest extends BaseTest {
 
     try {
       awaitSeconds(3);
-      // prerequistites
+      // prerequisites
       assertTrusted(cmA, cmA.member().address(), cmB.member().address(), cmC.member().address());
       assertTrusted(cmB, cmB.member().address(), cmA.member().address(), cmC.member().address());
       assertTrusted(cmC, cmB.member().address(), cmA.member().address(), cmC.member().address());
@@ -632,6 +631,48 @@ public class MembershipProtocolTest extends BaseTest {
       assertNoSuspected(cmB);
       assertTrusted(cmC, cmC.member().address());
       assertNoSuspected(cmC);
+    } finally {
+      stopAll(cmA, cmB, cmC);
+    }
+  }
+
+  @Test
+  public void testNetworkPartitionDueNoInboundUntilRemovedThenInboundRecover() {
+    Transport a = Transport.bindAwait(true);
+    Transport b = Transport.bindAwait(true);
+    Transport c = Transport.bindAwait(true);
+
+    MembershipProtocolImpl cmA = createMembership(a, Collections.emptyList());
+    MembershipProtocolImpl cmB = createMembership(b, Collections.singletonList(a.address()));
+    MembershipProtocolImpl cmC = createMembership(c, Collections.singletonList(a.address()));
+
+    try {
+      awaitSeconds(3);
+      // prerequisites
+      assertTrusted(cmA, cmA.member().address(), cmB.member().address(), cmC.member().address());
+      assertTrusted(cmB, cmB.member().address(), cmA.member().address(), cmC.member().address());
+      assertTrusted(cmC, cmB.member().address(), cmA.member().address(), cmC.member().address());
+
+      // block inbound msgs from all
+      c.networkEmulator().blockAllInbound();
+
+      awaitSuspicion(3);
+
+      assertTrusted(cmA, cmA.member().address(), cmB.member().address());
+      assertNoSuspected(cmA);
+      assertTrusted(cmB, cmB.member().address(), cmA.member().address());
+      assertNoSuspected(cmB);
+      assertTrusted(cmC, cmC.member().address());
+      assertNoSuspected(cmC);
+
+      // unblock inbound msgs for all
+      c.networkEmulator().unblockAllInbound();
+
+      awaitSeconds(3);
+
+      assertTrusted(cmA, cmA.member().address(), cmB.member().address(), cmC.member().address());
+      assertTrusted(cmB, cmB.member().address(), cmA.member().address(), cmC.member().address());
+      assertTrusted(cmC, cmB.member().address(), cmA.member().address(), cmC.member().address());
     } finally {
       stopAll(cmA, cmB, cmC);
     }
