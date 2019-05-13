@@ -24,7 +24,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import reactor.core.Exceptions;
@@ -530,7 +529,6 @@ public class MembershipProtocolTest extends BaseTest {
     }
   }
 
-  @Disabled
   @Test
   public void testNodeJoinClusterWithNoInbound() {
     Transport a = Transport.bindAwait(true);
@@ -553,11 +551,59 @@ public class MembershipProtocolTest extends BaseTest {
 
       //noinspection RedundantArrayCreation
       assertSuspected(cm_noInbound, new Address[0]);
-      //noinspection RedundantArrayCreation
-      assertTrusted(cm_noInbound, new Address[0]);
-
+      assertTrusted(cm_noInbound, cm_noInbound.member().address());
     } finally {
       stopAll(cmA, cmB, cm_noInbound);
+    }
+  }
+
+  @Test
+  public void testNodeJoinClusterWithNoInboundThenInboundRecover() {
+    Transport a = Transport.bindAwait(true);
+    Transport b = Transport.bindAwait(true);
+    Transport c_noInboundThenInboundOk = Transport.bindAwait(true);
+
+    // Block traffic
+    c_noInboundThenInboundOk.networkEmulator().blockAllInbound();
+
+    MembershipProtocolImpl cmA = createMembership(a, Collections.emptyList());
+    MembershipProtocolImpl cmB = createMembership(b, Collections.singletonList(a.address()));
+    MembershipProtocolImpl cm_noInboundThenInboundOk =
+        createMembership(c_noInboundThenInboundOk, Collections.singletonList(a.address()));
+
+    awaitSeconds(3);
+
+    try {
+      assertTrusted(cmA, cmA.member().address(), cmB.member().address());
+      assertTrusted(cmB, cmB.member().address(), cmA.member().address());
+
+      //noinspection RedundantArrayCreation
+      assertSuspected(cm_noInboundThenInboundOk, new Address[0]);
+      assertTrusted(cm_noInboundThenInboundOk, cm_noInboundThenInboundOk.member().address());
+
+      // Unblock traffic
+      c_noInboundThenInboundOk.networkEmulator().unblockAllInbound();
+
+      awaitSeconds(1);
+
+      // Verify cluster
+      assertTrusted(
+          cmA,
+          cmA.member().address(),
+          cmB.member().address(),
+          cm_noInboundThenInboundOk.member().address());
+      assertTrusted(
+          cmB,
+          cmA.member().address(),
+          cmB.member().address(),
+          cm_noInboundThenInboundOk.member().address());
+      assertTrusted(
+          cm_noInboundThenInboundOk,
+          cmA.member().address(),
+          cmB.member().address(),
+          cm_noInboundThenInboundOk.member().address());
+    } finally {
+      stopAll(cmA, cmB, cm_noInboundThenInboundOk);
     }
   }
 
