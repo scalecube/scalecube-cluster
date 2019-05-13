@@ -22,8 +22,7 @@ public class NetworkEmulatorTest extends BaseTest {
     assertEquals(10, link1.meanDelay());
 
     // Check resolve by ipaddr:port
-    byte[] byteAddr = new byte[] {(byte) 192, (byte) 168, 0, 1};
-    OutboundSettings link2 = networkEmulator.outboundSettings(Address.create("localhost", 8765));
+    OutboundSettings link2 = networkEmulator.outboundSettings(Address.create("192.168.0.1", 8765));
     assertEquals(10, link2.lossPercent());
     assertEquals(20, link2.meanDelay());
 
