@@ -678,6 +678,97 @@ public class MembershipProtocolTest extends BaseTest {
     }
   }
 
+  @Test
+  public void testNetworkPartitionBetweenTwoMembersDueNoInbound() {
+    Transport a = Transport.bindAwait(true);
+    Transport b = Transport.bindAwait(true);
+    Transport c = Transport.bindAwait(true);
+
+    MembershipProtocolImpl cmA = createMembership(a, Collections.emptyList());
+    MembershipProtocolImpl cmB = createMembership(b, Collections.singletonList(a.address()));
+    MembershipProtocolImpl cmC = createMembership(c, Collections.singletonList(a.address()));
+
+    try {
+      awaitSeconds(3);
+      // prerequisites
+      assertTrusted(cmA, cmA.member().address(), cmB.member().address(), cmC.member().address());
+      assertTrusted(cmB, cmB.member().address(), cmA.member().address(), cmC.member().address());
+      assertTrusted(cmC, cmB.member().address(), cmA.member().address(), cmC.member().address());
+
+      // block inbound msgs from b
+      c.networkEmulator().inboundSettings(b.address(), false);
+
+      awaitSuspicion(3);
+
+      assertTrusted(cmA, cmA.member().address(), cmB.member().address(), cmC.member().address());
+      assertTrusted(cmB, cmB.member().address(), cmA.member().address(), cmC.member().address());
+      assertTrusted(cmC, cmB.member().address(), cmA.member().address(), cmC.member().address());
+    } finally {
+      stopAll(cmA, cmB, cmC);
+    }
+  }
+
+  @Test
+  public void testNetworkPartitionBetweenTwoMembersDueNoOutbound() {
+    Transport a = Transport.bindAwait(true);
+    Transport b = Transport.bindAwait(true);
+    Transport c = Transport.bindAwait(true);
+
+    MembershipProtocolImpl cmA = createMembership(a, Collections.emptyList());
+    MembershipProtocolImpl cmB = createMembership(b, Collections.singletonList(a.address()));
+    MembershipProtocolImpl cmC = createMembership(c, Collections.singletonList(a.address()));
+
+    try {
+      awaitSeconds(3);
+      // prerequisites
+      assertTrusted(cmA, cmA.member().address(), cmB.member().address(), cmC.member().address());
+      assertTrusted(cmB, cmB.member().address(), cmA.member().address(), cmC.member().address());
+      assertTrusted(cmC, cmB.member().address(), cmA.member().address(), cmC.member().address());
+
+      // block outbound msgs from b
+      c.networkEmulator().outboundSettings(b.address(), 100, 0);
+
+      awaitSuspicion(3);
+
+      assertTrusted(cmA, cmA.member().address(), cmB.member().address(), cmC.member().address());
+      assertTrusted(cmB, cmB.member().address(), cmA.member().address(), cmC.member().address());
+      assertTrusted(cmC, cmB.member().address(), cmA.member().address(), cmC.member().address());
+    } finally {
+      stopAll(cmA, cmB, cmC);
+    }
+  }
+
+  @Test
+  public void testNetworkPartitionBetweenTwoMembersDueNoTrafficAtAll() {
+    Transport a = Transport.bindAwait(true);
+    Transport b = Transport.bindAwait(true);
+    Transport c = Transport.bindAwait(true);
+
+    MembershipProtocolImpl cmA = createMembership(a, Collections.emptyList());
+    MembershipProtocolImpl cmB = createMembership(b, Collections.singletonList(a.address()));
+    MembershipProtocolImpl cmC = createMembership(c, Collections.singletonList(a.address()));
+
+    try {
+      awaitSeconds(3);
+      // prerequisites
+      assertTrusted(cmA, cmA.member().address(), cmB.member().address(), cmC.member().address());
+      assertTrusted(cmB, cmB.member().address(), cmA.member().address(), cmC.member().address());
+      assertTrusted(cmC, cmB.member().address(), cmA.member().address(), cmC.member().address());
+
+      // block all traffic msgs from b
+      c.networkEmulator().outboundSettings(b.address(), 100, 0);
+      c.networkEmulator().inboundSettings(b.address(), false);
+
+      awaitSuspicion(3);
+
+      assertTrusted(cmA, cmA.member().address(), cmB.member().address(), cmC.member().address());
+      assertTrusted(cmB, cmB.member().address(), cmA.member().address(), cmC.member().address());
+      assertTrusted(cmC, cmB.member().address(), cmA.member().address(), cmC.member().address());
+    } finally {
+      stopAll(cmA, cmB, cmC);
+    }
+  }
+
   private void awaitSeconds(long seconds) {
     try {
       TimeUnit.SECONDS.sleep(seconds);
