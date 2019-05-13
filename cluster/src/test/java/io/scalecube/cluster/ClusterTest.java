@@ -390,8 +390,7 @@ public class ClusterTest extends BaseTest {
   private void shutdown(List<Cluster> nodes) {
     try {
       Mono.when(
-              nodes
-                  .stream() //
+              nodes.stream() //
                   .map(Cluster::shutdown)
                   .collect(Collectors.toList()))
           .block(TIMEOUT);
