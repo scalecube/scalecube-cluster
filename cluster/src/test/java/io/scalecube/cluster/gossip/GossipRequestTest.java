@@ -7,16 +7,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.scalecube.cluster.BaseTest;
 import io.scalecube.cluster.Member;
 import io.scalecube.transport.Address;
-import io.scalecube.transport.Message;
 import io.scalecube.transport.JacksonMessageCodec;
+import io.scalecube.transport.Message;
+import io.scalecube.transport.MessageCodec;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import io.scalecube.transport.MessageCodec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -51,7 +50,7 @@ public class GossipRequestTest extends BaseTest {
     assertTrue(out.size() > 0);
 
     Message deserializedMessage =
-      messageCodec.deserialize(new ByteArrayInputStream(out.toByteArray()));
+        messageCodec.deserialize(new ByteArrayInputStream(out.toByteArray()));
 
     assertNotNull(deserializedMessage);
     assertEquals(deserializedMessage.data().getClass(), GossipRequest.class);

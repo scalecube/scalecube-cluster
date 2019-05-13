@@ -24,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import reactor.core.Exceptions;
@@ -37,8 +38,6 @@ public class MembershipProtocolTest extends BaseTest {
   public static final Duration TIMEOUT = Duration.ofSeconds(10);
 
   public static final int TEST_SYNC_INTERVAL = 500;
-  public static final int TEST_SYNC_TIMEOUT = 100;
-  private static final int TEST_PING_INTERVAL = 200;
 
   private Scheduler scheduler;
 
@@ -93,15 +92,14 @@ public class MembershipProtocolTest extends BaseTest {
     awaitSeconds(3);
 
     // Block traffic
-    a.networkEmulator().block(members);
-    b.networkEmulator().block(members);
-    c.networkEmulator().block(members);
+    a.networkEmulator().blockOutbound(members);
+    b.networkEmulator().blockOutbound(members);
+    c.networkEmulator().blockOutbound(members);
 
     try {
 
       int suspicionMult = ClusterConfig.DEFAULT_SUSPICION_MULT;
-      long suspicionTimeoutSec =
-          ClusterMath.suspicionTimeout(suspicionMult, 3, TEST_PING_INTERVAL) / 1000;
+      long suspicionTimeoutSec = ClusterMath.suspicionTimeout(suspicionMult, 3, 200) / 1000;
       awaitSeconds(suspicionTimeoutSec + 2);
 
       assertTrusted(cmA, a.address());
@@ -111,9 +109,9 @@ public class MembershipProtocolTest extends BaseTest {
       assertTrusted(cmC, c.address());
       assertNoSuspected(cmC);
 
-      a.networkEmulator().unblockAll();
-      b.networkEmulator().unblockAll();
-      c.networkEmulator().unblockAll();
+      a.networkEmulator().unblockAllOutbound();
+      b.networkEmulator().unblockAllOutbound();
+      c.networkEmulator().unblockAllOutbound();
 
       awaitSeconds(TEST_SYNC_INTERVAL * 2 / 1000);
 
@@ -151,9 +149,9 @@ public class MembershipProtocolTest extends BaseTest {
       assertNoSuspected(cmC);
 
       // Node b lost network
-      b.networkEmulator().block(Arrays.asList(a.address(), c.address()));
-      a.networkEmulator().block(b.address());
-      c.networkEmulator().block(b.address());
+      b.networkEmulator().blockOutbound(Arrays.asList(a.address(), c.address()));
+      a.networkEmulator().blockOutbound(b.address());
+      c.networkEmulator().blockOutbound(b.address());
 
       awaitSeconds(1);
 
@@ -166,9 +164,9 @@ public class MembershipProtocolTest extends BaseTest {
       assertSuspected(cmC, b.address());
 
       // Node b recover network
-      a.networkEmulator().unblockAll();
-      b.networkEmulator().unblockAll();
-      c.networkEmulator().unblockAll();
+      a.networkEmulator().unblockAllOutbound();
+      b.networkEmulator().unblockAllOutbound();
+      c.networkEmulator().unblockAllOutbound();
 
       awaitSeconds(1);
 
@@ -207,9 +205,9 @@ public class MembershipProtocolTest extends BaseTest {
       assertNoSuspected(cmC);
 
       // Node b lost network
-      b.networkEmulator().block(Arrays.asList(a.address(), c.address()));
-      a.networkEmulator().block(b.address());
-      c.networkEmulator().block(b.address());
+      b.networkEmulator().blockOutbound(Arrays.asList(a.address(), c.address()));
+      a.networkEmulator().blockOutbound(b.address());
+      c.networkEmulator().blockOutbound(b.address());
 
       awaitSeconds(1);
 
@@ -222,8 +220,8 @@ public class MembershipProtocolTest extends BaseTest {
       assertSuspected(cmC, b.address());
 
       // Node a and c lost network
-      a.networkEmulator().block(c.address());
-      c.networkEmulator().block(a.address());
+      a.networkEmulator().blockOutbound(c.address());
+      c.networkEmulator().blockOutbound(a.address());
 
       awaitSeconds(1);
 
@@ -236,9 +234,9 @@ public class MembershipProtocolTest extends BaseTest {
       assertSuspected(cmC, b.address(), a.address());
 
       // Recover network
-      a.networkEmulator().unblockAll();
-      b.networkEmulator().unblockAll();
-      c.networkEmulator().unblockAll();
+      a.networkEmulator().unblockAllOutbound();
+      b.networkEmulator().unblockAllOutbound();
+      c.networkEmulator().unblockAllOutbound();
 
       awaitSeconds(1);
 
@@ -275,9 +273,9 @@ public class MembershipProtocolTest extends BaseTest {
       assertTrusted(cmC, a.address(), b.address(), c.address());
       assertNoSuspected(cmC);
 
-      a.networkEmulator().block(members);
-      b.networkEmulator().block(members);
-      c.networkEmulator().block(members);
+      a.networkEmulator().blockOutbound(members);
+      b.networkEmulator().blockOutbound(members);
+      c.networkEmulator().blockOutbound(members);
 
       awaitSeconds(1);
 
@@ -290,9 +288,9 @@ public class MembershipProtocolTest extends BaseTest {
       assertTrusted(cmC, c.address());
       assertSuspected(cmC, a.address(), b.address());
 
-      a.networkEmulator().unblockAll();
-      b.networkEmulator().unblockAll();
-      c.networkEmulator().unblockAll();
+      a.networkEmulator().unblockAllOutbound();
+      b.networkEmulator().unblockAllOutbound();
+      c.networkEmulator().unblockAllOutbound();
 
       awaitSeconds(1);
 
@@ -330,11 +328,11 @@ public class MembershipProtocolTest extends BaseTest {
       assertTrusted(cmC, a.address(), b.address(), c.address(), d.address());
       assertTrusted(cmD, a.address(), b.address(), c.address(), d.address());
 
-      a.networkEmulator().block(Arrays.asList(c.address(), d.address()));
-      b.networkEmulator().block(Arrays.asList(c.address(), d.address()));
+      a.networkEmulator().blockOutbound(Arrays.asList(c.address(), d.address()));
+      b.networkEmulator().blockOutbound(Arrays.asList(c.address(), d.address()));
 
-      c.networkEmulator().block(Arrays.asList(a.address(), b.address()));
-      d.networkEmulator().block(Arrays.asList(a.address(), b.address()));
+      c.networkEmulator().blockOutbound(Arrays.asList(a.address(), b.address()));
+      d.networkEmulator().blockOutbound(Arrays.asList(a.address(), b.address()));
 
       awaitSeconds(2);
 
@@ -348,8 +346,7 @@ public class MembershipProtocolTest extends BaseTest {
       assertSuspected(cmD, a.address(), b.address());
 
       long suspicionTimeoutSec =
-          ClusterMath.suspicionTimeout(ClusterConfig.DEFAULT_SUSPICION_MULT, 4, TEST_PING_INTERVAL)
-              / 1000;
+          ClusterMath.suspicionTimeout(ClusterConfig.DEFAULT_SUSPICION_MULT, 4, 200) / 1000;
       awaitSeconds(suspicionTimeoutSec + 1); // > max suspect time
 
       assertTrusted(cmA, a.address(), b.address());
@@ -400,8 +397,7 @@ public class MembershipProtocolTest extends BaseTest {
       assertSuspected(cmB, c.address(), d.address());
 
       long suspicionTimeoutSec =
-          ClusterMath.suspicionTimeout(ClusterConfig.DEFAULT_SUSPICION_MULT, 4, TEST_PING_INTERVAL)
-              / 1000;
+          ClusterMath.suspicionTimeout(ClusterConfig.DEFAULT_SUSPICION_MULT, 4, 200) / 1000;
       awaitSeconds(suspicionTimeoutSec + 1); // > max suspect time
 
       assertTrusted(cmA, a.address(), b.address());
@@ -534,6 +530,37 @@ public class MembershipProtocolTest extends BaseTest {
     }
   }
 
+  @Disabled
+  @Test
+  public void testNodeJoinClusterWithNoInbound() {
+    Transport a = Transport.bindAwait(true);
+    Transport b = Transport.bindAwait(true);
+    Transport c_noInbound = Transport.bindAwait(true);
+
+    // Block traffic
+    c_noInbound.networkEmulator().blockAllInbound();
+
+    MembershipProtocolImpl cmA = createMembership(a, Collections.emptyList());
+    MembershipProtocolImpl cmB = createMembership(b, Collections.singletonList(a.address()));
+    MembershipProtocolImpl cm_noInbound =
+        createMembership(c_noInbound, Collections.singletonList(a.address()));
+
+    awaitSeconds(3);
+
+    try {
+      assertTrusted(cmA, cmA.member().address(), cmB.member().address());
+      assertTrusted(cmB, cmB.member().address(), cmA.member().address());
+
+      //noinspection RedundantArrayCreation
+      assertSuspected(cm_noInbound, new Address[0]);
+      //noinspection RedundantArrayCreation
+      assertTrusted(cm_noInbound, new Address[0]);
+
+    } finally {
+      stopAll(cmA, cmB, cm_noInbound);
+    }
+  }
+
   private void awaitSeconds(long seconds) {
     try {
       TimeUnit.SECONDS.sleep(seconds);
@@ -547,8 +574,8 @@ public class MembershipProtocolTest extends BaseTest {
     return ClusterConfig.builder()
         .seedMembers(seedAddresses)
         .syncInterval(TEST_SYNC_INTERVAL)
-        .syncTimeout(TEST_SYNC_TIMEOUT)
-        .pingInterval(TEST_PING_INTERVAL)
+        .syncTimeout(100)
+        .pingInterval(200)
         .pingTimeout(100)
         .metadataTimeout(100);
   }
@@ -663,9 +690,7 @@ public class MembershipProtocolTest extends BaseTest {
 
   private List<Address> getAddressesWithStatus(
       MembershipProtocolImpl membership, MemberStatus status) {
-    return membership
-        .getMembershipRecords()
-        .stream()
+    return membership.getMembershipRecords().stream()
         .filter(member -> member.status() == status)
         .map(MembershipRecord::address)
         .collect(Collectors.toList());

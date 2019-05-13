@@ -188,7 +188,9 @@ final class TransportImpl implements Transport {
 
   @Override
   public final Flux<Message> listen() {
-    return messagesSubject.onBackpressureBuffer();
+    return messagesSubject
+        .filter(message -> networkEmulator.inboundSettings(message.sender()).shallPass())
+        .onBackpressureBuffer();
   }
 
   @Override
@@ -254,8 +256,8 @@ final class TransportImpl implements Transport {
         .options(SendOptions::flushOnEach)
         .send(
             Mono.just(message)
-                .flatMap(msg -> networkEmulator.tryFail(msg, address))
-                .flatMap(msg -> networkEmulator.tryDelay(msg, address))
+                .flatMap(msg -> networkEmulator.tryFailOutbound(msg, address))
+                .flatMap(msg -> networkEmulator.tryDelayOutbound(msg, address))
                 .map(this::toByteBuf))
         .then();
   }
