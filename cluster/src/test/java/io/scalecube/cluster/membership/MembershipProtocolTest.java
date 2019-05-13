@@ -1,5 +1,6 @@
 package io.scalecube.cluster.membership;
 
+import static io.scalecube.cluster.ClusterConfig.DEFAULT_SUSPICION_MULT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -37,6 +38,7 @@ public class MembershipProtocolTest extends BaseTest {
   public static final Duration TIMEOUT = Duration.ofSeconds(10);
 
   public static final int TEST_SYNC_INTERVAL = 500;
+  public static final int PING_INTERVAL = 200;
 
   private Scheduler scheduler;
 
@@ -78,7 +80,7 @@ public class MembershipProtocolTest extends BaseTest {
   }
 
   @Test
-  public void testNetworkPartitionThenRecovery() {
+  public void testNetworkPartitionDueNoOutboundThenRecover() {
     Transport a = Transport.bindAwait(true);
     Transport b = Transport.bindAwait(true);
     Transport c = Transport.bindAwait(true);
@@ -97,9 +99,7 @@ public class MembershipProtocolTest extends BaseTest {
 
     try {
 
-      int suspicionMult = ClusterConfig.DEFAULT_SUSPICION_MULT;
-      long suspicionTimeoutSec = ClusterMath.suspicionTimeout(suspicionMult, 3, 200) / 1000;
-      awaitSeconds(suspicionTimeoutSec + 2);
+      awaitSuspicion(3);
 
       assertTrusted(cmA, a.address());
       assertNoSuspected(cmA);
@@ -126,7 +126,7 @@ public class MembershipProtocolTest extends BaseTest {
   }
 
   @Test
-  public void testMemberLostNetworkThenRecover() {
+  public void testMemberLostNetworkDueNoOutboundThenRecover() {
     Transport a = Transport.bindAwait(true);
     Transport b = Transport.bindAwait(true);
     Transport c = Transport.bindAwait(true);
@@ -182,7 +182,7 @@ public class MembershipProtocolTest extends BaseTest {
   }
 
   @Test
-  public void testDoublePartitionThenRecover() {
+  public void testNetworkPartitionTwiceDueNoOutboundThenRecover() {
     Transport a = Transport.bindAwait(true);
     Transport b = Transport.bindAwait(true);
     Transport c = Transport.bindAwait(true);
@@ -252,7 +252,7 @@ public class MembershipProtocolTest extends BaseTest {
   }
 
   @Test
-  public void testNetworkDisabledThenRecovered() {
+  public void testNetworkLostOnAllNodesDueNoOutboundThenRecover() {
     Transport a = Transport.bindAwait(true);
     Transport b = Transport.bindAwait(true);
     Transport c = Transport.bindAwait(true);
@@ -307,7 +307,7 @@ public class MembershipProtocolTest extends BaseTest {
   }
 
   @Test
-  public void testLongNetworkPartitionNoRecovery() {
+  public void testLongNetworkPartitionDueNoOutboundThenRemoved() {
     Transport a = Transport.bindAwait(true);
     Transport b = Transport.bindAwait(true);
     Transport c = Transport.bindAwait(true);
@@ -344,9 +344,7 @@ public class MembershipProtocolTest extends BaseTest {
       assertTrusted(cmD, c.address(), d.address());
       assertSuspected(cmD, a.address(), b.address());
 
-      long suspicionTimeoutSec =
-          ClusterMath.suspicionTimeout(ClusterConfig.DEFAULT_SUSPICION_MULT, 4, 200) / 1000;
-      awaitSeconds(suspicionTimeoutSec + 1); // > max suspect time
+      awaitSuspicion(4);
 
       assertTrusted(cmA, a.address(), b.address());
       assertNoSuspected(cmA);
@@ -395,9 +393,7 @@ public class MembershipProtocolTest extends BaseTest {
       assertTrusted(cmB, a.address(), b.address());
       assertSuspected(cmB, c.address(), d.address());
 
-      long suspicionTimeoutSec =
-          ClusterMath.suspicionTimeout(ClusterConfig.DEFAULT_SUSPICION_MULT, 4, 200) / 1000;
-      awaitSeconds(suspicionTimeoutSec + 1); // > max suspect time
+      awaitSuspicion(4);
 
       assertTrusted(cmA, a.address(), b.address());
       assertNoSuspected(cmA);
@@ -607,6 +603,40 @@ public class MembershipProtocolTest extends BaseTest {
     }
   }
 
+  @Disabled
+  @Test
+  public void testNetworkPartitionDueNoInboundThenRemoved() {
+    Transport a = Transport.bindAwait(true);
+    Transport b = Transport.bindAwait(true);
+    Transport c = Transport.bindAwait(true);
+
+    MembershipProtocolImpl cmA = createMembership(a, Collections.emptyList());
+    MembershipProtocolImpl cmB = createMembership(b, Collections.singletonList(a.address()));
+    MembershipProtocolImpl cmC = createMembership(c, Collections.singletonList(a.address()));
+
+    try {
+      awaitSeconds(3);
+      // prerequistites
+      assertTrusted(cmA, cmA.member().address(), cmB.member().address(), cmC.member().address());
+      assertTrusted(cmB, cmB.member().address(), cmA.member().address(), cmC.member().address());
+      assertTrusted(cmC, cmB.member().address(), cmA.member().address(), cmC.member().address());
+
+      // block inbound msgs from all
+      c.networkEmulator().blockAllInbound();
+
+      awaitSuspicion(3);
+
+      assertTrusted(cmA, cmA.member().address(), cmB.member().address());
+      assertNoSuspected(cmA);
+      assertTrusted(cmB, cmB.member().address(), cmA.member().address());
+      assertNoSuspected(cmB);
+      assertTrusted(cmC, cmC.member().address());
+      assertNoSuspected(cmC);
+    } finally {
+      stopAll(cmA, cmB, cmC);
+    }
+  }
+
   private void awaitSeconds(long seconds) {
     try {
       TimeUnit.SECONDS.sleep(seconds);
@@ -621,7 +651,7 @@ public class MembershipProtocolTest extends BaseTest {
         .seedMembers(seedAddresses)
         .syncInterval(TEST_SYNC_INTERVAL)
         .syncTimeout(100)
-        .pingInterval(200)
+        .pingInterval(PING_INTERVAL)
         .pingTimeout(100)
         .metadataTimeout(100);
   }
@@ -740,5 +770,13 @@ public class MembershipProtocolTest extends BaseTest {
         .filter(member -> member.status() == status)
         .map(MembershipRecord::address)
         .collect(Collectors.toList());
+  }
+
+  private void awaitSuspicion(int clusterSize) {
+    int defaultSuspicionMult = DEFAULT_SUSPICION_MULT;
+    int pingInterval = PING_INTERVAL;
+    long suspicionTimeoutSec =
+        ClusterMath.suspicionTimeout(defaultSuspicionMult, clusterSize, pingInterval) / 1000;
+    awaitSeconds(suspicionTimeoutSec + 2);
   }
 }
