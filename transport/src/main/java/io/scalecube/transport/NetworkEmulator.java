@@ -237,7 +237,6 @@ public final class NetworkEmulator {
    * Sets given network emulator inbound settings for specific destination.
    *
    * @param shallPass shallPass inbound flag
-   * @param meanDelay mean delay
    */
   public void inboundSettings(Address destination, boolean shallPass) {
     if (!enabled) {
@@ -251,8 +250,7 @@ public final class NetworkEmulator {
   /**
    * Sets default network emulator inbound settings.
    *
-   * @param lossPercent loss in percents
-   * @param meanDelay mean delay
+   * @param shallPass shallPass inbound flag
    */
   public void setDefaultInboundSettings(boolean shallPass) {
     if (!enabled) {
