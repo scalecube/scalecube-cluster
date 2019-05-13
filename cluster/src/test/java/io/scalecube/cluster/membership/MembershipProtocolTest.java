@@ -553,9 +553,7 @@ public class MembershipProtocolTest extends BaseTest {
 
       //noinspection RedundantArrayCreation
       assertSuspected(cm_noInbound, new Address[0]);
-      //noinspection RedundantArrayCreation
-      assertTrusted(cm_noInbound, new Address[0]);
-
+      assertTrusted(cm_noInbound, cm_noInbound.member().address());
     } finally {
       stopAll(cmA, cmB, cm_noInbound);
     }
