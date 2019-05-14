@@ -41,7 +41,6 @@ public class MembershipProtocolTest extends BaseTest {
 
   public static final int TEST_SYNC_INTERVAL = 500;
   public static final int PING_INTERVAL = 200;
-  public static final int REMOVED_MEMBERS_HISTORY_SIZE = 42;
 
   private Scheduler scheduler;
 
@@ -388,6 +387,9 @@ public class MembershipProtocolTest extends BaseTest {
       assertTrusted(cmC, cmB.member(), cmA.member(), cmD.member());
       assertTrusted(cmD, cmB.member(), cmC.member(), cmA.member());
 
+      ReplayProcessor<MembershipEvent> cmA_RemovedHistory = startRecordingRemoved(cmA);
+      ReplayProcessor<MembershipEvent> cmB_RemovedHistory = startRecordingRemoved(cmB);
+
       stop(cmC);
       stop(cmD);
 
@@ -402,8 +404,10 @@ public class MembershipProtocolTest extends BaseTest {
 
       assertTrusted(cmA, cmB.member());
       assertNoSuspected(cmA);
+      assertRemoved(cmA_RemovedHistory, cmC.member(), cmD.member());
       assertTrusted(cmB, cmA.member());
       assertNoSuspected(cmB);
+      assertRemoved(cmB_RemovedHistory, cmC.member(), cmD.member());
 
       c_Restarted = Transport.bindAwait(true);
       d_Restarted = Transport.bindAwait(true);
@@ -581,6 +585,10 @@ public class MembershipProtocolTest extends BaseTest {
       assertTrusted(cmB, cmA.member(), cmC.member());
       assertTrusted(cmC, cmB.member(), cmA.member());
 
+      ReplayProcessor<MembershipEvent> cmA_RemovedHistory = startRecordingRemoved(cmA);
+      ReplayProcessor<MembershipEvent> cmB_RemovedHistory = startRecordingRemoved(cmB);
+      ReplayProcessor<MembershipEvent> cmC_RemovedHistory = startRecordingRemoved(cmC);
+
       // block inbound msgs from all
       c.networkEmulator().blockAllInbound();
 
@@ -588,10 +596,14 @@ public class MembershipProtocolTest extends BaseTest {
 
       assertTrusted(cmA, cmB.member());
       assertNoSuspected(cmA);
+      assertRemoved(cmA_RemovedHistory, cmC.member());
       assertTrusted(cmB, cmA.member());
       assertNoSuspected(cmB);
+      assertRemoved(cmB_RemovedHistory, cmC.member());
       assertSelfTrusted(cmC);
       assertNoSuspected(cmC);
+      assertRemoved(cmC_RemovedHistory, cmA.member());
+      assertRemoved(cmC_RemovedHistory, cmB.member());
     } finally {
       stopAll(cmA, cmB, cmC);
     }
@@ -657,7 +669,7 @@ public class MembershipProtocolTest extends BaseTest {
       assertTrusted(cmC, cmB.member(), cmA.member());
 
       // block inbound msgs from b
-      c.networkEmulator().inboundSettings(b.address(), false);
+      c.networkEmulator().blockInbound(b.address());
 
       awaitSuspicion(3);
 
@@ -687,7 +699,7 @@ public class MembershipProtocolTest extends BaseTest {
       assertTrusted(cmC, cmB.member(), cmA.member());
 
       // block outbound msgs from b
-      c.networkEmulator().outboundSettings(b.address(), 100, 0);
+      c.networkEmulator().blockOutbound(b.address());
 
       awaitSuspicion(3);
 
@@ -717,8 +729,8 @@ public class MembershipProtocolTest extends BaseTest {
       assertTrusted(cmC, cmB.member(), cmA.member());
 
       // block all traffic msgs from b
-      c.networkEmulator().outboundSettings(b.address(), 100, 0);
-      c.networkEmulator().inboundSettings(b.address(), false);
+      c.networkEmulator().blockOutbound(b.address());
+      c.networkEmulator().blockInbound(b.address());
 
       awaitSuspicion(3);
 
@@ -855,9 +867,9 @@ public class MembershipProtocolTest extends BaseTest {
     }
   }
 
-  private void assertRemoved(ReplayProcessor<MembershipEvent> processor, Member... expected) {
+  private void assertRemoved(ReplayProcessor<MembershipEvent> recording, Member... expected) {
     List<Member> actual = new ArrayList<>();
-    processor.map(MembershipEvent::member).subscribe(actual::add);
+    recording.map(MembershipEvent::member).subscribe(actual::add);
     assertEquals(
         expected.length,
         actual.size(),
@@ -877,8 +889,8 @@ public class MembershipProtocolTest extends BaseTest {
     assertTrusted(membership);
   }
 
-  private void assertNoRemoved(ReplayProcessor<MembershipEvent> processor) {
-    assertRemoved(processor);
+  private void assertNoRemoved(ReplayProcessor<MembershipEvent> recording) {
+    assertRemoved(recording);
   }
 
   private void assertNoSuspected(MembershipProtocolImpl membership) {
@@ -892,11 +904,11 @@ public class MembershipProtocolTest extends BaseTest {
         .collect(Collectors.toList());
   }
 
-  private ReplayProcessor<MembershipEvent> listenRemoved(MembershipProtocolImpl membership) {
-    ReplayProcessor<MembershipEvent> processor =
-        ReplayProcessor.create(REMOVED_MEMBERS_HISTORY_SIZE);
-    membership.listen().filter(MembershipEvent::isRemoved).subscribe(processor);
-    return processor;
+  private ReplayProcessor<MembershipEvent> startRecordingRemoved(
+      MembershipProtocolImpl membership) {
+    ReplayProcessor<MembershipEvent> recording = ReplayProcessor.create();
+    membership.listen().filter(MembershipEvent::isRemoved).subscribe(recording);
+    return recording;
   }
 
   private void awaitSuspicion(int clusterSize) {

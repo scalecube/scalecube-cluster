@@ -693,12 +693,15 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     public static final int REMOVED_MEMBERS_HISTORY_SIZE = 42;
 
     private final MembershipProtocolImpl membershipProtocol;
-    private final ReplayProcessor<MembershipEvent> replayProcessor;
+    private final ReplayProcessor<MembershipEvent> removedMembersHistory;
 
     private JmxMonitorMBean(MembershipProtocolImpl membershipProtocol) {
       this.membershipProtocol = membershipProtocol;
-      this.replayProcessor = ReplayProcessor.create(REMOVED_MEMBERS_HISTORY_SIZE);
-      membershipProtocol.listen().filter(MembershipEvent::isRemoved).subscribe(replayProcessor);
+      this.removedMembersHistory = ReplayProcessor.create(REMOVED_MEMBERS_HISTORY_SIZE);
+      membershipProtocol
+          .listen()
+          .filter(MembershipEvent::isRemoved)
+          .subscribe(removedMembersHistory);
     }
 
     private static JmxMonitorMBean start(MembershipProtocolImpl membershipProtocol)
@@ -733,7 +736,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     @Override
     public List<String> getDeadMembers() {
       List<String> deadMembers = new ArrayList<>();
-      replayProcessor.map(MembershipEvent::toString).subscribe(deadMembers::add);
+      removedMembersHistory.map(MembershipEvent::toString).subscribe(deadMembers::add);
       return deadMembers;
     }
 
