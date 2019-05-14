@@ -64,6 +64,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   public static final String SYNC = "sc/membership/sync";
   public static final String SYNC_ACK = "sc/membership/syncAck";
   public static final String MEMBERSHIP_GOSSIP = "sc/membership/gossip";
+  public static final String MEMBERSHIP_PING = "sc/membership/ping";
+  public static final String MEMBERSHIP_PING_ACK = "sc/membership/pingAck";
 
   private final Member localMember;
 
@@ -328,6 +330,9 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
         }
       }
     }
+    if (MEMBERSHIP_PING.equals(message.qualifier())) {
+      onMembershipPing(message);
+    }
   }
 
   // ================================================
@@ -364,6 +369,41 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                                     ex.toString()));
                   });
         });
+  }
+
+  private void onMembershipPing(Message message) {
+    LOGGER.debug("Received membership ping: {}", message);
+
+    // Validate target member
+    MembershipPingData pingData = message.data();
+    Member targetMember = pingData.getTarget();
+    if (!targetMember.id().equals(localMember.id())) {
+      LOGGER.warn(
+          "Received membership ping: {} to {}, but local member is {}",
+          message,
+          targetMember,
+          localMember);
+      return;
+    }
+
+    Message response =
+        Message.with(message) //
+            .qualifier(MEMBERSHIP_PING_ACK)
+            .sender(localMember.address())
+            .data(null)
+            .build();
+
+    Address responseAddress = message.sender();
+    LOGGER.debug("Send membership ping ACK to {}", responseAddress);
+    transport
+        .send(responseAddress, response)
+        .subscribe(
+            null,
+            ex ->
+                LOGGER.debug(
+                    "Failed to send membership ping ACK to {}, cause: {}",
+                    responseAddress,
+                    ex.toString()));
   }
 
   /** Merges FD updates and processes them. */
@@ -509,9 +549,20 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           }
 
           if (r1.isDead()) {
-            // Update membership
-            members.remove(r1.id());
-            membershipTable.remove(r1.id());
+            // Long path
+            return doMembershipPing(r1.member())
+                .onErrorResume(
+                    th -> {
+                      // Update membership
+                      members.remove(r1.id());
+                      boolean removed = membershipTable.remove(r1.id()) != null;
+                      // Emit membership if removed from membership table
+                      if (removed) {
+                        LOGGER.debug("Removed DEAD member {} from membership table", r1);
+                        return emitMembershipEventAndSpreadGossip(r0, r1, reason);
+                      }
+                      return Mono.empty();
+                    });
           } else if (r1.isSuspect()) {
             // Update membership and schedule/cancel suspicion timeout task
             membershipTable.put(r1.id(), r1);
@@ -521,21 +572,52 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           }
 
           // Emit membership and regardless of result spread gossip
-          return emitMembershipEvent(r0, r1)
-              .doFinally(
-                  s -> {
-                    // Spread gossip (unless already gossiped)
-                    if (reason != MembershipUpdateReason.MEMBERSHIP_GOSSIP
-                        && reason != MembershipUpdateReason.INITIAL_SYNC) {
-                      spreadMembershipGossip(r1)
-                          .subscribe(
-                              null,
-                              ex -> {
-                                // no-op
-                              });
-                    }
-                  });
+          return emitMembershipEventAndSpreadGossip(r0, r1, reason);
         });
+  }
+
+  private Mono<? extends Void> emitMembershipEventAndSpreadGossip(
+      MembershipRecord r0, MembershipRecord r1, MembershipUpdateReason reason) {
+    return emitMembershipEvent(r0, r1)
+        .doFinally(
+            s -> {
+              // Spread gossip (unless already gossiped)
+              if (reason != MembershipUpdateReason.MEMBERSHIP_GOSSIP
+                  && reason != MembershipUpdateReason.INITIAL_SYNC) {
+                spreadMembershipGossip(r1)
+                    .subscribe(
+                        null,
+                        ex -> {
+                          // no-op
+                        });
+              }
+            });
+  }
+
+  private Mono<Void> doMembershipPing(Member member) {
+    // Send ping
+    String cid = cidGenerator.nextCid();
+    Message pingMsg =
+        Message.withData(new MembershipPingData(member))
+            .qualifier(MEMBERSHIP_PING)
+            .correlationId(cid)
+            .sender(localMember.address())
+            .build();
+
+    LOGGER.trace("Send membership ping to {}", member);
+    Address address = member.address();
+    return transport
+        .requestResponse(pingMsg, address)
+        .timeout(Duration.ofMillis((long) config.getMembershipPingTimeout()), scheduler)
+        .publishOn(scheduler)
+        .doOnSuccess(resp -> LOGGER.trace("Received membership ping ACK: {}", resp))
+        .doOnError(
+            th ->
+                LOGGER.debug(
+                    "Failed to receive membership ping ACK from {}, cause: {}",
+                    member,
+                    th.toString()))
+        .then();
   }
 
   private Mono<Void> emitMembershipEvent(MembershipRecord r0, MembershipRecord r1) {

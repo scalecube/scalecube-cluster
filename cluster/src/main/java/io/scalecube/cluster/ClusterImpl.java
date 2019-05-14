@@ -49,6 +49,8 @@ final class ClusterImpl implements Cluster {
                   FailureDetectorImpl.PING_ACK,
                   MembershipProtocolImpl.SYNC,
                   MembershipProtocolImpl.SYNC_ACK,
+                  MembershipProtocolImpl.MEMBERSHIP_PING,
+                  MembershipProtocolImpl.MEMBERSHIP_PING_ACK,
                   GossipProtocolImpl.GOSSIP_REQ,
                   MetadataStoreImpl.GET_METADATA_REQ,
                   MetadataStoreImpl.GET_METADATA_RESP)

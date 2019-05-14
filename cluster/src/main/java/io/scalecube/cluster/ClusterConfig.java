@@ -27,6 +27,7 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
   public static final String DEFAULT_SYNC_GROUP = "default";
   public static final int DEFAULT_SYNC_INTERVAL = 30_000;
   public static final int DEFAULT_SYNC_TIMEOUT = 3_000;
+  public static final int DEFAULT_MEMBERSHIP_PING_TIMEOUT = 500;
   public static final int DEFAULT_SUSPICION_MULT = 5;
   public static final int DEFAULT_PING_INTERVAL = 1_000;
   public static final int DEFAULT_PING_TIMEOUT = 500;
@@ -40,6 +41,7 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
   public static final int DEFAULT_WAN_SYNC_INTERVAL = 60_000;
   public static final int DEFAULT_WAN_PING_TIMEOUT = 3_000;
   public static final int DEFAULT_WAN_PING_INTERVAL = 5_000;
+  public static final int DEFAULT_WAN_MEMBERSHIP_PING_TIMEOUT = 3_000;
   public static final int DEFAULT_WAN_GOSSIP_FANOUT = 4;
   public static final int DEFAULT_WAN_CONNECT_TIMEOUT = 10_000;
 
@@ -49,6 +51,7 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
   public static final int DEFAULT_LOCAL_SYNC_INTERVAL = 15_000;
   public static final int DEFAULT_LOCAL_PING_TIMEOUT = 200;
   public static final int DEFAULT_LOCAL_PING_INTERVAL = 1_000;
+  public static final int DEFAULT_LOCAL_MEMBERSHIP_PING_TIMEOUT = 200;
   public static final int DEFAULT_LOCAL_GOSSIP_REPEAT_MULT = 2;
   public static final int DEFAULT_LOCAL_PING_REQ_MEMBERS = 1;
   public static final int DEFAULT_LOCAL_GOSSIP_INTERVAL = 100;
@@ -78,6 +81,7 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
   private final TransportConfig transportConfig;
   private final String memberHost;
   private final Integer memberPort;
+  private final int membershipPingTimeout;
 
   private ClusterConfig(Builder builder) {
     this.seedMembers = Collections.unmodifiableList(builder.seedMembers);
@@ -99,6 +103,7 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
     this.transportConfig = builder.transportConfigBuilder.build();
     this.memberHost = builder.memberHost;
     this.memberPort = builder.memberPort;
+    this.membershipPingTimeout = builder.membershipPingTimeout;
   }
 
   public static Builder builder() {
@@ -118,6 +123,7 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
     return builder()
         .suspicionMult(DEFAULT_WAN_SUSPICION_MULT)
         .syncInterval(DEFAULT_WAN_SYNC_INTERVAL)
+        .membershipPingTimeout(DEFAULT_WAN_MEMBERSHIP_PING_TIMEOUT)
         .pingTimeout(DEFAULT_WAN_PING_TIMEOUT)
         .pingInterval(DEFAULT_WAN_PING_INTERVAL)
         .gossipFanout(DEFAULT_WAN_GOSSIP_FANOUT)
@@ -130,6 +136,7 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
     return builder()
         .suspicionMult(DEFAULT_LOCAL_SUSPICION_MULT)
         .syncInterval(DEFAULT_LOCAL_SYNC_INTERVAL)
+        .membershipPingTimeout(DEFAULT_LOCAL_MEMBERSHIP_PING_TIMEOUT)
         .pingTimeout(DEFAULT_LOCAL_PING_TIMEOUT)
         .pingInterval(DEFAULT_LOCAL_PING_INTERVAL)
         .gossipRepeatMult(DEFAULT_LOCAL_GOSSIP_REPEAT_MULT)
@@ -204,6 +211,11 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
   }
 
   @Override
+  public int getMembershipPingTimeout() {
+    return membershipPingTimeout;
+  }
+
+  @Override
   public String toString() {
     return "ClusterConfig{seedMembers="
         + seedMembers
@@ -254,6 +266,7 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
     private String syncGroup = DEFAULT_SYNC_GROUP;
     private int suspicionMult = DEFAULT_SUSPICION_MULT;
     private int metadataTimeout = DEFAULT_METADATA_TIMEOUT;
+    private int membershipPingTimeout = DEFAULT_MEMBERSHIP_PING_TIMEOUT;
 
     private int pingInterval = DEFAULT_PING_INTERVAL;
     private int pingTimeout = DEFAULT_PING_TIMEOUT;
@@ -317,6 +330,11 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
 
     public Builder metadataTimeout(int metadataTimeout) {
       this.metadataTimeout = metadataTimeout;
+      return this;
+    }
+
+    public Builder membershipPingTimeout(int membershipPingTimeout) {
+      this.membershipPingTimeout = membershipPingTimeout;
       return this;
     }
 

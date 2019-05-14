@@ -602,8 +602,7 @@ public class MembershipProtocolTest extends BaseTest {
       assertRemoved(cmB_RemovedHistory, cmC.member());
       assertSelfTrusted(cmC);
       assertNoSuspected(cmC);
-      assertRemoved(cmC_RemovedHistory, cmA.member());
-      assertRemoved(cmC_RemovedHistory, cmB.member());
+      assertRemoved(cmC_RemovedHistory, cmA.member(), cmB.member());
     } finally {
       stopAll(cmA, cmB, cmC);
     }
