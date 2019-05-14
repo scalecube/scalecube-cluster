@@ -647,6 +647,8 @@ public class MembershipProtocolTest extends BaseTest {
       // unblock inbound msgs for all
       c.networkEmulator().unblockAllInbound();
 
+      awaitSeconds(3);
+
       assertTrusted(cmA, cmB.member(), cmC.member());
       assertNoSuspected(cmA);
       assertTrusted(cmB, cmA.member(), cmC.member());
