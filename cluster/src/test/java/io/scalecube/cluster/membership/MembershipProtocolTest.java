@@ -17,6 +17,7 @@ import io.scalecube.transport.Transport;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -30,6 +31,7 @@ import org.junit.jupiter.api.TestInfo;
 import reactor.core.Exceptions;
 import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.FluxSink;
+import reactor.core.publisher.ReplayProcessor;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
@@ -39,6 +41,7 @@ public class MembershipProtocolTest extends BaseTest {
 
   public static final int TEST_SYNC_INTERVAL = 500;
   public static final int PING_INTERVAL = 200;
+  public static final int REMOVED_MEMBERS_HISTORY_SIZE = 42;
 
   private Scheduler scheduler;
 
@@ -839,9 +842,7 @@ public class MembershipProtocolTest extends BaseTest {
 
   private void stopAll(MembershipProtocolImpl... memberships) {
     for (MembershipProtocolImpl membership : memberships) {
-      if (membership != null) {
-        stop(membership);
-      }
+      stop(membership);
     }
   }
 
@@ -891,9 +892,30 @@ public class MembershipProtocolTest extends BaseTest {
     }
   }
 
+  private void assertRemoved(ReplayProcessor<MembershipEvent> processor, Member... expected) {
+    List<Member> actual = new ArrayList<>();
+    processor.map(MembershipEvent::member).subscribe(actual::add);
+    assertEquals(
+        expected.length,
+        actual.size(),
+        "Expected "
+            + expected.length
+            + " removed members "
+            + Arrays.toString(expected)
+            + ", but actual: "
+            + actual);
+    for (Member member : expected) {
+      assertTrue(
+          actual.contains(member), "Expected to be removed " + member + ", but actual: " + actual);
+    }
+  }
+
+  private void assertNoRemoved(ReplayProcessor<MembershipEvent> processor) {
+    assertRemoved(processor);
+  }
+
   private void assertNoSuspected(MembershipProtocolImpl membership) {
-    List<Address> actual = getAddressesWithStatus(membership, MemberStatus.SUSPECT);
-    assertEquals(0, actual.size(), "Expected no suspected, but actual: " + actual);
+    assertSuspected(membership);
   }
 
   private List<Address> getAddressesWithStatus(
@@ -902,6 +924,13 @@ public class MembershipProtocolTest extends BaseTest {
         .filter(member -> member.status() == status)
         .map(MembershipRecord::address)
         .collect(Collectors.toList());
+  }
+
+  private ReplayProcessor<MembershipEvent> listenRemoved(MembershipProtocolImpl membership) {
+    ReplayProcessor<MembershipEvent> processor =
+        ReplayProcessor.create(REMOVED_MEMBERS_HISTORY_SIZE);
+    membership.listen().filter(MembershipEvent::isRemoved).subscribe(processor);
+    return processor;
   }
 
   private void awaitSuspicion(int clusterSize) {
