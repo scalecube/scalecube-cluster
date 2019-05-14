@@ -751,6 +751,72 @@ public class MembershipProtocolTest extends BaseTest {
     }
   }
 
+  @Test
+  public void testNetworkPartitionManyDueNoInboundThenRemovedThenRecover() {
+    Transport a = Transport.bindAwait(true);
+    Transport b = Transport.bindAwait(true);
+    Transport c = Transport.bindAwait(true);
+    List<Address> addresses = Arrays.asList(a.address(), b.address(), c.address());
+
+    MembershipProtocolImpl cmA = createMembership(a, addresses);
+    MembershipProtocolImpl cmB = createMembership(b, addresses);
+    MembershipProtocolImpl cmC = createMembership(c, addresses);
+
+    awaitSeconds(1);
+
+    try {
+      // Check all trusted
+      assertTrusted(cmA, cmB.member(), cmC.member());
+      assertNoSuspected(cmA);
+      assertTrusted(cmB, cmA.member(), cmC.member());
+      assertNoSuspected(cmB);
+      assertTrusted(cmC, cmA.member(), cmB.member());
+      assertNoSuspected(cmC);
+
+      ReplayProcessor<MembershipEvent> cmA_removedHistory = startRecordingRemoved(cmA);
+      ReplayProcessor<MembershipEvent> cmB_removedHistory = startRecordingRemoved(cmB);
+      ReplayProcessor<MembershipEvent> cmC_removedHistory = startRecordingRemoved(cmC);
+
+      // Split into three clusters
+      a.networkEmulator().blockAllInbound();
+      b.networkEmulator().blockAllInbound();
+      c.networkEmulator().blockAllInbound();
+
+      awaitSeconds(1);
+
+      // Check partition: {a}, {b}, {c}
+      assertSelfTrusted(cmA);
+      assertSuspected(cmA, cmB.member(), cmC.member());
+      assertSelfTrusted(cmB);
+      assertSuspected(cmB, cmA.member(), cmC.member());
+      assertSelfTrusted(cmC);
+      assertSuspected(cmC, cmB.member(), cmA.member());
+
+      awaitSuspicion(3);
+
+      assertRemoved(cmA_removedHistory, cmB.member(), cmC.member());
+      assertRemoved(cmB_removedHistory, cmA.member(), cmC.member());
+      assertRemoved(cmC_removedHistory, cmB.member(), cmA.member());
+
+      // Recover network
+      a.networkEmulator().unblockAllInbound();
+      b.networkEmulator().unblockAllInbound();
+      c.networkEmulator().unblockAllInbound();
+
+      awaitSeconds(3);
+
+      // Check all trusted
+      assertTrusted(cmA, cmB.member(), cmC.member());
+      assertNoSuspected(cmA);
+      assertTrusted(cmB, cmA.member(), cmC.member());
+      assertNoSuspected(cmB);
+      assertTrusted(cmC, cmA.member(), cmB.member());
+      assertNoSuspected(cmC);
+    } finally {
+      stopAll(cmA, cmB, cmC);
+    }
+  }
+
   private void awaitSeconds(long seconds) {
     try {
       TimeUnit.SECONDS.sleep(seconds);
