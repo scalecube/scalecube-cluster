@@ -625,6 +625,10 @@ public class MembershipProtocolTest extends BaseTest {
       assertTrusted(cmB, cmA.member(), cmC.member());
       assertTrusted(cmC, cmB.member(), cmA.member());
 
+      ReplayProcessor<MembershipEvent> cmA_RemovedHistory = startRecordingRemoved(cmA);
+      ReplayProcessor<MembershipEvent> cmB_RemovedHistory = startRecordingRemoved(cmB);
+      ReplayProcessor<MembershipEvent> cmC_RemovedHistory = startRecordingRemoved(cmC);
+
       // block inbound msgs from all
       c.networkEmulator().blockAllInbound();
 
@@ -632,19 +636,28 @@ public class MembershipProtocolTest extends BaseTest {
 
       assertTrusted(cmA, cmB.member());
       assertNoSuspected(cmA);
+      assertRemoved(cmA_RemovedHistory, cmC.member());
       assertTrusted(cmB, cmA.member());
       assertNoSuspected(cmB);
+      assertRemoved(cmB_RemovedHistory, cmC.member());
       assertSelfTrusted(cmC);
       assertNoSuspected(cmC);
+      assertRemoved(cmC_RemovedHistory, cmA.member(), cmB.member());
 
       // unblock inbound msgs for all
       c.networkEmulator().unblockAllInbound();
 
       awaitSeconds(3);
+      awaitSeconds(3);
+      awaitSeconds(3);
+      awaitSeconds(3);
 
       assertTrusted(cmA, cmB.member(), cmC.member());
+      assertNoSuspected(cmA);
       assertTrusted(cmB, cmA.member(), cmC.member());
+      assertNoSuspected(cmB);
       assertTrusted(cmC, cmB.member(), cmA.member());
+      assertNoSuspected(cmC);
     } finally {
       stopAll(cmA, cmB, cmC);
     }
