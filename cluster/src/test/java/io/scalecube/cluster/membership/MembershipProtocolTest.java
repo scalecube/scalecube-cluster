@@ -644,8 +644,6 @@ public class MembershipProtocolTest extends BaseTest {
       assertNoSuspected(cmC);
       assertRemoved(cmC_RemovedHistory, cmA.member(), cmB.member());
 
-      awaitSeconds(3);
-
       // unblock inbound msgs for all
       c.networkEmulator().unblockAllInbound();
 
