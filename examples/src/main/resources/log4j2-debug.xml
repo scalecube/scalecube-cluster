@@ -17,6 +17,17 @@
       </Policies>
     </RollingFile>
 
+    <RollingFile name="fileMembership"
+      fileName="logs/issue187-${env:INSTANCE_ID}-membership.log"
+      filePattern="logs/issue187-${env:INSTANCE_ID}-membership-%d{yyyy-MM-dd-HH}.log">
+      <PatternLayout pattern="${patternLayout}"/>
+      <Policies>
+        <OnStartupTriggeringPolicy/>
+        <TimeBasedTriggeringPolicy/>
+        <SizeBasedTriggeringPolicy size="50 MB"/>
+      </Policies>
+    </RollingFile>
+
     <Console name="console" target="SYSTEM_OUT">
       <PatternLayout pattern="${patternLayout}"/>
     </Console>
@@ -27,6 +38,10 @@
     <Logger name="reactor.netty" level="warn"/>
     <Logger name="io.netty" level="warn"/>
     <Logger name="io.scalecube" level="trace"/>
+
+    <Logger name="membership" level="trace">
+      <AppenderRef ref="fileMembership"/>
+    </Logger>
 
     <Root level="${env:LOG_LEVEL:-trace}">
       <AppenderRef ref="file"/>
