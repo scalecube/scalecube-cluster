@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
@@ -249,7 +250,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
               sink.success();
             })
         .subscribe(
-            null, ex -> LOGGER.info("Exception on initial SyncAck, cause: {}", ex.toString()));
+            null, ex -> LOGGER.debug("Exception on initial SyncAck, cause: {}", ex.toString()));
   }
 
   @Override
@@ -545,11 +546,10 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                 .doOnSuccess(
                     avoid ->
                         LOGGER_MEMBERSHIP.debug(
-                            "(update reason: {}) skipping update r0: {} to DEAD, "
-                                + "due to received membership ping ACK from r1: {}",
+                            "(update reason: {}) skipping to set r0: {} to DEAD, "
+                                + "due to received membership ping ACK",
                             reason,
-                            r0,
-                            r1))
+                            r0))
                 .onErrorResume(th -> onDeadMemberDetected(r1));
           }
 
@@ -568,10 +568,10 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                   .doOnError(
                       ex ->
                           LOGGER_MEMBERSHIP.debug(
-                              "(update reason: {}) skipping to add/update r0: {}, "
+                              "(update reason: {}) skipping to add/update member: {}, "
                                   + "due to failed fetchMetadata call (cause: {})",
                               reason,
-                              r0,
+                              r1,
                               ex.toString()))
                   .doOnSuccess(
                       metadata1 -> {
@@ -581,7 +581,10 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                         // Update membership
                         Map<String, String> metadata0 =
                             metadataStore.updateMetadata(r1.member(), metadata1);
-                        onAliveMemberDetected(r1, metadata0, metadata1);
+                        onAliveMemberDetected(
+                            r1,
+                            Optional.ofNullable(metadata0).map(TreeMap::new).orElse(null),
+                            new TreeMap<>(metadata1));
                       })
                   .onErrorResume(Exception.class, e -> Mono.empty())
                   .then();
@@ -641,13 +644,13 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
             .sender(localMember.address())
             .build();
 
-    LOGGER.trace("Send membership ping to {}", member);
+    LOGGER.debug("Send membership ping to {}", member);
     Address address = member.address();
     return transport
         .requestResponse(pingMsg, address)
         .timeout(Duration.ofMillis((long) config.getMembershipPingTimeout()), scheduler)
         .publishOn(scheduler)
-        .doOnSuccess(resp -> LOGGER.trace("Received membership ping ACK: {}", resp))
+        .doOnSuccess(resp -> LOGGER.debug("Received membership ping ACK: {}", resp))
         .doOnError(
             th ->
                 LOGGER.debug(
@@ -661,21 +664,23 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       MembershipRecord r1, Map<String, String> metadata0, Map<String, String> metadata1) {
 
     final Member member = r1.member();
-    final MembershipEvent event;
 
     boolean memberExists = members.containsKey(member.id());
 
+    MembershipEvent event = null;
     if (!memberExists) {
       event = MembershipEvent.createAdded(member, metadata1);
-    } else {
+    } else if (!metadata1.equals(metadata0)) {
       event = MembershipEvent.createUpdated(member, metadata0, metadata1);
     }
 
     members.put(member.id(), member);
     membershipTable.put(member.id(), r1);
 
-    LOGGER_MEMBERSHIP.debug("Emitting membership event {}", event);
-    sink.next(event);
+    if (event != null) {
+      LOGGER_MEMBERSHIP.debug("Emitting membership event {}", event);
+      sink.next(event);
+    }
   }
 
   private void cancelSuspicionTimeoutTask(String memberId) {

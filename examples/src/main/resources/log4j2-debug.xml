@@ -12,8 +12,6 @@
       <PatternLayout pattern="${patternLayout}"/>
       <Policies>
         <OnStartupTriggeringPolicy/>
-        <TimeBasedTriggeringPolicy/>
-        <SizeBasedTriggeringPolicy size="50 MB"/>
       </Policies>
     </RollingFile>
 
@@ -23,8 +21,6 @@
       <PatternLayout pattern="${patternLayout}"/>
       <Policies>
         <OnStartupTriggeringPolicy/>
-        <TimeBasedTriggeringPolicy/>
-        <SizeBasedTriggeringPolicy size="50 MB"/>
       </Policies>
     </RollingFile>
 

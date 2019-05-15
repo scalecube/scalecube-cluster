@@ -202,7 +202,7 @@ public final class FailureDetectorImpl implements FailureDetector {
                       publishPingResult(period, pingMember, MemberStatus.ALIVE);
                     },
                     throwable -> {
-                      LOGGER.trace(
+                      LOGGER.debug(
                           "Timeout getting transit PingAck[{}] from {} to {} within {} ms",
                           period,
                           pingReqMembers,
