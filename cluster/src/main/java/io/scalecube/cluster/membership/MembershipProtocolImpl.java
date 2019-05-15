@@ -551,15 +551,19 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           if (r1.isDead()) {
             // Long path
             return doMembershipPing(r1.member())
+                .doOnSuccess(avoid -> cancelSuspicionTimeoutTask(r1.id()))
                 .onErrorResume(
                     th -> {
                       // Update membership
                       members.remove(r1.id());
-                      boolean removed = membershipTable.remove(r1.id()) != null;
+                      boolean removed = false;
+                      if (membershipTable.containsKey(r1.id())) {
+                        removed = membershipTable.remove(r1.id()) != null;
+                      }
                       // Emit membership if removed from membership table
                       if (removed) {
                         LOGGER.debug("Removed DEAD member {} from membership table", r1);
-                        return emitMembershipEventAndSpreadGossip(r0, r1, reason);
+                        return emitMembershipEvent(r0, r1);
                       }
                       return Mono.empty();
                     });

@@ -13,6 +13,7 @@ import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
 import io.scalecube.cluster.metadata.MetadataStoreImpl;
 import io.scalecube.transport.Address;
+import io.scalecube.transport.NetworkEmulator;
 import io.scalecube.transport.Transport;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -24,6 +25,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -101,7 +103,7 @@ public class MembershipProtocolTest extends BaseTest {
 
     try {
 
-      awaitSuspicion(3);
+      awaitSuspicion(addresses.size());
 
       assertSelfTrusted(cmA);
       assertNoSuspected(cmA);
@@ -346,7 +348,7 @@ public class MembershipProtocolTest extends BaseTest {
       assertTrusted(cmD, cmC.member());
       assertSuspected(cmD, cmB.member(), cmA.member());
 
-      awaitSuspicion(4);
+      awaitSuspicion(addresses.size());
 
       assertTrusted(cmA, cmB.member());
       assertNoSuspected(cmA);
@@ -400,7 +402,7 @@ public class MembershipProtocolTest extends BaseTest {
       assertTrusted(cmB, cmA.member());
       assertSuspected(cmB, cmC.member(), cmD.member());
 
-      awaitSuspicion(4);
+      awaitSuspicion(addresses.size());
 
       assertTrusted(cmA, cmB.member());
       assertNoSuspected(cmA);
@@ -756,64 +758,74 @@ public class MembershipProtocolTest extends BaseTest {
     Transport a = Transport.bindAwait(true);
     Transport b = Transport.bindAwait(true);
     Transport c = Transport.bindAwait(true);
-    List<Address> addresses = Arrays.asList(a.address(), b.address(), c.address());
+    Transport d = Transport.bindAwait(true);
+    List<Address> addresses = Arrays.asList(a.address(), b.address(), c.address(), d.address());
 
     MembershipProtocolImpl cmA = createMembership(a, addresses);
     MembershipProtocolImpl cmB = createMembership(b, addresses);
     MembershipProtocolImpl cmC = createMembership(c, addresses);
+    MembershipProtocolImpl cmD = createMembership(d, addresses);
 
     awaitSeconds(1);
 
     try {
       // Check all trusted
-      assertTrusted(cmA, cmB.member(), cmC.member());
+      assertTrusted(cmA, cmB.member(), cmC.member(), cmD.member());
       assertNoSuspected(cmA);
-      assertTrusted(cmB, cmA.member(), cmC.member());
+      assertTrusted(cmB, cmA.member(), cmC.member(), cmD.member());
       assertNoSuspected(cmB);
-      assertTrusted(cmC, cmA.member(), cmB.member());
+      assertTrusted(cmC, cmA.member(), cmB.member(), cmD.member());
       assertNoSuspected(cmC);
+      assertTrusted(cmD, cmA.member(), cmB.member(), cmC.member());
+      assertNoSuspected(cmD);
 
       ReplayProcessor<MembershipEvent> cmA_removedHistory = startRecordingRemoved(cmA);
       ReplayProcessor<MembershipEvent> cmB_removedHistory = startRecordingRemoved(cmB);
       ReplayProcessor<MembershipEvent> cmC_removedHistory = startRecordingRemoved(cmC);
+      ReplayProcessor<MembershipEvent> cmD_removedHistory = startRecordingRemoved(cmD);
 
-      // Split into three clusters
-      a.networkEmulator().blockAllInbound();
-      b.networkEmulator().blockAllInbound();
-      c.networkEmulator().blockAllInbound();
+      // Split into several clusters
+      Stream.of(a, b, c, d)
+          .map(Transport::networkEmulator)
+          .forEach(NetworkEmulator::blockAllInbound);
 
       awaitSeconds(1);
 
-      // Check partition: {a}, {b}, {c}
+      // Check partition: {a}, {b}, {c}, {d}
       assertSelfTrusted(cmA);
-      assertSuspected(cmA, cmB.member(), cmC.member());
+      assertSuspected(cmA, cmB.member(), cmC.member(), cmD.member());
       assertSelfTrusted(cmB);
-      assertSuspected(cmB, cmA.member(), cmC.member());
+      assertSuspected(cmB, cmA.member(), cmC.member(), cmD.member());
       assertSelfTrusted(cmC);
-      assertSuspected(cmC, cmB.member(), cmA.member());
+      assertSuspected(cmC, cmB.member(), cmA.member(), cmD.member());
+      assertSelfTrusted(cmD);
+      assertSuspected(cmD, cmB.member(), cmA.member(), cmC.member());
 
-      awaitSuspicion(3);
+      awaitSuspicion(addresses.size());
 
-      assertRemoved(cmA_removedHistory, cmB.member(), cmC.member());
-      assertRemoved(cmB_removedHistory, cmA.member(), cmC.member());
-      assertRemoved(cmC_removedHistory, cmB.member(), cmA.member());
+      assertRemoved(cmA_removedHistory, cmB.member(), cmC.member(), cmD.member());
+      assertRemoved(cmB_removedHistory, cmA.member(), cmC.member(), cmD.member());
+      assertRemoved(cmC_removedHistory, cmB.member(), cmA.member(), cmD.member());
+      assertRemoved(cmD_removedHistory, cmB.member(), cmA.member(), cmC.member());
 
       // Recover network
-      a.networkEmulator().unblockAllInbound();
-      b.networkEmulator().unblockAllInbound();
-      c.networkEmulator().unblockAllInbound();
+      Stream.of(a, b, c, d)
+        .map(Transport::networkEmulator)
+        .forEach(NetworkEmulator::unblockAllInbound);
 
       awaitSeconds(3);
 
       // Check all trusted
-      assertTrusted(cmA, cmB.member(), cmC.member());
+      assertTrusted(cmA, cmB.member(), cmC.member(), cmD.member());
       assertNoSuspected(cmA);
-      assertTrusted(cmB, cmA.member(), cmC.member());
+      assertTrusted(cmB, cmA.member(), cmC.member(), cmD.member());
       assertNoSuspected(cmB);
-      assertTrusted(cmC, cmA.member(), cmB.member());
+      assertTrusted(cmC, cmA.member(), cmB.member(), cmD.member());
       assertNoSuspected(cmC);
+      assertTrusted(cmD, cmA.member(), cmB.member(), cmC.member());
+      assertNoSuspected(cmD);
     } finally {
-      stopAll(cmA, cmB, cmC);
+      stopAll(cmA, cmB, cmC, cmD);
     }
   }
 
