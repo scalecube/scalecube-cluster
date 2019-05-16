@@ -65,8 +65,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   public static final String SYNC = "sc/membership/sync";
   public static final String SYNC_ACK = "sc/membership/syncAck";
   public static final String MEMBERSHIP_GOSSIP = "sc/membership/gossip";
-  public static final String MEMBERSHIP_PING = "sc/membership/ping";
-  public static final String MEMBERSHIP_PING_ACK = "sc/membership/pingAck";
 
   private final Member localMember;
 
@@ -331,9 +329,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
         }
       }
     }
-    if (MEMBERSHIP_PING.equals(message.qualifier())) {
-      onMembershipPing(message);
-    }
   }
 
   // ================================================
@@ -370,41 +365,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                                     ex.toString()));
                   });
         });
-  }
-
-  private void onMembershipPing(Message message) {
-    LOGGER.debug("Received membership ping: {}", message);
-
-    // Validate target member
-    MembershipPingData pingData = message.data();
-    Member targetMember = pingData.getTarget();
-    if (!targetMember.id().equals(localMember.id())) {
-      LOGGER.warn(
-          "Received membership ping: {} to {}, but local member is {}",
-          message,
-          targetMember,
-          localMember);
-      return;
-    }
-
-    Message response =
-        Message.with(message) //
-            .qualifier(MEMBERSHIP_PING_ACK)
-            .sender(localMember.address())
-            .data(null)
-            .build();
-
-    Address responseAddress = message.sender();
-    LOGGER.debug("Send membership ping ACK to {}", responseAddress);
-    transport
-        .send(responseAddress, response)
-        .subscribe(
-            null,
-            ex ->
-                LOGGER.debug(
-                    "Failed to send membership ping ACK to {}, cause: {}",
-                    responseAddress,
-                    ex.toString()));
   }
 
   /** Merges FD updates and processes them. */
@@ -541,16 +501,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           }
 
           if (r1.isDead()) {
-            // Long path
-            return doMembershipPing(r1.member())
-                .doOnSuccess(
-                    avoid ->
-                        LOGGER_MEMBERSHIP.debug(
-                            "(update reason: {}) skipping to set r0: {} to DEAD, "
-                                + "due to received membership ping ACK",
-                            reason,
-                            r0))
-                .onErrorResume(th -> onDeadMemberDetected(r1));
+            return onDeadMemberDetected(r1);
           }
 
           if (r1.isSuspect()) {
@@ -632,32 +583,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           LOGGER_MEMBERSHIP.debug("Emitting membership event {}", event);
           sink.next(event);
         });
-  }
-
-  private Mono<Void> doMembershipPing(Member member) {
-    // Send ping
-    String cid = cidGenerator.nextCid();
-    Message pingMsg =
-        Message.withData(new MembershipPingData(member))
-            .qualifier(MEMBERSHIP_PING)
-            .correlationId(cid)
-            .sender(localMember.address())
-            .build();
-
-    LOGGER.debug("Send membership ping to {}", member);
-    Address address = member.address();
-    return transport
-        .requestResponse(pingMsg, address)
-        .timeout(Duration.ofMillis((long) config.getMembershipPingTimeout()), scheduler)
-        .publishOn(scheduler)
-        .doOnSuccess(resp -> LOGGER.debug("Received membership ping ACK: {}", resp))
-        .doOnError(
-            th ->
-                LOGGER.debug(
-                    "Failed to receive membership ping ACK from {}, cause: {}",
-                    member,
-                    th.toString()))
-        .then();
   }
 
   private void onAliveMemberDetected(

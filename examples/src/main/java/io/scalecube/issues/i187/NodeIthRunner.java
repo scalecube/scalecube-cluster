@@ -30,7 +30,6 @@ public class NodeIthRunner {
             .addMetadata("node-i-th", Integer.toHexString(new Object().hashCode()))
             .syncInterval(1000)
             .syncTimeout(1000)
-            .membershipPingTimeout(1000)
             .metadataTimeout(1000)
             .connectTimeout(1000)
             .build();
