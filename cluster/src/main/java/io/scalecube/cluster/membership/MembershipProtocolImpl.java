@@ -25,9 +25,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -50,6 +50,7 @@ import reactor.core.scheduler.Scheduler;
 public final class MembershipProtocolImpl implements MembershipProtocol {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MembershipProtocolImpl.class);
+  private static final Logger LOGGER_MEMBERSHIP = LoggerFactory.getLogger("membership");
 
   private enum MembershipUpdateReason {
     FAILURE_DETECTOR_EVENT,
@@ -247,7 +248,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
               sink.success();
             })
         .subscribe(
-            null, ex -> LOGGER.info("Exception on initial SyncAck, cause: {}", ex.toString()));
+            null, ex -> LOGGER.debug("Exception on initial SyncAck, cause: {}", ex.toString()));
   }
 
   @Override
@@ -428,6 +429,11 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     LOGGER.error("Received unexpected error: ", throwable);
   }
 
+  @SuppressWarnings("unused")
+  private void onErrorIgnore(Throwable throwable) {
+    // no-op
+  }
+
   private boolean checkSyncGroup(Message message) {
     if (message.data() instanceof SyncData) {
       SyncData syncData = message.data();
@@ -481,110 +487,125 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
           // Check if new record r1 overrides existing membership record r0
           if (!r1.isOverrides(r0)) {
+            LOGGER_MEMBERSHIP.debug(
+                "(update reason: {}) skipping update, can't override r0: {} with received r1: {}",
+                reason,
+                r0,
+                r1);
             return Mono.empty();
           }
 
           // If received updated for local member then increase incarnation and spread Alive gossip
           if (r1.member().id().equals(localMember.id())) {
-            int currentIncarnation = Math.max(r0.incarnation(), r1.incarnation());
-            MembershipRecord r2 =
-                new MembershipRecord(localMember, r0.status(), currentIncarnation + 1);
-
-            membershipTable.put(localMember.id(), r2);
-
-            LOGGER.debug(
-                "Local membership record r0: {}, but received r1: {}, "
-                    + "spread with increased incarnation r2: {}",
-                r0,
-                r1,
-                r2);
-
-            spreadMembershipGossip(r2)
-                .subscribe(
-                    null,
-                    ex -> {
-                      // on-op
-                    });
-            return Mono.empty();
+            return onSelfMemberDetected(r0, r1, reason);
           }
 
-          // Update membership
           if (r1.isDead()) {
-            membershipTable.remove(r1.id());
-          } else {
-            membershipTable.put(r1.id(), r1);
+            return onDeadMemberDetected(r1);
           }
 
-          // Schedule/cancel suspicion timeout task
           if (r1.isSuspect()) {
+            // Update membership and schedule/cancel suspicion timeout task
+            membershipTable.put(r1.id(), r1);
             scheduleSuspicionTimeoutTask(r1);
-          } else {
-            cancelSuspicionTimeoutTask(r1.id());
+            spreadMembershipGossipUnlessGossiped(r1, reason);
           }
 
-          // Emit membership and regardless of result spread gossip
-          return emitMembershipEvent(r0, r1)
-              .doFinally(
-                  s -> {
-                    // Spread gossip (unless already gossiped)
-                    if (reason != MembershipUpdateReason.MEMBERSHIP_GOSSIP
-                        && reason != MembershipUpdateReason.INITIAL_SYNC) {
-                      spreadMembershipGossip(r1)
-                          .subscribe(
-                              null,
-                              ex -> {
-                                // no-op
-                              });
-                    }
-                  });
-        });
-  }
-
-  private Mono<Void> emitMembershipEvent(MembershipRecord r0, MembershipRecord r1) {
-    return Mono.defer(
-        () -> {
-          final Member member = r1.member();
-
-          if (r1.isDead()) {
-            members.remove(member.id());
-            // removed
-            return Mono.fromRunnable(
-                () -> {
-                  Map<String, String> metadata = metadataStore.removeMetadata(member);
-                  sink.next(MembershipEvent.createRemoved(member, metadata));
-                });
-          }
-
-          if (r0 == null && r1.isAlive()) {
-            members.put(member.id(), member);
-            // added
-            return metadataStore
-                .fetchMetadata(member)
-                .doOnSuccess(
-                    metadata -> {
-                      metadataStore.updateMetadata(member, metadata);
-                      sink.next(MembershipEvent.createAdded(member, metadata));
-                    })
-                .onErrorResume(TimeoutException.class, e -> Mono.empty())
-                .then();
-          }
-
-          if (r0 != null && r0.incarnation() < r1.incarnation()) {
-            // updated
-            return metadataStore
-                .fetchMetadata(member)
-                .doOnSuccess(
-                    metadata1 -> {
-                      Map<String, String> metadata0 =
-                          metadataStore.updateMetadata(member, metadata1);
-                      sink.next(MembershipEvent.createUpdated(member, metadata0, metadata1));
-                    })
-                .onErrorResume(TimeoutException.class, e -> Mono.empty())
-                .then();
+          if (r1.isAlive()) {
+            // New alive or updated alive
+            if (r0 == null || r0.incarnation() < r1.incarnation()) {
+              return metadataStore
+                  .fetchMetadata(r1.member())
+                  .doOnError(
+                      ex ->
+                          LOGGER_MEMBERSHIP.debug(
+                              "(update reason: {}) skipping to add/update member: {}, "
+                                  + "due to failed fetchMetadata call (cause: {})",
+                              reason,
+                              r1,
+                              ex.toString()))
+                  .doOnSuccess(
+                      metadata1 -> {
+                        // If metadata was received then member is Alive
+                        cancelSuspicionTimeoutTask(r1.id());
+                        spreadMembershipGossipUnlessGossiped(r1, reason);
+                        // Update membership
+                        Map<String, String> metadata0 =
+                            metadataStore.updateMetadata(r1.member(), metadata1);
+                        onAliveMemberDetected(
+                            r1,
+                            Optional.ofNullable(metadata0).map(TreeMap::new).orElse(null),
+                            new TreeMap<>(metadata1));
+                      })
+                  .onErrorResume(Exception.class, e -> Mono.empty())
+                  .then();
+            }
           }
 
           return Mono.empty();
         });
+  }
+
+  private Mono<Void> onSelfMemberDetected(
+      MembershipRecord r0, MembershipRecord r1, MembershipUpdateReason reason) {
+    return Mono.fromRunnable(
+        () -> {
+          int currentIncarnation = Math.max(r0.incarnation(), r1.incarnation());
+          MembershipRecord r2 =
+              new MembershipRecord(localMember, r0.status(), currentIncarnation + 1);
+
+          membershipTable.put(localMember.id(), r2);
+
+          LOGGER_MEMBERSHIP.debug(
+              "(update reason: {}) updating incarnation, local record r0: {} to received r1: {}, "
+                  + "spreading with increased incarnation r2: {}",
+              reason,
+              r0,
+              r1,
+              r2);
+
+          spreadMembershipGossip(r2).doOnError(this::onErrorIgnore).subscribe();
+        });
+  }
+
+  private Mono<Void> onDeadMemberDetected(MembershipRecord r1) {
+    return Mono.fromRunnable(
+        () -> {
+          if (!members.containsKey(r1.id())) {
+            return;
+          }
+          // Update membership
+          members.remove(r1.id());
+          membershipTable.remove(r1.id());
+          // removed
+          Map<String, String> metadata = metadataStore.removeMetadata(r1.member());
+          MembershipEvent event = MembershipEvent.createRemoved(r1.member(), metadata);
+          LOGGER_MEMBERSHIP.debug("Emitting membership event {}", event);
+          sink.next(event);
+        });
+  }
+
+  private void onAliveMemberDetected(
+      MembershipRecord r1, Map<String, String> metadata0, Map<String, String> metadata1) {
+
+    final Member member = r1.member();
+
+    boolean memberExists = members.containsKey(member.id());
+
+    MembershipEvent event = null;
+    if (!memberExists) {
+      event = MembershipEvent.createAdded(member, metadata1);
+    } else if (!metadata1.equals(metadata0)) {
+      event = MembershipEvent.createUpdated(member, metadata0, metadata1);
+    }
+
+    members.put(member.id(), member);
+    membershipTable.put(member.id(), r1);
+
+    if (event != null) {
+      LOGGER_MEMBERSHIP.debug("Emitting membership event {}", event);
+      sink.next(event);
+    }
   }
 
   private void cancelSuspicionTimeoutTask(String memberId) {
@@ -614,6 +635,15 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           new MembershipRecord(record.member(), DEAD, record.incarnation());
       updateMembership(deadRecord, MembershipUpdateReason.SUSPICION_TIMEOUT)
           .subscribe(null, this::onError);
+    }
+  }
+
+  private void spreadMembershipGossipUnlessGossiped(
+      MembershipRecord r1, MembershipUpdateReason reason) {
+    // Spread gossip (unless already gossiped)
+    if (reason != MembershipUpdateReason.MEMBERSHIP_GOSSIP
+        && reason != MembershipUpdateReason.INITIAL_SYNC) {
+      spreadMembershipGossip(r1).doOnError(this::onErrorIgnore).subscribe();
     }
   }
 
@@ -695,12 +725,15 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     public static final int REMOVED_MEMBERS_HISTORY_SIZE = 42;
 
     private final MembershipProtocolImpl membershipProtocol;
-    private final ReplayProcessor<MembershipEvent> replayProcessor;
+    private final ReplayProcessor<MembershipEvent> removedMembersHistory;
 
     private JmxMonitorMBean(MembershipProtocolImpl membershipProtocol) {
       this.membershipProtocol = membershipProtocol;
-      this.replayProcessor = ReplayProcessor.create(REMOVED_MEMBERS_HISTORY_SIZE);
-      membershipProtocol.listen().filter(MembershipEvent::isRemoved).subscribe(replayProcessor);
+      this.removedMembersHistory = ReplayProcessor.create(REMOVED_MEMBERS_HISTORY_SIZE);
+      membershipProtocol
+          .listen()
+          .filter(MembershipEvent::isRemoved)
+          .subscribe(removedMembersHistory);
     }
 
     private static JmxMonitorMBean start(MembershipProtocolImpl membershipProtocol)
@@ -735,7 +768,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     @Override
     public List<String> getDeadMembers() {
       List<String> deadMembers = new ArrayList<>();
-      replayProcessor.map(MembershipEvent::toString).subscribe(deadMembers::add);
+      removedMembersHistory.map(MembershipEvent::toString).subscribe(deadMembers::add);
       return deadMembers;
     }
 

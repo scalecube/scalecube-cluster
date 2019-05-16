@@ -222,7 +222,7 @@ class GossipProtocolTest extends BaseTest {
     List<Long> messageLostPerNode = new ArrayList<>(gossipProtocols.size());
     for (GossipProtocolImpl gossipProtocol : gossipProtocols) {
       Transport transport = gossipProtocol.getTransport();
-      messageLostPerNode.add(transport.networkEmulator().totalMessageLostCount());
+      messageLostPerNode.add(transport.networkEmulator().totalOutboundMessageLostCount());
     }
     return messageLostPerNode.stream().mapToLong(v -> v).summaryStatistics();
   }
@@ -245,7 +245,7 @@ class GossipProtocolTest extends BaseTest {
     TransportConfig transportConfig = TransportConfig.builder().useNetworkEmulator(true).build();
     for (int i = 0; i < count; i++) {
       Transport transport = Transport.bindAwait(transportConfig);
-      transport.networkEmulator().setDefaultLinkSettings(lostPercent, meanDelay);
+      transport.networkEmulator().setDefaultOutboundSettings(lostPercent, meanDelay);
       transports.add(transport);
     }
     return transports;

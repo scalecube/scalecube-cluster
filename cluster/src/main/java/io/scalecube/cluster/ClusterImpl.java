@@ -389,7 +389,7 @@ final class ClusterImpl implements Cluster {
     @Override
     public Collection<String> getMetadata() {
       return cluster.metadata().entrySet().stream()
-          .map(e -> e.getKey() + " : " + e.getValue())
+          .map(e -> e.getKey() + ":" + e.getValue())
           .collect(Collectors.toCollection(ArrayList::new));
     }
   }
