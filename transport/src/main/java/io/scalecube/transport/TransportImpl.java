@@ -20,6 +20,7 @@ import java.util.function.BiConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
+import reactor.core.Disposables;
 import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
@@ -181,24 +182,20 @@ final class TransportImpl implements Transport {
           return Flux.concatDelayError(closeServer(), closeConnections())
               .doOnTerminate(loopResources::dispose)
               .then()
-              .doOnSuccess(avoid -> LOGGER.debug("Transport has shut down on {}", address));
+              .doOnSuccess(avoid -> LOGGER.debug("Transport has been shut down on {}", address));
         });
   }
 
   @Override
   public final Flux<Message> listen() {
-    return messagesSubject.onBackpressureBuffer();
+    return messagesSubject
+        .filter(message -> networkEmulator.inboundSettings(message.sender()).shallPass())
+        .onBackpressureBuffer();
   }
 
   @Override
   public Mono<Void> send(Address address, Message message) {
-    return getOrConnect(address)
-        .flatMap(conn -> send0(conn, message, address))
-        .then()
-        .doOnError(
-            ex ->
-                LOGGER.debug(
-                    "Failed to send {} to {}, cause: {}", message, address, ex.toString()));
+    return getOrConnect(address).flatMap(conn -> send0(conn, message, address)).then();
   }
 
   @Override
@@ -208,25 +205,23 @@ final class TransportImpl implements Transport {
           Objects.requireNonNull(request, "request must be not null");
           Objects.requireNonNull(request.correlationId(), "correlationId must be not null");
 
-          Disposable disposable =
+          Disposable receive =
               listen()
                   .filter(resp -> resp.correlationId() != null)
                   .filter(resp -> resp.correlationId().equals(request.correlationId()))
                   .take(1)
                   .subscribe(sink::success, sink::error, sink::success);
 
-          send(address, request)
-              .subscribe(
-                  null,
-                  ex -> {
-                    LOGGER.warn(
-                        "Unexpected exception on transport request-response, cause: {}",
-                        ex.toString());
-                    sink.error(ex);
-                    if (!disposable.isDisposed()) {
-                      disposable.dispose();
-                    }
-                  });
+          Disposable send =
+              send(address, request)
+                  .subscribe(
+                      null,
+                      ex -> {
+                        receive.dispose();
+                        sink.error(ex);
+                      });
+
+          sink.onDispose(Disposables.composite(send, receive));
         });
   }
 
@@ -261,8 +256,8 @@ final class TransportImpl implements Transport {
         .options(SendOptions::flushOnEach)
         .send(
             Mono.just(message)
-                .flatMap(msg -> networkEmulator.tryFail(msg, address))
-                .flatMap(msg -> networkEmulator.tryDelay(msg, address))
+                .flatMap(msg -> networkEmulator.tryFailOutbound(msg, address))
+                .flatMap(msg -> networkEmulator.tryDelayOutbound(msg, address))
                 .map(this::toByteBuf))
         .then();
   }
@@ -298,8 +293,7 @@ final class TransportImpl implements Transport {
         .connect()
         .doOnError(
             th -> {
-              LOGGER.debug(
-                  "Failed to connect to remote address {}, cause: {}", address, th.toString());
+              LOGGER.debug("Failed to connect on address {}, cause: {}", address, th.toString());
               connections.remove(address);
             })
         .cache();

@@ -185,10 +185,14 @@ public final class GossipProtocolImpl implements GossipProtocol {
   private void onMemberEvent(MembershipEvent event) {
     Member member = event.member();
     if (event.isRemoved()) {
-      remoteMembers.remove(member);
+      boolean removed = remoteMembers.remove(member);
+      if (removed) {
+        LOGGER.debug("Removed {} from remoteMembers list (size={})", member, remoteMembers.size());
+      }
     }
     if (event.isAdded()) {
       remoteMembers.add(member);
+      LOGGER.debug("Added {} to remoteMembers list (size={})", member, remoteMembers.size());
     }
   }
 
@@ -218,8 +222,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
     // Send gossip request
     Address address = member.address();
 
-    gossips
-        .stream()
+    gossips.stream()
         .map(this::buildGossipRequestMessage)
         .forEach(
             message ->
@@ -239,9 +242,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
   private List<Gossip> selectGossipsToSend(long period, Member member) {
     int periodsToSpread =
         ClusterMath.gossipPeriodsToSpread(config.getGossipRepeatMult(), remoteMembers.size() + 1);
-    return gossips
-        .values()
-        .stream()
+    return gossips.values().stream()
         .filter(
             gossipState -> gossipState.infectionPeriod() + periodsToSpread >= period) // max rounds
         .filter(gossipState -> !gossipState.isInfected(member.id())) // already infected
@@ -285,9 +286,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
     int periodsToSweep =
         ClusterMath.gossipPeriodsToSweep(config.getGossipRepeatMult(), remoteMembers.size() + 1);
     Set<GossipState> gossipsToRemove =
-        gossips
-            .values()
-            .stream()
+        gossips.values().stream()
             .filter(gossipState -> period > gossipState.infectionPeriod() + periodsToSweep)
             .collect(Collectors.toSet());
 

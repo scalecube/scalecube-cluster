@@ -208,7 +208,7 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
     return "ClusterConfig{seedMembers="
         + seedMembers
         + ", metadata="
-        + metadata
+        + metadataAsString()
         + ", syncInterval="
         + syncInterval
         + ", syncTimeout="
@@ -239,6 +239,10 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
         + ", memberPort="
         + memberPort
         + '}';
+  }
+
+  private String metadataAsString() {
+    return metadata.isEmpty() ? "[]" : "metadata@" + Integer.toHexString(metadata.hashCode());
   }
 
   public static final class Builder {

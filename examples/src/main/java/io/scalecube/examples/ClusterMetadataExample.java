@@ -34,9 +34,7 @@ public class ClusterMetadataExample {
 
     // Scan the list of members in the cluster and find Joe there
     Optional<Member> joeMemberOptional =
-        alice
-            .otherMembers()
-            .stream()
+        alice.otherMembers().stream()
             .filter(member -> "Joe".equals(alice.metadata(member).get("name")))
             .findAny();
 

@@ -13,6 +13,7 @@ import io.scalecube.cluster.metadata.MetadataStore;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.Transport;
+import java.lang.management.ManagementFactory;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -24,11 +25,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.management.MBeanServer;
+import javax.management.ObjectName;
+import javax.management.StandardMBean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
@@ -38,11 +43,14 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxProcessor;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.MonoSink;
+import reactor.core.publisher.ReplayProcessor;
 import reactor.core.scheduler.Scheduler;
 
 public final class MembershipProtocolImpl implements MembershipProtocol {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MembershipProtocolImpl.class);
+  private static final Logger LOGGER_MEMBERSHIP = LoggerFactory.getLogger("membership");
 
   private enum MembershipUpdateReason {
     FAILURE_DETECTOR_EVENT,
@@ -153,9 +161,9 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private List<Address> cleanUpSeedMembers(Collection<Address> seedMembers) {
     return new LinkedHashSet<>(seedMembers)
         .stream()
-        .filter(address -> !address.equals(localMember.address()))
-        .filter(address -> !address.equals(transport.address()))
-        .collect(Collectors.toList());
+            .filter(address -> !address.equals(localMember.address()))
+            .filter(address -> !address.equals(transport.address()))
+            .collect(Collectors.toList());
   }
 
   @Override
@@ -201,45 +209,46 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   @Override
   public Mono<Void> start() {
     // Make initial sync with all seed members
-    return Mono.create(
-        sink -> {
-          // In case no members at the moment just schedule periodic sync
-          if (seedMembers.isEmpty()) {
-            schedulePeriodicSync();
-            sink.success();
-            return;
-          }
-          // If seed addresses are specified in config - send initial sync to those nodes
-          LOGGER.debug("Making initial Sync to all seed members: {}", seedMembers);
+    return Mono.create(this::start0)
+        .then(Mono.fromCallable(() -> JmxMonitorMBean.start(this)))
+        .then();
+  }
 
-          //noinspection unchecked
-          Mono<Message>[] syncs =
-              seedMembers
-                  .stream()
-                  .map(
-                      address -> {
-                        String cid = cidGenerator.nextCid();
-                        return transport
-                            .requestResponse(prepareSyncDataMsg(SYNC, cid), address)
-                            .filter(this::checkSyncGroup);
-                      })
-                  .toArray(Mono[]::new);
+  private void start0(MonoSink<Object> sink) {
+    // In case no members at the moment just schedule periodic sync
+    if (seedMembers.isEmpty()) {
+      schedulePeriodicSync();
+      sink.success();
+      return;
+    }
+    // If seed addresses are specified in config - send initial sync to those nodes
+    LOGGER.debug("Making initial Sync to all seed members: {}", seedMembers);
 
-          // Process initial SyncAck
-          Flux.mergeDelayError(syncs.length, syncs)
-              .take(1)
-              .timeout(Duration.ofMillis(config.getSyncTimeout()), scheduler)
-              .publishOn(scheduler)
-              .flatMap(message -> onSyncAck(message, true))
-              .doFinally(
-                  s -> {
-                    schedulePeriodicSync();
-                    sink.success();
-                  })
-              .subscribe(
-                  null,
-                  ex -> LOGGER.info("Exception on initial SyncAck, cause: {}", ex.toString()));
-        });
+    //noinspection unchecked
+    Mono<Message>[] syncs =
+        seedMembers.stream()
+            .map(
+                address -> {
+                  String cid = cidGenerator.nextCid();
+                  return transport
+                      .requestResponse(prepareSyncDataMsg(SYNC, cid), address)
+                      .filter(this::checkSyncGroup);
+                })
+            .toArray(Mono[]::new);
+
+    // Process initial SyncAck
+    Flux.mergeDelayError(syncs.length, syncs)
+        .take(1)
+        .timeout(Duration.ofMillis(config.getSyncTimeout()), scheduler)
+        .publishOn(scheduler)
+        .flatMap(message -> onSyncAck(message, true))
+        .doFinally(
+            s -> {
+              schedulePeriodicSync();
+              sink.success();
+            })
+        .subscribe(
+            null, ex -> LOGGER.debug("Exception on initial SyncAck, cause: {}", ex.toString()));
   }
 
   @Override
@@ -268,9 +277,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   @Override
   public Collection<Member> otherMembers() {
     return new ArrayList<>(members.values())
-        .stream()
-        .filter(member -> !member.equals(localMember))
-        .collect(Collectors.toList());
+        .stream().filter(member -> !member.equals(localMember)).collect(Collectors.toList());
   }
 
   @Override
@@ -286,9 +293,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   @Override
   public Optional<Member> member(Address address) {
     return new ArrayList<>(members.values())
-        .stream()
-        .filter(member -> member.address().equals(address))
-        .findFirst();
+        .stream().filter(member -> member.address().equals(address)).findFirst();
   }
 
   private void doSync() {
@@ -424,6 +429,11 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     LOGGER.error("Received unexpected error: ", throwable);
   }
 
+  @SuppressWarnings("unused")
+  private void onErrorIgnore(Throwable throwable) {
+    // no-op
+  }
+
   private boolean checkSyncGroup(Message message) {
     if (message.data() instanceof SyncData) {
       SyncData syncData = message.data();
@@ -455,9 +465,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           MembershipUpdateReason reason =
               onStart ? MembershipUpdateReason.INITIAL_SYNC : MembershipUpdateReason.SYNC;
           return Mono.whenDelayError(
-              syncData
-                  .getMembership()
-                  .stream()
+              syncData.getMembership().stream()
                   .filter(r1 -> !r1.equals(membershipTable.get(r1.id())))
                   .map(r1 -> updateMembership(r1, reason))
                   .toArray(Mono[]::new));
@@ -479,110 +487,125 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
           // Check if new record r1 overrides existing membership record r0
           if (!r1.isOverrides(r0)) {
+            LOGGER_MEMBERSHIP.debug(
+                "(update reason: {}) skipping update, can't override r0: {} with received r1: {}",
+                reason,
+                r0,
+                r1);
             return Mono.empty();
           }
 
           // If received updated for local member then increase incarnation and spread Alive gossip
           if (r1.member().id().equals(localMember.id())) {
-            int currentIncarnation = Math.max(r0.incarnation(), r1.incarnation());
-            MembershipRecord r2 =
-                new MembershipRecord(localMember, r0.status(), currentIncarnation + 1);
-
-            membershipTable.put(localMember.id(), r2);
-
-            LOGGER.debug(
-                "Local membership record r0: {}, but received r1: {}, "
-                    + "spread with increased incarnation r2: {}",
-                r0,
-                r1,
-                r2);
-
-            spreadMembershipGossip(r2)
-                .subscribe(
-                    null,
-                    ex -> {
-                      // on-op
-                    });
-            return Mono.empty();
+            return onSelfMemberDetected(r0, r1, reason);
           }
 
-          // Update membership
           if (r1.isDead()) {
-            membershipTable.remove(r1.id());
-          } else {
-            membershipTable.put(r1.id(), r1);
+            return onDeadMemberDetected(r1);
           }
 
-          // Schedule/cancel suspicion timeout task
           if (r1.isSuspect()) {
+            // Update membership and schedule/cancel suspicion timeout task
+            membershipTable.put(r1.id(), r1);
             scheduleSuspicionTimeoutTask(r1);
-          } else {
-            cancelSuspicionTimeoutTask(r1.id());
+            spreadMembershipGossipUnlessGossiped(r1, reason);
           }
 
-          // Emit membership and regardless of result spread gossip
-          return emitMembershipEvent(r0, r1)
-              .doFinally(
-                  s -> {
-                    // Spread gossip (unless already gossiped)
-                    if (reason != MembershipUpdateReason.MEMBERSHIP_GOSSIP
-                        && reason != MembershipUpdateReason.INITIAL_SYNC) {
-                      spreadMembershipGossip(r1)
-                          .subscribe(
-                              null,
-                              ex -> {
-                                // no-op
-                              });
-                    }
-                  });
-        });
-  }
-
-  private Mono<Void> emitMembershipEvent(MembershipRecord r0, MembershipRecord r1) {
-    return Mono.defer(
-        () -> {
-          final Member member = r1.member();
-
-          if (r1.isDead()) {
-            members.remove(member.id());
-            // removed
-            return Mono.fromRunnable(
-                () -> {
-                  Map<String, String> metadata = metadataStore.removeMetadata(member);
-                  sink.next(MembershipEvent.createRemoved(member, metadata));
-                });
-          }
-
-          if (r0 == null && r1.isAlive()) {
-            members.put(member.id(), member);
-            // added
-            return metadataStore
-                .fetchMetadata(member)
-                .doOnSuccess(
-                    metadata -> {
-                      metadataStore.updateMetadata(member, metadata);
-                      sink.next(MembershipEvent.createAdded(member, metadata));
-                    })
-                .onErrorResume(TimeoutException.class, e -> Mono.empty())
-                .then();
-          }
-
-          if (r0 != null && r0.incarnation() < r1.incarnation()) {
-            // updated
-            return metadataStore
-                .fetchMetadata(member)
-                .doOnSuccess(
-                    metadata1 -> {
-                      Map<String, String> metadata0 =
-                          metadataStore.updateMetadata(member, metadata1);
-                      sink.next(MembershipEvent.createUpdated(member, metadata0, metadata1));
-                    })
-                .onErrorResume(TimeoutException.class, e -> Mono.empty())
-                .then();
+          if (r1.isAlive()) {
+            // New alive or updated alive
+            if (r0 == null || r0.incarnation() < r1.incarnation()) {
+              return metadataStore
+                  .fetchMetadata(r1.member())
+                  .doOnError(
+                      ex ->
+                          LOGGER_MEMBERSHIP.debug(
+                              "(update reason: {}) skipping to add/update member: {}, "
+                                  + "due to failed fetchMetadata call (cause: {})",
+                              reason,
+                              r1,
+                              ex.toString()))
+                  .doOnSuccess(
+                      metadata1 -> {
+                        // If metadata was received then member is Alive
+                        cancelSuspicionTimeoutTask(r1.id());
+                        spreadMembershipGossipUnlessGossiped(r1, reason);
+                        // Update membership
+                        Map<String, String> metadata0 =
+                            metadataStore.updateMetadata(r1.member(), metadata1);
+                        onAliveMemberDetected(
+                            r1,
+                            Optional.ofNullable(metadata0).map(TreeMap::new).orElse(null),
+                            new TreeMap<>(metadata1));
+                      })
+                  .onErrorResume(Exception.class, e -> Mono.empty())
+                  .then();
+            }
           }
 
           return Mono.empty();
         });
+  }
+
+  private Mono<Void> onSelfMemberDetected(
+      MembershipRecord r0, MembershipRecord r1, MembershipUpdateReason reason) {
+    return Mono.fromRunnable(
+        () -> {
+          int currentIncarnation = Math.max(r0.incarnation(), r1.incarnation());
+          MembershipRecord r2 =
+              new MembershipRecord(localMember, r0.status(), currentIncarnation + 1);
+
+          membershipTable.put(localMember.id(), r2);
+
+          LOGGER_MEMBERSHIP.debug(
+              "(update reason: {}) updating incarnation, local record r0: {} to received r1: {}, "
+                  + "spreading with increased incarnation r2: {}",
+              reason,
+              r0,
+              r1,
+              r2);
+
+          spreadMembershipGossip(r2).doOnError(this::onErrorIgnore).subscribe();
+        });
+  }
+
+  private Mono<Void> onDeadMemberDetected(MembershipRecord r1) {
+    return Mono.fromRunnable(
+        () -> {
+          if (!members.containsKey(r1.id())) {
+            return;
+          }
+          // Update membership
+          members.remove(r1.id());
+          membershipTable.remove(r1.id());
+          // removed
+          Map<String, String> metadata = metadataStore.removeMetadata(r1.member());
+          MembershipEvent event = MembershipEvent.createRemoved(r1.member(), metadata);
+          LOGGER_MEMBERSHIP.debug("Emitting membership event {}", event);
+          sink.next(event);
+        });
+  }
+
+  private void onAliveMemberDetected(
+      MembershipRecord r1, Map<String, String> metadata0, Map<String, String> metadata1) {
+
+    final Member member = r1.member();
+
+    boolean memberExists = members.containsKey(member.id());
+
+    MembershipEvent event = null;
+    if (!memberExists) {
+      event = MembershipEvent.createAdded(member, metadata1);
+    } else if (!metadata1.equals(metadata0)) {
+      event = MembershipEvent.createUpdated(member, metadata0, metadata1);
+    }
+
+    members.put(member.id(), member);
+    membershipTable.put(member.id(), r1);
+
+    if (event != null) {
+      LOGGER_MEMBERSHIP.debug("Emitting membership event {}", event);
+      sink.next(event);
+    }
   }
 
   private void cancelSuspicionTimeoutTask(String memberId) {
@@ -612,6 +635,15 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           new MembershipRecord(record.member(), DEAD, record.incarnation());
       updateMembership(deadRecord, MembershipUpdateReason.SUSPICION_TIMEOUT)
           .subscribe(null, this::onError);
+    }
+  }
+
+  private void spreadMembershipGossipUnlessGossiped(
+      MembershipRecord r1, MembershipUpdateReason reason) {
+    // Spread gossip (unless already gossiped)
+    if (reason != MembershipUpdateReason.MEMBERSHIP_GOSSIP
+        && reason != MembershipUpdateReason.INITIAL_SYNC) {
+      spreadMembershipGossip(r1).doOnError(this::onErrorIgnore).subscribe();
     }
   }
 
@@ -675,5 +707,77 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
    */
   List<MembershipRecord> getMembershipRecords() {
     return Collections.unmodifiableList(new ArrayList<>(membershipTable.values()));
+  }
+
+  public interface MonitorMBean {
+
+    int getIncarnation();
+
+    List<String> getAliveMembers();
+
+    List<String> getSuspectedMembers();
+
+    List<String> getDeadMembers();
+  }
+
+  public static class JmxMonitorMBean implements MonitorMBean {
+
+    public static final int REMOVED_MEMBERS_HISTORY_SIZE = 42;
+
+    private final MembershipProtocolImpl membershipProtocol;
+    private final ReplayProcessor<MembershipEvent> removedMembersHistory;
+
+    private JmxMonitorMBean(MembershipProtocolImpl membershipProtocol) {
+      this.membershipProtocol = membershipProtocol;
+      this.removedMembersHistory = ReplayProcessor.create(REMOVED_MEMBERS_HISTORY_SIZE);
+      membershipProtocol
+          .listen()
+          .filter(MembershipEvent::isRemoved)
+          .subscribe(removedMembersHistory);
+    }
+
+    private static JmxMonitorMBean start(MembershipProtocolImpl membershipProtocol)
+        throws Exception {
+      JmxMonitorMBean monitorMBean = new JmxMonitorMBean(membershipProtocol);
+      MBeanServer server = ManagementFactory.getPlatformMBeanServer();
+      ObjectName objectName =
+          new ObjectName(
+              "io.scalecube.cluster:name=Membership@" + membershipProtocol.localMember.id());
+      StandardMBean standardMBean = new StandardMBean(monitorMBean, MonitorMBean.class);
+      server.registerMBean(standardMBean, objectName);
+      return monitorMBean;
+    }
+
+    @Override
+    public int getIncarnation() {
+      Map<String, MembershipRecord> membershipTable = membershipProtocol.membershipTable;
+      String localMemberId = membershipProtocol.localMember.id();
+      return membershipTable.get(localMemberId).incarnation();
+    }
+
+    @Override
+    public List<String> getAliveMembers() {
+      return findRecordsByCondition(MembershipRecord::isAlive);
+    }
+
+    @Override
+    public List<String> getSuspectedMembers() {
+      return findRecordsByCondition(MembershipRecord::isSuspect);
+    }
+
+    @Override
+    public List<String> getDeadMembers() {
+      List<String> deadMembers = new ArrayList<>();
+      removedMembersHistory.map(MembershipEvent::toString).subscribe(deadMembers::add);
+      return deadMembers;
+    }
+
+    private List<String> findRecordsByCondition(Predicate<MembershipRecord> condition) {
+      return membershipProtocol.getMembershipRecords().stream()
+          .filter(condition)
+          .map(record -> new Member(record.id(), record.address()))
+          .map(Member::toString)
+          .collect(Collectors.toList());
+    }
   }
 }
