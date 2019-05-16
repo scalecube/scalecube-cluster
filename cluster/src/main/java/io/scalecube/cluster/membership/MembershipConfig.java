@@ -14,6 +14,8 @@ public interface MembershipConfig {
 
   int getSyncTimeout();
 
+  int getMembershipPingTimeout();
+
   String getSyncGroup();
 
   int getPingInterval();

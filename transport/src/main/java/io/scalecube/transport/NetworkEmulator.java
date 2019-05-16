@@ -196,7 +196,7 @@ public final class NetworkEmulator {
           if (isLost) {
             totalOutboundMessageLostCount.incrementAndGet();
             return Mono.error(
-                new NetworkEmulatorException("NETWORK_BREAK detected, not sent " + msg));
+                new NetworkEmulatorException("NETWORK_BREAK detected, didn't send " + msg));
           } else {
             return Mono.just(msg);
           }

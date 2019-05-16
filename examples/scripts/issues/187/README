@@ -4,5 +4,5 @@ sudo iptables -A INPUT -p tcp --dport 4800 -j DROP
 # To list existing table
 sudo iptables -L --line-numbers
 
-# To delete first rule
-sudo iptables -D INPUT 1
+# To remove rule 3 of the INPUT chain
+sudo iptables -D INPUT 3
