@@ -62,7 +62,9 @@ public class TransportSendOrderTest extends BaseTest {
       long startAt = System.currentTimeMillis();
       for (int j = 0; j < sentPerIteration; j++) {
         Message message = Message.withQualifier("q" + j).sender(client.address()).build();
-        client.send(server.address(), message).subscribe();
+        client
+            .send(server.address(), message)
+            .subscribe(null, th -> LOGGER.error("Failed to send message", th));
       }
       latch.await(20, TimeUnit.SECONDS);
       long iterationTime = System.currentTimeMillis() - startAt;
