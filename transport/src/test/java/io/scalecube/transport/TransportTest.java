@@ -20,7 +20,10 @@ import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.ReplayProcessor;
 import reactor.netty.ChannelBindException;
+import reactor.test.StepVerifier;
 
 public class TransportTest extends BaseTest {
 
@@ -127,7 +130,7 @@ public class TransportTest extends BaseTest {
   }
 
   @Test
-  public void testNetworkSettings() throws InterruptedException {
+  public void testNetworkSettings() {
     client = createTransport();
     server = createTransport();
 
@@ -139,12 +142,13 @@ public class TransportTest extends BaseTest {
     server.listen().subscribe(serverMessageList::add);
 
     int total = 1000;
-    for (int i = 0; i < total; i++) {
-      Message message = Message.withData("q" + i).sender(client.address()).build();
-      client.send(server.address(), message).subscribe();
-    }
-
-    Thread.sleep(1000);
+    Flux.range(0, total)
+        .flatMap(
+            i ->
+                client.send(
+                    server.address(), Message.withData("q" + i).sender(client.address()).build()))
+        .onErrorContinue((th, o) -> {})
+        .blockLast(TIMEOUT);
 
     int expectedMax =
         total / 100 * lostPercent + total / 100 * 5; // +5% for maximum possible lost messages
@@ -167,7 +171,9 @@ public class TransportTest extends BaseTest {
                     Message.withData("echo/" + message.qualifier())
                         .sender(server.address())
                         .build();
-                server.send(message.sender(), echo).subscribe();
+                server
+                    .send(message.sender(), echo)
+                    .subscribe(null, th -> LOGGER.error("Failed to send message", th));
               }
             });
 
@@ -177,8 +183,12 @@ public class TransportTest extends BaseTest {
     Message q1 = Message.withData("q1").sender(client.address()).build();
     Message q2 = Message.withData("q2").sender(client.address()).build();
 
-    client.send(server.address(), q1).subscribe();
-    client.send(server.address(), q2).subscribe();
+    client
+        .send(server.address(), q1)
+        .subscribe(null, th -> LOGGER.error("Failed to send message", th));
+    client
+        .send(server.address(), q2)
+        .subscribe(null, th -> LOGGER.error("Failed to send message", th));
 
     List<Message> target = targetFuture.get(1, TimeUnit.SECONDS);
     assertNotNull(target);
@@ -236,7 +246,9 @@ public class TransportTest extends BaseTest {
                     Message.withData("echo/" + message.qualifier())
                         .sender(server.address())
                         .build();
-                server.send(message.sender(), echo).subscribe();
+                server
+                    .send(message.sender(), echo)
+                    .subscribe(null, th -> LOGGER.error("Failed to send message", th));
               }
             });
 
@@ -246,8 +258,12 @@ public class TransportTest extends BaseTest {
     Message q1 = Message.withData("q1").sender(client.address()).build();
     Message q2 = Message.withData("q2").sender(client.address()).build();
 
-    client.send(server.address(), q1).subscribe();
-    client.send(server.address(), q2).subscribe();
+    client
+        .send(server.address(), q1)
+        .subscribe(null, th -> LOGGER.error("Failed to send message", th));
+    client
+        .send(server.address(), q2)
+        .subscribe(null, th -> LOGGER.error("Failed to send message", th));
 
     List<Message> target = targetFuture.get(1, TimeUnit.SECONDS);
     assertNotNull(target);
@@ -300,7 +316,9 @@ public class TransportTest extends BaseTest {
                     Message.withData("echo/" + message.qualifier())
                         .sender(server.address())
                         .build();
-                server.send(message.sender(), echo).subscribe();
+                server
+                    .send(message.sender(), echo)
+                    .subscribe(null, th -> LOGGER.error("Failed to send message", th));
               }
             },
             Throwable::printStackTrace);
@@ -309,7 +327,9 @@ public class TransportTest extends BaseTest {
     final CompletableFuture<Message> messageFuture0 = new CompletableFuture<>();
     client.listen().subscribe(messageFuture0::complete);
     Message message = Message.withData("throw").sender(client.address()).build();
-    client.send(server.address(), message).subscribe();
+    client
+        .send(server.address(), message)
+        .subscribe(null, th -> LOGGER.error("Failed to send message", th));
     Message message0 = null;
     try {
       message0 = messageFuture0.get(1, TimeUnit.SECONDS);
@@ -338,8 +358,8 @@ public class TransportTest extends BaseTest {
 
     server.listen().subscribe(message -> server.send(message.sender(), message).subscribe());
 
-    final List<Message> resp = new ArrayList<>();
-    client.listen().subscribe(resp::add);
+    ReplayProcessor<Message> responses = ReplayProcessor.create();
+    client.listen().subscribe(responses);
 
     // test at unblocked transport
     send(client, server.address(), Message.fromQualifier("q/unblocked")).subscribe();
@@ -349,8 +369,10 @@ public class TransportTest extends BaseTest {
     client.networkEmulator().blockOutbound(server.address());
     send(client, server.address(), Message.fromQualifier("q/blocked")).subscribe();
 
-    Thread.sleep(1000);
-    assertEquals(1, resp.size());
-    assertEquals("q/unblocked", resp.get(0).qualifier());
+    StepVerifier.create(responses)
+        .assertNext(message -> assertEquals("q/unblocked", message.qualifier()))
+        .expectNoEvent(Duration.ofMillis(300))
+        .thenCancel()
+        .verify(TIMEOUT);
   }
 }
