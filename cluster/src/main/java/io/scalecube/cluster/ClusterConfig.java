@@ -105,6 +105,30 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
     return new Builder();
   }
 
+  public static Builder from(ClusterConfig clusterConfig) {
+    return new Builder()
+        .metadata(clusterConfig.metadata)
+        .seedMembers(clusterConfig.seedMembers)
+        .syncInterval(clusterConfig.syncInterval)
+        .syncTimeout(clusterConfig.syncTimeout)
+        .suspicionMult(clusterConfig.suspicionMult)
+        .syncGroup(clusterConfig.syncGroup)
+        .metadataTimeout(clusterConfig.metadataTimeout)
+        .pingInterval(clusterConfig.pingInterval)
+        .pingTimeout(clusterConfig.pingTimeout)
+        .pingReqMembers(clusterConfig.pingReqMembers)
+        .gossipInterval(clusterConfig.gossipInterval)
+        .gossipFanout(clusterConfig.gossipFanout)
+        .gossipRepeatMult(clusterConfig.gossipRepeatMult)
+        .port(clusterConfig.transportConfig.getPort())
+        .connectTimeout(clusterConfig.transportConfig.getConnectTimeout())
+        .useNetworkEmulator(clusterConfig.transportConfig.isUseNetworkEmulator())
+        .messageCodec(clusterConfig.transportConfig.getMessageCodec())
+        .maxFrameLength(clusterConfig.transportConfig.getMaxFrameLength())
+        .memberHost(clusterConfig.memberHost)
+        .memberPort(clusterConfig.memberPort);
+  }
+
   public static ClusterConfig defaultConfig() {
     return builder().build();
   }
