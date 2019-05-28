@@ -71,7 +71,7 @@ public class GossipExample {
             .startAwait();
 
     // Start cluster node Eve that joins cluster and spreads gossip
-    Cluster eve = new Cluster().seedMembers(alice.address());
+    Cluster eve = new Cluster().seedMembers(alice.address()).startAwait();
     eve.spreadGossip(Message.fromData("Gossip from Eve"))
         .doOnError(System.err::println)
         .subscribe();
