@@ -29,13 +29,14 @@ public class ClusterMetadataExample {
             .seedMembers(alice.address())
             .metadata(Collections.singletonMap("name", "Joe"))
             .handler(
-                cluster ->
-                    new ClusterMessageHandler() {
-                      @Override
-                      public void onMessage(Message message) {
-                        System.out.println("joe.listen(): " + message.data());
-                      }
-                    })
+                cluster -> {
+                  return new ClusterMessageHandler() {
+                    @Override
+                    public void onMessage(Message message) {
+                      System.out.println("joe.listen(): " + message.data());
+                    }
+                  };
+                })
             .startAwait();
 
     // Scan the list of members in the cluster and find Joe there

@@ -18,52 +18,56 @@ public class GossipExample {
     Cluster alice =
         new Cluster()
             .handler(
-                cluster ->
-                    new ClusterMessageHandler() {
-                      @Override
-                      public void onGossip(Message gossip) {
-                        System.out.println("Alice heard: " + gossip.data());
-                      }
-                    })
+                cluster -> {
+                  return new ClusterMessageHandler() {
+                    @Override
+                    public void onGossip(Message gossip) {
+                      System.out.println("Alice heard: " + gossip.data());
+                    }
+                  };
+                })
             .startAwait();
 
     Cluster bob =
         new Cluster()
             .seedMembers(alice.address())
             .handler(
-                cluster ->
-                    new ClusterMessageHandler() {
-                      @Override
-                      public void onGossip(Message gossip) {
-                        System.out.println("Bob heard: " + gossip.data());
-                      }
-                    })
+                cluster -> {
+                  return new ClusterMessageHandler() {
+                    @Override
+                    public void onGossip(Message gossip) {
+                      System.out.println("Bob heard: " + gossip.data());
+                    }
+                  };
+                })
             .startAwait();
 
     Cluster carol =
         new Cluster()
             .seedMembers(alice.address())
             .handler(
-                cluster ->
-                    new ClusterMessageHandler() {
-                      @Override
-                      public void onGossip(Message gossip) {
-                        System.out.println("Carol heard: " + gossip.data());
-                      }
-                    })
+                cluster -> {
+                  return new ClusterMessageHandler() {
+                    @Override
+                    public void onGossip(Message gossip) {
+                      System.out.println("Carol heard: " + gossip.data());
+                    }
+                  };
+                })
             .startAwait();
 
     Cluster dan =
         new Cluster()
             .seedMembers(alice.address())
             .handler(
-                cluster ->
-                    new ClusterMessageHandler() {
-                      @Override
-                      public void onGossip(Message gossip) {
-                        System.out.println("Dan heard: " + gossip.data());
-                      }
-                    })
+                cluster -> {
+                  return new ClusterMessageHandler() {
+                    @Override
+                    public void onGossip(Message gossip) {
+                      System.out.println("Dan heard: " + gossip.data());
+                    }
+                  };
+                })
             .startAwait();
 
     // Start cluster node Eve that joins cluster and spreads gossip

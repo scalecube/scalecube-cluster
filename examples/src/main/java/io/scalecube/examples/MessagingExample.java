@@ -18,14 +18,15 @@ public class MessagingExample {
     Cluster alice =
         new Cluster()
             .handler(
-                cluster ->
-                    new ClusterMessageHandler() {
-                      @Override
-                      public void onMessage(Message msg) {
-                        System.out.println("Alice received: " + msg.data());
-                        cluster.send(msg.sender(), Message.fromData("Greetings from Alice"));
-                      }
-                    })
+                cluster -> {
+                  return new ClusterMessageHandler() {
+                    @Override
+                    public void onMessage(Message msg) {
+                      System.out.println("Alice received: " + msg.data());
+                      cluster.send(msg.sender(), Message.fromData("Greetings from Alice"));
+                    }
+                  };
+                })
             .startAwait();
 
     // Join cluster node Bob to cluster with Alice, listen and respond for incoming greeting
@@ -34,14 +35,15 @@ public class MessagingExample {
         new Cluster()
             .seedMembers(alice.address())
             .handler(
-                cluster ->
-                    new ClusterMessageHandler() {
-                      @Override
-                      public void onMessage(Message msg) {
-                        System.out.println("Bob received: " + msg.data());
-                        cluster.send(msg.sender(), Message.fromData("Greetings from Bob"));
-                      }
-                    })
+                cluster -> {
+                  return new ClusterMessageHandler() {
+                    @Override
+                    public void onMessage(Message msg) {
+                      System.out.println("Bob received: " + msg.data());
+                      cluster.send(msg.sender(), Message.fromData("Greetings from Bob"));
+                    }
+                  };
+                })
             .startAwait();
 
     // Join cluster node Carol to cluster with Alice and Bob
@@ -49,13 +51,14 @@ public class MessagingExample {
         new Cluster()
             .seedMembers(alice.address(), bob.address())
             .handler(
-                cluster ->
-                    new ClusterMessageHandler() {
-                      @Override
-                      public void onMessage(Message msg) {
-                        System.out.println("Carol received: " + msg.data());
-                      }
-                    })
+                cluster -> {
+                  return new ClusterMessageHandler() {
+                    @Override
+                    public void onMessage(Message msg) {
+                      System.out.println("Carol received: " + msg.data());
+                    }
+                  };
+                })
             .startAwait();
 
     // Send from Carol greeting message to all other cluster members (which is Alice and Bob)
