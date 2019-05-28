@@ -1,6 +1,7 @@
 package io.scalecube.examples;
 
 import io.scalecube.cluster.Cluster;
+import io.scalecube.cluster.ClusterMessageHandler;
 import io.scalecube.transport.Message;
 
 /**
@@ -14,30 +15,48 @@ public class MessagingExample {
   /** Main method. */
   public static void main(String[] args) throws Exception {
     // Start cluster node Alice to listen and respond for incoming greeting messages
-    Cluster alice = Cluster.joinAwait();
-    alice
-        .listen()
-        .subscribe(
-            msg -> {
-              System.out.println("Alice received: " + msg.data());
-              alice.send(msg.sender(), Message.fromData("Greetings from Alice"));
-            });
+    Cluster alice =
+        new Cluster()
+            .handler(
+                cluster ->
+                    new ClusterMessageHandler() {
+                      @Override
+                      public void onMessage(Message msg) {
+                        System.out.println("Alice received: " + msg.data());
+                        cluster.send(msg.sender(), Message.fromData("Greetings from Alice"));
+                      }
+                    })
+            .startAwait();
 
     // Join cluster node Bob to cluster with Alice, listen and respond for incoming greeting
     // messages
-    Cluster bob = Cluster.joinAwait(alice.address());
-    bob.listen()
-        .subscribe(
-            msg -> {
-              System.out.println("Bob received: " + msg.data());
-              bob.send(msg.sender(), Message.fromData("Greetings from Bob"));
-            });
+    Cluster bob =
+        new Cluster()
+            .seedMembers(alice.address())
+            .handler(
+                cluster ->
+                    new ClusterMessageHandler() {
+                      @Override
+                      public void onMessage(Message msg) {
+                        System.out.println("Bob received: " + msg.data());
+                        cluster.send(msg.sender(), Message.fromData("Greetings from Bob"));
+                      }
+                    })
+            .startAwait();
 
     // Join cluster node Carol to cluster with Alice and Bob
-    Cluster carol = Cluster.joinAwait(alice.address(), bob.address());
-
-    // Subscribe Carol to listen for incoming messages and print them to system out
-    carol.listen().map(msg -> "Carol received: " + msg.data()).subscribe(System.out::println);
+    Cluster carol =
+        new Cluster()
+            .seedMembers(alice.address(), bob.address())
+            .handler(
+                cluster ->
+                    new ClusterMessageHandler() {
+                      @Override
+                      public void onMessage(Message msg) {
+                        System.out.println("Carol received: " + msg.data());
+                      }
+                    })
+            .startAwait();
 
     // Send from Carol greeting message to all other cluster members (which is Alice and Bob)
     Message greetingMsg = Message.fromData("Greetings from Carol");

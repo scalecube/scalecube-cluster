@@ -59,8 +59,8 @@ public final class Cluster {
       Collections.singleton(MembershipProtocolImpl.MEMBERSHIP_GOSSIP);
 
   private ClusterConfig config;
-  private Function<Cluster, ClusterEventListener> handler =
-      cluster -> new ClusterEventListener() {};
+  private Function<Cluster, ? extends ClusterMessageHandler> handler =
+      cluster -> new ClusterMessageHandler() {};
 
   // Subject
   private final DirectProcessor<MembershipEvent> membershipEvents = DirectProcessor.create();
@@ -101,20 +101,20 @@ public final class Cluster {
     return cluster;
   }
 
-  public Cluster metadata(Map<String, String> metadata) {
-    Objects.requireNonNull(metadata);
-    Cluster cluster = new Cluster(this);
-    cluster.config = ClusterConfig.from(cluster.config).metadata(metadata).build();
-    return cluster;
-  }
-
   public Cluster seedMembers(Address... seedMembers) {
     Cluster cluster = new Cluster(this);
     cluster.config = ClusterConfig.from(cluster.config).seedMembers(seedMembers).build();
     return cluster;
   }
 
-  public Cluster handler(Function<Cluster, ClusterEventListener> handler) {
+  public Cluster handler(Function<Cluster, ClusterMessageHandler> handler) {
+    Objects.requireNonNull(handler);
+    Cluster cluster = new Cluster(this);
+    cluster.handler = handler;
+    return cluster;
+  }
+
+  public Cluster eventHandler(Function<Cluster, ClusterEventHandler> handler) {
     Objects.requireNonNull(handler);
     Cluster cluster = new Cluster(this);
     cluster.handler = handler;
@@ -199,7 +199,7 @@ public final class Cluster {
                   .then(
                       Mono.fromRunnable(
                           () -> {
-                            ClusterEventListener listener = handler.apply(this);
+                            ClusterMessageHandler listener = handler.apply(this);
                             actionsDisposables.add(
                                 listen()
                                     .subscribe(
@@ -366,6 +366,13 @@ public final class Cluster {
    */
   public Map<String, String> metadata(Member member) {
     return metadataStore.metadata(member);
+  }
+
+  public Cluster metadata(Map<String, String> metadata) {
+    Objects.requireNonNull(metadata);
+    Cluster cluster = new Cluster(this);
+    cluster.config = ClusterConfig.from(cluster.config).metadata(metadata).build();
+    return cluster;
   }
 
   /**

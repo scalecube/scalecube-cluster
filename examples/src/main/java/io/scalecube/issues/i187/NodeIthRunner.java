@@ -35,7 +35,7 @@ public class NodeIthRunner {
             .build();
 
     logger.debug("Starting Node-i-th with config {}", config);
-    Cluster cluster = Cluster.joinAwait(config);
+    Cluster cluster = new Cluster(config).startAwait();
     logger.debug("Started Node-i-th: {}, address: {}", cluster, cluster.address());
 
     Thread.currentThread().join();

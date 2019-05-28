@@ -33,7 +33,7 @@ public class SeedRunner {
             .build();
 
     logger.debug("Starting Seed with config {}", config);
-    Cluster cluster = Cluster.joinAwait(config);
+    Cluster cluster = new Cluster(config).startAwait();
     logger.debug("Started Seed: {}, address: {}", cluster, cluster.address());
 
     Thread.currentThread().join();

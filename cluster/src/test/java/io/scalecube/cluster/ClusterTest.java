@@ -23,6 +23,7 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.ReplayProcessor;
 
 public class ClusterTest extends BaseTest {
 
@@ -128,15 +129,12 @@ public class ClusterTest extends BaseTest {
               integer ->
                   new Cluster()
                       .seedMembers(seedNode.address())
-                      .handler(
+                      .eventHandler(
                           cluster ->
-                              new ClusterEventListener() {
-                                @Override
-                                public void onEvent(MembershipEvent event) {
-                                  if (event.isUpdated()) {
-                                    LOGGER.info("Received membership update event: {}", event);
-                                    updateLatch.countDown();
-                                  }
+                              event -> {
+                                if (event.isUpdated()) {
+                                  LOGGER.info("Received membership update event: {}", event);
+                                  updateLatch.countDown();
                                 }
                               })
                       .start())
@@ -197,15 +195,12 @@ public class ClusterTest extends BaseTest {
               integer ->
                   new Cluster()
                       .seedMembers(seedNode.address())
-                      .handler(
+                      .eventHandler(
                           cluster ->
-                              new ClusterEventListener() {
-                                @Override
-                                public void onEvent(MembershipEvent event) {
-                                  if (event.isUpdated()) {
-                                    LOGGER.info("Received membership update event: {}", event);
-                                    updateLatch.countDown();
-                                  }
+                              event -> {
+                                if (event.isUpdated()) {
+                                  LOGGER.info("Received membership update event: {}", event);
+                                  updateLatch.countDown();
                                 }
                               })
                       .start())
@@ -268,15 +263,12 @@ public class ClusterTest extends BaseTest {
               integer ->
                   new Cluster()
                       .seedMembers(seedNode.address())
-                      .handler(
+                      .eventHandler(
                           cluster ->
-                              new ClusterEventListener() {
-                                @Override
-                                public void onEvent(MembershipEvent event) {
-                                  if (event.isUpdated()) {
-                                    LOGGER.info("Received membership update event: {}", event);
-                                    updateLatch.countDown();
-                                  }
+                              event -> {
+                                if (event.isUpdated()) {
+                                  LOGGER.info("Received membership update event: {}", event);
+                                  updateLatch.countDown();
                                 }
                               })
                       .start())
@@ -318,36 +310,30 @@ public class ClusterTest extends BaseTest {
 
   @Test
   public void testShutdownCluster() throws Exception {
-    // Start seed member
-    final Cluster seedNode = new Cluster().startAwait();
-
-    new ClusterEventListener() {
-      @Override
-      public void onEvent(MembershipEvent event) {
-        if (event.isRemoved() && event.member().id().equals(node2.member().id())) {
-
-        }
-      }
-    }
-
-    // Start nodes
-    final Cluster node1 = new Cluster().seedMembers(seedNode.address()).startAwait();
-    final Cluster node2 = new Cluster().seedMembers(seedNode.address()).startAwait();
-    final Cluster node3 = new Cluster().seedMembers(seedNode.address()).startAwait();
-
     CountDownLatch latch = new CountDownLatch(3);
 
+    ClusterEventHandler listener =
+        event -> {
+          if (event.isRemoved()) {
+            latch.countDown();
+          }
+        };
 
+    // Start seed member
+    final Cluster seedNode = new Cluster().handler(cluster -> listener).startAwait();
 
-    Flux.merge(seedNode.listenMembership(), node1.listenMembership(), node3.listenMembership())
-        .filter(MembershipEvent::isRemoved)
-        .filter(event -> event.member().id().equals(node2.member().id()))
-        .doOnNext(event -> latch.countDown())
-        .subscribe();
+    // Start nodes
+    final Cluster node1 =
+        new Cluster().seedMembers(seedNode.address()).handler(cluster -> listener).startAwait();
+    final Cluster node2 =
+        new Cluster().seedMembers(seedNode.address()).handler(cluster -> listener).startAwait();
+    final Cluster node3 =
+        new Cluster().seedMembers(seedNode.address()).handler(cluster -> listener).startAwait();
 
     node2.shutdown().block(TIMEOUT);
 
     assertTrue(latch.await(TIMEOUT.getSeconds(), TimeUnit.SECONDS));
+    assertEquals(3, latch.getCount());
     assertTrue(node2.isShutdown());
 
     shutdown(Stream.of(seedNode, node1, node3).collect(Collectors.toList()));
@@ -356,24 +342,32 @@ public class ClusterTest extends BaseTest {
   @Test
   public void testMemberMetadataRemoved() throws InterruptedException {
     // Start seed member
+    ReplayProcessor<MembershipEvent> seedEvents = ReplayProcessor.create();
     Map<String, String> seedMetadata = new HashMap<>();
     seedMetadata.put("seed", "shmid");
-    final Cluster seedNode = new Cluster().metadata(seedMetadata).startAwait();
+    final Cluster seedNode =
+        new Cluster()
+            .metadata(seedMetadata)
+            .eventHandler(cluster -> seedEvents::onNext)
+            .startAwait();
 
     // Start nodes
     // Start member with metadata
     Map<String, String> node1Metadata = new HashMap<>();
     node1Metadata.put("node", "shmod");
+    ReplayProcessor<MembershipEvent> node1Events = ReplayProcessor.create();
     final Cluster node1 =
-        new Cluster().metadata(node1Metadata).seedMembers(seedNode.address()).startAwait();
+        new Cluster()
+            .metadata(node1Metadata)
+            .seedMembers(seedNode.address())
+            .eventHandler(cluster -> node1Events::onNext)
+            .startAwait();
 
     // Check events
-    MembershipEvent nodeAddedEvent =
-        seedNode.listenMembership().as(Mono::from).block(Duration.ofSeconds(3));
+    MembershipEvent nodeAddedEvent = seedEvents.as(Mono::from).block(Duration.ofSeconds(3));
     assertEquals(Type.ADDED, nodeAddedEvent.type());
 
-    MembershipEvent seedAddedEvent =
-        node1.listenMembership().as(Mono::from).block(Duration.ofSeconds(3));
+    MembershipEvent seedAddedEvent = node1Events.as(Mono::from).block(Duration.ofSeconds(3));
     assertEquals(Type.ADDED, seedAddedEvent.type());
 
     // Check metadata
@@ -383,8 +377,7 @@ public class ClusterTest extends BaseTest {
     // Remove node1 from cluster
     CountDownLatch latch = new CountDownLatch(1);
     AtomicReference<Map<String, String>> removedMetadata = new AtomicReference<>();
-    seedNode
-        .listenMembership()
+    seedEvents
         .filter(MembershipEvent::isRemoved)
         .subscribe(
             event -> {

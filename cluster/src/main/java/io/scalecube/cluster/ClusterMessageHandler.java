@@ -3,7 +3,7 @@ package io.scalecube.cluster;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.transport.Message;
 
-public interface ClusterEventListener {
+public interface ClusterMessageHandler {
 
   default void onMessage(Message message) {}
 
