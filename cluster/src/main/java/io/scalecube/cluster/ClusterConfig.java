@@ -105,6 +105,12 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
     return new Builder();
   }
 
+  /**
+   * Creates a new {@link ClusterConfig.Builder} by the given {@link ClusterConfig}.
+   *
+   * @param clusterConfig cluster config
+   * @return {@link ClusterConfig.Builder}
+   */
   public static Builder from(ClusterConfig clusterConfig) {
     return new Builder()
         .metadata(clusterConfig.metadata)

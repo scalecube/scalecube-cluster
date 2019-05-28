@@ -94,6 +94,12 @@ public final class Cluster {
     this.handler = that.handler;
   }
 
+  /**
+   * Returns a new cluster's instance with given cluster config.
+   *
+   * @param clusterConfig cluster config
+   * @return new cluster's instance
+   */
   public Cluster clusterConfig(ClusterConfig clusterConfig) {
     Objects.requireNonNull(clusterConfig);
     Cluster cluster = new Cluster(this);
@@ -101,12 +107,24 @@ public final class Cluster {
     return cluster;
   }
 
+  /**
+   * Returns a new cluster's instance with given seed members.
+   *
+   * @param seedMembers seed's addresses
+   * @return new cluster's instance
+   */
   public Cluster seedMembers(Address... seedMembers) {
     Cluster cluster = new Cluster(this);
     cluster.config = ClusterConfig.from(cluster.config).seedMembers(seedMembers).build();
     return cluster;
   }
 
+  /**
+   * Returns a new cluster's instance with given handler. The previous handler will be replaced.
+   *
+   * @param handler message handler supplier by the cluster
+   * @return new cluster's instance
+   */
   public Cluster handler(Function<Cluster, ClusterMessageHandler> handler) {
     Objects.requireNonNull(handler);
     Cluster cluster = new Cluster(this);
@@ -114,6 +132,12 @@ public final class Cluster {
     return cluster;
   }
 
+  /**
+   * Returns a new cluster's instance with given handler. The previous handler will be replaced.
+   *
+   * @param handler message handler supplier by the cluster
+   * @return new cluster's instance
+   */
   public Cluster eventHandler(Function<Cluster, ClusterEventHandler> handler) {
     Objects.requireNonNull(handler);
     Cluster cluster = new Cluster(this);
@@ -368,6 +392,12 @@ public final class Cluster {
     return metadataStore.metadata(member);
   }
 
+  /**
+   * Returns a new cluster's instance with given metadata.
+   *
+   * @param metadata metadata
+   * @return new cluster's instance
+   */
   public Cluster metadata(Map<String, String> metadata) {
     Objects.requireNonNull(metadata);
     Cluster cluster = new Cluster(this);
@@ -438,6 +468,12 @@ public final class Cluster {
     return metadata;
   }
 
+  /**
+   * Removes single key-value pair of local member's metadata. This is a shortcut method and anyway
+   * remove will result in a full metadata update.
+   *
+   * @param key metadata key to remove
+   */
   public Mono<Void> removeMetadataProperty(String key) {
     return Mono.fromCallable(() -> removeMetadataProperty0(key))
         .flatMap(this::updateMetadata)
