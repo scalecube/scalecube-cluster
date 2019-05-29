@@ -113,8 +113,8 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
    */
   public static Builder from(ClusterConfig clusterConfig) {
     return new Builder()
-        .metadata(clusterConfig.metadata)
         .seedMembers(clusterConfig.seedMembers)
+        .metadata(clusterConfig.metadata)
         .syncInterval(clusterConfig.syncInterval)
         .syncTimeout(clusterConfig.syncTimeout)
         .suspicionMult(clusterConfig.suspicionMult)

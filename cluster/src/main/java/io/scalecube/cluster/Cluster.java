@@ -217,31 +217,34 @@ public final class Cluster {
                           membershipSink::next,
                           th -> LOGGER.error("Received unexpected error: ", th)));
 
-              return Mono.fromRunnable(() -> failureDetector.start())
-                  .then(Mono.fromRunnable(() -> gossip.start()))
-                  .then(Mono.fromRunnable(() -> metadataStore.start()))
-                  .then(
-                      Mono.fromRunnable(
-                          () -> {
-                            ClusterMessageHandler listener = handler.apply(this);
-                            actionsDisposables.add(
-                                listen()
-                                    .subscribe(
-                                        listener::onMessage,
-                                        th -> LOGGER.error("Received unexpected error: ", th)));
-                            actionsDisposables.add(
-                                listenMembership()
-                                    .subscribe(
-                                        listener::onEvent,
-                                        th -> LOGGER.error("Received unexpected error: ", th)));
-                            actionsDisposables.add(
-                                listenGossips()
-                                    .subscribe(
-                                        listener::onGossip,
-                                        th -> LOGGER.error("Received unexpected error: ", th)));
-                          }))
-                  .then(Mono.fromCallable(() -> JmxMonitorMBean.start(this)))
-                  .then(Mono.fromRunnable(() -> membership.start()));
+              System.err.println(transport.address());
+              System.err.println(config);
+
+              failureDetector.start();
+              gossip.start();
+              metadataStore.start();
+
+              ClusterMessageHandler listener = handler.apply(this);
+              actionsDisposables.add(
+                  listen()
+                      .log("listen ")
+                      .subscribe(
+                          listener::onMessage,
+                          th -> LOGGER.error("Received unexpected error: ", th)));
+              actionsDisposables.add(
+                  listenMembership()
+                      .log("listenMembership ")
+                      .subscribe(
+                          listener::onEvent,
+                          th -> LOGGER.error("Received unexpected error: ", th)));
+              actionsDisposables.add(
+                  listenGossips()
+                      .log("listenGossips ")
+                      .subscribe(
+                          listener::onGossip,
+                          th -> LOGGER.error("Received unexpected error: ", th)));
+
+              return Mono.fromCallable(() -> JmxMonitorMBean.start(this)).then(membership.start());
             })
         .thenReturn(this);
   }
