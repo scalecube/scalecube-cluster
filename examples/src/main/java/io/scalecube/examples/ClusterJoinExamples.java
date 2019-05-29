@@ -22,11 +22,17 @@ public class ClusterJoinExamples {
     Cluster alice = new ClusterImpl().startAwait();
 
     // Join Bob to cluster with Alice
-    Cluster bob = new ClusterImpl().seedMembers(alice.address()).startAwait();
+    Cluster bob =
+        new ClusterImpl()
+            .clusterConfig(options -> options.seedMembers(alice.address()))
+            .startAwait();
 
     // Join Carol to cluster with metadata
     Map<String, String> metadata = Collections.singletonMap("name", "Carol");
-    Cluster carol = new ClusterImpl().seedMembers(alice.address()).metadata(metadata).startAwait();
+    Cluster carol =
+        new ClusterImpl()
+            .clusterConfig(options -> options.seedMembers(alice.address()).metadata(metadata))
+            .startAwait();
 
     // Start Dan on port 3000
     ClusterConfig configWithFixedPort =

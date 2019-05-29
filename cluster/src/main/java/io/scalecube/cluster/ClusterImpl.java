@@ -20,6 +20,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.management.MBeanServer;
@@ -95,27 +96,15 @@ public final class ClusterImpl implements Cluster {
   }
 
   /**
-   * Returns a new cluster's instance with given cluster config.
+   * Returns a new cluster's instance which will apply the given options.
    *
-   * @param clusterConfig cluster config
+   * @param options cluster config options
    * @return new cluster's instance
    */
-  public ClusterImpl clusterConfig(ClusterConfig clusterConfig) {
-    Objects.requireNonNull(clusterConfig);
+  public ClusterImpl clusterConfig(UnaryOperator<ClusterConfig.Builder> options) {
+    Objects.requireNonNull(options);
     ClusterImpl cluster = new ClusterImpl(this);
-    cluster.config = ClusterConfig.from(clusterConfig).build();
-    return cluster;
-  }
-
-  /**
-   * Returns a new cluster's instance with given seed members.
-   *
-   * @param seedMembers seed's addresses
-   * @return new cluster's instance
-   */
-  public ClusterImpl seedMembers(Address... seedMembers) {
-    ClusterImpl cluster = new ClusterImpl(this);
-    cluster.config = ClusterConfig.from(cluster.config).seedMembers(seedMembers).build();
+    cluster.config = options.apply(ClusterConfig.from(cluster.config)).build();
     return cluster;
   }
 
@@ -323,19 +312,6 @@ public final class ClusterImpl implements Cluster {
     return metadataStore.metadata(member);
   }
 
-  /**
-   * Returns a new cluster's instance with given metadata.
-   *
-   * @param metadata metadata
-   * @return new cluster's instance
-   */
-  public ClusterImpl metadata(Map<String, String> metadata) {
-    Objects.requireNonNull(metadata);
-    ClusterImpl cluster = new ClusterImpl(this);
-    cluster.config = ClusterConfig.from(cluster.config).metadata(metadata).build();
-    return cluster;
-  }
-
   @Override
   public Member member() {
     return localMember;
@@ -388,7 +364,7 @@ public final class ClusterImpl implements Cluster {
   /**
    * Listen changes in cluster membership.
    *
-   * @return membershiop publisher
+   * @return membership publisher
    */
   private Flux<MembershipEvent> listenMembership() {
     return Flux.defer(

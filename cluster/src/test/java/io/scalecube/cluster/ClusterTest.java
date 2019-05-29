@@ -33,7 +33,10 @@ public class ClusterTest extends BaseTest {
   public void testMembersAccessFromScheduler() {
     // Start seed node
     Cluster seedNode = new ClusterImpl().startAwait();
-    Cluster otherNode = new ClusterImpl().seedMembers(seedNode.address()).startAwait();
+    Cluster otherNode =
+        new ClusterImpl()
+            .clusterConfig(options -> options.seedMembers(seedNode.address()))
+            .startAwait();
 
     assertEquals(2, seedNode.members().size());
     assertEquals(2, otherNode.members().size());
@@ -92,7 +95,10 @@ public class ClusterTest extends BaseTest {
       // Start other nodes
       long startAt = System.currentTimeMillis();
       for (int i = 0; i < membersNum; i++) {
-        otherNodes.add(new ClusterImpl().seedMembers(seedNode.address()).startAwait());
+        otherNodes.add(
+            new ClusterImpl()
+                .clusterConfig(options -> options.seedMembers(seedNode.address()))
+                .startAwait());
       }
       LOGGER.info("Start up time: {} ms", System.currentTimeMillis() - startAt);
       assertEquals(membersNum + 1, seedNode.members().size());
@@ -122,14 +128,16 @@ public class ClusterTest extends BaseTest {
       metadata.put("key1", "value1");
       metadata.put("key2", "value2");
       metadataNode =
-          new ClusterImpl().metadata(metadata).seedMembers(seedNode.address()).startAwait();
+          new ClusterImpl()
+              .clusterConfig(options -> options.seedMembers(seedNode.address()).metadata(metadata))
+              .startAwait();
 
       // Start other test members
       Flux.range(0, testMembersNum)
           .flatMap(
               integer -> {
                 return new ClusterImpl()
-                    .seedMembers(seedNode.address())
+                    .clusterConfig(options -> options.seedMembers(seedNode.address()))
                     .handler(
                         cluster ->
                             new ClusterMessageHandler() {
@@ -193,14 +201,16 @@ public class ClusterTest extends BaseTest {
       metadata.put("key1", "value1");
       metadata.put("key2", "value2");
       metadataNode =
-          new ClusterImpl().metadata(metadata).seedMembers(seedNode.address()).startAwait();
+          new ClusterImpl()
+              .clusterConfig(options -> options.seedMembers(seedNode.address()).metadata(metadata))
+              .startAwait();
 
       // Start other test members
       Flux.range(0, testMembersNum)
           .flatMap(
               integer ->
                   new ClusterImpl()
-                      .seedMembers(seedNode.address())
+                      .clusterConfig(options -> options.seedMembers(seedNode.address()))
                       .handler(
                           cluster ->
                               new ClusterMessageHandler() {
@@ -265,14 +275,16 @@ public class ClusterTest extends BaseTest {
       metadata.put("key1", "value1");
       metadata.put("key2", "value2");
       metadataNode =
-          new ClusterImpl().metadata(metadata).seedMembers(seedNode.address()).startAwait();
+          new ClusterImpl()
+              .clusterConfig(options -> options.seedMembers(seedNode.address()).metadata(metadata))
+              .startAwait();
 
       // Start other test members
       Flux.range(0, testMembersNum)
           .flatMap(
               integer ->
                   new ClusterImpl()
-                      .seedMembers(seedNode.address())
+                      .clusterConfig(options -> options.seedMembers(seedNode.address()))
                       .handler(
                           cluster ->
                               new ClusterMessageHandler() {
@@ -340,11 +352,20 @@ public class ClusterTest extends BaseTest {
 
     // Start nodes
     final Cluster node1 =
-        new ClusterImpl().seedMembers(seedNode.address()).handler(cluster -> listener).startAwait();
+        new ClusterImpl()
+            .clusterConfig(options -> options.seedMembers(seedNode.address()))
+            .handler(cluster -> listener)
+            .startAwait();
     final Cluster node2 =
-        new ClusterImpl().seedMembers(seedNode.address()).handler(cluster -> listener).startAwait();
+        new ClusterImpl()
+            .clusterConfig(options -> options.seedMembers(seedNode.address()))
+            .handler(cluster -> listener)
+            .startAwait();
     final Cluster node3 =
-        new ClusterImpl().seedMembers(seedNode.address()).handler(cluster -> listener).startAwait();
+        new ClusterImpl()
+            .clusterConfig(options -> options.seedMembers(seedNode.address()))
+            .handler(cluster -> listener)
+            .startAwait();
 
     node2.shutdown().block(TIMEOUT);
 
@@ -362,7 +383,7 @@ public class ClusterTest extends BaseTest {
     seedMetadata.put("seed", "shmid");
     final Cluster seedNode =
         new ClusterImpl()
-            .metadata(seedMetadata)
+            .clusterConfig(options -> options.metadata(seedMetadata))
             .handler(
                 cluster ->
                     new ClusterMessageHandler() {
@@ -380,8 +401,8 @@ public class ClusterTest extends BaseTest {
     ReplayProcessor<MembershipEvent> node1Events = ReplayProcessor.create();
     final Cluster node1 =
         new ClusterImpl()
-            .metadata(node1Metadata)
-            .seedMembers(seedNode.address())
+            .clusterConfig(
+                options -> options.seedMembers(seedNode.address()).metadata(node1Metadata))
             .handler(
                 cluster ->
                     new ClusterMessageHandler() {
@@ -429,7 +450,8 @@ public class ClusterTest extends BaseTest {
     Address nonExistingSeed2 = Address.from("localhost:5678");
     Address[] seeds = new Address[] {nonExistingSeed1, nonExistingSeed2, seedNode.address()};
 
-    Cluster otherNode = new ClusterImpl().seedMembers(seeds).startAwait();
+    Cluster otherNode =
+        new ClusterImpl().clusterConfig(options -> options.seedMembers(seeds)).startAwait();
 
     assertEquals(otherNode.member(), seedNode.otherMembers().iterator().next());
     assertEquals(seedNode.member(), otherNode.otherMembers().iterator().next());

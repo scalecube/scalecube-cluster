@@ -28,8 +28,11 @@ public class ClusterMetadataExample {
     //noinspection unused
     Cluster joe =
         new ClusterImpl()
-            .seedMembers(alice.address())
-            .metadata(Collections.singletonMap("name", "Joe"))
+            .clusterConfig(
+                options ->
+                    options
+                        .seedMembers(alice.address())
+                        .metadata(Collections.singletonMap("name", "Joe")))
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {

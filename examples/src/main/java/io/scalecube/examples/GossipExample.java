@@ -32,7 +32,7 @@ public class GossipExample {
     //noinspection unused
     Cluster bob =
         new ClusterImpl()
-            .seedMembers(alice.address())
+            .clusterConfig(options -> options.seedMembers(alice.address()))
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {
@@ -47,7 +47,7 @@ public class GossipExample {
     //noinspection unused
     Cluster carol =
         new ClusterImpl()
-            .seedMembers(alice.address())
+            .clusterConfig(options -> options.seedMembers(alice.address()))
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {
@@ -62,7 +62,7 @@ public class GossipExample {
     //noinspection unused
     Cluster dan =
         new ClusterImpl()
-            .seedMembers(alice.address())
+            .clusterConfig(options -> options.seedMembers(alice.address()))
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {
@@ -75,7 +75,10 @@ public class GossipExample {
             .startAwait();
 
     // Start cluster node Eve that joins cluster and spreads gossip
-    Cluster eve = new ClusterImpl().seedMembers(alice.address()).startAwait();
+    Cluster eve =
+        new ClusterImpl()
+            .clusterConfig(options -> options.seedMembers(alice.address()))
+            .startAwait();
     eve.spreadGossip(Message.fromData("Gossip from Eve"))
         .doOnError(System.err::println)
         .subscribe(null, Throwable::printStackTrace);
