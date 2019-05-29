@@ -3,6 +3,7 @@ package io.scalecube.examples;
 import io.scalecube.cluster.Cluster;
 import io.scalecube.cluster.ClusterMessageHandler;
 import io.scalecube.transport.Message;
+import reactor.core.publisher.Flux;
 
 /**
  * Basic example for member transport between cluster members to run the example Start ClusterNodeA
@@ -23,7 +24,9 @@ public class MessagingExample {
                     @Override
                     public void onMessage(Message msg) {
                       System.out.println("Alice received: " + msg.data());
-                      cluster.send(msg.sender(), Message.fromData("Greetings from Alice"));
+                      cluster
+                          .send(msg.sender(), Message.fromData("Greetings from Alice"))
+                          .subscribe(null, Throwable::printStackTrace);
                     }
                   };
                 })
@@ -40,7 +43,9 @@ public class MessagingExample {
                     @Override
                     public void onMessage(Message msg) {
                       System.out.println("Bob received: " + msg.data());
-                      cluster.send(msg.sender(), Message.fromData("Greetings from Bob"));
+                      cluster
+                          .send(msg.sender(), Message.fromData("Greetings from Bob"))
+                          .subscribe(null, Throwable::printStackTrace);
                     }
                   };
                 })
@@ -63,7 +68,11 @@ public class MessagingExample {
 
     // Send from Carol greeting message to all other cluster members (which is Alice and Bob)
     Message greetingMsg = Message.fromData("Greetings from Carol");
-    carol.otherMembers().forEach(member -> carol.send(member, greetingMsg));
+
+    // todo NPE
+    Flux.fromIterable(carol.otherMembers())
+        .flatMap(member -> carol.send(member, greetingMsg))
+        .subscribe(null, Throwable::printStackTrace);
 
     // Avoid exit main thread immediately ]:->
     Thread.sleep(1000);
