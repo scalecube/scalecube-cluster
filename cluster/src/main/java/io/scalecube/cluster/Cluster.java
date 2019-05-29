@@ -212,9 +212,9 @@ public final class Cluster {
                           () -> {
                             ClusterMessageHandler listener = handler.apply(this);
                             actionsDisposables.add(
-                                listen()
+                                listenMessage()
                                     .subscribe(
-                                        listener::onMessage,
+                                        listener::onMembershipEvent,
                                         th -> LOGGER.error("Received unexpected error: ", th)));
                             actionsDisposables.add(
                                 listenMembership()
@@ -222,7 +222,7 @@ public final class Cluster {
                                         listener::onEvent,
                                         th -> LOGGER.error("Received unexpected error: ", th)));
                             actionsDisposables.add(
-                                listenGossips()
+                                listenGossip()
                                     .subscribe(
                                         listener::onGossip,
                                         th -> LOGGER.error("Received unexpected error: ", th)));
@@ -317,7 +317,7 @@ public final class Cluster {
    *
    * @return stream of incoming messages
    */
-  private Flux<Message> listen() {
+  private Flux<Message> listenMessage() {
     // filter out system messages
     return transport.listen().filter(msg -> !SYSTEM_MESSAGES.contains(msg.qualifier()));
   }
@@ -337,7 +337,7 @@ public final class Cluster {
    *
    * @return gossip publisher
    */
-  private Flux<Message> listenGossips() {
+  private Flux<Message> listenGossip() {
     // filter out system gossips
     return gossip.listen().filter(msg -> !SYSTEM_GOSSIPS.contains(msg.qualifier()));
   }

@@ -32,7 +32,7 @@ public class ClusterMetadataExample {
                 cluster -> {
                   return new ClusterMessageHandler() {
                     @Override
-                    public void onMessage(Message message) {
+                    public void onMembershipEvent(Message message) {
                       System.out.println("joe.listen(): " + message.data());
                     }
                   };

@@ -126,11 +126,7 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
         .gossipInterval(clusterConfig.gossipInterval)
         .gossipFanout(clusterConfig.gossipFanout)
         .gossipRepeatMult(clusterConfig.gossipRepeatMult)
-        .port(clusterConfig.transportConfig.getPort())
-        .connectTimeout(clusterConfig.transportConfig.getConnectTimeout())
-        .useNetworkEmulator(clusterConfig.transportConfig.isUseNetworkEmulator())
-        .messageCodec(clusterConfig.transportConfig.getMessageCodec())
-        .maxFrameLength(clusterConfig.transportConfig.getMaxFrameLength())
+        .transportConfig(TransportConfig.builder().fillFrom(clusterConfig.transportConfig).build())
         .memberHost(clusterConfig.memberHost)
         .memberPort(clusterConfig.memberPort);
   }
