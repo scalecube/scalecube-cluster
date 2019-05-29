@@ -105,6 +105,32 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
     return new Builder();
   }
 
+  /**
+   * Creates a new {@link ClusterConfig.Builder} by the given {@link ClusterConfig}.
+   *
+   * @param clusterConfig cluster config
+   * @return {@link ClusterConfig.Builder}
+   */
+  public static Builder from(ClusterConfig clusterConfig) {
+    return new Builder()
+        .seedMembers(clusterConfig.seedMembers)
+        .metadata(clusterConfig.metadata)
+        .syncInterval(clusterConfig.syncInterval)
+        .syncTimeout(clusterConfig.syncTimeout)
+        .suspicionMult(clusterConfig.suspicionMult)
+        .syncGroup(clusterConfig.syncGroup)
+        .metadataTimeout(clusterConfig.metadataTimeout)
+        .pingInterval(clusterConfig.pingInterval)
+        .pingTimeout(clusterConfig.pingTimeout)
+        .pingReqMembers(clusterConfig.pingReqMembers)
+        .gossipInterval(clusterConfig.gossipInterval)
+        .gossipFanout(clusterConfig.gossipFanout)
+        .gossipRepeatMult(clusterConfig.gossipRepeatMult)
+        .transportConfig(TransportConfig.builder().fillFrom(clusterConfig.transportConfig).build())
+        .memberHost(clusterConfig.memberHost)
+        .memberPort(clusterConfig.memberPort);
+  }
+
   public static ClusterConfig defaultConfig() {
     return builder().build();
   }

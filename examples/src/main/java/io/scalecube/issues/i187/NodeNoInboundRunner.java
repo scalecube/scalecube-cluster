@@ -2,6 +2,7 @@ package io.scalecube.issues.i187;
 
 import io.scalecube.cluster.Cluster;
 import io.scalecube.cluster.ClusterConfig;
+import io.scalecube.cluster.ClusterImpl;
 import io.scalecube.transport.Address;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -38,7 +39,7 @@ public class NodeNoInboundRunner {
             .build();
 
     logger.debug("Starting Node-With-No-Inbound with config {}", config);
-    Cluster cluster = Cluster.joinAwait(config);
+    Cluster cluster = new ClusterImpl(config).startAwait();
     logger.debug("Started Node-With-No-Inbound: {}, address: {}", cluster, cluster.address());
 
     Thread.currentThread().join();

@@ -709,6 +709,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     return Collections.unmodifiableList(new ArrayList<>(membershipTable.values()));
   }
 
+  @SuppressWarnings("unused")
   public interface MonitorMBean {
 
     int getIncarnation();

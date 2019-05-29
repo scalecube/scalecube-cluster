@@ -4,6 +4,7 @@ import static java.util.stream.Collectors.joining;
 
 import io.scalecube.cluster.Cluster;
 import io.scalecube.cluster.ClusterConfig;
+import io.scalecube.cluster.ClusterImpl;
 import io.scalecube.cluster.Member;
 import java.util.Collections;
 import java.util.Map;
@@ -18,19 +19,23 @@ public class ClusterJoinExamples {
   /** Main method. */
   public static void main(String[] args) throws Exception {
     // Start seed member Alice
-    Cluster alice = Cluster.joinAwait();
+    Cluster alice = new ClusterImpl().startAwait();
 
     // Join Bob to cluster with Alice
-    Cluster bob = Cluster.joinAwait(alice.address());
+    Cluster bob =
+        new ClusterImpl().config(options -> options.seedMembers(alice.address())).startAwait();
 
     // Join Carol to cluster with metadata
     Map<String, String> metadata = Collections.singletonMap("name", "Carol");
-    Cluster carol = Cluster.joinAwait(metadata, alice.address());
+    Cluster carol =
+        new ClusterImpl()
+            .config(options -> options.seedMembers(alice.address()).metadata(metadata))
+            .startAwait();
 
     // Start Dan on port 3000
     ClusterConfig configWithFixedPort =
         ClusterConfig.builder().seedMembers(alice.address()).port(3000).build();
-    Cluster dan = Cluster.joinAwait(configWithFixedPort);
+    Cluster dan = new ClusterImpl(configWithFixedPort).startAwait();
 
     // Start Eve in separate cluster (separate sync group)
     ClusterConfig configWithSyncGroup =
@@ -39,7 +44,7 @@ public class ClusterJoinExamples {
                 alice.address(), bob.address(), carol.address(), dan.address()) // won't join anyway
             .syncGroup("another cluster")
             .build();
-    Cluster eve = Cluster.joinAwait(configWithSyncGroup);
+    Cluster eve = new ClusterImpl(configWithSyncGroup).startAwait();
 
     // Print cluster members of each node
 
