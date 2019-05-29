@@ -3,6 +3,8 @@ package io.scalecube.examples;
 import io.scalecube.cluster.Cluster;
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterMath;
+import io.scalecube.cluster.ClusterMessageHandler;
+import io.scalecube.cluster.membership.MembershipEvent;
 import java.text.SimpleDateFormat;
 import java.util.Collections;
 import java.util.Date;
@@ -23,8 +25,15 @@ public class MembershipEventsExample {
     Cluster alice =
         new Cluster()
             .metadata(Collections.singletonMap("name", "Alice"))
-            .eventHandler(
-                cluster -> event -> System.out.println(now() + " Alice received: " + event))
+            .handler(
+                cluster -> {
+                  return new ClusterMessageHandler() {
+                    @Override
+                    public void onEvent(MembershipEvent event) {
+                      System.out.println(now() + " Alice received: " + event);
+                    }
+                  };
+                })
             .startAwait();
     System.out.println(now() + " Alice join members: " + alice.members());
 
@@ -33,7 +42,15 @@ public class MembershipEventsExample {
         new Cluster()
             .seedMembers(alice.address())
             .metadata(Collections.singletonMap("name", "Bob"))
-            .eventHandler(cluster -> event -> System.out.println(now() + " Bob received: " + event))
+            .handler(
+                cluster -> {
+                  return new ClusterMessageHandler() {
+                    @Override
+                    public void onEvent(MembershipEvent event) {
+                      System.out.println(now() + " Bob received: " + event);
+                    }
+                  };
+                })
             .startAwait();
     System.out.println(now() + " Bob join members: " + bob.members());
 
@@ -42,8 +59,15 @@ public class MembershipEventsExample {
         new Cluster()
             .seedMembers(alice.address(), bob.address())
             .metadata(Collections.singletonMap("name", "Carol"))
-            .eventHandler(
-                cluster -> event -> System.out.println(now() + " Carol received: " + event))
+            .handler(
+                cluster -> {
+                  return new ClusterMessageHandler() {
+                    @Override
+                    public void onEvent(MembershipEvent event) {
+                      System.out.println(now() + " Carol received: " + event);
+                    }
+                  };
+                })
             .startAwait();
     System.out.println(now() + " Carol join members: " + carol.members());
 

@@ -132,19 +132,6 @@ public final class Cluster {
     return cluster;
   }
 
-  /**
-   * Returns a new cluster's instance with given handler. The previous handler will be replaced.
-   *
-   * @param handler message handler supplier by the cluster
-   * @return new cluster's instance
-   */
-  public Cluster eventHandler(Function<Cluster, ClusterEventHandler> handler) {
-    Objects.requireNonNull(handler);
-    Cluster cluster = new Cluster(this);
-    cluster.handler = handler;
-    return cluster;
-  }
-
   public Mono<Cluster> start() {
     return new Cluster(this).join0();
   }

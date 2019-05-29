@@ -126,18 +126,22 @@ public class ClusterTest extends BaseTest {
       // Start other test members
       Flux.range(0, testMembersNum)
           .flatMap(
-              integer ->
-                  new Cluster()
-                      .seedMembers(seedNode.address())
-                      .eventHandler(
-                          cluster ->
-                              event -> {
+              integer -> {
+                return new Cluster()
+                    .seedMembers(seedNode.address())
+                    .handler(
+                        cluster ->
+                            new ClusterMessageHandler() {
+                              @Override
+                              public void onEvent(MembershipEvent event) {
                                 if (event.isUpdated()) {
                                   LOGGER.info("Received membership update event: {}", event);
                                   updateLatch.countDown();
                                 }
-                              })
-                      .start())
+                              }
+                            })
+                    .start();
+              })
           .doOnNext(otherNodes::add)
           .blockLast(TIMEOUT);
 
@@ -195,12 +199,15 @@ public class ClusterTest extends BaseTest {
               integer ->
                   new Cluster()
                       .seedMembers(seedNode.address())
-                      .eventHandler(
+                      .handler(
                           cluster ->
-                              event -> {
-                                if (event.isUpdated()) {
-                                  LOGGER.info("Received membership update event: {}", event);
-                                  updateLatch.countDown();
+                              new ClusterMessageHandler() {
+                                @Override
+                                public void onEvent(MembershipEvent event) {
+                                  if (event.isUpdated()) {
+                                    LOGGER.info("Received membership update event: {}", event);
+                                    updateLatch.countDown();
+                                  }
                                 }
                               })
                       .start())
@@ -263,12 +270,15 @@ public class ClusterTest extends BaseTest {
               integer ->
                   new Cluster()
                       .seedMembers(seedNode.address())
-                      .eventHandler(
+                      .handler(
                           cluster ->
-                              event -> {
-                                if (event.isUpdated()) {
-                                  LOGGER.info("Received membership update event: {}", event);
-                                  updateLatch.countDown();
+                              new ClusterMessageHandler() {
+                                @Override
+                                public void onEvent(MembershipEvent event) {
+                                  if (event.isUpdated()) {
+                                    LOGGER.info("Received membership update event: {}", event);
+                                    updateLatch.countDown();
+                                  }
                                 }
                               })
                       .start())
@@ -312,10 +322,13 @@ public class ClusterTest extends BaseTest {
   public void testShutdownCluster() throws Exception {
     CountDownLatch latch = new CountDownLatch(3);
 
-    ClusterEventHandler listener =
-        event -> {
-          if (event.isRemoved()) {
-            latch.countDown();
+    ClusterMessageHandler listener =
+        new ClusterMessageHandler() {
+          @Override
+          public void onEvent(MembershipEvent event) {
+            if (event.isRemoved()) {
+              latch.countDown();
+            }
           }
         };
 
@@ -347,7 +360,14 @@ public class ClusterTest extends BaseTest {
     final Cluster seedNode =
         new Cluster()
             .metadata(seedMetadata)
-            .eventHandler(cluster -> seedEvents::onNext)
+            .handler(
+                cluster ->
+                    new ClusterMessageHandler() {
+                      @Override
+                      public void onEvent(MembershipEvent event) {
+                        seedEvents.onNext(event);
+                      }
+                    })
             .startAwait();
 
     // Start nodes
@@ -359,7 +379,14 @@ public class ClusterTest extends BaseTest {
         new Cluster()
             .metadata(node1Metadata)
             .seedMembers(seedNode.address())
-            .eventHandler(cluster -> node1Events::onNext)
+            .handler(
+                cluster ->
+                    new ClusterMessageHandler() {
+                      @Override
+                      public void onEvent(MembershipEvent event) {
+                        node1Events.onNext(event);
+                      }
+                    })
             .startAwait();
 
     // Check events
