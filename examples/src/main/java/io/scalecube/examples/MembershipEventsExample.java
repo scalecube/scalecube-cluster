@@ -29,7 +29,7 @@ public class MembershipEventsExample {
                 cluster -> {
                   return new ClusterMessageHandler() {
                     @Override
-                    public void onEvent(MembershipEvent event) {
+                    public void onMembershipEvent(MembershipEvent event) {
                       System.out.println(now() + " Alice received: " + event);
                     }
                   };
@@ -46,7 +46,7 @@ public class MembershipEventsExample {
                 cluster -> {
                   return new ClusterMessageHandler() {
                     @Override
-                    public void onEvent(MembershipEvent event) {
+                    public void onMembershipEvent(MembershipEvent event) {
                       System.out.println(now() + " Bob received: " + event);
                     }
                   };
@@ -63,7 +63,7 @@ public class MembershipEventsExample {
                 cluster -> {
                   return new ClusterMessageHandler() {
                     @Override
-                    public void onEvent(MembershipEvent event) {
+                    public void onMembershipEvent(MembershipEvent event) {
                       System.out.println(now() + " Carol received: " + event);
                     }
                   };

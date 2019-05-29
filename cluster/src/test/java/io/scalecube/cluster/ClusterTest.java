@@ -133,7 +133,7 @@ public class ClusterTest extends BaseTest {
                         cluster ->
                             new ClusterMessageHandler() {
                               @Override
-                              public void onEvent(MembershipEvent event) {
+                              public void onMembershipEvent(MembershipEvent event) {
                                 if (event.isUpdated()) {
                                   LOGGER.info("Received membership update event: {}", event);
                                   updateLatch.countDown();
@@ -203,7 +203,7 @@ public class ClusterTest extends BaseTest {
                           cluster ->
                               new ClusterMessageHandler() {
                                 @Override
-                                public void onEvent(MembershipEvent event) {
+                                public void onMembershipEvent(MembershipEvent event) {
                                   if (event.isUpdated()) {
                                     LOGGER.info("Received membership update event: {}", event);
                                     updateLatch.countDown();
@@ -274,7 +274,7 @@ public class ClusterTest extends BaseTest {
                           cluster ->
                               new ClusterMessageHandler() {
                                 @Override
-                                public void onEvent(MembershipEvent event) {
+                                public void onMembershipEvent(MembershipEvent event) {
                                   if (event.isUpdated()) {
                                     LOGGER.info("Received membership update event: {}", event);
                                     updateLatch.countDown();
@@ -325,7 +325,7 @@ public class ClusterTest extends BaseTest {
     ClusterMessageHandler listener =
         new ClusterMessageHandler() {
           @Override
-          public void onEvent(MembershipEvent event) {
+          public void onMembershipEvent(MembershipEvent event) {
             if (event.isRemoved()) {
               latch.countDown();
             }
@@ -364,7 +364,7 @@ public class ClusterTest extends BaseTest {
                 cluster ->
                     new ClusterMessageHandler() {
                       @Override
-                      public void onEvent(MembershipEvent event) {
+                      public void onMembershipEvent(MembershipEvent event) {
                         seedEvents.onNext(event);
                       }
                     })
@@ -383,7 +383,7 @@ public class ClusterTest extends BaseTest {
                 cluster ->
                     new ClusterMessageHandler() {
                       @Override
-                      public void onEvent(MembershipEvent event) {
+                      public void onMembershipEvent(MembershipEvent event) {
                         node1Events.onNext(event);
                       }
                     })

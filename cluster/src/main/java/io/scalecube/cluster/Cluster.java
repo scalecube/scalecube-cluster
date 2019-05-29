@@ -214,12 +214,12 @@ public final class Cluster {
                             actionsDisposables.add(
                                 listenMessage()
                                     .subscribe(
-                                        listener::onMembershipEvent,
+                                        listener::onMessage,
                                         th -> LOGGER.error("Received unexpected error: ", th)));
                             actionsDisposables.add(
                                 listenMembership()
                                     .subscribe(
-                                        listener::onEvent,
+                                        listener::onMembershipEvent,
                                         th -> LOGGER.error("Received unexpected error: ", th)));
                             actionsDisposables.add(
                                 listenGossip()

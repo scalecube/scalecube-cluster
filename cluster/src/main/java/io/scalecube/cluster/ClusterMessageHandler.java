@@ -5,9 +5,9 @@ import io.scalecube.transport.Message;
 
 public interface ClusterMessageHandler {
 
-  default void onMembershipEvent(Message message) {}
+  default void onMessage(Message message) {}
 
   default void onGossip(Message gossip) {}
 
-  default void onEvent(MembershipEvent event) {}
+  default void onMembershipEvent(MembershipEvent event) {}
 }

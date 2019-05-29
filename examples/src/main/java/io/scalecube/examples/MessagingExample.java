@@ -22,7 +22,7 @@ public class MessagingExample {
                 cluster -> {
                   return new ClusterMessageHandler() {
                     @Override
-                    public void onMembershipEvent(Message msg) {
+                    public void onMessage(Message msg) {
                       System.out.println("Alice received: " + msg.data());
                       cluster
                           .send(msg.sender(), Message.fromData("Greetings from Alice"))
@@ -41,7 +41,7 @@ public class MessagingExample {
                 cluster -> {
                   return new ClusterMessageHandler() {
                     @Override
-                    public void onMembershipEvent(Message msg) {
+                    public void onMessage(Message msg) {
                       System.out.println("Bob received: " + msg.data());
                       cluster
                           .send(msg.sender(), Message.fromData("Greetings from Bob"))
@@ -59,7 +59,7 @@ public class MessagingExample {
                 cluster -> {
                   return new ClusterMessageHandler() {
                     @Override
-                    public void onMembershipEvent(Message msg) {
+                    public void onMessage(Message msg) {
                       System.out.println("Carol received: " + msg.data());
                     }
                   };
