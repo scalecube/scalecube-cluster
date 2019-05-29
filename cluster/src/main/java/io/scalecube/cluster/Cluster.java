@@ -217,9 +217,6 @@ public final class Cluster {
                           membershipSink::next,
                           th -> LOGGER.error("Received unexpected error: ", th)));
 
-              System.err.println(transport.address());
-              System.err.println(config);
-
               failureDetector.start();
               gossip.start();
               metadataStore.start();
@@ -227,19 +224,16 @@ public final class Cluster {
               ClusterMessageHandler listener = handler.apply(this);
               actionsDisposables.add(
                   listen()
-                      .log("listen ")
                       .subscribe(
                           listener::onMessage,
                           th -> LOGGER.error("Received unexpected error: ", th)));
               actionsDisposables.add(
                   listenMembership()
-                      .log("listenMembership ")
                       .subscribe(
                           listener::onEvent,
                           th -> LOGGER.error("Received unexpected error: ", th)));
               actionsDisposables.add(
                   listenGossips()
-                      .log("listenGossips ")
                       .subscribe(
                           listener::onGossip,
                           th -> LOGGER.error("Received unexpected error: ", th)));
