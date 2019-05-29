@@ -34,9 +34,7 @@ public class ClusterTest extends BaseTest {
     // Start seed node
     Cluster seedNode = new ClusterImpl().startAwait();
     Cluster otherNode =
-        new ClusterImpl()
-            .clusterConfig(options -> options.seedMembers(seedNode.address()))
-            .startAwait();
+        new ClusterImpl().config(options -> options.seedMembers(seedNode.address())).startAwait();
 
     assertEquals(2, seedNode.members().size());
     assertEquals(2, otherNode.members().size());
@@ -97,7 +95,7 @@ public class ClusterTest extends BaseTest {
       for (int i = 0; i < membersNum; i++) {
         otherNodes.add(
             new ClusterImpl()
-                .clusterConfig(options -> options.seedMembers(seedNode.address()))
+                .config(options -> options.seedMembers(seedNode.address()))
                 .startAwait());
       }
       LOGGER.info("Start up time: {} ms", System.currentTimeMillis() - startAt);
@@ -129,28 +127,27 @@ public class ClusterTest extends BaseTest {
       metadata.put("key2", "value2");
       metadataNode =
           new ClusterImpl()
-              .clusterConfig(options -> options.seedMembers(seedNode.address()).metadata(metadata))
+              .config(options -> options.seedMembers(seedNode.address()).metadata(metadata))
               .startAwait();
 
       // Start other test members
       Flux.range(0, testMembersNum)
           .flatMap(
-              integer -> {
-                return new ClusterImpl()
-                    .clusterConfig(options -> options.seedMembers(seedNode.address()))
-                    .handler(
-                        cluster ->
-                            new ClusterMessageHandler() {
-                              @Override
-                              public void onMembershipEvent(MembershipEvent event) {
-                                if (event.isUpdated()) {
-                                  LOGGER.info("Received membership update event: {}", event);
-                                  updateLatch.countDown();
+              integer ->
+                  new ClusterImpl()
+                      .config(options -> options.seedMembers(seedNode.address()))
+                      .handler(
+                          cluster ->
+                              new ClusterMessageHandler() {
+                                @Override
+                                public void onMembershipEvent(MembershipEvent event) {
+                                  if (event.isUpdated()) {
+                                    LOGGER.info("Received membership update event: {}", event);
+                                    updateLatch.countDown();
+                                  }
                                 }
-                              }
-                            })
-                    .start();
-              })
+                              })
+                      .start())
           .doOnNext(otherNodes::add)
           .blockLast(TIMEOUT);
 
@@ -202,7 +199,7 @@ public class ClusterTest extends BaseTest {
       metadata.put("key2", "value2");
       metadataNode =
           new ClusterImpl()
-              .clusterConfig(options -> options.seedMembers(seedNode.address()).metadata(metadata))
+              .config(options -> options.seedMembers(seedNode.address()).metadata(metadata))
               .startAwait();
 
       // Start other test members
@@ -210,7 +207,7 @@ public class ClusterTest extends BaseTest {
           .flatMap(
               integer ->
                   new ClusterImpl()
-                      .clusterConfig(options -> options.seedMembers(seedNode.address()))
+                      .config(options -> options.seedMembers(seedNode.address()))
                       .handler(
                           cluster ->
                               new ClusterMessageHandler() {
@@ -276,7 +273,7 @@ public class ClusterTest extends BaseTest {
       metadata.put("key2", "value2");
       metadataNode =
           new ClusterImpl()
-              .clusterConfig(options -> options.seedMembers(seedNode.address()).metadata(metadata))
+              .config(options -> options.seedMembers(seedNode.address()).metadata(metadata))
               .startAwait();
 
       // Start other test members
@@ -284,7 +281,7 @@ public class ClusterTest extends BaseTest {
           .flatMap(
               integer ->
                   new ClusterImpl()
-                      .clusterConfig(options -> options.seedMembers(seedNode.address()))
+                      .config(options -> options.seedMembers(seedNode.address()))
                       .handler(
                           cluster ->
                               new ClusterMessageHandler() {
@@ -353,17 +350,17 @@ public class ClusterTest extends BaseTest {
     // Start nodes
     final Cluster node1 =
         new ClusterImpl()
-            .clusterConfig(options -> options.seedMembers(seedNode.address()))
+            .config(options -> options.seedMembers(seedNode.address()))
             .handler(cluster -> listener)
             .startAwait();
     final Cluster node2 =
         new ClusterImpl()
-            .clusterConfig(options -> options.seedMembers(seedNode.address()))
+            .config(options -> options.seedMembers(seedNode.address()))
             .handler(cluster -> listener)
             .startAwait();
     final Cluster node3 =
         new ClusterImpl()
-            .clusterConfig(options -> options.seedMembers(seedNode.address()))
+            .config(options -> options.seedMembers(seedNode.address()))
             .handler(cluster -> listener)
             .startAwait();
 
@@ -383,7 +380,7 @@ public class ClusterTest extends BaseTest {
     seedMetadata.put("seed", "shmid");
     final Cluster seedNode =
         new ClusterImpl()
-            .clusterConfig(options -> options.metadata(seedMetadata))
+            .config(options -> options.metadata(seedMetadata))
             .handler(
                 cluster ->
                     new ClusterMessageHandler() {
@@ -401,8 +398,7 @@ public class ClusterTest extends BaseTest {
     ReplayProcessor<MembershipEvent> node1Events = ReplayProcessor.create();
     final Cluster node1 =
         new ClusterImpl()
-            .clusterConfig(
-                options -> options.seedMembers(seedNode.address()).metadata(node1Metadata))
+            .config(options -> options.seedMembers(seedNode.address()).metadata(node1Metadata))
             .handler(
                 cluster ->
                     new ClusterMessageHandler() {
@@ -451,7 +447,7 @@ public class ClusterTest extends BaseTest {
     Address[] seeds = new Address[] {nonExistingSeed1, nonExistingSeed2, seedNode.address()};
 
     Cluster otherNode =
-        new ClusterImpl().clusterConfig(options -> options.seedMembers(seeds)).startAwait();
+        new ClusterImpl().config(options -> options.seedMembers(seeds)).startAwait();
 
     assertEquals(otherNode.member(), seedNode.otherMembers().iterator().next());
     assertEquals(seedNode.member(), otherNode.otherMembers().iterator().next());

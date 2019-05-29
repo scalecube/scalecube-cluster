@@ -28,7 +28,7 @@ public class ClusterMetadataExample {
     //noinspection unused
     Cluster joe =
         new ClusterImpl()
-            .clusterConfig(
+            .config(
                 options ->
                     options
                         .seedMembers(alice.address())

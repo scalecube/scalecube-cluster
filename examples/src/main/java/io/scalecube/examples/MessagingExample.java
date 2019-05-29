@@ -37,7 +37,7 @@ public class MessagingExample {
     // messages
     Cluster bob =
         new ClusterImpl()
-            .clusterConfig(options -> options.seedMembers(alice.address()))
+            .config(options -> options.seedMembers(alice.address()))
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {
@@ -55,7 +55,7 @@ public class MessagingExample {
     // Join cluster node Carol to cluster with Alice and Bob
     Cluster carol =
         new ClusterImpl()
-            .clusterConfig(options -> options.seedMembers(alice.address(), bob.address()))
+            .config(options -> options.seedMembers(alice.address(), bob.address()))
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {

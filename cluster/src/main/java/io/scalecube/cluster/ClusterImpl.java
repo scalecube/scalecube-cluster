@@ -69,6 +69,10 @@ public final class ClusterImpl implements Cluster {
 
   // Disposables
   private final Disposable.Composite actionsDisposables = Disposables.composite();
+
+  // Lifecycle
+  private final MonoProcessor<Void> start = MonoProcessor.create();
+  private final MonoProcessor<Void> onStart = MonoProcessor.create();
   private final MonoProcessor<Void> shutdown = MonoProcessor.create();
   private final MonoProcessor<Void> onShutdown = MonoProcessor.create();
 
@@ -88,11 +92,31 @@ public final class ClusterImpl implements Cluster {
 
   public ClusterImpl(ClusterConfig config) {
     this.config = Objects.requireNonNull(config);
+    initLifecycle();
   }
 
   private ClusterImpl(ClusterImpl that) {
     this.config = ClusterConfig.from(that.config).build();
     this.handler = that.handler;
+    initLifecycle();
+  }
+
+  private void initLifecycle() {
+    start
+        .then(doStart())
+        .doOnSuccess(avoid -> onStart.onComplete())
+        .doOnError(onStart::onError)
+        .subscribe(
+            null,
+            th -> {
+              LOGGER.error("Cluster member {} failed on start: ", localMember, th);
+              shutdown.onComplete();
+            });
+
+    shutdown //
+        .then(doShutdown())
+        .doFinally(s -> onShutdown.onComplete())
+        .subscribe();
   }
 
   /**
@@ -101,7 +125,7 @@ public final class ClusterImpl implements Cluster {
    * @param options cluster config options
    * @return new cluster's instance
    */
-  public ClusterImpl clusterConfig(UnaryOperator<ClusterConfig.Builder> options) {
+  public ClusterImpl config(UnaryOperator<ClusterConfig.Builder> options) {
     Objects.requireNonNull(options);
     ClusterImpl cluster = new ClusterImpl(this);
     cluster.config = options.apply(ClusterConfig.from(cluster.config)).build();
@@ -121,31 +145,32 @@ public final class ClusterImpl implements Cluster {
     return cluster;
   }
 
+  /**
+   * Starts this instance. See {@link Cluster#doStart()} function.
+   *
+   * @return mono result
+   */
   public Mono<Cluster> start() {
-    return new ClusterImpl(this).join0();
+    return Mono.defer(
+        () -> {
+          start.onComplete();
+          return onStart.thenReturn(this);
+        });
   }
 
   public Cluster startAwait() {
-    return new ClusterImpl(this).join0().block();
+    return start().block();
   }
 
-  private Mono<Cluster> join0() {
+  private Mono<Cluster> doStart() {
     return Transport.bind(config.getTransportConfig())
         .flatMap(
-            boundTransport -> {
-              transport = boundTransport;
-              localMember = createLocalMember(boundTransport.address().port());
+            transport1 -> {
+              transport = transport1;
+              localMember = createLocalMember(transport.address().port());
 
               cidGenerator = new CorrelationIdGenerator(localMember.id());
               scheduler = Schedulers.newSingle("sc-cluster-" + localMember.address().port(), true);
-
-              // Setup shutdown
-              shutdown
-                  .then(doShutdown())
-                  .doFinally(s -> onShutdown.onComplete())
-                  .subscribeOn(scheduler)
-                  .subscribe(
-                      null, ex -> LOGGER.error("Exception occurred on cluster shutdown: " + ex));
 
               failureDetector =
                   new FailureDetectorImpl(
@@ -189,38 +214,47 @@ public final class ClusterImpl implements Cluster {
                       .listen()
                       /*.publishOn(scheduler)*/
                       // dont uncomment, already beign executed inside sc-cluster thread
-                      .subscribe(
-                          membershipSink::next,
-                          th -> LOGGER.error("Received unexpected error: ", th)));
+                      .subscribe(membershipSink::next, this::onError));
 
               return Mono.fromRunnable(() -> failureDetector.start())
                   .then(Mono.fromRunnable(() -> gossip.start()))
                   .then(Mono.fromRunnable(() -> metadataStore.start()))
-                  .then(
-                      Mono.fromRunnable(
-                          () -> {
-                            ClusterMessageHandler listener = handler.apply(this);
-                            actionsDisposables.add(
-                                listenMessage()
-                                    .subscribe(
-                                        listener::onMessage,
-                                        th -> LOGGER.error("Received unexpected error: ", th)));
-                            actionsDisposables.add(
-                                listenMembership()
-                                    .subscribe(
-                                        listener::onMembershipEvent,
-                                        th -> LOGGER.error("Received unexpected error: ", th)));
-                            actionsDisposables.add(
-                                listenGossip()
-                                    .subscribe(
-                                        listener::onGossip,
-                                        th -> LOGGER.error("Received unexpected error: ", th)));
-                          }))
-                  .then(
-                      Mono.fromCallable(() -> JmxMonitorMBean.start(this))
-                          .then(membership.start()));
+                  .then(Mono.fromRunnable(this::startHandler))
+                  .then((membership.start()))
+                  .then(Mono.fromCallable(() -> JmxMonitorMBean.start(this)));
             })
         .thenReturn(this);
+  }
+
+  private void startHandler() {
+    ClusterMessageHandler handler = this.handler.apply(this);
+    actionsDisposables.add(listenMessage().subscribe(handler::onMessage, this::onError));
+    actionsDisposables.add(listenMembership().subscribe(handler::onMembershipEvent, this::onError));
+    actionsDisposables.add(listenGossip().subscribe(handler::onGossip, this::onError));
+  }
+
+  private void onError(Throwable th) {
+    LOGGER.error("Received unexpected error: ", th);
+  }
+
+  private Flux<Message> listenMessage() {
+    // filter out system messages
+    return transport.listen().filter(msg -> !SYSTEM_MESSAGES.contains(msg.qualifier()));
+  }
+
+  private Flux<Message> listenGossip() {
+    // filter out system gossips
+    return gossip.listen().filter(msg -> !SYSTEM_GOSSIPS.contains(msg.qualifier()));
+  }
+
+  private Flux<MembershipEvent> listenMembership() {
+    // concat with existing members and listen on live stream
+    return Flux.defer(
+        () ->
+            Flux.fromIterable(otherMembers())
+                .map(member -> MembershipEvent.createAdded(member, metadata(member)))
+                .concatWith(membershipEvents)
+                .onBackpressureBuffer());
   }
 
   /**
@@ -267,29 +301,9 @@ public final class ClusterImpl implements Cluster {
     return transport.requestResponse(request, member.address());
   }
 
-  /**
-   * Subscription point for listening incoming messages.
-   *
-   * @return stream of incoming messages
-   */
-  private Flux<Message> listenMessage() {
-    // filter out system messages
-    return transport.listen().filter(msg -> !SYSTEM_MESSAGES.contains(msg.qualifier()));
-  }
-
   @Override
   public Mono<String> spreadGossip(Message message) {
     return gossip.spread(message);
-  }
-
-  /**
-   * Listens for gossips from other cluster members.
-   *
-   * @return gossip publisher
-   */
-  private Flux<Message> listenGossip() {
-    // filter out system gossips
-    return gossip.listen().filter(msg -> !SYSTEM_GOSSIPS.contains(msg.qualifier()));
   }
 
   @Override
@@ -361,20 +375,6 @@ public final class ClusterImpl implements Cluster {
     return metadata;
   }
 
-  /**
-   * Listen changes in cluster membership.
-   *
-   * @return membership publisher
-   */
-  private Flux<MembershipEvent> listenMembership() {
-    return Flux.defer(
-        () ->
-            Flux.fromIterable(otherMembers())
-                .map(member -> MembershipEvent.createAdded(member, metadata(member)))
-                .concatWith(membershipEvents)
-                .onBackpressureBuffer());
-  }
-
   @Override
   public Mono<Void> shutdown() {
     return Mono.defer(
@@ -388,30 +388,36 @@ public final class ClusterImpl implements Cluster {
     return Mono.defer(
         () -> {
           LOGGER.info("Cluster member {} is shutting down", localMember);
-          return Flux.concatDelayError(leaveCluster(localMember), dispose(), transport.stop())
+          return Flux.concatDelayError(leaveCluster(localMember), stop(), transport.stop())
               .then()
-              .doOnSuccess(avoid -> LOGGER.info("Cluster member {} has shut down", localMember));
+              .doOnSuccess(
+                  avoid -> LOGGER.info("Cluster member {} has been shut down", localMember))
+              .doOnError(
+                  th ->
+                      LOGGER.warn(
+                          "Cluster member {} failed on shutdown: {}", localMember, th.toString()));
         });
   }
 
   private Mono<Void> leaveCluster(Member member) {
     return membership
         .leaveCluster()
+        .subscribeOn(scheduler)
         .doOnSuccess(
             s ->
-                LOGGER.info(
+                LOGGER.debug(
                     "Cluster member {} notified about his leaving and shutting down", member))
         .doOnError(
-            e ->
-                LOGGER.warn(
+            ex ->
+                LOGGER.info(
                     "Cluster member {} failed to spread leave notification "
                         + "to other cluster members: {}",
                     member,
-                    e))
+                    ex.toString()))
         .then();
   }
 
-  private Mono<Void> dispose() {
+  private Mono<Void> stop() {
     return Mono.fromRunnable(
         () -> {
           // Stop accepting requests

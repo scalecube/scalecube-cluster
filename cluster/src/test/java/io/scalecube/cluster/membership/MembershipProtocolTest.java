@@ -810,8 +810,8 @@ public class MembershipProtocolTest extends BaseTest {
 
       // Recover network
       Stream.of(a, b, c, d)
-        .map(Transport::networkEmulator)
-        .forEach(NetworkEmulator::unblockAllInbound);
+          .map(Transport::networkEmulator)
+          .forEach(NetworkEmulator::unblockAllInbound);
 
       awaitSeconds(3);
 
