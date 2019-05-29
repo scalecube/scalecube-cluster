@@ -1,6 +1,7 @@
 package io.scalecube.examples;
 
 import io.scalecube.cluster.Cluster;
+import io.scalecube.cluster.ClusterImpl;
 import io.scalecube.cluster.ClusterMessageHandler;
 import io.scalecube.transport.Message;
 import reactor.core.publisher.Flux;
@@ -17,7 +18,7 @@ public class MessagingExample {
   public static void main(String[] args) throws Exception {
     // Start cluster node Alice to listen and respond for incoming greeting messages
     Cluster alice =
-        new Cluster()
+        new ClusterImpl()
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {
@@ -35,7 +36,7 @@ public class MessagingExample {
     // Join cluster node Bob to cluster with Alice, listen and respond for incoming greeting
     // messages
     Cluster bob =
-        new Cluster()
+        new ClusterImpl()
             .seedMembers(alice.address())
             .handler(
                 cluster -> {
@@ -53,7 +54,7 @@ public class MessagingExample {
 
     // Join cluster node Carol to cluster with Alice and Bob
     Cluster carol =
-        new Cluster()
+        new ClusterImpl()
             .seedMembers(alice.address(), bob.address())
             .handler(
                 cluster -> {

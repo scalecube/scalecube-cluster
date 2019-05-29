@@ -1,6 +1,7 @@
 package io.scalecube.examples;
 
 import io.scalecube.cluster.Cluster;
+import io.scalecube.cluster.ClusterImpl;
 import io.scalecube.cluster.ClusterMessageHandler;
 import io.scalecube.transport.Message;
 
@@ -16,7 +17,7 @@ public class GossipExample {
   public static void main(String[] args) throws Exception {
     // Start cluster nodes and subscribe on listening gossips
     Cluster alice =
-        new Cluster()
+        new ClusterImpl()
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {
@@ -29,7 +30,7 @@ public class GossipExample {
             .startAwait();
 
     Cluster bob =
-        new Cluster()
+        new ClusterImpl()
             .seedMembers(alice.address())
             .handler(
                 cluster -> {
@@ -43,7 +44,7 @@ public class GossipExample {
             .startAwait();
 
     Cluster carol =
-        new Cluster()
+        new ClusterImpl()
             .seedMembers(alice.address())
             .handler(
                 cluster -> {
@@ -57,7 +58,7 @@ public class GossipExample {
             .startAwait();
 
     Cluster dan =
-        new Cluster()
+        new ClusterImpl()
             .seedMembers(alice.address())
             .handler(
                 cluster -> {
@@ -71,7 +72,7 @@ public class GossipExample {
             .startAwait();
 
     // Start cluster node Eve that joins cluster and spreads gossip
-    Cluster eve = new Cluster().seedMembers(alice.address()).startAwait();
+    Cluster eve = new ClusterImpl().seedMembers(alice.address()).startAwait();
     eve.spreadGossip(Message.fromData("Gossip from Eve"))
         .doOnError(System.err::println)
         .subscribe(null, Throwable::printStackTrace);

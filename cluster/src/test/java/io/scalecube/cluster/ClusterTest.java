@@ -32,8 +32,8 @@ public class ClusterTest extends BaseTest {
   @Test
   public void testMembersAccessFromScheduler() {
     // Start seed node
-    Cluster seedNode = new Cluster().startAwait();
-    Cluster otherNode = new Cluster().seedMembers(seedNode.address()).startAwait();
+    Cluster seedNode = new ClusterImpl().startAwait();
+    Cluster otherNode = new ClusterImpl().seedMembers(seedNode.address()).startAwait();
 
     assertEquals(2, seedNode.members().size());
     assertEquals(2, otherNode.members().size());
@@ -51,7 +51,7 @@ public class ClusterTest extends BaseTest {
   public void testJoinLocalhostIgnored() {
     // Start seed node
     Cluster seedNode =
-        new Cluster(
+        new ClusterImpl(
                 ClusterConfig.builder()
                     .port(4801)
                     .connectTimeout(500)
@@ -67,7 +67,7 @@ public class ClusterTest extends BaseTest {
   public void testJoinLocalhostIgnoredWithOverride() {
     // Start seed node
     Cluster seedNode =
-        new Cluster(
+        new ClusterImpl(
                 ClusterConfig.builder()
                     .port(7878)
                     .memberHost("localhost")
@@ -84,7 +84,7 @@ public class ClusterTest extends BaseTest {
   @Test
   public void testJoinDynamicPort() {
     // Start seed node
-    Cluster seedNode = new Cluster().startAwait();
+    Cluster seedNode = new ClusterImpl().startAwait();
 
     int membersNum = 10;
     List<Cluster> otherNodes = new ArrayList<>(membersNum);
@@ -92,7 +92,7 @@ public class ClusterTest extends BaseTest {
       // Start other nodes
       long startAt = System.currentTimeMillis();
       for (int i = 0; i < membersNum; i++) {
-        otherNodes.add(new Cluster().seedMembers(seedNode.address()).startAwait());
+        otherNodes.add(new ClusterImpl().seedMembers(seedNode.address()).startAwait());
       }
       LOGGER.info("Start up time: {} ms", System.currentTimeMillis() - startAt);
       assertEquals(membersNum + 1, seedNode.members().size());
@@ -110,7 +110,7 @@ public class ClusterTest extends BaseTest {
   @Test
   public void testUpdateMetadata() throws Exception {
     // Start seed member
-    Cluster seedNode = new Cluster().startAwait();
+    Cluster seedNode = new ClusterImpl().startAwait();
 
     Cluster metadataNode = null;
     int testMembersNum = 10;
@@ -121,13 +121,14 @@ public class ClusterTest extends BaseTest {
       Map<String, String> metadata = new HashMap<>();
       metadata.put("key1", "value1");
       metadata.put("key2", "value2");
-      metadataNode = new Cluster().metadata(metadata).seedMembers(seedNode.address()).startAwait();
+      metadataNode =
+          new ClusterImpl().metadata(metadata).seedMembers(seedNode.address()).startAwait();
 
       // Start other test members
       Flux.range(0, testMembersNum)
           .flatMap(
               integer -> {
-                return new Cluster()
+                return new ClusterImpl()
                     .seedMembers(seedNode.address())
                     .handler(
                         cluster ->
@@ -179,7 +180,7 @@ public class ClusterTest extends BaseTest {
   @Test
   public void testUpdateMetadataProperty() throws Exception {
     // Start seed member
-    Cluster seedNode = new Cluster().startAwait();
+    Cluster seedNode = new ClusterImpl().startAwait();
 
     Cluster metadataNode = null;
     int testMembersNum = 10;
@@ -191,13 +192,14 @@ public class ClusterTest extends BaseTest {
       Map<String, String> metadata = new HashMap<>();
       metadata.put("key1", "value1");
       metadata.put("key2", "value2");
-      metadataNode = new Cluster().metadata(metadata).seedMembers(seedNode.address()).startAwait();
+      metadataNode =
+          new ClusterImpl().metadata(metadata).seedMembers(seedNode.address()).startAwait();
 
       // Start other test members
       Flux.range(0, testMembersNum)
           .flatMap(
               integer ->
-                  new Cluster()
+                  new ClusterImpl()
                       .seedMembers(seedNode.address())
                       .handler(
                           cluster ->
@@ -250,7 +252,7 @@ public class ClusterTest extends BaseTest {
   @Test
   public void testRemoveMetadataProperty() throws Exception {
     // Start seed member
-    Cluster seedNode = new Cluster().startAwait();
+    Cluster seedNode = new ClusterImpl().startAwait();
 
     Cluster metadataNode = null;
     int testMembersNum = 10;
@@ -262,13 +264,14 @@ public class ClusterTest extends BaseTest {
       Map<String, String> metadata = new HashMap<>();
       metadata.put("key1", "value1");
       metadata.put("key2", "value2");
-      metadataNode = new Cluster().metadata(metadata).seedMembers(seedNode.address()).startAwait();
+      metadataNode =
+          new ClusterImpl().metadata(metadata).seedMembers(seedNode.address()).startAwait();
 
       // Start other test members
       Flux.range(0, testMembersNum)
           .flatMap(
               integer ->
-                  new Cluster()
+                  new ClusterImpl()
                       .seedMembers(seedNode.address())
                       .handler(
                           cluster ->
@@ -333,15 +336,15 @@ public class ClusterTest extends BaseTest {
         };
 
     // Start seed member
-    final Cluster seedNode = new Cluster().handler(cluster -> listener).startAwait();
+    final Cluster seedNode = new ClusterImpl().handler(cluster -> listener).startAwait();
 
     // Start nodes
     final Cluster node1 =
-        new Cluster().seedMembers(seedNode.address()).handler(cluster -> listener).startAwait();
+        new ClusterImpl().seedMembers(seedNode.address()).handler(cluster -> listener).startAwait();
     final Cluster node2 =
-        new Cluster().seedMembers(seedNode.address()).handler(cluster -> listener).startAwait();
+        new ClusterImpl().seedMembers(seedNode.address()).handler(cluster -> listener).startAwait();
     final Cluster node3 =
-        new Cluster().seedMembers(seedNode.address()).handler(cluster -> listener).startAwait();
+        new ClusterImpl().seedMembers(seedNode.address()).handler(cluster -> listener).startAwait();
 
     node2.shutdown().block(TIMEOUT);
 
@@ -358,7 +361,7 @@ public class ClusterTest extends BaseTest {
     Map<String, String> seedMetadata = new HashMap<>();
     seedMetadata.put("seed", "shmid");
     final Cluster seedNode =
-        new Cluster()
+        new ClusterImpl()
             .metadata(seedMetadata)
             .handler(
                 cluster ->
@@ -376,7 +379,7 @@ public class ClusterTest extends BaseTest {
     node1Metadata.put("node", "shmod");
     ReplayProcessor<MembershipEvent> node1Events = ReplayProcessor.create();
     final Cluster node1 =
-        new Cluster()
+        new ClusterImpl()
             .metadata(node1Metadata)
             .seedMembers(seedNode.address())
             .handler(
@@ -420,13 +423,13 @@ public class ClusterTest extends BaseTest {
   @Test
   public void testJoinSeedClusterWithNoExistingSeedMember() {
     // Start seed node
-    Cluster seedNode = new Cluster().startAwait();
+    Cluster seedNode = new ClusterImpl().startAwait();
 
     Address nonExistingSeed1 = Address.from("localhost:1234");
     Address nonExistingSeed2 = Address.from("localhost:5678");
     Address[] seeds = new Address[] {nonExistingSeed1, nonExistingSeed2, seedNode.address()};
 
-    Cluster otherNode = new Cluster().seedMembers(seeds).startAwait();
+    Cluster otherNode = new ClusterImpl().seedMembers(seeds).startAwait();
 
     assertEquals(otherNode.member(), seedNode.otherMembers().iterator().next());
     assertEquals(seedNode.member(), otherNode.otherMembers().iterator().next());

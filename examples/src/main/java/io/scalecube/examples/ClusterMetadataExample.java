@@ -1,6 +1,7 @@
 package io.scalecube.examples;
 
 import io.scalecube.cluster.Cluster;
+import io.scalecube.cluster.ClusterImpl;
 import io.scalecube.cluster.ClusterMessageHandler;
 import io.scalecube.cluster.Member;
 import io.scalecube.transport.Message;
@@ -21,11 +22,11 @@ public class ClusterMetadataExample {
   /** Main method. */
   public static void main(String[] args) throws Exception {
     // Start seed cluster member Alice
-    Cluster alice = new Cluster().startAwait();
+    Cluster alice = new ClusterImpl().startAwait();
 
     // Join Joe to cluster with metadata and listen for incoming messages and print them to stdout
     Cluster joe =
-        new Cluster()
+        new ClusterImpl()
             .seedMembers(alice.address())
             .metadata(Collections.singletonMap("name", "Joe"))
             .handler(

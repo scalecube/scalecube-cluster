@@ -2,6 +2,7 @@ package io.scalecube.examples;
 
 import io.scalecube.cluster.Cluster;
 import io.scalecube.cluster.ClusterConfig;
+import io.scalecube.cluster.ClusterImpl;
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.ClusterMessageHandler;
 import io.scalecube.cluster.membership.MembershipEvent;
@@ -23,7 +24,7 @@ public class MembershipEventsExample {
   public static void main(String[] args) throws Exception {
     // Alice init cluster
     Cluster alice =
-        new Cluster()
+        new ClusterImpl()
             .metadata(Collections.singletonMap("name", "Alice"))
             .handler(
                 cluster -> {
@@ -39,7 +40,7 @@ public class MembershipEventsExample {
 
     // Bob join cluster
     Cluster bob =
-        new Cluster()
+        new ClusterImpl()
             .seedMembers(alice.address())
             .metadata(Collections.singletonMap("name", "Bob"))
             .handler(
@@ -56,7 +57,7 @@ public class MembershipEventsExample {
 
     // Carol join cluster
     Cluster carol =
-        new Cluster()
+        new ClusterImpl()
             .seedMembers(alice.address(), bob.address())
             .metadata(Collections.singletonMap("name", "Carol"))
             .handler(
