@@ -74,7 +74,7 @@ public class GossipExample {
     Cluster eve = new Cluster().seedMembers(alice.address()).startAwait();
     eve.spreadGossip(Message.fromData("Gossip from Eve"))
         .doOnError(System.err::println)
-        .subscribe();
+        .subscribe(null, Throwable::printStackTrace);
 
     // Avoid exit main thread immediately ]:->
     Thread.sleep(1000);

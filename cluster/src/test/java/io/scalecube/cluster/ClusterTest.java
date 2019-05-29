@@ -333,7 +333,6 @@ public class ClusterTest extends BaseTest {
     node2.shutdown().block(TIMEOUT);
 
     assertTrue(latch.await(TIMEOUT.getSeconds(), TimeUnit.SECONDS));
-    assertEquals(3, latch.getCount());
     assertTrue(node2.isShutdown());
 
     shutdown(Stream.of(seedNode, node1, node3).collect(Collectors.toList()));
