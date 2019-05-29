@@ -29,6 +29,7 @@ public class GossipExample {
                 })
             .startAwait();
 
+    //noinspection unused
     Cluster bob =
         new ClusterImpl()
             .seedMembers(alice.address())
@@ -43,6 +44,7 @@ public class GossipExample {
                 })
             .startAwait();
 
+    //noinspection unused
     Cluster carol =
         new ClusterImpl()
             .seedMembers(alice.address())
@@ -57,6 +59,7 @@ public class GossipExample {
                 })
             .startAwait();
 
+    //noinspection unused
     Cluster dan =
         new ClusterImpl()
             .seedMembers(alice.address())

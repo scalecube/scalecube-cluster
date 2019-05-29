@@ -25,6 +25,7 @@ public class ClusterMetadataExample {
     Cluster alice = new ClusterImpl().startAwait();
 
     // Join Joe to cluster with metadata and listen for incoming messages and print them to stdout
+    //noinspection unused
     Cluster joe =
         new ClusterImpl()
             .seedMembers(alice.address())
