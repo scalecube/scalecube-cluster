@@ -6,7 +6,9 @@ import java.nio.ByteBuffer;
 import java.util.Map;
 import reactor.core.Exceptions;
 
-public class MapJacksonMetadataCodec implements MetadataCodec<Map<String, String>> {
+public class SimpleMapMetadataCodec implements MetadataCodec<Map<String, String>> {
+
+  public static final MetadataCodec<Map<String, String>> INSTANCE = new SimpleMapMetadataCodec();
 
   private static final ObjectMapper mapper = new ObjectMapper();
 

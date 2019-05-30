@@ -449,8 +449,23 @@ public final class ClusterImpl implements Cluster {
 
     @Override
     public Collection<String> getMetadata() {
-      // todo
-      return Collections.emptyList();
+
+      ByteBuffer metadata =
+          cluster.metadata(
+              new MetadataCodec<ByteBuffer>() {
+                @Override
+                public ByteBuffer deserialize(ByteBuffer buffer) {
+                  return buffer;
+                }
+
+                @Override
+                public ByteBuffer serialize(ByteBuffer metadata) {
+                  return metadata;
+                }
+              });
+
+      return Collections.singleton(
+          "metadata@" + Integer.toHexString(metadata.hashCode()) + "[" + metadata.capacity() + "]");
     }
   }
 }

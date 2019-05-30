@@ -267,7 +267,9 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
   }
 
   private String metadataAsString() {
-    return metadata == null ? "null" : String.valueOf(metadata.capacity());
+    return metadata.capacity() == 0
+        ? "[]"
+        : "metadata@" + Integer.toHexString(metadata.hashCode()) + "[" + metadata.capacity() + "]";
   }
 
   public static final class Builder {
