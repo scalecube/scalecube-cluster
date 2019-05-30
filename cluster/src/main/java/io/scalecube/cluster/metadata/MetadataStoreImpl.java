@@ -115,16 +115,16 @@ public class MetadataStoreImpl implements MetadataStore {
     if (localMember.equals(member)) {
       // added
       if (result == null) {
-        LOGGER.debug("Added metadata: {} for local member {}", value.capacity(), localMember);
+        LOGGER.debug("Added metadata: {} for local member {}", value.remaining(), localMember);
       } else {
-        LOGGER.debug("Updated metadata: {} for local member {}", value.capacity(), localMember);
+        LOGGER.debug("Updated metadata: {} for local member {}", value.remaining(), localMember);
       }
     } else {
       // updated
       if (result == null) {
-        LOGGER.debug("Added metadata: {} for member {}", value.capacity(), member);
+        LOGGER.debug("Added metadata: {} for member {}", value.remaining(), member);
       } else {
-        LOGGER.debug("Updated metadata: {} for member {}", value.capacity(), member);
+        LOGGER.debug("Updated metadata: {} for member {}", value.remaining(), member);
       }
     }
     return result;

@@ -115,6 +115,8 @@ public final class MembershipEvent {
     if (metadata == null) {
       return null;
     }
-    return Integer.toHexString(metadata.hashCode() & Integer.MAX_VALUE) + "-" + metadata.capacity();
+    return Integer.toHexString(metadata.hashCode() & Integer.MAX_VALUE)
+        + "-"
+        + metadata.remaining();
   }
 }

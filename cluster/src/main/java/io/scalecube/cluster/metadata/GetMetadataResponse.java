@@ -33,6 +33,6 @@ final class GetMetadataResponse {
 
   @Override
   public String toString() {
-    return "GetMetadataResponse{" + "member=" + member + ", metadata=" + metadata.capacity() + '}';
+    return "GetMetadataResponse{" + "member=" + member + ", metadata=" + metadata.remaining() + '}';
   }
 }

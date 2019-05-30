@@ -465,7 +465,11 @@ public final class ClusterImpl implements Cluster {
               });
 
       return Collections.singleton(
-          "metadata@" + Integer.toHexString(metadata.hashCode()) + "[" + metadata.capacity() + "]");
+          "metadata@"
+              + Integer.toHexString(metadata.hashCode())
+              + "["
+              + metadata.remaining()
+              + "]");
     }
   }
 }
