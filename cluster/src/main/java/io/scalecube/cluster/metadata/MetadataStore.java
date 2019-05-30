@@ -1,7 +1,7 @@
 package io.scalecube.cluster.metadata;
 
 import io.scalecube.cluster.Member;
-import java.util.Map;
+import java.nio.ByteBuffer;
 import reactor.core.publisher.Mono;
 
 /**
@@ -21,7 +21,7 @@ public interface MetadataStore {
    *
    * @return local member metadata
    */
-  Map<String, String> metadata();
+  ByteBuffer metadata();
 
   /**
    * Returns cluster member metadata from local store. Null if member was removed.
@@ -29,16 +29,16 @@ public interface MetadataStore {
    * @param member cluster member
    * @return metadata of the cluster member
    */
-  Map<String, String> metadata(Member member);
+  ByteBuffer metadata(Member member);
 
   /**
    * Updates local cluster member metadata locally. Shortcut method for {@link
-   * #updateMetadata(Member, Map)}.
+   * #updateMetadata(Member, ByteBuffer)}.
    *
    * @param metadata local member metadata
    * @return old metadata or null
    */
-  Map<String, String> updateMetadata(Map<String, String> metadata);
+  ByteBuffer updateMetadata(ByteBuffer metadata);
 
   /**
    * Updates cluster member metadata locally.
@@ -47,7 +47,7 @@ public interface MetadataStore {
    * @param metadata cluster member metadtaa
    * @return old metadata or null
    */
-  Map<String, String> updateMetadata(Member member, Map<String, String> metadata);
+  ByteBuffer updateMetadata(Member member, ByteBuffer metadata);
 
   /**
    * Retrives cluster member metadata remotely.
@@ -55,7 +55,7 @@ public interface MetadataStore {
    * @param member cluster member
    * @return mono result of getting remote member metadata
    */
-  Mono<Map<String, String>> fetchMetadata(Member member);
+  Mono<ByteBuffer> fetchMetadata(Member member);
 
   /**
    * Removes cluster member metadata from store.
@@ -63,5 +63,5 @@ public interface MetadataStore {
    * @param member cluster member (local member is not allowed here)
    * @return old metadata or null
    */
-  Map<String, String> removeMetadata(Member member);
+  ByteBuffer removeMetadata(Member member);
 }

@@ -5,17 +5,17 @@ import io.scalecube.cluster.gossip.GossipProtocolImpl;
 import io.scalecube.cluster.membership.IdGenerator;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipProtocolImpl;
+import io.scalecube.cluster.metadata.MetadataCodec;
+import io.scalecube.cluster.metadata.MetadataStore;
 import io.scalecube.cluster.metadata.MetadataStoreImpl;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.NetworkEmulator;
 import io.scalecube.transport.Transport;
 import java.lang.management.ManagementFactory;
-import java.util.ArrayList;
+import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -82,7 +82,7 @@ public final class ClusterImpl implements Cluster {
   private FailureDetectorImpl failureDetector;
   private GossipProtocolImpl gossip;
   private MembershipProtocolImpl membership;
-  private MetadataStoreImpl metadataStore;
+  private MetadataStore metadataStore;
   private Scheduler scheduler;
   private CorrelationIdGenerator cidGenerator;
 
@@ -146,7 +146,7 @@ public final class ClusterImpl implements Cluster {
   }
 
   /**
-   * Starts this instance. See {@link Cluster#doStart()} function.
+   * Starts this instance. See {@link ClusterImpl#doStart()} function.
    *
    * @return mono result
    */
@@ -252,7 +252,7 @@ public final class ClusterImpl implements Cluster {
     return Flux.defer(
         () ->
             Flux.fromIterable(otherMembers())
-                .map(member -> MembershipEvent.createAdded(member, metadata(member)))
+                .map(member -> MembershipEvent.createAdded(member, metadataStore.metadata(member)))
                 .concatWith(membershipEvents)
                 .onBackpressureBuffer());
   }
@@ -317,13 +317,13 @@ public final class ClusterImpl implements Cluster {
   }
 
   @Override
-  public Map<String, String> metadata() {
-    return metadataStore.metadata();
+  public <T> T metadata(MetadataCodec<T> metadataCodec) {
+    return metadataCodec.deserialize(metadataStore.metadata());
   }
 
   @Override
-  public Map<String, String> metadata(Member member) {
-    return metadataStore.metadata(member);
+  public <T> T metadata(Member member, MetadataCodec<T> metadataCodec) {
+    return metadataCodec.deserialize(metadataStore.metadata(member));
   }
 
   @Override
@@ -342,37 +342,10 @@ public final class ClusterImpl implements Cluster {
   }
 
   @Override
-  public Mono<Void> updateMetadata(Map<String, String> metadata) {
+  public Mono<Void> updateMetadata(ByteBuffer metadata) {
     return Mono.fromRunnable(() -> metadataStore.updateMetadata(metadata))
         .then(membership.updateIncarnation())
         .subscribeOn(scheduler);
-  }
-
-  @Override
-  public Mono<Void> updateMetadataProperty(String key, String value) {
-    return Mono.fromCallable(() -> updateMetadataProperty0(key, value))
-        .flatMap(this::updateMetadata)
-        .subscribeOn(scheduler);
-  }
-
-  private Map<String, String> updateMetadataProperty0(String key, String value) {
-    Map<String, String> metadata = new HashMap<>(metadataStore.metadata());
-    metadata.put(key, value);
-    return metadata;
-  }
-
-  @Override
-  public Mono<Void> removeMetadataProperty(String key) {
-    return Mono.fromCallable(() -> removeMetadataProperty0(key))
-        .flatMap(this::updateMetadata)
-        .subscribeOn(scheduler)
-        .then();
-  }
-
-  private Map<String, String> removeMetadataProperty0(String key) {
-    Map<String, String> metadata = new HashMap<>(metadataStore.metadata());
-    metadata.remove(key);
-    return metadata;
   }
 
   @Override
@@ -476,9 +449,8 @@ public final class ClusterImpl implements Cluster {
 
     @Override
     public Collection<String> getMetadata() {
-      return cluster.metadata().entrySet().stream()
-          .map(e -> e.getKey() + ":" + e.getValue())
-          .collect(Collectors.toCollection(ArrayList::new));
+      // todo
+      return Collections.emptyList();
     }
   }
 }

@@ -6,9 +6,8 @@ import io.scalecube.cluster.Member;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.Transport;
+import java.nio.ByteBuffer;
 import java.time.Duration;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -37,7 +36,7 @@ public class MetadataStoreImpl implements MetadataStore {
 
   // State
 
-  private final Map<Member, Map<String, String>> membersMetadata = new ConcurrentHashMap<>();
+  private final Map<Member, ByteBuffer> membersMetadata = new ConcurrentHashMap<>();
 
   // Scheduler
 
@@ -60,7 +59,7 @@ public class MetadataStoreImpl implements MetadataStore {
   public MetadataStoreImpl(
       Member localMember,
       Transport transport,
-      Map<String, String> metadata,
+      ByteBuffer metadata,
       ClusterConfig config,
       Scheduler scheduler,
       CorrelationIdGenerator cidGenerator) {
@@ -93,51 +92,49 @@ public class MetadataStoreImpl implements MetadataStore {
   }
 
   @Override
-  public Map<String, String> metadata() {
+  public ByteBuffer metadata() {
     return metadata(localMember);
   }
 
   @Override
-  public Map<String, String> metadata(Member member) {
+  public ByteBuffer metadata(Member member) {
     return membersMetadata.get(member);
   }
 
   @Override
-  public Map<String, String> updateMetadata(Map<String, String> metadata) {
+  public ByteBuffer updateMetadata(ByteBuffer metadata) {
     return updateMetadata(localMember, metadata);
   }
 
   @Override
-  public Map<String, String> updateMetadata(Member member, Map<String, String> metadata) {
-    Map<String, String> memberMetadata =
-        Collections.unmodifiableMap(new HashMap<>(Objects.requireNonNull(metadata)));
-    Map<String, String> result = membersMetadata.put(member, memberMetadata);
+  public ByteBuffer updateMetadata(Member member, ByteBuffer metadata) {
+    ByteBuffer result = membersMetadata.put(member, Objects.requireNonNull(metadata));
 
     if (localMember.equals(member)) {
       // added
       if (result == null) {
-        LOGGER.debug("Added metadata: {} for local member {}", memberMetadata, localMember);
+        LOGGER.debug("Added metadata: {} for local member {}", metadata.capacity(), localMember);
       } else {
-        LOGGER.debug("Updated metadata: {} for local member {}", memberMetadata, localMember);
+        LOGGER.debug("Updated metadata: {} for local member {}", metadata.capacity(), localMember);
       }
     } else {
       // updated
       if (result == null) {
-        LOGGER.debug("Added metadata: {} for member {}", memberMetadata, member);
+        LOGGER.debug("Added metadata: {} for member {}", metadata.capacity(), member);
       } else {
-        LOGGER.debug("Updated metadata: {} for member {}", memberMetadata, member);
+        LOGGER.debug("Updated metadata: {} for member {}", metadata.capacity(), member);
       }
     }
     return result;
   }
 
   @Override
-  public Map<String, String> removeMetadata(Member member) {
+  public ByteBuffer removeMetadata(Member member) {
     if (localMember.equals(member)) {
       throw new IllegalArgumentException("removeMetadata must not accept local member");
     }
     // remove
-    Map<String, String> metadata = membersMetadata.remove(member);
+    ByteBuffer metadata = membersMetadata.remove(member);
     if (metadata != null) {
       LOGGER.debug("Removed metadata for member {}", member);
       return metadata;
@@ -146,7 +143,7 @@ public class MetadataStoreImpl implements MetadataStore {
   }
 
   @Override
-  public Mono<Map<String, String>> fetchMetadata(Member member) {
+  public Mono<ByteBuffer> fetchMetadata(Member member) {
     return Mono.create(
         sink -> {
           LOGGER.debug("Getting metadata for member {}", member);
@@ -170,7 +167,7 @@ public class MetadataStoreImpl implements MetadataStore {
                   response -> {
                     LOGGER.debug("Received GetMetadataResp[{}] from {}", cid, targetAddress);
                     GetMetadataResponse respData = response.data();
-                    Map<String, String> metadata = respData.getMetadata();
+                    ByteBuffer metadata = respData.getMetadata();
                     sink.success(metadata);
                   },
                   th -> {

@@ -6,12 +6,11 @@ import io.scalecube.cluster.membership.MembershipConfig;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.MessageCodec;
 import io.scalecube.transport.TransportConfig;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Cluster configuration encapsulate settings needed cluster to create and successfully join.
@@ -60,7 +59,7 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
   public static final Integer DEFAULT_MEMBER_PORT = null;
 
   private final List<Address> seedMembers;
-  private final Map<String, String> metadata;
+  private final ByteBuffer metadata;
   private final int syncInterval;
   private final int syncTimeout;
   private final int suspicionMult;
@@ -81,7 +80,7 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
 
   private ClusterConfig(Builder builder) {
     this.seedMembers = Collections.unmodifiableList(builder.seedMembers);
-    this.metadata = Collections.unmodifiableMap(builder.metadata);
+    this.metadata = builder.metadata;
     this.syncInterval = builder.syncInterval;
     this.syncTimeout = builder.syncTimeout;
     this.syncGroup = builder.syncGroup;
@@ -169,7 +168,7 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
     return seedMembers;
   }
 
-  public Map<String, String> getMetadata() {
+  public ByteBuffer getMetadata() {
     return metadata;
   }
 
@@ -268,13 +267,13 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
   }
 
   private String metadataAsString() {
-    return metadata.isEmpty() ? "[]" : "metadata@" + Integer.toHexString(metadata.hashCode());
+    return metadata == null ? "null" : String.valueOf(metadata.capacity());
   }
 
   public static final class Builder {
 
     private List<Address> seedMembers = Collections.emptyList();
-    private Map<String, String> metadata = new HashMap<>();
+    private ByteBuffer metadata = null;
     private int syncInterval = DEFAULT_SYNC_INTERVAL;
     private int syncTimeout = DEFAULT_SYNC_TIMEOUT;
     private String syncGroup = DEFAULT_SYNC_GROUP;
@@ -296,18 +295,8 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
 
     private Builder() {}
 
-    public Builder metadata(Map<String, String> metadata) {
-      this.metadata = new HashMap<>(metadata);
-      return this;
-    }
-
-    public Builder addMetadata(String key, String value) {
-      this.metadata.put(key, value);
-      return this;
-    }
-
-    public Builder addMetadata(Map<String, String> metadata) {
-      this.metadata.putAll(metadata);
+    public Builder metadata(ByteBuffer metadata) {
+      this.metadata = metadata;
       return this;
     }
 
