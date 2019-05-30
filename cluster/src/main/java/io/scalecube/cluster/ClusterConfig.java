@@ -272,8 +272,10 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
 
   public static final class Builder {
 
+    public static final ByteBuffer EMPTY = ByteBuffer.wrap(new byte[0]);
+
     private List<Address> seedMembers = Collections.emptyList();
-    private ByteBuffer metadata = null;
+    private ByteBuffer metadata = EMPTY;
     private int syncInterval = DEFAULT_SYNC_INTERVAL;
     private int syncTimeout = DEFAULT_SYNC_TIMEOUT;
     private String syncGroup = DEFAULT_SYNC_GROUP;

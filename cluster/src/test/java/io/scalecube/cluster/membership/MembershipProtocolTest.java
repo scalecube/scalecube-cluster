@@ -17,6 +17,7 @@ import io.scalecube.transport.NetworkEmulator;
 import io.scalecube.transport.Transport;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -40,6 +41,8 @@ import reactor.core.scheduler.Schedulers;
 public class MembershipProtocolTest extends BaseTest {
 
   public static final Duration TIMEOUT = Duration.ofSeconds(10);
+
+  private static final ByteBuffer EMPTY_BUFFER = ByteBuffer.wrap(new byte[0]);
 
   public static final int TEST_SYNC_INTERVAL = 500;
   public static final int PING_INTERVAL = 200;
@@ -870,7 +873,7 @@ public class MembershipProtocolTest extends BaseTest {
 
     MetadataStoreImpl metadataStore =
         new MetadataStoreImpl(
-            localMember, transport, Collections.emptyMap(), config, scheduler, cidGenerator);
+            localMember, transport, EMPTY_BUFFER, config, scheduler, cidGenerator);
 
     MembershipProtocolImpl membership =
         new MembershipProtocolImpl(

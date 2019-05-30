@@ -14,6 +14,7 @@ import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Transport;
 import io.scalecube.transport.TransportConfig;
+import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -33,6 +34,8 @@ import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
 public class FailureDetectorTest extends BaseTest {
+
+  private static final ByteBuffer EMPTY_BUFFER = ByteBuffer.wrap(new byte[0]);
 
   private Scheduler scheduler;
 
@@ -420,7 +423,7 @@ public class FailureDetectorTest extends BaseTest {
         Flux.fromIterable(addresses)
             .filter(address -> !transport.address().equals(address))
             .map(address -> new Member("member-" + address.port(), address))
-            .map(member -> MembershipEvent.createAdded(member, Collections.emptyMap()));
+            .map(member -> MembershipEvent.createAdded(member, EMPTY_BUFFER));
 
     CorrelationIdGenerator cidGenerator = new CorrelationIdGenerator(localMember.id());
 

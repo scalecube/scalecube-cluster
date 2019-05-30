@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipEvent.Type;
+import io.scalecube.cluster.metadata.MapJacksonMetadataCodec;
+import io.scalecube.cluster.metadata.MetadataCodec;
 import io.scalecube.transport.Address;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -28,6 +30,9 @@ import reactor.core.publisher.ReplayProcessor;
 public class ClusterTest extends BaseTest {
 
   public static final Duration TIMEOUT = Duration.ofSeconds(30);
+
+  public static final MetadataCodec<Map<String, String>> METADATA_CODEC =
+      new MapJacksonMetadataCodec();
 
   @Test
   public void testMembersAccessFromScheduler() {
@@ -127,7 +132,11 @@ public class ClusterTest extends BaseTest {
       metadata.put("key2", "value2");
       metadataNode =
           new ClusterImpl()
-              .config(options -> options.seedMembers(seedNode.address()).metadata(metadata))
+              .config(
+                  options ->
+                      options
+                          .seedMembers(seedNode.address())
+                          .metadata(METADATA_CODEC.serialize(metadata)))
               .startAwait();
 
       // Start other test members
@@ -158,19 +167,19 @@ public class ClusterTest extends BaseTest {
         Optional<Member> memberOptional = node.member(metadataNode.member().id());
         assertTrue(memberOptional.isPresent());
         Member member = memberOptional.get();
-        assertEquals(metadata, node.metadata(member));
+        assertEquals(metadata, node.metadata(member, METADATA_CODEC));
       }
 
       // Update metadata
       Map<String, String> updatedMetadata = Collections.singletonMap("key1", "value3");
-      metadataNode.updateMetadata(updatedMetadata).block(TIMEOUT);
+      metadataNode.updateMetadata(METADATA_CODEC.serialize(updatedMetadata)).block(TIMEOUT);
 
       // Check all nodes had updated metadata member
       for (Cluster node : otherNodes) {
         Optional<Member> memberOptional = node.member(metadataNode.member().id());
         assertTrue(memberOptional.isPresent());
         Member member = memberOptional.get();
-        assertEquals(updatedMetadata, node.metadata(member));
+        assertEquals(updatedMetadata, node.metadata(member, METADATA_CODEC));
       }
     } finally {
       // Shutdown all nodes
@@ -199,7 +208,11 @@ public class ClusterTest extends BaseTest {
       metadata.put("key2", "value2");
       metadataNode =
           new ClusterImpl()
-              .config(options -> options.seedMembers(seedNode.address()).metadata(metadata))
+              .config(
+                  options ->
+                      options
+                          .seedMembers(seedNode.address())
+                          .metadata(METADATA_CODEC.serialize(metadata)))
               .startAwait();
 
       // Start other test members
@@ -230,18 +243,20 @@ public class ClusterTest extends BaseTest {
         Optional<Member> memberOptional = node.member(metadataNode.member().id());
         assertTrue(memberOptional.isPresent());
         Member member = memberOptional.get();
-        assertEquals(metadata, node.metadata(member));
+        assertEquals(metadata, node.metadata(member, METADATA_CODEC));
       }
 
       // Update metadata
-      metadataNode.updateMetadataProperty("key2", "value3").block(TIMEOUT);
+      Map<String, String> newMetadata = new HashMap<>(metadata);
+      newMetadata.put("key2", "value3");
+      metadataNode.updateMetadata(METADATA_CODEC.serialize(newMetadata)).block(TIMEOUT);
 
       // Check all nodes had updated metadata member
       for (Cluster node : otherNodes) {
         Optional<Member> memberOptional = node.member(metadataNode.member().id());
         assertTrue(memberOptional.isPresent());
         Member member = memberOptional.get();
-        Map<String, String> actualMetadata = node.metadata(member);
+        Map<String, String> actualMetadata = node.metadata(member, METADATA_CODEC);
         assertEquals(2, actualMetadata.size());
         assertEquals("value1", actualMetadata.get("key1"));
         assertEquals("value3", actualMetadata.get("key2"));
@@ -273,7 +288,11 @@ public class ClusterTest extends BaseTest {
       metadata.put("key2", "value2");
       metadataNode =
           new ClusterImpl()
-              .config(options -> options.seedMembers(seedNode.address()).metadata(metadata))
+              .config(
+                  options ->
+                      options
+                          .seedMembers(seedNode.address())
+                          .metadata(METADATA_CODEC.serialize(metadata)))
               .startAwait();
 
       // Start other test members
@@ -304,18 +323,21 @@ public class ClusterTest extends BaseTest {
         Optional<Member> memberOptional = node.member(metadataNode.member().id());
         assertTrue(memberOptional.isPresent());
         Member member = memberOptional.get();
-        assertEquals(metadata, node.metadata(member));
+        assertEquals(metadata, node.metadata(member, METADATA_CODEC));
       }
 
       // Update metadata
-      metadataNode.removeMetadataProperty("key2").block(TIMEOUT);
+
+      Map<String, String> newMetadata = new HashMap<>(metadata);
+      newMetadata.remove("key2");
+      metadataNode.updateMetadata(METADATA_CODEC.serialize(newMetadata)).block(TIMEOUT);
 
       // Check all nodes had updated metadata member
       for (Cluster node : otherNodes) {
         Optional<Member> memberOptional = node.member(metadataNode.member().id());
         assertTrue(memberOptional.isPresent());
         Member member = memberOptional.get();
-        Map<String, String> actualMetadata = node.metadata(member);
+        Map<String, String> actualMetadata = node.metadata(member, METADATA_CODEC);
         assertEquals(1, actualMetadata.size());
         assertEquals("value1", actualMetadata.get("key1"));
         assertNull(actualMetadata.get("key2"));
@@ -380,7 +402,7 @@ public class ClusterTest extends BaseTest {
     seedMetadata.put("seed", "shmid");
     final Cluster seedNode =
         new ClusterImpl()
-            .config(options -> options.metadata(seedMetadata))
+            .config(options -> options.metadata(METADATA_CODEC.serialize(seedMetadata)))
             .handler(
                 cluster ->
                     new ClusterMessageHandler() {
@@ -398,7 +420,11 @@ public class ClusterTest extends BaseTest {
     ReplayProcessor<MembershipEvent> node1Events = ReplayProcessor.create();
     final Cluster node1 =
         new ClusterImpl()
-            .config(options -> options.seedMembers(seedNode.address()).metadata(node1Metadata))
+            .config(
+                options ->
+                    options
+                        .seedMembers(seedNode.address())
+                        .metadata(METADATA_CODEC.serialize(node1Metadata)))
             .handler(
                 cluster ->
                     new ClusterMessageHandler() {
@@ -417,8 +443,8 @@ public class ClusterTest extends BaseTest {
     assertEquals(Type.ADDED, seedAddedEvent.type());
 
     // Check metadata
-    assertEquals(node1Metadata, seedNode.metadata(node1.member()));
-    assertEquals(seedMetadata, node1.metadata(seedNode.member()));
+    assertEquals(node1Metadata, seedNode.metadata(node1.member(), METADATA_CODEC));
+    assertEquals(seedMetadata, node1.metadata(seedNode.member(), METADATA_CODEC));
 
     // Remove node1 from cluster
     CountDownLatch latch = new CountDownLatch(1);
@@ -427,7 +453,7 @@ public class ClusterTest extends BaseTest {
         .filter(MembershipEvent::isRemoved)
         .subscribe(
             event -> {
-              removedMetadata.set(event.oldMetadata());
+              removedMetadata.set(METADATA_CODEC.deserialize(event.oldMetadata()));
               latch.countDown();
             });
 
