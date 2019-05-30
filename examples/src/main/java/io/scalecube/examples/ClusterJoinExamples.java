@@ -2,6 +2,7 @@ package io.scalecube.examples;
 
 import static java.util.stream.Collectors.joining;
 
+import io.scalecube.SimpleMapMetadataCodec;
 import io.scalecube.cluster.Cluster;
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterImpl;
@@ -29,7 +30,11 @@ public class ClusterJoinExamples {
     Map<String, String> metadata = Collections.singletonMap("name", "Carol");
     Cluster carol =
         new ClusterImpl()
-            .config(options -> options.seedMembers(alice.address()).metadata(metadata))
+            .config(
+                options ->
+                    options
+                        .seedMembers(alice.address())
+                        .metadata(SimpleMapMetadataCodec.INSTANCE.serialize(metadata)))
             .startAwait();
 
     // Start Dan on port 3000

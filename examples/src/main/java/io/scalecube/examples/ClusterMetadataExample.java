@@ -1,5 +1,6 @@
 package io.scalecube.examples;
 
+import io.scalecube.SimpleMapMetadataCodec;
 import io.scalecube.cluster.Cluster;
 import io.scalecube.cluster.ClusterImpl;
 import io.scalecube.cluster.ClusterMessageHandler;
@@ -32,7 +33,9 @@ public class ClusterMetadataExample {
                 options ->
                     options
                         .seedMembers(alice.address())
-                        .metadata(Collections.singletonMap("name", "Joe")))
+                        .metadata(
+                            SimpleMapMetadataCodec.INSTANCE.serialize(
+                                Collections.singletonMap("name", "Joe"))))
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {
@@ -47,7 +50,11 @@ public class ClusterMetadataExample {
     // Scan the list of members in the cluster and find Joe there
     Optional<Member> joeMemberOptional =
         alice.otherMembers().stream()
-            .filter(member -> "Joe".equals(alice.metadata(member).get("name")))
+            .filter(
+                member ->
+                    "Joe"
+                        .equals(
+                            alice.metadata(member, SimpleMapMetadataCodec.INSTANCE).get("name")))
             .findAny();
 
     System.err.println("### joeMemberOptional: " + joeMemberOptional);
