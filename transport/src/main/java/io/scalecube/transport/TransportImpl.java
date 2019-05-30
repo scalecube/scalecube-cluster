@@ -238,6 +238,8 @@ final class TransportImpl implements Transport {
     try (ByteBufInputStream stream = new ByteBufInputStream(byteBuf, true)) {
       return messageCodec.deserialize(stream);
     } catch (Exception e) {
+      LOGGER.warn(
+          "Message codec exception occurred at converting bytes to message: " + e.toString());
       throw new DecoderException(e);
     }
   }
@@ -269,6 +271,8 @@ final class TransportImpl implements Transport {
       messageCodec.serialize(message, stream);
     } catch (Exception e) {
       bb.release();
+      LOGGER.warn(
+          "Message codec exception occurred at converting message to bytes: " + e.toString());
       throw new EncoderException(e);
     }
     return bb;
