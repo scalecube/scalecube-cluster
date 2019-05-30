@@ -251,8 +251,6 @@ final class TransportImpl implements Transport {
   }
 
   private Mono<? extends Void> send0(Connection conn, Message message, Address address) {
-    // check sender not null
-    Objects.requireNonNull(message.sender(), "sender must be not null");
     // do send
     return conn.outbound()
         .options(SendOptions::flushOnEach)

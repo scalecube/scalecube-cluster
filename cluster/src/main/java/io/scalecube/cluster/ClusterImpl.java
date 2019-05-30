@@ -166,8 +166,8 @@ public final class ClusterImpl implements Cluster {
     return Transport.bind(config.getTransportConfig())
         .flatMap(
             transport1 -> {
-              transport = transport1;
-              localMember = createLocalMember(transport.address().port());
+              localMember = createLocalMember(transport1.address().port());
+              transport = new DecoratedTransport(transport1, localMember.address());
 
               cidGenerator = new CorrelationIdGenerator(localMember.id());
               scheduler = Schedulers.newSingle("sc-cluster-" + localMember.address().port(), true);
@@ -479,6 +479,52 @@ public final class ClusterImpl implements Cluster {
       return cluster.metadata().entrySet().stream()
           .map(e -> e.getKey() + ":" + e.getValue())
           .collect(Collectors.toCollection(ArrayList::new));
+    }
+  }
+
+  private static class DecoratedTransport implements Transport {
+
+    private final Transport transport;
+    private final Address sender;
+
+    private DecoratedTransport(Transport transport, Address sender) {
+      this.transport = transport;
+      this.sender = sender;
+    }
+
+    @Override
+    public Address address() {
+      return transport.address();
+    }
+
+    @Override
+    public Mono<Void> stop() {
+      return transport.stop();
+    }
+
+    @Override
+    public boolean isStopped() {
+      return transport.isStopped();
+    }
+
+    @Override
+    public Mono<Void> send(Address address, Message message) {
+      return transport.send(address, Message.with(message).sender(sender).build());
+    }
+
+    @Override
+    public Mono<Message> requestResponse(Message request, Address address) {
+      return transport.requestResponse(Message.with(request).sender(sender).build(), address);
+    }
+
+    @Override
+    public Flux<Message> listen() {
+      return transport.listen();
+    }
+
+    @Override
+    public NetworkEmulator networkEmulator() {
+      return transport.networkEmulator();
     }
   }
 }
