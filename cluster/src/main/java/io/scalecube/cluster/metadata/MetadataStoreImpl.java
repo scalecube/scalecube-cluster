@@ -98,7 +98,8 @@ public class MetadataStoreImpl implements MetadataStore {
 
   @Override
   public ByteBuffer metadata(Member member) {
-    return membersMetadata.get(member);
+    ByteBuffer byteBuffer = membersMetadata.get(member);
+    return byteBuffer != null ? byteBuffer.slice() : null;
   }
 
   @Override
@@ -108,21 +109,22 @@ public class MetadataStoreImpl implements MetadataStore {
 
   @Override
   public ByteBuffer updateMetadata(Member member, ByteBuffer metadata) {
-    ByteBuffer result = membersMetadata.put(member, Objects.requireNonNull(metadata));
+    ByteBuffer value = Objects.requireNonNull(metadata).slice();
+    ByteBuffer result = membersMetadata.put(member, value);
 
     if (localMember.equals(member)) {
       // added
       if (result == null) {
-        LOGGER.debug("Added metadata: {} for local member {}", metadata.capacity(), localMember);
+        LOGGER.debug("Added metadata: {} for local member {}", value.capacity(), localMember);
       } else {
-        LOGGER.debug("Updated metadata: {} for local member {}", metadata.capacity(), localMember);
+        LOGGER.debug("Updated metadata: {} for local member {}", value.capacity(), localMember);
       }
     } else {
       // updated
       if (result == null) {
-        LOGGER.debug("Added metadata: {} for member {}", metadata.capacity(), member);
+        LOGGER.debug("Added metadata: {} for member {}", value.capacity(), member);
       } else {
-        LOGGER.debug("Updated metadata: {} for member {}", metadata.capacity(), member);
+        LOGGER.debug("Updated metadata: {} for member {}", value.capacity(), member);
       }
     }
     return result;
