@@ -25,8 +25,8 @@ public final class MembershipEvent {
       Type type, Member member, ByteBuffer oldMetadata, ByteBuffer newMetadata) {
     this.type = type;
     this.member = member;
-    this.oldMetadata = oldMetadata;
-    this.newMetadata = newMetadata;
+    this.oldMetadata = oldMetadata != null ? oldMetadata.slice() : null;
+    this.newMetadata = newMetadata != null ? newMetadata.slice() : null;
   }
 
   /**
