@@ -515,7 +515,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
             if (r0 == null || r0.incarnation() < r1.incarnation()) {
               return metadataStore
                   .fetchMetadata(r1.member())
-                .log("###########  ")
                   .doOnError(
                       ex ->
                           LOGGER_MEMBERSHIP.debug(
