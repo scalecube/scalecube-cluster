@@ -277,7 +277,6 @@ public final class GossipProtocolImpl implements GossipProtocol {
     GossipRequest gossipRequest = new GossipRequest(gossip, localMember.id());
     return Message.withData(gossipRequest)
         .qualifier(GOSSIP_REQ)
-        .sender(localMember.address())
         .build();
   }
 

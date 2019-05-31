@@ -56,7 +56,7 @@ public class ClusterMetadataExample {
     joeMemberOptional.ifPresent(
         member ->
             alice
-                .send(member, Message.withData("Hello Joe").sender(alice.address()).build())
+                .send(member, Message.withData("Hello Joe").build())
                 .subscribe(
                     null,
                     ex -> {

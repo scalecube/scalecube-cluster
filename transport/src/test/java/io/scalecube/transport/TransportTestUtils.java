@@ -30,7 +30,10 @@ public final class TransportTestUtils {
             .useNetworkEmulator(true)
             .maxFrameLength(DEFAULT_MAX_FRAME_LENGTH)
             .build();
-    return Transport.bindAwait(config);
+
+    Transport transport = Transport.bindAwait(config);
+
+    return new SenderAwareTransport(transport);
   }
 
   /**
@@ -51,20 +54,20 @@ public final class TransportTestUtils {
   /**
    * Sending message from src to destination.
    *
-   * @param from src
+   * @param transport src
    * @param to destination
    * @param msg request
    */
-  public static Mono<Void> send(final Transport from, final Address to, final Message msg) {
-    Message message = Message.with(msg).sender(from.address()).build();
-    return from.send(to, message)
+  public static Mono<Void> send(Transport transport, Address to, Message msg) {
+    return transport
+        .send(to, msg)
         .doOnError(
             th ->
                 LOGGER.error(
                     "Failed to send {} to {} from transport: {}, cause: {}",
-                    message,
+                    msg,
                     to,
-                    from,
+                    transport,
                     th.toString()));
   }
 }

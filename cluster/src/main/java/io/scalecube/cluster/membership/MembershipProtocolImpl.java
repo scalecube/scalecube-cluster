@@ -455,7 +455,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     return Message.withData(syncData)
         .qualifier(qualifier)
         .correlationId(cid)
-        .sender(localMember.address())
         .build();
   }
 
