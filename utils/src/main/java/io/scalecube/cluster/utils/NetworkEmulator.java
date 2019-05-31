@@ -257,15 +257,6 @@ public final class NetworkEmulator {
   }
 
   /**
-   * Unblocks inbound messages to given destinations.
-   *
-   * @param destinations collection of target endpoints where to apply
-   */
-  public void unblockInbound(Address... destinations) {
-    unblockInbound(Arrays.asList(destinations));
-  }
-
-  /**
    * Blocks inbound messages to the given destinations.
    *
    * @param destinations collection of target endpoints where to apply
@@ -275,6 +266,15 @@ public final class NetworkEmulator {
       inboundSettings.put(destination, new InboundSettings(false));
     }
     LOGGER.debug("Blocked inbound from {} to {}", address, destinations);
+  }
+  
+  /**
+   * Unblocks inbound messages to given destinations.
+   *
+   * @param destinations collection of target endpoints where to apply
+   */
+  public void unblockInbound(Address... destinations) {
+    unblockInbound(Arrays.asList(destinations));
   }
 
   /**
