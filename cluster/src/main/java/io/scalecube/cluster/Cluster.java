@@ -1,10 +1,8 @@
 package io.scalecube.cluster;
 
-import io.scalecube.cluster.metadata.MetadataCodec;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.NetworkEmulator;
-import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Optional;
 import reactor.core.publisher.Mono;
@@ -74,7 +72,7 @@ public interface Cluster {
    *
    * @return local member metadata
    */
-  <T> T metadata(MetadataCodec<T> metadataCodec);
+  <T> T metadata();
 
   /**
    * Returns cluster member metadata by given member reference.
@@ -82,7 +80,7 @@ public interface Cluster {
    * @param member cluster member
    * @return cluster member metadata
    */
-  <T> T metadata(Member member, MetadataCodec<T> metadataCodec);
+  <T> T metadata(Member member);
 
   /**
    * Returns local cluster member which corresponds to this cluster instance.
@@ -130,7 +128,7 @@ public interface Cluster {
    *
    * @param metadata new metadata
    */
-  Mono<Void> updateMetadata(ByteBuffer metadata);
+  <T> Mono<Void> updateMetadata(T metadata);
 
   /**
    * Member notifies other members of the cluster about leaving and gracefully shutdown and free

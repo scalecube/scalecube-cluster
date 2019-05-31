@@ -194,7 +194,7 @@ public final class ClusterImpl implements Cluster {
                   new MetadataStoreImpl(
                       localMember,
                       transport,
-                      config.getMetadata(),
+                      config.getMetadataCodec().serialize(config.getMetadata()),
                       config,
                       scheduler,
                       cidGenerator);
@@ -318,12 +318,14 @@ public final class ClusterImpl implements Cluster {
   }
 
   @Override
-  public <T> T metadata(MetadataCodec<T> metadataCodec) {
+  public <T> T metadata() {
+    MetadataCodec<T> metadataCodec = config.getMetadataCodec();
     return metadataCodec.deserialize(metadataStore.metadata());
   }
 
   @Override
-  public <T> T metadata(Member member, MetadataCodec<T> metadataCodec) {
+  public <T> T metadata(Member member) {
+    MetadataCodec<T> metadataCodec = config.getMetadataCodec();
     return metadataCodec.deserialize(metadataStore.metadata(member));
   }
 
@@ -343,8 +345,9 @@ public final class ClusterImpl implements Cluster {
   }
 
   @Override
-  public Mono<Void> updateMetadata(ByteBuffer metadata) {
-    return Mono.fromRunnable(() -> metadataStore.updateMetadata(metadata))
+  public <T> Mono<Void> updateMetadata(T metadata) {
+    return Mono.fromRunnable(
+      () -> metadataStore.updateMetadata(config.<T>getMetadataCodec().serialize(metadata)))
         .then(membership.updateIncarnation())
         .subscribeOn(scheduler);
   }
@@ -450,21 +453,7 @@ public final class ClusterImpl implements Cluster {
 
     @Override
     public Collection<String> getMetadata() {
-
-      ByteBuffer metadata =
-          cluster.metadata(
-              new MetadataCodec<ByteBuffer>() {
-                @Override
-                public ByteBuffer deserialize(ByteBuffer buffer) {
-                  return buffer;
-                }
-
-                @Override
-                public ByteBuffer serialize(ByteBuffer metadata) {
-                  return metadata;
-                }
-              });
-
+      ByteBuffer metadata = cluster.metadataStore.metadata();
       return Collections.singleton(
           "metadata@"
               + Integer.toHexString(metadata.hashCode())

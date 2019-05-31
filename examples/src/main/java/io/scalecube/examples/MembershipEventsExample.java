@@ -28,9 +28,11 @@ public class MembershipEventsExample {
         new ClusterImpl()
             .config(
                 options ->
-                    options.metadata(
-                        SimpleMapMetadataCodec.INSTANCE.serialize(
-                            Collections.singletonMap("name", "Alice"))))
+                    options
+                        .metadataCodec(SimpleMapMetadataCodec.INSTANCE)
+                        .metadata(
+                            SimpleMapMetadataCodec.INSTANCE.serialize(
+                                Collections.singletonMap("name", "Alice"))))
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {
@@ -50,6 +52,7 @@ public class MembershipEventsExample {
                 options ->
                     options
                         .seedMembers(alice.address())
+                        .metadataCodec(SimpleMapMetadataCodec.INSTANCE)
                         .metadata(
                             SimpleMapMetadataCodec.INSTANCE.serialize(
                                 Collections.singletonMap("name", "Bob"))))
@@ -72,6 +75,7 @@ public class MembershipEventsExample {
                 options ->
                     options
                         .seedMembers(alice.address(), bob.address())
+                        .metadataCodec(SimpleMapMetadataCodec.INSTANCE)
                         .metadata(
                             SimpleMapMetadataCodec.INSTANCE.serialize(
                                 Collections.singletonMap("name", "Carol"))))

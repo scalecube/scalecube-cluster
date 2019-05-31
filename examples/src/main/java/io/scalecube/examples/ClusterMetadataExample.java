@@ -7,6 +7,7 @@ import io.scalecube.cluster.ClusterMessageHandler;
 import io.scalecube.cluster.Member;
 import io.scalecube.transport.Message;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -23,7 +24,10 @@ public class ClusterMetadataExample {
   /** Main method. */
   public static void main(String[] args) throws Exception {
     // Start seed cluster member Alice
-    Cluster alice = new ClusterImpl().startAwait();
+    Cluster alice =
+        new ClusterImpl()
+            .config(options -> options.metadataCodec(SimpleMapMetadataCodec.INSTANCE))
+            .startAwait();
 
     // Join Joe to cluster with metadata and listen for incoming messages and print them to stdout
     //noinspection unused
@@ -33,6 +37,7 @@ public class ClusterMetadataExample {
                 options ->
                     options
                         .seedMembers(alice.address())
+                        .metadataCodec(SimpleMapMetadataCodec.INSTANCE)
                         .metadata(
                             SimpleMapMetadataCodec.INSTANCE.serialize(
                                 Collections.singletonMap("name", "Joe"))))
@@ -51,10 +56,10 @@ public class ClusterMetadataExample {
     Optional<Member> joeMemberOptional =
         alice.otherMembers().stream()
             .filter(
-                member ->
-                    "Joe"
-                        .equals(
-                            alice.metadata(member, SimpleMapMetadataCodec.INSTANCE).get("name")))
+                member -> {
+                  Map<String, String> metadata = alice.metadata(member);
+                  return "Joe".equals(metadata.get("name"));
+                })
             .findAny();
 
     System.err.println("### joeMemberOptional: " + joeMemberOptional);

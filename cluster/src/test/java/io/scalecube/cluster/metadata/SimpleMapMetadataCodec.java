@@ -3,6 +3,7 @@ package io.scalecube.cluster.metadata;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.ByteBuffer;
+import java.util.Collections;
 import java.util.Map;
 import reactor.core.Exceptions;
 
@@ -17,6 +18,9 @@ public class SimpleMapMetadataCodec implements MetadataCodec<Map<String, String>
   @Override
   public Map<String, String> deserialize(ByteBuffer buffer) {
     try {
+      if (buffer.remaining() == 0) {
+        return Collections.emptyMap();
+      }
       return mapper.readValue(buffer.array(), TYPE);
     } catch (Exception e) {
       throw Exceptions.propagate(e);

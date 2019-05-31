@@ -30,6 +30,7 @@ public class NodeIthRunner {
         ClusterConfig.builder()
             .syncGroup("issue187")
             .seedMembers(address)
+            .metadataCodec(SimpleMapMetadataCodec.INSTANCE)
             .metadata(
                 SimpleMapMetadataCodec.INSTANCE.serialize(
                     Collections.singletonMap(

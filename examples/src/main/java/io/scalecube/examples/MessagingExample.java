@@ -1,5 +1,6 @@
 package io.scalecube.examples;
 
+import io.scalecube.SimpleMapMetadataCodec;
 import io.scalecube.cluster.Cluster;
 import io.scalecube.cluster.ClusterImpl;
 import io.scalecube.cluster.ClusterMessageHandler;
@@ -19,6 +20,7 @@ public class MessagingExample {
     // Start cluster node Alice to listen and respond for incoming greeting messages
     Cluster alice =
         new ClusterImpl()
+            .config(options -> options.metadataCodec(SimpleMapMetadataCodec.INSTANCE))
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {
@@ -37,7 +39,11 @@ public class MessagingExample {
     // messages
     Cluster bob =
         new ClusterImpl()
-            .config(options -> options.seedMembers(alice.address()))
+            .config(
+                options ->
+                    options
+                        .seedMembers(alice.address())
+                        .metadataCodec(SimpleMapMetadataCodec.INSTANCE))
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {
@@ -55,7 +61,11 @@ public class MessagingExample {
     // Join cluster node Carol to cluster with Alice and Bob
     Cluster carol =
         new ClusterImpl()
-            .config(options -> options.seedMembers(alice.address(), bob.address()))
+            .config(
+                options ->
+                    options
+                        .seedMembers(alice.address(), bob.address())
+                        .metadataCodec(SimpleMapMetadataCodec.INSTANCE))
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {

@@ -20,11 +20,20 @@ public class ClusterJoinExamples {
   /** Main method. */
   public static void main(String[] args) throws Exception {
     // Start seed member Alice
-    Cluster alice = new ClusterImpl().startAwait();
+    Cluster alice =
+        new ClusterImpl()
+            .config(options -> options.metadataCodec(SimpleMapMetadataCodec.INSTANCE))
+            .startAwait();
 
     // Join Bob to cluster with Alice
     Cluster bob =
-        new ClusterImpl().config(options -> options.seedMembers(alice.address())).startAwait();
+        new ClusterImpl()
+            .config(
+                options ->
+                    options
+                        .seedMembers(alice.address())
+                        .metadataCodec(SimpleMapMetadataCodec.INSTANCE))
+            .startAwait();
 
     // Join Carol to cluster with metadata
     Map<String, String> metadata = Collections.singletonMap("name", "Carol");
@@ -34,12 +43,17 @@ public class ClusterJoinExamples {
                 options ->
                     options
                         .seedMembers(alice.address())
-                        .metadata(SimpleMapMetadataCodec.INSTANCE.serialize(metadata)))
+                        .metadata(SimpleMapMetadataCodec.INSTANCE.serialize(metadata))
+                        .metadataCodec(SimpleMapMetadataCodec.INSTANCE))
             .startAwait();
 
     // Start Dan on port 3000
     ClusterConfig configWithFixedPort =
-        ClusterConfig.builder().seedMembers(alice.address()).port(3000).build();
+        ClusterConfig.builder()
+            .seedMembers(alice.address())
+            .port(3000)
+            .metadataCodec(SimpleMapMetadataCodec.INSTANCE)
+            .build();
     Cluster dan = new ClusterImpl(configWithFixedPort).startAwait();
 
     // Start Eve in separate cluster (separate sync group)
@@ -48,6 +62,7 @@ public class ClusterJoinExamples {
             .seedMembers(
                 alice.address(), bob.address(), carol.address(), dan.address()) // won't join anyway
             .syncGroup("another cluster")
+            .metadataCodec(SimpleMapMetadataCodec.INSTANCE)
             .build();
     Cluster eve = new ClusterImpl(configWithSyncGroup).startAwait();
 
