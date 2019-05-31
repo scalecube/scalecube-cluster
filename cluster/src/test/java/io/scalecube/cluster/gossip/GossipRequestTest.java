@@ -26,9 +26,8 @@ public class GossipRequestTest extends BaseTest {
   private TestData testData;
   private MessageCodec messageCodec;
 
-  /** Setup. */
   @BeforeEach
-  public void init() throws Throwable {
+  public void init() {
     Map<String, String> properties = new HashMap<>();
     properties.put("key", "123");
     testData = new TestData();

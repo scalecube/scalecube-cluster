@@ -22,13 +22,6 @@ public final class Message {
    */
   public static final String HEADER_CORRELATION_ID = "cid";
 
-  /**
-   * This is a system header which used by transport for serialization and deserialization purpose.
-   * It is not supposed to be used by application directly and it is subject to changes in future
-   * releases.
-   */
-  public static final String HEADER_DATA_TYPE = "_type";
-
   private Map<String, String> headers = Collections.emptyMap();
   private Object data;
   private Address sender;

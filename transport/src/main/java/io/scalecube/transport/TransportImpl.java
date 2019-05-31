@@ -238,6 +238,8 @@ final class TransportImpl implements Transport {
     try (ByteBufInputStream stream = new ByteBufInputStream(byteBuf, true)) {
       return messageCodec.deserialize(stream);
     } catch (Exception e) {
+      LOGGER.warn(
+          "Message codec exception occurred at converting bytes to message: " + e.toString());
       throw new DecoderException(e);
     }
   }
@@ -249,8 +251,6 @@ final class TransportImpl implements Transport {
   }
 
   private Mono<? extends Void> send0(Connection conn, Message message, Address address) {
-    // check sender not null
-    Objects.requireNonNull(message.sender(), "sender must be not null");
     // do send
     return conn.outbound()
         .options(SendOptions::flushOnEach)
@@ -269,6 +269,8 @@ final class TransportImpl implements Transport {
       messageCodec.serialize(message, stream);
     } catch (Exception e) {
       bb.release();
+      LOGGER.warn(
+          "Message codec exception occurred at converting message to bytes: " + e.toString());
       throw new EncoderException(e);
     }
     return bb;
