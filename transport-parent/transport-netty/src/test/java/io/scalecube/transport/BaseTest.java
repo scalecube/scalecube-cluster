@@ -2,7 +2,6 @@ package io.scalecube.transport;
 
 import io.scalecube.cluster.transport.api.Address;
 import io.scalecube.cluster.transport.api.Message;
-import io.scalecube.cluster.transport.api.SenderAwareTransport;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.utils.NetworkEmulatorTransport;
 import io.scalecube.transport.netty.TransportImpl;
@@ -70,6 +69,6 @@ public class BaseTest {
    * @return tramsprot
    */
   protected NetworkEmulatorTransport createTransport() {
-    return new NetworkEmulatorTransport(new SenderAwareTransport(TransportImpl.bindAwait()));
+    return new NetworkEmulatorTransport(TransportImpl.bindAwait());
   }
 }

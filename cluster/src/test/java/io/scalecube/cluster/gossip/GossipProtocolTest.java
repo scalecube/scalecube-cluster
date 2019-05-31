@@ -16,7 +16,6 @@ import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.transport.api.Address;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
-import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.cluster.utils.NetworkEmulatorTransport;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -243,9 +242,8 @@ class GossipProtocolTest extends BaseTest {
 
   private List<Transport> initTransports(int count, int lostPercent, int meanDelay) {
     List<Transport> transports = new ArrayList<>(count);
-    TransportConfig transportConfig = TransportConfig.builder().build();
     for (int i = 0; i < count; i++) {
-      NetworkEmulatorTransport transport = createTransport(transportConfig);
+      NetworkEmulatorTransport transport = createTransport();
       transport.networkEmulator().setDefaultOutboundSettings(lostPercent, meanDelay);
       transports.add(transport);
     }

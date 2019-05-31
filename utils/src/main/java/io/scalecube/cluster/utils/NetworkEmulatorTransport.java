@@ -44,7 +44,7 @@ public final class NetworkEmulatorTransport implements Transport {
   public Mono<Void> send(Address address, Message message) {
     return Mono.defer(
         () ->
-            Mono.just(message)
+            Mono.just(enhanceWithSender(message))
                 .flatMap(msg -> networkEmulator.tryFailOutbound(msg, address))
                 .flatMap(msg -> networkEmulator.tryDelayOutbound(msg, address))
                 .flatMap(msg -> transport.send(address, msg)));
@@ -54,10 +54,19 @@ public final class NetworkEmulatorTransport implements Transport {
   public Mono<Message> requestResponse(Address address, Message request) {
     return Mono.defer(
         () ->
-            Mono.just(request)
+            Mono.just(enhanceWithSender(request))
                 .flatMap(msg -> networkEmulator.tryFailOutbound(msg, address))
                 .flatMap(msg -> networkEmulator.tryDelayOutbound(msg, address))
-                .flatMap(msg -> transport.requestResponse(address, msg)));
+                .flatMap(
+                    msg ->
+                        transport
+                            .requestResponse(address, msg)
+                            .flatMap(
+                                message -> {
+                                  boolean shallPass =
+                                      networkEmulator.inboundSettings(message.sender()).shallPass();
+                                  return shallPass ? Mono.just(message) : Mono.never();
+                                })));
   }
 
   @Override
@@ -66,5 +75,9 @@ public final class NetworkEmulatorTransport implements Transport {
         .listen()
         .filter(message -> networkEmulator.inboundSettings(message.sender()).shallPass())
         .onBackpressureBuffer();
+  }
+
+  private Message enhanceWithSender(Message message) {
+    return Message.with(message).sender(transport.address()).build();
   }
 }

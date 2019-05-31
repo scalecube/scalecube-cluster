@@ -3,7 +3,6 @@ package io.scalecube.cluster;
 import static io.scalecube.cluster.ClusterConfig.DEFAULT_SUSPICION_MULT;
 
 import io.scalecube.cluster.membership.MembershipProtocolTest;
-import io.scalecube.cluster.transport.api.SenderAwareTransport;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.cluster.utils.NetworkEmulatorTransport;
@@ -50,12 +49,11 @@ public class BaseTest {
   }
 
   protected NetworkEmulatorTransport createTransport() {
-    return createTransport(TransportConfig.defaultConfig());
+    return new NetworkEmulatorTransport(TransportImpl.bindAwait());
   }
 
   protected NetworkEmulatorTransport createTransport(TransportConfig transportConfig) {
-    return new NetworkEmulatorTransport(
-        new SenderAwareTransport(TransportImpl.bindAwait(transportConfig)));
+    return new NetworkEmulatorTransport(TransportImpl.bindAwait(transportConfig));
   }
 
   protected void destroyTransport(Transport transport) {

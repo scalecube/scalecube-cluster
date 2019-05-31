@@ -85,7 +85,16 @@ public final class NetworkEmulator {
 
   /** Blocks outbound messages to all destinations. */
   public void blockAllOutbound() {
+    outboundSettings.clear();
     setDefaultOutboundSettings(100, 0);
+    LOGGER.debug("Blocked outbound from {} to all destinations", address);
+  }
+
+  /** Unblocks outbound messages to all destinations. */
+  public void unblockAllOutbound() {
+    outboundSettings.clear();
+    setDefaultOutboundSettings(0, 0);
+    LOGGER.debug("Unblocked outbound from {} to all destinations", address);
   }
 
   /**
@@ -95,6 +104,15 @@ public final class NetworkEmulator {
    */
   public void blockOutbound(Address... destinations) {
     blockOutbound(Arrays.asList(destinations));
+  }
+
+  /**
+   * Unblocks outbound messages to given destinations.
+   *
+   * @param destinations collection of target endpoints where to apply
+   */
+  public void unblockOutbound(Address... destinations) {
+    unblockOutbound(Arrays.asList(destinations));
   }
 
   /**
@@ -114,25 +132,9 @@ public final class NetworkEmulator {
    *
    * @param destinations collection of target endpoints where to apply
    */
-  public void unblockOutbound(Address... destinations) {
-    unblockOutbound(Arrays.asList(destinations));
-  }
-
-  /**
-   * Unblocks outbound messages to given destinations.
-   *
-   * @param destinations collection of target endpoints where to apply
-   */
   public void unblockOutbound(Collection<Address> destinations) {
     destinations.forEach(outboundSettings::remove);
     LOGGER.debug("Unblocked outbound from {} to {}", address, destinations);
-  }
-
-  /** Unblocks outbound messages to all destinations. */
-  public void unblockAllOutbound() {
-    outboundSettings.clear();
-    setDefaultOutboundSettings(0, 0);
-    LOGGER.debug("Unblocked outbound from {} to all destinations", address);
   }
 
   /**
@@ -233,7 +235,16 @@ public final class NetworkEmulator {
 
   /** Blocks inbound messages from all destinations. */
   public void blockAllInbound() {
+    inboundSettings.clear();
     setDefaultInboundSettings(false);
+    LOGGER.debug("Blocked inbound from {} to all destinations", address);
+  }
+
+  /** Unblocks inbound messages to all destinations. */
+  public void unblockAllInbound() {
+    inboundSettings.clear();
+    setDefaultInboundSettings(true);
+    LOGGER.debug("Unblocked inbound from {} to all destinations", address);
   }
 
   /**
@@ -243,6 +254,15 @@ public final class NetworkEmulator {
    */
   public void blockInbound(Address... destinations) {
     blockInbound(Arrays.asList(destinations));
+  }
+
+  /**
+   * Unblocks inbound messages to given destinations.
+   *
+   * @param destinations collection of target endpoints where to apply
+   */
+  public void unblockInbound(Address... destinations) {
+    unblockInbound(Arrays.asList(destinations));
   }
 
   /**
@@ -262,25 +282,9 @@ public final class NetworkEmulator {
    *
    * @param destinations collection of target endpoints where to apply
    */
-  public void unblockInbound(Address... destinations) {
-    unblockInbound(Arrays.asList(destinations));
-  }
-
-  /**
-   * Unblocks inbound messages to given destinations.
-   *
-   * @param destinations collection of target endpoints where to apply
-   */
   public void unblockInbound(Collection<Address> destinations) {
     destinations.forEach(inboundSettings::remove);
     LOGGER.debug("Unblocked inbound from {} to {}", address, destinations);
-  }
-
-  /** Unblocks inbound messages to all destinations. */
-  public void unblockAllInbound() {
-    inboundSettings.clear();
-    setDefaultInboundSettings(true);
-    LOGGER.debug("Unblocked inbound from {} to all destinations", address);
   }
 
   /**
