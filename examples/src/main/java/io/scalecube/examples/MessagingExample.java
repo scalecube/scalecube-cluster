@@ -70,7 +70,6 @@ public class MessagingExample {
     // Send from Carol greeting message to all other cluster members (which is Alice and Bob)
     Message greetingMsg = Message.fromData("Greetings from Carol");
 
-    // todo NPE
     Flux.fromIterable(carol.otherMembers())
         .flatMap(member -> carol.send(member, greetingMsg))
         .subscribe(null, Throwable::printStackTrace);
