@@ -1,6 +1,6 @@
 package io.scalecube.cluster.gossip;
 
-import io.scalecube.transport.Message;
+import io.scalecube.cluster.transport.api.Message;
 import java.util.Objects;
 
 /** Data model for gossip, include gossip id, qualifier and object need to disseminate. */

@@ -1,7 +1,7 @@
 package io.scalecube.cluster;
 
 import io.scalecube.cluster.membership.MembershipEvent;
-import io.scalecube.transport.Message;
+import io.scalecube.cluster.transport.api.Message;
 
 public interface ClusterMessageHandler {
 

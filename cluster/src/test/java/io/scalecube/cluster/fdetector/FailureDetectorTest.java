@@ -9,12 +9,12 @@ import io.scalecube.cluster.BaseTest;
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.CorrelationIdGenerator;
 import io.scalecube.cluster.Member;
-import io.scalecube.cluster.NetworkEmulatorTransport;
 import io.scalecube.cluster.membership.MemberStatus;
 import io.scalecube.cluster.membership.MembershipEvent;
-import io.scalecube.transport.Address;
-import io.scalecube.transport.Transport;
-import io.scalecube.transport.TransportConfig;
+import io.scalecube.cluster.transport.api.Address;
+import io.scalecube.cluster.transport.api.Transport;
+import io.scalecube.cluster.transport.api.TransportConfig;
+import io.scalecube.cluster.utils.NetworkEmulatorTransport;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -115,7 +115,7 @@ public class FailureDetectorTest extends BaseTest {
   }
 
   @Test
-  public void testTrustedDespiteBadNetwork() throws Exception {
+  public void testTrustedDespiteBadNetwork() {
     // Create transports
     NetworkEmulatorTransport a = createTransport();
     NetworkEmulatorTransport b = createTransport();
@@ -147,7 +147,7 @@ public class FailureDetectorTest extends BaseTest {
   }
 
   @Test
-  public void testTrustedDespiteDifferentPingTimings() throws Exception {
+  public void testTrustedDespiteDifferentPingTimings() {
     // Create transports
     Transport a = createTransport();
     Transport b = createTransport();

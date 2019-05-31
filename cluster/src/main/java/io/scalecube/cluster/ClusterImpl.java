@@ -6,10 +6,11 @@ import io.scalecube.cluster.membership.IdGenerator;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipProtocolImpl;
 import io.scalecube.cluster.metadata.MetadataStoreImpl;
-import io.scalecube.transport.Address;
-import io.scalecube.transport.Message;
-import io.scalecube.transport.SenderAwareTransport;
-import io.scalecube.transport.Transport;
+import io.scalecube.cluster.transport.api.Address;
+import io.scalecube.cluster.transport.api.Message;
+import io.scalecube.cluster.transport.api.SenderAwareTransport;
+import io.scalecube.cluster.transport.api.Transport;
+import io.scalecube.transport.netty.TransportImpl;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -163,7 +164,7 @@ public final class ClusterImpl implements Cluster {
   }
 
   private Mono<Cluster> doStart() {
-    return Transport.bind(config.getTransportConfig())
+    return TransportImpl.bind(config.getTransportConfig())
         .flatMap(
             transport1 -> {
               localMember = createLocalMember(transport1.address().port());

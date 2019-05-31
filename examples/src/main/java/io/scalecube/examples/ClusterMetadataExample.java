@@ -4,7 +4,7 @@ import io.scalecube.cluster.Cluster;
 import io.scalecube.cluster.ClusterImpl;
 import io.scalecube.cluster.ClusterMessageHandler;
 import io.scalecube.cluster.Member;
-import io.scalecube.transport.Message;
+import io.scalecube.cluster.transport.api.Message;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;

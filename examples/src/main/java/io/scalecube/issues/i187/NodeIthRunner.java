@@ -3,7 +3,7 @@ package io.scalecube.issues.i187;
 import io.scalecube.cluster.Cluster;
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterImpl;
-import io.scalecube.transport.Address;
+import io.scalecube.cluster.transport.api.Address;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

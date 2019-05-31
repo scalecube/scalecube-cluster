@@ -3,7 +3,7 @@ package io.scalecube.examples;
 import io.scalecube.cluster.Cluster;
 import io.scalecube.cluster.ClusterImpl;
 import io.scalecube.cluster.ClusterMessageHandler;
-import io.scalecube.transport.Message;
+import io.scalecube.cluster.transport.api.Message;
 
 /**
  * Basic example for member gossiping between cluster members. to run the example Start ClusterNodeA
