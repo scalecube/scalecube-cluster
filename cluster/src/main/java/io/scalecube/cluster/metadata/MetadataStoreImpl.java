@@ -158,7 +158,6 @@ public class MetadataStoreImpl implements MetadataStore {
                   .qualifier(GET_METADATA_REQ)
                   .correlationId(cid)
                   .data(new GetMetadataRequest(member))
-                  .sender(localMember.address())
                   .build();
 
           transport
@@ -221,7 +220,6 @@ public class MetadataStoreImpl implements MetadataStore {
         Message.builder()
             .qualifier(GET_METADATA_RESP)
             .correlationId(message.correlationId())
-            .sender(localMember.address())
             .data(respData)
             .build();
 

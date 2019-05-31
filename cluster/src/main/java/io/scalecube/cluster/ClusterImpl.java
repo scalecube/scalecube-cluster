@@ -11,6 +11,7 @@ import io.scalecube.cluster.metadata.MetadataStoreImpl;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
 import io.scalecube.transport.NetworkEmulator;
+import io.scalecube.transport.SenderAwareTransport;
 import io.scalecube.transport.Transport;
 import java.lang.management.ManagementFactory;
 import java.nio.ByteBuffer;
@@ -166,8 +167,8 @@ public final class ClusterImpl implements Cluster {
     return Transport.bind(config.getTransportConfig())
         .flatMap(
             transport1 -> {
-              transport = transport1;
-              localMember = createLocalMember(transport.address().port());
+              localMember = createLocalMember(transport1.address().port());
+              transport = new SenderAwareTransport(transport1, localMember.address());
 
               cidGenerator = new CorrelationIdGenerator(localMember.id());
               scheduler = Schedulers.newSingle("sc-cluster-" + localMember.address().port(), true);
