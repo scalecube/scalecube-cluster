@@ -1,7 +1,5 @@
 package io.scalecube.transport;
 
-import static io.scalecube.transport.TransportTestUtils.createTransport;
-import static io.scalecube.transport.TransportTestUtils.destroyTransport;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.time.Duration;

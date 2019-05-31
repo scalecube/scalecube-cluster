@@ -14,7 +14,6 @@ import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Transport;
 import io.scalecube.transport.TransportConfig;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -51,9 +50,9 @@ public class FailureDetectorTest extends BaseTest {
   @Test
   public void testTrusted() {
     // Create transports
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
+    Transport a = createTransport();
+    Transport b = createTransport();
+    Transport c = createTransport();
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
 
     // Create failure detectors
@@ -80,9 +79,9 @@ public class FailureDetectorTest extends BaseTest {
   @Test
   public void testSuspected() {
     // Create transports
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
+    Transport a = createTransport();
+    Transport b = createTransport();
+    Transport c = createTransport();
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
 
     // Create failure detectors
@@ -117,9 +116,9 @@ public class FailureDetectorTest extends BaseTest {
   @Test
   public void testTrustedDespiteBadNetwork() throws Exception {
     // Create transports
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
+    Transport a = createTransport();
+    Transport b = createTransport();
+    Transport c = createTransport();
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
 
     // Create failure detectors
@@ -149,9 +148,9 @@ public class FailureDetectorTest extends BaseTest {
   @Test
   public void testTrustedDespiteDifferentPingTimings() throws Exception {
     // Create transports
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
+    Transport a = createTransport();
+    Transport b = createTransport();
+    Transport c = createTransport();
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
 
     // Create failure detectors
@@ -180,10 +179,10 @@ public class FailureDetectorTest extends BaseTest {
   @Test
   public void testSuspectedMemberWithBadNetworkGetsPartitioned() throws Exception {
     // Create transports
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
-    Transport d = Transport.bindAwait(true);
+    Transport a = createTransport();
+    Transport b = createTransport();
+    Transport c = createTransport();
+    Transport d = createTransport();
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address(), d.address());
 
     // Create failure detectors
@@ -239,10 +238,10 @@ public class FailureDetectorTest extends BaseTest {
   @Test
   public void testSuspectedMemberWithNormalNetworkGetsPartitioned() throws Exception {
     // Create transports
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
-    Transport d = Transport.bindAwait(true);
+    Transport a = createTransport();
+    Transport b = createTransport();
+    Transport c = createTransport();
+    Transport d = createTransport();
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address(), d.address());
 
     // Create failure detectors
@@ -302,8 +301,8 @@ public class FailureDetectorTest extends BaseTest {
   @Test
   public void testMemberStatusChangeAfterNetworkRecovery() throws Exception {
     // Create transports
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
+    Transport a = createTransport();
+    Transport b = createTransport();
     List<Address> members = Arrays.asList(a.address(), b.address());
 
     // Create failure detectors
@@ -344,9 +343,9 @@ public class FailureDetectorTest extends BaseTest {
   @Test
   public void testStatusChangeAfterMemberRestart() throws Exception {
     // Create transports
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport x = Transport.bindAwait(true);
+    Transport a = createTransport();
+    Transport b = createTransport();
+    Transport x = createTransport();
     List<Address> members = Arrays.asList(a.address(), b.address(), x.address());
 
     // Create failure detectors
@@ -376,8 +375,12 @@ public class FailureDetectorTest extends BaseTest {
 
       // restart node X as XX
       xx =
-          Transport.bindAwait(
-              TransportConfig.builder().port(x.address().port()).useNetworkEmulator(true).build());
+          createTransport(
+              TransportConfig //
+                  .builder()
+                  .port(x.address().port())
+                  .useNetworkEmulator(true)
+                  .build());
       assertEquals(x.address(), xx.address());
       fdetectors = Arrays.asList(fdA, fdB, fdXx = createFd(xx, members));
 
@@ -426,17 +429,6 @@ public class FailureDetectorTest extends BaseTest {
 
     return new FailureDetectorImpl(
         localMember, transport, membershipFlux, config, scheduler, cidGenerator);
-  }
-
-  private void destroyTransport(Transport transport) {
-    if (transport == null || transport.isStopped()) {
-      return;
-    }
-    try {
-      transport.stop().block(Duration.ofSeconds(1));
-    } catch (Exception ignore) {
-      // no-op
-    }
   }
 
   private void start(List<FailureDetectorImpl> fdetectors) {
@@ -507,7 +499,7 @@ public class FailureDetectorTest extends BaseTest {
 
   private <T> CompletableFuture<List<T>> allOf(List<CompletableFuture<T>> futuresList) {
     CompletableFuture<Void> allFuturesResult =
-        CompletableFuture.allOf(futuresList.toArray(new CompletableFuture[futuresList.size()]));
+        CompletableFuture.allOf(futuresList.toArray(new CompletableFuture[0]));
     return allFuturesResult.thenApply(
         v -> futuresList.stream().map(CompletableFuture::join).collect(Collectors.toList()));
   }

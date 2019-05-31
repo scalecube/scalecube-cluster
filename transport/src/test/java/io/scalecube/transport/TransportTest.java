@@ -1,8 +1,5 @@
 package io.scalecube.transport;
 
-import static io.scalecube.transport.TransportTestUtils.createTransport;
-import static io.scalecube.transport.TransportTestUtils.destroyTransport;
-import static io.scalecube.transport.TransportTestUtils.send;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -22,7 +19,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.ReplayProcessor;
-import reactor.netty.ChannelBindException;
 import reactor.test.StepVerifier;
 
 public class TransportTest extends BaseTest {
@@ -38,26 +34,6 @@ public class TransportTest extends BaseTest {
   public final void tearDown() {
     destroyTransport(client);
     destroyTransport(server);
-  }
-
-  @Test
-  public void testBindExceptionWithoutPortAutoIncrement() {
-    TransportConfig config = TransportConfig.builder().port(6000).build();
-    Transport transport1 = null;
-    Transport transport2 = null;
-    try {
-      transport1 = new SenderAwareTransport(Transport.bindAwait(config));
-      transport2 = new SenderAwareTransport(Transport.bindAwait(config));
-      fail("Didn't get expected bind exception");
-    } catch (Throwable throwable) {
-      // Check that get address already in use exception
-      assertTrue(
-          throwable instanceof ChannelBindException
-              || throwable.getMessage().contains("Address already in use"));
-    } finally {
-      destroyTransport(transport1);
-      destroyTransport(transport2);
-    }
   }
 
   @Test
