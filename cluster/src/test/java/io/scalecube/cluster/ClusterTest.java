@@ -489,7 +489,6 @@ public class ClusterTest extends BaseTest {
     if (nodes.length < 2) {
       return Mono.empty();
     }
-    //    nodes[1].
     return Mono.delay(Duration.ofMillis(100))
         .repeat(
             () -> {
