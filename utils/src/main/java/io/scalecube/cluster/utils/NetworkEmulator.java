@@ -107,15 +107,6 @@ public final class NetworkEmulator {
   }
 
   /**
-   * Unblocks outbound messages to given destinations.
-   *
-   * @param destinations collection of target endpoints where to apply
-   */
-  public void unblockOutbound(Address... destinations) {
-    unblockOutbound(Arrays.asList(destinations));
-  }
-
-  /**
    * Blocks outbound messages to the given destinations.
    *
    * @param destinations collection of target endpoints where to apply
@@ -125,6 +116,15 @@ public final class NetworkEmulator {
       outboundSettings.put(destination, new OutboundSettings(100, 0));
     }
     LOGGER.debug("Blocked outbound from {} to {}", address, destinations);
+  }
+
+  /**
+   * Unblocks outbound messages to given destinations.
+   *
+   * @param destinations collection of target endpoints where to apply
+   */
+  public void unblockOutbound(Address... destinations) {
+    unblockOutbound(Arrays.asList(destinations));
   }
 
   /**
