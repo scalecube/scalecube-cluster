@@ -18,11 +18,6 @@ final class ExceptionHandler extends ChannelDuplexHandler {
 
   @Override
   public final void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-    if (cause instanceof NetworkEmulatorException) {
-      LOGGER.debug(
-          "Network emulator fire exception for channel {}: {}", ctx.channel(), cause.getMessage());
-    } else {
-      LOGGER.warn("Exception caught for channel {}, {}", ctx.channel(), cause.toString(), cause);
-    }
+    LOGGER.debug("Exception caught for channel {}, {}", ctx.channel(), cause.toString());
   }
 }

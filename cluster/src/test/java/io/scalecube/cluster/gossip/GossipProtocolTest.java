@@ -12,6 +12,7 @@ import io.scalecube.cluster.BaseTest;
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.Member;
+import io.scalecube.cluster.NetworkEmulatorTransport;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
@@ -212,7 +213,7 @@ class GossipProtocolTest extends BaseTest {
   private LongSummaryStatistics computeMessageSentStats(List<GossipProtocolImpl> gossipProtocols) {
     List<Long> messageSentPerNode = new ArrayList<>(gossipProtocols.size());
     for (GossipProtocolImpl gossipProtocol : gossipProtocols) {
-      Transport transport = gossipProtocol.getTransport();
+      NetworkEmulatorTransport transport = (NetworkEmulatorTransport) gossipProtocol.getTransport();
       messageSentPerNode.add(transport.networkEmulator().totalMessageSentCount());
     }
     return messageSentPerNode.stream().mapToLong(v -> v).summaryStatistics();
@@ -221,7 +222,7 @@ class GossipProtocolTest extends BaseTest {
   private LongSummaryStatistics computeMessageLostStats(List<GossipProtocolImpl> gossipProtocols) {
     List<Long> messageLostPerNode = new ArrayList<>(gossipProtocols.size());
     for (GossipProtocolImpl gossipProtocol : gossipProtocols) {
-      Transport transport = gossipProtocol.getTransport();
+      NetworkEmulatorTransport transport = (NetworkEmulatorTransport) gossipProtocol.getTransport();
       messageLostPerNode.add(transport.networkEmulator().totalOutboundMessageLostCount());
     }
     return messageLostPerNode.stream().mapToLong(v -> v).summaryStatistics();
@@ -242,9 +243,9 @@ class GossipProtocolTest extends BaseTest {
 
   private List<Transport> initTransports(int count, int lostPercent, int meanDelay) {
     List<Transport> transports = new ArrayList<>(count);
-    TransportConfig transportConfig = TransportConfig.builder().useNetworkEmulator(true).build();
+    TransportConfig transportConfig = TransportConfig.builder().build();
     for (int i = 0; i < count; i++) {
-      Transport transport = createTransport(transportConfig);
+      NetworkEmulatorTransport transport = createTransport(transportConfig);
       transport.networkEmulator().setDefaultOutboundSettings(lostPercent, meanDelay);
       transports.add(transport);
     }

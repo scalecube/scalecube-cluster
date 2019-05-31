@@ -8,7 +8,6 @@ import io.scalecube.cluster.membership.MembershipProtocolImpl;
 import io.scalecube.cluster.metadata.MetadataStoreImpl;
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
-import io.scalecube.transport.NetworkEmulator;
 import io.scalecube.transport.SenderAwareTransport;
 import io.scalecube.transport.Transport;
 import java.lang.management.ManagementFactory;
@@ -294,12 +293,12 @@ public final class ClusterImpl implements Cluster {
 
   @Override
   public Mono<Message> requestResponse(Address address, Message request) {
-    return transport.requestResponse(request, address);
+    return transport.requestResponse(address, request);
   }
 
   @Override
   public Mono<Message> requestResponse(Member member, Message request) {
-    return transport.requestResponse(request, member.address());
+    return transport.requestResponse(member.address(), request);
   }
 
   @Override
@@ -433,11 +432,6 @@ public final class ClusterImpl implements Cluster {
           // stop scheduler
           scheduler.dispose();
         });
-  }
-
-  @Override
-  public NetworkEmulator networkEmulator() {
-    return transport.networkEmulator();
   }
 
   @Override

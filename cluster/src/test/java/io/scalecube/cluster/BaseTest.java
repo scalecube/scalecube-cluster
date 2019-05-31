@@ -47,12 +47,13 @@ public class BaseTest {
     awaitSeconds(suspicionTimeoutSec + 2);
   }
 
-  protected Transport createTransport() {
-    return new SenderAwareTransport(Transport.bindAwait(true));
+  protected NetworkEmulatorTransport createTransport() {
+    return new NetworkEmulatorTransport(new SenderAwareTransport(Transport.bindAwait()));
   }
 
-  protected Transport createTransport(TransportConfig transportConfig) {
-    return new SenderAwareTransport(Transport.bindAwait(transportConfig));
+  protected NetworkEmulatorTransport createTransport(TransportConfig transportConfig) {
+    return new NetworkEmulatorTransport(
+        new SenderAwareTransport(Transport.bindAwait(transportConfig)));
   }
 
   protected void destroyTransport(Transport transport) {

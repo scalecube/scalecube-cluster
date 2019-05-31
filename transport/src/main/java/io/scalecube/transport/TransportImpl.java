@@ -64,9 +64,6 @@ final class TransportImpl implements Transport {
   private final MonoProcessor<Void> stop;
   private final MonoProcessor<Void> onStop;
 
-  // Network emulator
-  private final NetworkEmulator networkEmulator;
-
   // Server
   private final Address address;
   private final DisposableServer server;
@@ -80,7 +77,7 @@ final class TransportImpl implements Transport {
    * @param config transport configuration
    */
   public TransportImpl(TransportConfig config) {
-    this.config = Objects.requireNonNull(config);
+    this.config = config;
     this.loopResources = LoopResources.create("sc-cluster-io", 1, true);
     this.messagesSubject = DirectProcessor.create();
     this.messageSink = messagesSubject.sink();
@@ -90,7 +87,6 @@ final class TransportImpl implements Transport {
     this.stop = MonoProcessor.create();
     this.onStop = MonoProcessor.create();
     this.messageCodec = config.getMessageCodec();
-    this.networkEmulator = null;
     this.address = null;
     this.server = null;
   }
@@ -98,19 +94,12 @@ final class TransportImpl implements Transport {
   /**
    * Copying constructor.
    *
-   * @param address server addtess
    * @param server bound server
-   * @param networkEmulator network emulator
    * @param other instance of transport to copy from
    */
-  private TransportImpl(
-      Address address,
-      DisposableServer server,
-      NetworkEmulator networkEmulator,
-      TransportImpl other) {
-    this.address = Objects.requireNonNull(address);
-    this.server = Objects.requireNonNull(server);
-    this.networkEmulator = Objects.requireNonNull(networkEmulator);
+  private TransportImpl(DisposableServer server, TransportImpl other) {
+    this.server = server;
+    this.address = Address.create(server.address().getHostString(), server.address().getPort());
     this.config = other.config;
     this.loopResources = other.loopResources;
     this.messagesSubject = other.messagesSubject;
@@ -160,11 +149,6 @@ final class TransportImpl implements Transport {
   }
 
   @Override
-  public NetworkEmulator networkEmulator() {
-    return networkEmulator;
-  }
-
-  @Override
   public final Mono<Void> stop() {
     return Mono.defer(
         () -> {
@@ -188,18 +172,16 @@ final class TransportImpl implements Transport {
 
   @Override
   public final Flux<Message> listen() {
-    return messagesSubject
-        .filter(message -> networkEmulator.inboundSettings(message.sender()).shallPass())
-        .onBackpressureBuffer();
+    return messagesSubject.onBackpressureBuffer();
   }
 
   @Override
   public Mono<Void> send(Address address, Message message) {
-    return getOrConnect(address).flatMap(conn -> send0(conn, message, address)).then();
+    return getOrConnect(address).flatMap(conn -> send0(conn, message)).then();
   }
 
   @Override
-  public Mono<Message> requestResponse(final Message request, Address address) {
+  public Mono<Message> requestResponse(Address address, final Message request) {
     return Mono.create(
         sink -> {
           Objects.requireNonNull(request, "request must be not null");
@@ -245,20 +227,14 @@ final class TransportImpl implements Transport {
   }
 
   private TransportImpl onBind(DisposableServer server) {
-    Address address = Address.create(server.address().getHostString(), server.address().getPort());
-    NetworkEmulator networkEmulator = new NetworkEmulator(address, config.isUseNetworkEmulator());
-    return new TransportImpl(address, server, networkEmulator, this);
+    return new TransportImpl(server, this);
   }
 
-  private Mono<? extends Void> send0(Connection conn, Message message, Address address) {
+  private Mono<? extends Void> send0(Connection conn, Message message) {
     // do send
     return conn.outbound()
         .options(SendOptions::flushOnEach)
-        .send(
-            Mono.just(message)
-                .flatMap(msg -> networkEmulator.tryFailOutbound(msg, address))
-                .flatMap(msg -> networkEmulator.tryDelayOutbound(msg, address))
-                .map(this::toByteBuf))
+        .send(Mono.just(message).map(this::toByteBuf))
         .then();
   }
 

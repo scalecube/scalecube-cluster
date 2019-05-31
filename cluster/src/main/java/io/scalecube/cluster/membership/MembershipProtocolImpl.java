@@ -231,7 +231,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                 address -> {
                   String cid = cidGenerator.nextCid();
                   return transport
-                      .requestResponse(prepareSyncDataMsg(SYNC, cid), address)
+                      .requestResponse(address, prepareSyncDataMsg(SYNC, cid))
                       .filter(this::checkSyncGroup);
                 })
             .toArray(Mono[]::new);

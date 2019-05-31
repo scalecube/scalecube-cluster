@@ -38,17 +38,12 @@ public final class SenderAwareTransport implements Transport {
   }
 
   @Override
-  public Mono<Message> requestResponse(Message request, Address address) {
-    return transport.requestResponse(Message.with(request).sender(sender).build(), address);
+  public Mono<Message> requestResponse(Address address, Message request) {
+    return transport.requestResponse(address, Message.with(request).sender(sender).build());
   }
 
   @Override
   public Flux<Message> listen() {
     return transport.listen();
-  }
-
-  @Override
-  public NetworkEmulator networkEmulator() {
-    return transport.networkEmulator();
   }
 }

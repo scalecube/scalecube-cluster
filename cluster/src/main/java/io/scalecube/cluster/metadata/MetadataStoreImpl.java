@@ -162,7 +162,7 @@ public class MetadataStoreImpl implements MetadataStore {
                   .build();
 
           transport
-              .requestResponse(request, targetAddress)
+              .requestResponse(targetAddress, request)
               .timeout(Duration.ofMillis(config.getMetadataTimeout()), scheduler)
               .publishOn(scheduler)
               .subscribe(

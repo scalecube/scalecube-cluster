@@ -34,19 +34,15 @@ public final class NetworkEmulator {
   private final AtomicLong totalOutboundMessageLostCount = new AtomicLong();
   private final AtomicLong totalInboundMessageLostCount = new AtomicLong();
 
-  private final boolean enabled;
-
   private final Address address;
 
   /**
    * Creates new instance of network emulator.
    *
    * @param address local address
-   * @param enabled either network emulator is enabled
    */
-  NetworkEmulator(Address address, boolean enabled) {
+  NetworkEmulator(Address address) {
     this.address = address;
-    this.enabled = enabled;
   }
 
   //// OUTBOUND functions
@@ -69,9 +65,6 @@ public final class NetworkEmulator {
    * @param meanDelay mean delay
    */
   public void outboundSettings(Address destination, int lossPercent, int meanDelay) {
-    if (!enabled) {
-      return;
-    }
     OutboundSettings settings = new OutboundSettings(lossPercent, meanDelay);
     outboundSettings.put(destination, settings);
     LOGGER.debug("Set outbound settings {} from {} to {}", settings, address, destination);
@@ -84,9 +77,6 @@ public final class NetworkEmulator {
    * @param meanDelay mean delay
    */
   public void setDefaultOutboundSettings(int lossPercent, int meanDelay) {
-    if (!enabled) {
-      return;
-    }
     defaultOutboundSettings = new OutboundSettings(lossPercent, meanDelay);
     LOGGER.debug("Set default outbound settings {} for {}", defaultOutboundSettings, address);
   }
@@ -111,9 +101,6 @@ public final class NetworkEmulator {
    * @param destinations collection of target endpoints where to apply
    */
   public void blockOutbound(Collection<Address> destinations) {
-    if (!enabled) {
-      return;
-    }
     for (Address destination : destinations) {
       outboundSettings.put(destination, new OutboundSettings(100, 0));
     }
@@ -135,18 +122,12 @@ public final class NetworkEmulator {
    * @param destinations collection of target endpoints where to apply
    */
   public void unblockOutbound(Collection<Address> destinations) {
-    if (!enabled) {
-      return;
-    }
     destinations.forEach(outboundSettings::remove);
     LOGGER.debug("Unblocked outbound from {} to {}", address, destinations);
   }
 
   /** Unblocks outbound messages to all destinations. */
   public void unblockAllOutbound() {
-    if (!enabled) {
-      return;
-    }
     outboundSettings.clear();
     setDefaultOutboundSettings(0, 0);
     LOGGER.debug("Unblocked outbound from {} to all destinations", address);
@@ -158,9 +139,6 @@ public final class NetworkEmulator {
    * @return total message sent; 0 if emulator is disabled
    */
   public long totalMessageSentCount() {
-    if (!enabled) {
-      return 0;
-    }
     return totalMessageSentCount.get();
   }
 
@@ -170,9 +148,6 @@ public final class NetworkEmulator {
    * @return total message lost; 0 if emulator is disabled
    */
   public long totalOutboundMessageLostCount() {
-    if (!enabled) {
-      return 0;
-    }
     return totalOutboundMessageLostCount.get();
   }
 
@@ -187,9 +162,6 @@ public final class NetworkEmulator {
   public Mono<Message> tryFailOutbound(Message msg, Address address) {
     return Mono.defer(
         () -> {
-          if (!enabled) {
-            return Mono.just(msg);
-          }
           totalMessageSentCount.incrementAndGet();
           // Emulate message loss
           boolean isLost = outboundSettings(address).evaluateLoss();
@@ -213,9 +185,6 @@ public final class NetworkEmulator {
   public Mono<Message> tryDelayOutbound(Message msg, Address address) {
     return Mono.defer(
         () -> {
-          if (!enabled) {
-            return Mono.just(msg);
-          }
           totalMessageSentCount.incrementAndGet();
           // Emulate message delay
           int delay = (int) outboundSettings(address).evaluateDelay();
@@ -245,9 +214,6 @@ public final class NetworkEmulator {
    * @param shallPass shallPass inbound flag
    */
   public void inboundSettings(Address destination, boolean shallPass) {
-    if (!enabled) {
-      return;
-    }
     InboundSettings settings = new InboundSettings(shallPass);
     inboundSettings.put(destination, settings);
     LOGGER.debug("Set inbound settings {} from {} to {}", settings, address, destination);
@@ -259,9 +225,6 @@ public final class NetworkEmulator {
    * @param shallPass shallPass inbound flag
    */
   public void setDefaultInboundSettings(boolean shallPass) {
-    if (!enabled) {
-      return;
-    }
     defaultInboundSettings = new InboundSettings(shallPass);
     LOGGER.debug("Set default inbound settings {} for {}", defaultInboundSettings, address);
   }
@@ -286,9 +249,6 @@ public final class NetworkEmulator {
    * @param destinations collection of target endpoints where to apply
    */
   public void blockInbound(Collection<Address> destinations) {
-    if (!enabled) {
-      return;
-    }
     for (Address destination : destinations) {
       inboundSettings.put(destination, new InboundSettings(false));
     }
@@ -310,18 +270,12 @@ public final class NetworkEmulator {
    * @param destinations collection of target endpoints where to apply
    */
   public void unblockInbound(Collection<Address> destinations) {
-    if (!enabled) {
-      return;
-    }
     destinations.forEach(inboundSettings::remove);
     LOGGER.debug("Unblocked inbound from {} to {}", address, destinations);
   }
 
   /** Unblocks inbound messages to all destinations. */
   public void unblockAllInbound() {
-    if (!enabled) {
-      return;
-    }
     inboundSettings.clear();
     setDefaultInboundSettings(true);
     LOGGER.debug("Unblocked inbound from {} to all destinations", address);
@@ -333,9 +287,6 @@ public final class NetworkEmulator {
    * @return total message lost; 0 if emulator is disabled
    */
   public long totalInboundMessageLostCount() {
-    if (!enabled) {
-      return 0;
-    }
     return totalInboundMessageLostCount.get();
   }
 

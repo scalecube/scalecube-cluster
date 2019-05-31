@@ -143,7 +143,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     LOGGER.trace("Send Ping[{}] to {}", period, pingMember);
     Address address = pingMember.address();
     transport
-        .requestResponse(pingMsg, address)
+        .requestResponse(address, pingMsg)
         .timeout(Duration.ofMillis(config.getPingTimeout()), scheduler)
         .publishOn(scheduler)
         .subscribe(
@@ -183,7 +183,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     pingReqMembers.forEach(
         member ->
             transport
-                .requestResponse(pingReqMsg, member.address())
+                .requestResponse(member.address(), pingReqMsg)
                 .timeout(timeout, scheduler)
                 .publishOn(scheduler)
                 .subscribe(

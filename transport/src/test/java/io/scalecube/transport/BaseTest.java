@@ -65,16 +65,13 @@ public class BaseTest {
    *
    * @return tramsprot
    */
-  protected Transport createTransport() {
-    TransportConfig config =
-        TransportConfig.builder()
-            .connectTimeout(100)
-            .useNetworkEmulator(true)
-            .maxFrameLength(DEFAULT_MAX_FRAME_LENGTH)
-            .build();
-
-    Transport transport = Transport.bindAwait(config);
-
-    return new SenderAwareTransport(transport);
+  protected NetworkEmulatorTransport createTransport() {
+    return new NetworkEmulatorTransport(
+        new SenderAwareTransport(
+            Transport.bindAwait(
+                TransportConfig.builder()
+                    .connectTimeout(100)
+                    .maxFrameLength(DEFAULT_MAX_FRAME_LENGTH)
+                    .build())));
   }
 }

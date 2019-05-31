@@ -26,8 +26,8 @@ public class TransportTest extends BaseTest {
   public static final Duration TIMEOUT = Duration.ofSeconds(10);
 
   // Auto-destroyed on tear down
-  private Transport client;
-  private Transport server;
+  private NetworkEmulatorTransport client;
+  private NetworkEmulatorTransport server;
 
   /** Tear down. */
   @AfterEach
@@ -187,12 +187,12 @@ public class TransportTest extends BaseTest {
     String result =
         client
             .requestResponse(
+                server.address(),
                 Message.builder()
                     .qualifier("hello/server")
                     .correlationId("123xyz")
                     .data("server")
-                    .build(),
-                server.address())
+                    .build())
             .map(msg -> msg.data().toString())
             .block(Duration.ofSeconds(1));
 

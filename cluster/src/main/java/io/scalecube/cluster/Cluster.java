@@ -2,7 +2,6 @@ package io.scalecube.cluster;
 
 import io.scalecube.transport.Address;
 import io.scalecube.transport.Message;
-import io.scalecube.transport.NetworkEmulator;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
@@ -164,13 +163,4 @@ public interface Cluster {
    * @return Returns true if cluster instance has been shut down; false otherwise.
    */
   boolean isShutdown();
-
-  /**
-   * Returns network emulator associated with this instance of cluster. It always returns non null
-   * instance even if network emulator is disabled by transport config. In case when network
-   * emulator is disable all calls to network emulator instance will result in no operation.
-   *
-   * @return network emulator object
-   */
-  NetworkEmulator networkEmulator();
 }

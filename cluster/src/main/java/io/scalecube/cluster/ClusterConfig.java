@@ -392,11 +392,6 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
       return this;
     }
 
-    public Builder useNetworkEmulator(boolean useNetworkEmulator) {
-      this.transportConfigBuilder.useNetworkEmulator(useNetworkEmulator);
-      return this;
-    }
-
     public Builder messageCodec(MessageCodec messageCodec) {
       this.transportConfigBuilder.messageCodec(messageCodec);
       return this;

@@ -11,7 +11,7 @@ public class NetworkEmulatorTest extends BaseTest {
   public void testResolveLinkSettingsBySocketAddress() {
     // Init network emulator
     Address address = Address.from("localhost:1234");
-    NetworkEmulator networkEmulator = new NetworkEmulator(address, true);
+    NetworkEmulator networkEmulator = new NetworkEmulator(address);
     networkEmulator.outboundSettings(Address.create("localhost", 5678), 25, 10);
     networkEmulator.outboundSettings(Address.create("192.168.0.1", 8765), 10, 20);
     networkEmulator.setDefaultOutboundSettings(0, 2);
