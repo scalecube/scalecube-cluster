@@ -1,14 +1,13 @@
-package io.scalecube.transport;
+package io.scalecube.cluster.transport.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import io.scalecube.cluster.transport.api.Address;
 import org.junit.jupiter.api.Test;
 
-public class AddressTest extends BaseTest {
+public class AddressTest {
 
   @Test
-  public void testParseHostPort() throws Exception {
+  public void testParseHostPort() {
     Address address1 = Address.from("localhost:5810");
     assertEquals(5810, address1.port());
     assertEquals(Address.getLocalIpAddress().getHostAddress(), address1.host());
@@ -21,7 +20,7 @@ public class AddressTest extends BaseTest {
   }
 
   @Test
-  public void testParseUnknownHostPort() throws Exception {
+  public void testParseUnknownHostPort() {
     Address address = Address.from("host:1111");
     assertEquals(1111, address.port());
     assertEquals("host", address.host());
