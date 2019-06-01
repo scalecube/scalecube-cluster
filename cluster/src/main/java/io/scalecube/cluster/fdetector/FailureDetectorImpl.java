@@ -4,9 +4,9 @@ import io.scalecube.cluster.CorrelationIdGenerator;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.membership.MemberStatus;
 import io.scalecube.cluster.membership.MembershipEvent;
-import io.scalecube.transport.Address;
-import io.scalecube.transport.Message;
-import io.scalecube.transport.Transport;
+import io.scalecube.cluster.transport.api.Address;
+import io.scalecube.cluster.transport.api.Message;
+import io.scalecube.cluster.transport.api.Transport;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -143,7 +143,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     LOGGER.trace("Send Ping[{}] to {}", period, pingMember);
     Address address = pingMember.address();
     transport
-        .requestResponse(pingMsg, address)
+        .requestResponse(address, pingMsg)
         .timeout(Duration.ofMillis(config.getPingTimeout()), scheduler)
         .publishOn(scheduler)
         .subscribe(
@@ -183,7 +183,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     pingReqMembers.forEach(
         member ->
             transport
-                .requestResponse(pingReqMsg, member.address())
+                .requestResponse(member.address(), pingReqMsg)
                 .timeout(timeout, scheduler)
                 .publishOn(scheduler)
                 .subscribe(

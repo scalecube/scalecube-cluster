@@ -4,9 +4,9 @@ import io.scalecube.cluster.fdetector.FailureDetectorConfig;
 import io.scalecube.cluster.gossip.GossipConfig;
 import io.scalecube.cluster.membership.MembershipConfig;
 import io.scalecube.cluster.metadata.MetadataCodec;
-import io.scalecube.transport.Address;
-import io.scalecube.transport.MessageCodec;
-import io.scalecube.transport.TransportConfig;
+import io.scalecube.cluster.transport.api.Address;
+import io.scalecube.cluster.transport.api.MessageCodec;
+import io.scalecube.cluster.transport.api.TransportConfig;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -399,11 +399,6 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
 
     public Builder connectTimeout(int connectTimeout) {
       this.transportConfigBuilder.connectTimeout(connectTimeout);
-      return this;
-    }
-
-    public Builder useNetworkEmulator(boolean useNetworkEmulator) {
-      this.transportConfigBuilder.useNetworkEmulator(useNetworkEmulator);
       return this;
     }
 

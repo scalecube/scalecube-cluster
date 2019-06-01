@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipEvent.Type;
 import io.scalecube.cluster.metadata.SimpleMapMetadataCodec;
-import io.scalecube.transport.Address;
+import io.scalecube.cluster.transport.api.Address;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -45,6 +45,8 @@ public class ClusterTest extends BaseTest {
                         .seedMembers(seedNode.address())
                         .metadataCodec(SimpleMapMetadataCodec.INSTANCE))
             .startAwait();
+
+    awaitJoin(seedNode, otherNode).block(TIMEOUT);
 
     assertEquals(2, seedNode.members().size());
     assertEquals(2, otherNode.members().size());
@@ -117,6 +119,9 @@ public class ClusterTest extends BaseTest {
                             .metadataCodec(SimpleMapMetadataCodec.INSTANCE))
                 .startAwait());
       }
+
+      awaitJoin(otherNodes, seedNode).block(TIMEOUT);
+
       LOGGER.info("Start up time: {} ms", System.currentTimeMillis() - startAt);
       assertEquals(membersNum + 1, seedNode.members().size());
       LOGGER.info("Cluster nodes: {}", seedNode.members());
@@ -131,7 +136,7 @@ public class ClusterTest extends BaseTest {
   }
 
   @Test
-  public void testUpdateMetadata() throws Exception {
+  public void testUpdateMetadata() {
     // Start seed member
     Cluster seedNode =
         new ClusterImpl()
@@ -182,7 +187,7 @@ public class ClusterTest extends BaseTest {
           .doOnNext(otherNodes::add)
           .blockLast(TIMEOUT);
 
-      TimeUnit.SECONDS.sleep(3);
+      awaitJoin(otherNodes, seedNode, metadataNode).block(TIMEOUT);
 
       // Check all test members know valid metadata
       for (Cluster node : otherNodes) {
@@ -214,7 +219,7 @@ public class ClusterTest extends BaseTest {
   }
 
   @Test
-  public void testUpdateMetadataProperty() throws Exception {
+  public void testUpdateMetadataProperty() {
     // Start seed member
     Cluster seedNode =
         new ClusterImpl()
@@ -266,7 +271,7 @@ public class ClusterTest extends BaseTest {
           .doOnNext(otherNodes::add)
           .blockLast(TIMEOUT);
 
-      TimeUnit.SECONDS.sleep(3);
+      awaitJoin(otherNodes, seedNode, metadataNode).block(TIMEOUT);
 
       // Check all test members know valid metadata
       for (Cluster node : otherNodes) {
@@ -302,7 +307,7 @@ public class ClusterTest extends BaseTest {
   }
 
   @Test
-  public void testRemoveMetadataProperty() throws Exception {
+  public void testRemoveMetadataProperty() {
     // Start seed member
     Cluster seedNode =
         new ClusterImpl()
@@ -354,7 +359,7 @@ public class ClusterTest extends BaseTest {
           .doOnNext(otherNodes::add)
           .blockLast(TIMEOUT);
 
-      TimeUnit.SECONDS.sleep(3);
+      awaitJoin(otherNodes, seedNode, metadataNode).block(TIMEOUT);
 
       // Check all test members know valid metadata
       for (Cluster node : otherNodes) {
@@ -439,6 +444,8 @@ public class ClusterTest extends BaseTest {
                         .metadataCodec(SimpleMapMetadataCodec.INSTANCE))
             .handler(cluster -> listener)
             .startAwait();
+
+    awaitJoin(seedNode, node1, node2, node3).block(TIMEOUT);
 
     node2.shutdown().block(TIMEOUT);
 
@@ -541,6 +548,8 @@ public class ClusterTest extends BaseTest {
                     options.seedMembers(seeds).metadataCodec(SimpleMapMetadataCodec.INSTANCE))
             .startAwait();
 
+    awaitJoin(seedNode, otherNode).block(TIMEOUT);
+
     assertEquals(otherNode.member(), seedNode.otherMembers().iterator().next());
     assertEquals(seedNode.member(), otherNode.otherMembers().iterator().next());
   }
@@ -555,5 +564,32 @@ public class ClusterTest extends BaseTest {
     } catch (Exception ex) {
       LOGGER.error("Exception on cluster shutdown", ex);
     }
+  }
+
+  private Mono<Void> awaitJoin(Cluster... nodes) {
+    return awaitJoin(Collections.emptyList(), nodes);
+  }
+
+  private Mono<Void> awaitJoin(List<Cluster> nodeList, Cluster... nodeArray) {
+    Cluster[] nodes = new Cluster[nodeList.size() + nodeArray.length];
+    for (int i = 0; i < nodeList.size(); i++) {
+      nodes[i] = nodeList.get(i);
+    }
+    for (int i = 0, offset = nodeList.size(); i < nodeArray.length; i++) {
+      nodes[offset + i] = nodeArray[i];
+    }
+    if (nodes.length < 2) {
+      return Mono.empty();
+    }
+    return Mono.delay(Duration.ofMillis(100))
+        .repeat(
+            () -> {
+              int countDownLatch = (nodes.length - 1) * nodes.length;
+              for (Cluster node : nodes) {
+                countDownLatch -= node.otherMembers().size();
+              }
+              return countDownLatch != 0;
+            })
+        .then();
   }
 }

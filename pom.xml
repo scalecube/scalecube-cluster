@@ -36,9 +36,10 @@
   </properties>
 
   <modules>
-    <module>transport</module>
     <module>cluster</module>
     <module>examples</module>
+    <module>utils</module>
+    <module>transport-parent</module>
   </modules>
 
   <dependencies>

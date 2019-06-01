@@ -4,7 +4,7 @@ import io.scalecube.SimpleMapMetadataCodec;
 import io.scalecube.cluster.Cluster;
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterImpl;
-import io.scalecube.transport.Address;
+import io.scalecube.cluster.transport.api.Address;
 import java.util.Collections;
 import java.util.Optional;
 import org.slf4j.Logger;

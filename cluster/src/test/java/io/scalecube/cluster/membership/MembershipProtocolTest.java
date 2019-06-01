@@ -10,9 +10,10 @@ import io.scalecube.cluster.Member;
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
 import io.scalecube.cluster.metadata.MetadataStoreImpl;
-import io.scalecube.transport.Address;
-import io.scalecube.transport.NetworkEmulator;
-import io.scalecube.transport.Transport;
+import io.scalecube.cluster.transport.api.Address;
+import io.scalecube.cluster.transport.api.Transport;
+import io.scalecube.cluster.utils.NetworkEmulator;
+import io.scalecube.cluster.utils.NetworkEmulatorTransport;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
@@ -85,9 +86,9 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testNetworkPartitionDueNoOutboundThenRecover() {
-    Transport a = createTransport();
-    Transport b = createTransport();
-    Transport c = createTransport();
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c = createTransport();
     List<Address> addresses = Arrays.asList(a.address(), b.address(), c.address());
 
     MembershipProtocolImpl cmA = createMembership(a, addresses);
@@ -131,9 +132,9 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testMemberLostNetworkDueNoOutboundThenRecover() {
-    Transport a = createTransport();
-    Transport b = createTransport();
-    Transport c = createTransport();
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c = createTransport();
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
 
     MembershipProtocolImpl cmA = createMembership(a, members);
@@ -187,9 +188,9 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testNetworkPartitionTwiceDueNoOutboundThenRecover() {
-    Transport a = createTransport();
-    Transport b = createTransport();
-    Transport c = createTransport();
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c = createTransport();
     List<Address> addresses = Arrays.asList(a.address(), b.address(), c.address());
 
     MembershipProtocolImpl cmA = createMembership(a, addresses);
@@ -257,9 +258,9 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testNetworkLostOnAllNodesDueNoOutboundThenRecover() {
-    Transport a = createTransport();
-    Transport b = createTransport();
-    Transport c = createTransport();
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c = createTransport();
     List<Address> addresses = Arrays.asList(a.address(), b.address(), c.address());
 
     MembershipProtocolImpl cmA = createMembership(a, addresses);
@@ -312,10 +313,10 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testLongNetworkPartitionDueNoOutboundThenRemoved() {
-    Transport a = createTransport();
-    Transport b = createTransport();
-    Transport c = createTransport();
-    Transport d = createTransport();
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c = createTransport();
+    NetworkEmulatorTransport d = createTransport();
     List<Address> addresses = Arrays.asList(a.address(), b.address(), c.address(), d.address());
 
     MembershipProtocolImpl cmA = createMembership(a, addresses);
@@ -365,10 +366,10 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testRestartStoppedMembers() {
-    Transport a = createTransport();
-    Transport b = createTransport();
-    Transport c = createTransport();
-    Transport d = createTransport();
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c = createTransport();
+    NetworkEmulatorTransport d = createTransport();
     List<Address> addresses = Arrays.asList(a.address(), b.address(), c.address(), d.address());
 
     MembershipProtocolImpl cmA = createMembership(a, addresses);
@@ -433,11 +434,11 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testLimitedSeedMembers() {
-    Transport a = createTransport();
-    Transport b = createTransport();
-    Transport c = createTransport();
-    Transport d = createTransport();
-    Transport e = createTransport();
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c = createTransport();
+    NetworkEmulatorTransport d = createTransport();
+    NetworkEmulatorTransport e = createTransport();
 
     MembershipProtocolImpl cmA = createMembership(a, Collections.emptyList());
     MembershipProtocolImpl cmB = createMembership(b, Collections.singletonList(a.address()));
@@ -467,11 +468,11 @@ public class MembershipProtocolTest extends BaseTest {
   public void testOverrideMemberAddress() throws UnknownHostException {
     String localAddress = InetAddress.getLocalHost().getHostName();
 
-    Transport a = createTransport();
-    Transport b = createTransport();
-    Transport c = createTransport();
-    Transport d = createTransport();
-    Transport e = createTransport();
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c = createTransport();
+    NetworkEmulatorTransport d = createTransport();
+    NetworkEmulatorTransport e = createTransport();
 
     MembershipProtocolImpl cmA =
         createMembership(a, testConfig(Collections.emptyList()).memberHost(localAddress).build());
@@ -508,9 +509,9 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testNodeJoinClusterWithNoInbound() {
-    Transport a = createTransport();
-    Transport b = createTransport();
-    Transport c_noInbound = createTransport();
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c_noInbound = createTransport();
 
     // Block traffic
     c_noInbound.networkEmulator().blockAllInbound();
@@ -535,9 +536,9 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testNodeJoinClusterWithNoInboundThenInboundRecover() {
-    Transport a = createTransport();
-    Transport b = createTransport();
-    Transport c_noInboundThenInboundOk = createTransport();
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c_noInboundThenInboundOk = createTransport();
 
     // Block traffic
     c_noInboundThenInboundOk.networkEmulator().blockAllInbound();
@@ -572,9 +573,9 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testNetworkPartitionDueNoInboundThenRemoved() {
-    Transport a = createTransport();
-    Transport b = createTransport();
-    Transport c = createTransport();
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c = createTransport();
 
     MembershipProtocolImpl cmA = createMembership(a, Collections.emptyList());
     MembershipProtocolImpl cmB = createMembership(b, Collections.singletonList(a.address()));
@@ -612,9 +613,9 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testNetworkPartitionDueNoInboundUntilRemovedThenInboundRecover() {
-    Transport a = createTransport();
-    Transport b = createTransport();
-    Transport c = createTransport();
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c = createTransport();
 
     MembershipProtocolImpl cmA = createMembership(a, Collections.emptyList());
     MembershipProtocolImpl cmB = createMembership(b, Collections.singletonList(a.address()));
@@ -664,9 +665,9 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testNetworkPartitionBetweenTwoMembersDueNoInbound() {
-    Transport a = createTransport();
-    Transport b = createTransport();
-    Transport c = createTransport();
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c = createTransport();
 
     MembershipProtocolImpl cmA = createMembership(a, Collections.emptyList());
     MembershipProtocolImpl cmB = createMembership(b, Collections.singletonList(a.address()));
@@ -694,9 +695,9 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testNetworkPartitionBetweenTwoMembersDueNoOutbound() {
-    Transport a = createTransport();
-    Transport b = createTransport();
-    Transport c = createTransport();
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c = createTransport();
 
     MembershipProtocolImpl cmA = createMembership(a, Collections.emptyList());
     MembershipProtocolImpl cmB = createMembership(b, Collections.singletonList(a.address()));
@@ -724,9 +725,9 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testNetworkPartitionBetweenTwoMembersDueNoTrafficAtAll() {
-    Transport a = createTransport();
-    Transport b = createTransport();
-    Transport c = createTransport();
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c = createTransport();
 
     MembershipProtocolImpl cmA = createMembership(a, Collections.emptyList());
     MembershipProtocolImpl cmB = createMembership(b, Collections.singletonList(a.address()));
@@ -755,10 +756,10 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testNetworkPartitionManyDueNoInboundThenRemovedThenRecover() {
-    Transport a = createTransport();
-    Transport b = createTransport();
-    Transport c = createTransport();
-    Transport d = createTransport();
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c = createTransport();
+    NetworkEmulatorTransport d = createTransport();
     List<Address> addresses = Arrays.asList(a.address(), b.address(), c.address(), d.address());
 
     MembershipProtocolImpl cmA = createMembership(a, addresses);
@@ -786,7 +787,7 @@ public class MembershipProtocolTest extends BaseTest {
 
       // Split into several clusters
       Stream.of(a, b, c, d)
-          .map(Transport::networkEmulator)
+          .map(NetworkEmulatorTransport::networkEmulator)
           .forEach(NetworkEmulator::blockAllInbound);
 
       awaitSeconds(1);
@@ -810,7 +811,7 @@ public class MembershipProtocolTest extends BaseTest {
 
       // Recover network
       Stream.of(a, b, c, d)
-          .map(Transport::networkEmulator)
+          .map(NetworkEmulatorTransport::networkEmulator)
           .forEach(NetworkEmulator::unblockAllInbound);
 
       awaitSeconds(3);

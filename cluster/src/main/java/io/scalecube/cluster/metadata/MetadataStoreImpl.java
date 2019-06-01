@@ -3,9 +3,9 @@ package io.scalecube.cluster.metadata;
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.CorrelationIdGenerator;
 import io.scalecube.cluster.Member;
-import io.scalecube.transport.Address;
-import io.scalecube.transport.Message;
-import io.scalecube.transport.Transport;
+import io.scalecube.cluster.transport.api.Address;
+import io.scalecube.cluster.transport.api.Message;
+import io.scalecube.cluster.transport.api.Transport;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.Map;
@@ -161,7 +161,7 @@ public class MetadataStoreImpl implements MetadataStore {
                   .build();
 
           transport
-              .requestResponse(request, targetAddress)
+              .requestResponse(targetAddress, request)
               .timeout(Duration.ofMillis(config.getMetadataTimeout()), scheduler)
               .publishOn(scheduler)
               .subscribe(

@@ -3,9 +3,10 @@ package io.scalecube.cluster;
 import static io.scalecube.cluster.ClusterConfig.DEFAULT_SUSPICION_MULT;
 
 import io.scalecube.cluster.membership.MembershipProtocolTest;
-import io.scalecube.transport.SenderAwareTransport;
-import io.scalecube.transport.Transport;
-import io.scalecube.transport.TransportConfig;
+import io.scalecube.cluster.transport.api.Transport;
+import io.scalecube.cluster.transport.api.TransportConfig;
+import io.scalecube.cluster.utils.NetworkEmulatorTransport;
+import io.scalecube.transport.netty.TransportImpl;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
@@ -47,12 +48,12 @@ public class BaseTest {
     awaitSeconds(suspicionTimeoutSec + 2);
   }
 
-  protected Transport createTransport() {
-    return new SenderAwareTransport(Transport.bindAwait(true));
+  protected NetworkEmulatorTransport createTransport() {
+    return new NetworkEmulatorTransport(TransportImpl.bindAwait());
   }
 
-  protected Transport createTransport(TransportConfig transportConfig) {
-    return new SenderAwareTransport(Transport.bindAwait(transportConfig));
+  protected NetworkEmulatorTransport createTransport(TransportConfig transportConfig) {
+    return new NetworkEmulatorTransport(TransportImpl.bindAwait(transportConfig));
   }
 
   protected void destroyTransport(Transport transport) {

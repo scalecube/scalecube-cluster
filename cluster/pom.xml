@@ -14,10 +14,22 @@
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>scalecube-transport</artifactId>
+      <artifactId>scalecube-transport-api</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>scalecube-transport-netty</artifactId>
       <version>${project.version}</version>
     </dependency>
 
+    <!-- Test dependencies -->
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>scalecube-cluster-utils</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
       <artifactId>log4j-slf4j-impl</artifactId>
