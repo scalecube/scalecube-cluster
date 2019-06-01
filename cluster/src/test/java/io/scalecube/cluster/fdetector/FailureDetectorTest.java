@@ -11,9 +11,10 @@ import io.scalecube.cluster.CorrelationIdGenerator;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.membership.MemberStatus;
 import io.scalecube.cluster.membership.MembershipEvent;
-import io.scalecube.transport.Address;
-import io.scalecube.transport.Transport;
-import io.scalecube.transport.TransportConfig;
+import io.scalecube.cluster.transport.api.Address;
+import io.scalecube.cluster.transport.api.Transport;
+import io.scalecube.cluster.transport.api.TransportConfig;
+import io.scalecube.cluster.utils.NetworkEmulatorTransport;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -79,9 +80,9 @@ public class FailureDetectorTest extends BaseTest {
   @Test
   public void testSuspected() {
     // Create transports
-    Transport a = createTransport();
-    Transport b = createTransport();
-    Transport c = createTransport();
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c = createTransport();
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
 
     // Create failure detectors
@@ -114,11 +115,11 @@ public class FailureDetectorTest extends BaseTest {
   }
 
   @Test
-  public void testTrustedDespiteBadNetwork() throws Exception {
+  public void testTrustedDespiteBadNetwork() {
     // Create transports
-    Transport a = createTransport();
-    Transport b = createTransport();
-    Transport c = createTransport();
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c = createTransport();
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
 
     // Create failure detectors
@@ -146,7 +147,7 @@ public class FailureDetectorTest extends BaseTest {
   }
 
   @Test
-  public void testTrustedDespiteDifferentPingTimings() throws Exception {
+  public void testTrustedDespiteDifferentPingTimings() {
     // Create transports
     Transport a = createTransport();
     Transport b = createTransport();
@@ -179,10 +180,10 @@ public class FailureDetectorTest extends BaseTest {
   @Test
   public void testSuspectedMemberWithBadNetworkGetsPartitioned() throws Exception {
     // Create transports
-    Transport a = createTransport();
-    Transport b = createTransport();
-    Transport c = createTransport();
-    Transport d = createTransport();
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c = createTransport();
+    NetworkEmulatorTransport d = createTransport();
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address(), d.address());
 
     // Create failure detectors
@@ -238,10 +239,10 @@ public class FailureDetectorTest extends BaseTest {
   @Test
   public void testSuspectedMemberWithNormalNetworkGetsPartitioned() throws Exception {
     // Create transports
-    Transport a = createTransport();
-    Transport b = createTransport();
-    Transport c = createTransport();
-    Transport d = createTransport();
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c = createTransport();
+    NetworkEmulatorTransport d = createTransport();
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address(), d.address());
 
     // Create failure detectors
@@ -301,8 +302,8 @@ public class FailureDetectorTest extends BaseTest {
   @Test
   public void testMemberStatusChangeAfterNetworkRecovery() throws Exception {
     // Create transports
-    Transport a = createTransport();
-    Transport b = createTransport();
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
     List<Address> members = Arrays.asList(a.address(), b.address());
 
     // Create failure detectors
@@ -343,9 +344,9 @@ public class FailureDetectorTest extends BaseTest {
   @Test
   public void testStatusChangeAfterMemberRestart() throws Exception {
     // Create transports
-    Transport a = createTransport();
-    Transport b = createTransport();
-    Transport x = createTransport();
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport x = createTransport();
     List<Address> members = Arrays.asList(a.address(), b.address(), x.address());
 
     // Create failure detectors
@@ -379,7 +380,6 @@ public class FailureDetectorTest extends BaseTest {
               TransportConfig //
                   .builder()
                   .port(x.address().port())
-                  .useNetworkEmulator(true)
                   .build());
       assertEquals(x.address(), xx.address());
       fdetectors = Arrays.asList(fdA, fdB, fdXx = createFd(xx, members));

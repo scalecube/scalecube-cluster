@@ -6,11 +6,10 @@ import io.scalecube.cluster.membership.IdGenerator;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipProtocolImpl;
 import io.scalecube.cluster.metadata.MetadataStoreImpl;
-import io.scalecube.transport.Address;
-import io.scalecube.transport.Message;
-import io.scalecube.transport.NetworkEmulator;
-import io.scalecube.transport.SenderAwareTransport;
-import io.scalecube.transport.Transport;
+import io.scalecube.cluster.transport.api.Address;
+import io.scalecube.cluster.transport.api.Message;
+import io.scalecube.cluster.transport.api.Transport;
+import io.scalecube.transport.netty.TransportImpl;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -164,7 +163,7 @@ public final class ClusterImpl implements Cluster {
   }
 
   private Mono<Cluster> doStart() {
-    return Transport.bind(config.getTransportConfig())
+    return TransportImpl.bind(config.getTransportConfig())
         .flatMap(
             transport1 -> {
               localMember = createLocalMember(transport1.address().port());
@@ -294,12 +293,12 @@ public final class ClusterImpl implements Cluster {
 
   @Override
   public Mono<Message> requestResponse(Address address, Message request) {
-    return transport.requestResponse(request, address);
+    return transport.requestResponse(address, request);
   }
 
   @Override
   public Mono<Message> requestResponse(Member member, Message request) {
-    return transport.requestResponse(request, member.address());
+    return transport.requestResponse(member.address(), request);
   }
 
   @Override
@@ -436,11 +435,6 @@ public final class ClusterImpl implements Cluster {
   }
 
   @Override
-  public NetworkEmulator networkEmulator() {
-    return transport.networkEmulator();
-  }
-
-  @Override
   public boolean isShutdown() {
     return onShutdown.isDisposed();
   }
@@ -480,6 +474,55 @@ public final class ClusterImpl implements Cluster {
       return cluster.metadata().entrySet().stream()
           .map(e -> e.getKey() + ":" + e.getValue())
           .collect(Collectors.toCollection(ArrayList::new));
+    }
+  }
+
+  private static class SenderAwareTransport implements Transport {
+
+    private final Transport transport;
+    private final Address sender;
+
+    private SenderAwareTransport(Transport transport) {
+      this(transport, transport.address());
+    }
+
+    public SenderAwareTransport(Transport transport, Address sender) {
+      this.transport = Objects.requireNonNull(transport);
+      this.sender = Objects.requireNonNull(sender);
+    }
+
+    @Override
+    public Address address() {
+      return transport.address();
+    }
+
+    @Override
+    public Mono<Void> stop() {
+      return transport.stop();
+    }
+
+    @Override
+    public boolean isStopped() {
+      return transport.isStopped();
+    }
+
+    @Override
+    public Mono<Void> send(Address address, Message message) {
+      return Mono.defer(() -> transport.send(address, enhanceWithSender(message)));
+    }
+
+    @Override
+    public Mono<Message> requestResponse(Address address, Message request) {
+      return Mono.defer(() -> transport.requestResponse(address, enhanceWithSender(request)));
+    }
+
+    @Override
+    public Flux<Message> listen() {
+      return transport.listen();
+    }
+
+    private Message enhanceWithSender(Message message) {
+      return Message.with(message).sender(sender).build();
     }
   }
 }

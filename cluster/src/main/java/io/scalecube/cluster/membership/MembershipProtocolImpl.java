@@ -10,9 +10,9 @@ import io.scalecube.cluster.fdetector.FailureDetector;
 import io.scalecube.cluster.fdetector.FailureDetectorEvent;
 import io.scalecube.cluster.gossip.GossipProtocol;
 import io.scalecube.cluster.metadata.MetadataStore;
-import io.scalecube.transport.Address;
-import io.scalecube.transport.Message;
-import io.scalecube.transport.Transport;
+import io.scalecube.cluster.transport.api.Address;
+import io.scalecube.cluster.transport.api.Message;
+import io.scalecube.cluster.transport.api.Transport;
 import java.lang.management.ManagementFactory;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -229,7 +229,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                 address -> {
                   String cid = cidGenerator.nextCid();
                   return transport
-                      .requestResponse(prepareSyncDataMsg(SYNC, cid), address)
+                      .requestResponse(address, prepareSyncDataMsg(SYNC, cid))
                       .filter(this::checkSyncGroup);
                 })
             .toArray(Mono[]::new);

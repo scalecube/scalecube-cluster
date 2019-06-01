@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipEvent.Type;
-import io.scalecube.transport.Address;
+import io.scalecube.cluster.transport.api.Address;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
