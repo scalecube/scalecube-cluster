@@ -7,10 +7,18 @@ final class PingData {
 
   enum AckType {
 
-    /** Ping completed successfully. Destination member responded normally. */
+    /**
+     * Ping completed successfully.
+     *
+     * <p>Destination member responded normally.
+     */
     DEST_OK,
 
-    /** Ping didn't complete normally. Member referenced by field {@link #to} is gone. */
+    /**
+     * Ping didn't complete normally.
+     *
+     * <p>Member referenced by field {@link #to} is gone.
+     */
     DEST_GONE
   }
 
