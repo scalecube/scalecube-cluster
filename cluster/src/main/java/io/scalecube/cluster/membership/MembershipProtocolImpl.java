@@ -564,6 +564,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           if (!members.containsKey(r1.id())) {
             return;
           }
+          cancelSuspicionTimeoutTask(r1.id());
           // Update membership
           members.remove(r1.id());
           membershipTable.remove(r1.id());
@@ -617,7 +618,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   }
 
   private void onSuspicionTimeout(String memberId) {
-    suspicionTimeoutTasks.remove(memberId);
     MembershipRecord record = membershipTable.get(memberId);
     if (record != null) {
       LOGGER.debug("Declare SUSPECTED member {} as DEAD by timeout", record);

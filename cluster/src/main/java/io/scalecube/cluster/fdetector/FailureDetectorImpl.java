@@ -2,6 +2,7 @@ package io.scalecube.cluster.fdetector;
 
 import io.scalecube.cluster.CorrelationIdGenerator;
 import io.scalecube.cluster.Member;
+import io.scalecube.cluster.fdetector.PingData.AckType;
 import io.scalecube.cluster.membership.MemberStatus;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.transport.api.Address;
@@ -149,7 +150,7 @@ public final class FailureDetectorImpl implements FailureDetector {
         .subscribe(
             message -> {
               LOGGER.trace("Received PingAck[{}] from {}", period, pingMember);
-              publishPingResult(period, pingMember, MemberStatus.ALIVE);
+              publishPingResult(period, pingMember, computeMemberStatus(message, period));
             },
             ex -> {
               LOGGER.debug(
@@ -193,7 +194,7 @@ public final class FailureDetectorImpl implements FailureDetector {
                           period,
                           message.sender(),
                           pingMember);
-                      publishPingResult(period, pingMember, MemberStatus.ALIVE);
+                      publishPingResult(period, pingMember, computeMemberStatus(message, period));
                     },
                     throwable -> {
                       LOGGER.debug(
@@ -225,10 +226,11 @@ public final class FailureDetectorImpl implements FailureDetector {
     long period = this.currentPeriod;
     LOGGER.trace("Received Ping[{}]", period);
     PingData data = message.data();
+    data = data.withAckType(AckType.DEST_OK);
     if (!data.getTo().id().equals(localMember.id())) {
       LOGGER.warn(
           "Received Ping[{}] to {}, but local member is {}", period, data.getTo(), localMember);
-      return;
+      data = data.withAckType(AckType.DEST_GONE);
     }
     String correlationId = message.correlationId();
     Message ackMessage =
@@ -277,9 +279,10 @@ public final class FailureDetectorImpl implements FailureDetector {
     long period = this.currentPeriod;
     LOGGER.trace("Received transit PingAck[{}]", period);
     PingData data = message.data();
+    AckType ackType = data.getAckType();
     Member target = data.getOriginalIssuer();
     String correlationId = message.correlationId();
-    PingData originalAckData = new PingData(target, data.getTo());
+    PingData originalAckData = new PingData(target, data.getTo()).withAckType(ackType);
     Message originalAckMessage =
         Message.withData(originalAckData).qualifier(PING_ACK).correlationId(correlationId).build();
     Address address = target.address();
@@ -349,6 +352,23 @@ public final class FailureDetectorImpl implements FailureDetector {
   private void publishPingResult(long period, Member member, MemberStatus status) {
     LOGGER.debug("Member {} detected as {} at [{}]", member, status, period);
     sink.next(new FailureDetectorEvent(member, status));
+  }
+
+  private MemberStatus computeMemberStatus(Message message, long period) {
+    MemberStatus memberStatus;
+    PingData data = message.data();
+    switch (data.getAckType()) {
+      case DEST_OK:
+        memberStatus = MemberStatus.ALIVE;
+        break;
+      case DEST_GONE:
+        memberStatus = MemberStatus.DEAD;
+        break;
+      default:
+        LOGGER.warn("Unknown PingData.AckType received '{}' at [{}]", data.getAckType(), period);
+        memberStatus = MemberStatus.SUSPECT;
+    }
+    return memberStatus;
   }
 
   private boolean isPing(Message message) {
