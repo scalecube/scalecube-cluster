@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipEvent.Type;
-import io.scalecube.cluster.transport.api.Address;
+import io.scalecube.net.Address;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -465,7 +465,8 @@ public class ClusterTest extends BaseTest {
   private void shutdown(List<Cluster> nodes) {
     try {
       Mono.when(
-              nodes.stream() //
+              nodes
+                  .stream() //
                   .map(Cluster::shutdown)
                   .collect(Collectors.toList()))
           .block(TIMEOUT);

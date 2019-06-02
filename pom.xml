@@ -22,6 +22,7 @@
   </scm>
 
   <properties>
+    <scalecube-commons.version>1.0.0-SNAPSHOT</scalecube-commons.version>
     <slf4j.version>1.7.7</slf4j.version>
     <protostuff.version>1.6.0</protostuff.version>
     <protobuf.version>3.4.0</protobuf.version>
@@ -83,6 +84,11 @@
 
   <dependencyManagement>
     <dependencies>
+      <dependency>
+        <groupId>io.scalecube</groupId>
+        <artifactId>scalecube-commons</artifactId>
+        <version>${scalecube-commons.version}</version>
+      </dependency>
       <!-- Slf4j -->
       <dependency>
         <groupId>org.slf4j</groupId>

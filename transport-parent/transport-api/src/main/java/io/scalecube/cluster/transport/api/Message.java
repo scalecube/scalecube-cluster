@@ -1,5 +1,6 @@
 package io.scalecube.cluster.transport.api;
 
+import io.scalecube.net.Address;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;

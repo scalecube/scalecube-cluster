@@ -2,9 +2,9 @@ package io.scalecube.transport.netty;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import io.scalecube.cluster.transport.api.Address;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
+import io.scalecube.net.Address;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;

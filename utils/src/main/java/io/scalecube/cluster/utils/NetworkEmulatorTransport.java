@@ -1,8 +1,8 @@
 package io.scalecube.cluster.utils;
 
-import io.scalecube.cluster.transport.api.Address;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
+import io.scalecube.net.Address;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 

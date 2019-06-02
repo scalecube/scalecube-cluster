@@ -1,7 +1,7 @@
 package io.scalecube.cluster.utils;
 
-import io.scalecube.cluster.transport.api.Address;
 import io.scalecube.cluster.transport.api.Message;
+import io.scalecube.net.Address;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;

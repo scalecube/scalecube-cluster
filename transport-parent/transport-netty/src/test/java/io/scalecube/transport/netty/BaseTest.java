@@ -1,9 +1,9 @@
 package io.scalecube.transport.netty;
 
-import io.scalecube.cluster.transport.api.Address;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.utils.NetworkEmulatorTransport;
+import io.scalecube.net.Address;
 import java.time.Duration;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

@@ -10,9 +10,9 @@ import io.scalecube.cluster.fdetector.FailureDetector;
 import io.scalecube.cluster.fdetector.FailureDetectorEvent;
 import io.scalecube.cluster.gossip.GossipProtocol;
 import io.scalecube.cluster.metadata.MetadataStore;
-import io.scalecube.cluster.transport.api.Address;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
+import io.scalecube.net.Address;
 import java.lang.management.ManagementFactory;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -160,9 +160,9 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private List<Address> cleanUpSeedMembers(Collection<Address> seedMembers) {
     return new LinkedHashSet<>(seedMembers)
         .stream()
-            .filter(address -> !address.equals(localMember.address()))
-            .filter(address -> !address.equals(transport.address()))
-            .collect(Collectors.toList());
+        .filter(address -> !address.equals(localMember.address()))
+        .filter(address -> !address.equals(transport.address()))
+        .collect(Collectors.toList());
   }
 
   @Override
@@ -224,7 +224,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
     //noinspection unchecked
     Mono<Message>[] syncs =
-        seedMembers.stream()
+        seedMembers
+            .stream()
             .map(
                 address -> {
                   String cid = cidGenerator.nextCid();
@@ -271,7 +272,9 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   @Override
   public Collection<Member> otherMembers() {
     return new ArrayList<>(members.values())
-        .stream().filter(member -> !member.equals(localMember)).collect(Collectors.toList());
+        .stream()
+        .filter(member -> !member.equals(localMember))
+        .collect(Collectors.toList());
   }
 
   @Override
@@ -287,7 +290,9 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   @Override
   public Optional<Member> member(Address address) {
     return new ArrayList<>(members.values())
-        .stream().filter(member -> member.address().equals(address)).findFirst();
+        .stream()
+        .filter(member -> member.address().equals(address))
+        .findFirst();
   }
 
   private void doSync() {
@@ -455,7 +460,9 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           MembershipUpdateReason reason =
               onStart ? MembershipUpdateReason.INITIAL_SYNC : MembershipUpdateReason.SYNC;
           return Mono.whenDelayError(
-              syncData.getMembership().stream()
+              syncData
+                  .getMembership()
+                  .stream()
                   .filter(r1 -> !r1.equals(membershipTable.get(r1.id())))
                   .map(r1 -> updateMembership(r1, reason))
                   .toArray(Mono[]::new));
@@ -764,7 +771,9 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     }
 
     private List<String> findRecordsByCondition(Predicate<MembershipRecord> condition) {
-      return membershipProtocol.getMembershipRecords().stream()
+      return membershipProtocol
+          .getMembershipRecords()
+          .stream()
           .filter(condition)
           .map(record -> new Member(record.id(), record.address()))
           .map(Member::toString)

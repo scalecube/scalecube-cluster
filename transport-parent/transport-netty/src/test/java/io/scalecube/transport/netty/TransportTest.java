@@ -6,9 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
-import io.scalecube.cluster.transport.api.Address;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.utils.NetworkEmulatorTransport;
+import io.scalecube.net.Address;
 import java.io.IOException;
 import java.net.UnknownHostException;
 import java.time.Duration;

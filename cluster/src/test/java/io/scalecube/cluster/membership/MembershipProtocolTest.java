@@ -10,10 +10,10 @@ import io.scalecube.cluster.Member;
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
 import io.scalecube.cluster.metadata.MetadataStoreImpl;
-import io.scalecube.cluster.transport.api.Address;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.utils.NetworkEmulator;
 import io.scalecube.cluster.utils.NetworkEmulatorTransport;
+import io.scalecube.net.Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.time.Duration;
@@ -975,7 +975,9 @@ public class MembershipProtocolTest extends BaseTest {
   }
 
   private List<Member> membersByStatus(MembershipProtocolImpl membership, MemberStatus status) {
-    return membership.getMembershipRecords().stream()
+    return membership
+        .getMembershipRecords()
+        .stream()
         .filter(member -> member.status() == status)
         .map(MembershipRecord::member)
         .collect(Collectors.toList());

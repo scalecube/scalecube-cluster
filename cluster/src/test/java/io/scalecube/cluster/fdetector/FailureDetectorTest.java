@@ -11,10 +11,10 @@ import io.scalecube.cluster.CorrelationIdGenerator;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.membership.MemberStatus;
 import io.scalecube.cluster.membership.MembershipEvent;
-import io.scalecube.cluster.transport.api.Address;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.cluster.utils.NetworkEmulatorTransport;
+import io.scalecube.net.Address;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -452,7 +452,8 @@ public class FailureDetectorTest extends BaseTest {
       Collection<FailureDetectorEvent> events,
       Address... expected) {
     List<Address> actual =
-        events.stream()
+        events
+            .stream()
             .filter(event -> event.status() == status)
             .map(FailureDetectorEvent::member)
             .map(Member::address)
