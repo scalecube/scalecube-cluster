@@ -27,10 +27,10 @@ public class SeedRunner {
     ClusterConfig config =
         ClusterConfig.builder()
             .syncGroup("issue187")
-            .metadataCodec(SimpleMapMetadataCodec.INSTANCE)
+            .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
+            .metadataDecoder(SimpleMapMetadataCodec.INSTANCE)
             .metadata(
-                SimpleMapMetadataCodec.INSTANCE.serialize(
-                    Collections.singletonMap("seed", Integer.toHexString(new Object().hashCode()))))
+                Collections.singletonMap("seed", Integer.toHexString(new Object().hashCode())))
             .syncInterval(1000)
             .syncTimeout(1000)
             .metadataTimeout(1000)

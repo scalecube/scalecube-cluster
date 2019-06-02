@@ -5,7 +5,6 @@ import io.scalecube.cluster.gossip.GossipProtocolImpl;
 import io.scalecube.cluster.membership.IdGenerator;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipProtocolImpl;
-import io.scalecube.cluster.metadata.MetadataCodec;
 import io.scalecube.cluster.metadata.MetadataStore;
 import io.scalecube.cluster.metadata.MetadataStoreImpl;
 import io.scalecube.cluster.transport.api.Address;
@@ -79,6 +78,7 @@ public final class ClusterImpl implements Cluster {
   // Cluster components
   private Transport transport;
   private Member localMember;
+  private Object localMetadata;
   private FailureDetectorImpl failureDetector;
   private GossipProtocolImpl gossip;
   private MembershipProtocolImpl membership;
@@ -167,6 +167,7 @@ public final class ClusterImpl implements Cluster {
         .flatMap(
             transport1 -> {
               localMember = createLocalMember(transport1.address().port());
+              localMetadata = config.getMetadata();
               transport = new SenderAwareTransport(transport1, localMember.address());
 
               cidGenerator = new CorrelationIdGenerator(localMember.id());
@@ -193,7 +194,7 @@ public final class ClusterImpl implements Cluster {
                   new MetadataStoreImpl(
                       localMember,
                       transport,
-                      config.getMetadataCodec().serialize(config.getMetadata()),
+                      config.getMetadataEncoder().encode(localMetadata),
                       config,
                       scheduler,
                       cidGenerator);
@@ -318,14 +319,12 @@ public final class ClusterImpl implements Cluster {
 
   @Override
   public <T> T metadata() {
-    MetadataCodec<T> metadataCodec = config.getMetadataCodec();
-    return metadataCodec.deserialize(metadataStore.metadata());
+    return (T) localMetadata;
   }
 
   @Override
   public <T> T metadata(Member member) {
-    MetadataCodec<T> metadataCodec = config.getMetadataCodec();
-    return metadataCodec.deserialize(metadataStore.metadata(member));
+    return (T) config.getMetadataDecoder().decode(metadataStore.metadata(member));
   }
 
   @Override
@@ -345,8 +344,9 @@ public final class ClusterImpl implements Cluster {
 
   @Override
   public <T> Mono<Void> updateMetadata(T metadata) {
-    return Mono.fromRunnable(
-      () -> metadataStore.updateMetadata(config.<T>getMetadataCodec().serialize(metadata)))
+    return Mono.fromCallable(() -> config.getMetadataEncoder().encode(metadata))
+        .doOnNext(byteBuffer -> metadataStore.updateMetadata(byteBuffer))
+        .then(Mono.fromRunnable(() -> localMetadata = metadata))
         .then(membership.updateIncarnation())
         .subscribeOn(scheduler);
   }

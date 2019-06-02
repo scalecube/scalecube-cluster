@@ -7,7 +7,7 @@ public interface MembershipConfig {
 
   List<Address> getSeedMembers();
 
-  <T> T getMetadata();
+  Object getMetadata();
 
   int getSyncInterval();
 

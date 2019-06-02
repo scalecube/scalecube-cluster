@@ -20,7 +20,11 @@ public class MessagingExample {
     // Start cluster node Alice to listen and respond for incoming greeting messages
     Cluster alice =
         new ClusterImpl()
-            .config(options -> options.metadataCodec(SimpleMapMetadataCodec.INSTANCE))
+            .config(
+                options ->
+                    options
+                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
+                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE))
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {
@@ -43,7 +47,8 @@ public class MessagingExample {
                 options ->
                     options
                         .seedMembers(alice.address())
-                        .metadataCodec(SimpleMapMetadataCodec.INSTANCE))
+                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
+                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE))
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {
@@ -65,7 +70,8 @@ public class MessagingExample {
                 options ->
                     options
                         .seedMembers(alice.address(), bob.address())
-                        .metadataCodec(SimpleMapMetadataCodec.INSTANCE))
+                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
+                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE))
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {

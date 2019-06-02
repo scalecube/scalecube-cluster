@@ -522,9 +522,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                         // Update membership
                         ByteBuffer metadata0 = metadataStore.updateMetadata(r1.member(), metadata1);
                         onAliveMemberDetected(
-                            r1,
-                            Optional.ofNullable(metadata0).orElse(null),
-                            metadata1);
+                            r1, Optional.ofNullable(metadata0).orElse(null), metadata1);
                       })
                   .onErrorResume(Exception.class, e -> Mono.empty())
                   .then();

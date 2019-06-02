@@ -22,7 +22,11 @@ public class ClusterJoinExamples {
     // Start seed member Alice
     Cluster alice =
         new ClusterImpl()
-            .config(options -> options.metadataCodec(SimpleMapMetadataCodec.INSTANCE))
+            .config(
+                options ->
+                    options
+                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
+                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE))
             .startAwait();
 
     // Join Bob to cluster with Alice
@@ -32,7 +36,8 @@ public class ClusterJoinExamples {
                 options ->
                     options
                         .seedMembers(alice.address())
-                        .metadataCodec(SimpleMapMetadataCodec.INSTANCE))
+                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
+                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE))
             .startAwait();
 
     // Join Carol to cluster with metadata
@@ -43,8 +48,9 @@ public class ClusterJoinExamples {
                 options ->
                     options
                         .seedMembers(alice.address())
-                        .metadata(SimpleMapMetadataCodec.INSTANCE.serialize(metadata))
-                        .metadataCodec(SimpleMapMetadataCodec.INSTANCE))
+                        .metadata(metadata)
+                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
+                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE))
             .startAwait();
 
     // Start Dan on port 3000
@@ -52,7 +58,8 @@ public class ClusterJoinExamples {
         ClusterConfig.builder()
             .seedMembers(alice.address())
             .port(3000)
-            .metadataCodec(SimpleMapMetadataCodec.INSTANCE)
+            .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
+            .metadataDecoder(SimpleMapMetadataCodec.INSTANCE)
             .build();
     Cluster dan = new ClusterImpl(configWithFixedPort).startAwait();
 
@@ -62,7 +69,8 @@ public class ClusterJoinExamples {
             .seedMembers(
                 alice.address(), bob.address(), carol.address(), dan.address()) // won't join anyway
             .syncGroup("another cluster")
-            .metadataCodec(SimpleMapMetadataCodec.INSTANCE)
+            .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
+            .metadataDecoder(SimpleMapMetadataCodec.INSTANCE)
             .build();
     Cluster eve = new ClusterImpl(configWithSyncGroup).startAwait();
 

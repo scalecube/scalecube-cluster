@@ -19,7 +19,11 @@ public class GossipExample {
     // Start cluster nodes and subscribe on listening gossips
     Cluster alice =
         new ClusterImpl()
-            .config(options -> options.metadataCodec(SimpleMapMetadataCodec.INSTANCE))
+            .config(
+                options ->
+                    options
+                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
+                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE))
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {
@@ -38,7 +42,8 @@ public class GossipExample {
                 options ->
                     options
                         .seedMembers(alice.address())
-                        .metadataCodec(SimpleMapMetadataCodec.INSTANCE))
+                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
+                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE))
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {
@@ -57,7 +62,8 @@ public class GossipExample {
                 options ->
                     options
                         .seedMembers(alice.address())
-                        .metadataCodec(SimpleMapMetadataCodec.INSTANCE))
+                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
+                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE))
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {
@@ -76,7 +82,8 @@ public class GossipExample {
                 options ->
                     options
                         .seedMembers(alice.address())
-                        .metadataCodec(SimpleMapMetadataCodec.INSTANCE))
+                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
+                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE))
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {
@@ -95,7 +102,8 @@ public class GossipExample {
                 options ->
                     options
                         .seedMembers(alice.address())
-                        .metadataCodec(SimpleMapMetadataCodec.INSTANCE))
+                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
+                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE))
             .startAwait();
     eve.spreadGossip(Message.fromData("Gossip from Eve"))
         .doOnError(System.err::println)

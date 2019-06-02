@@ -30,11 +30,10 @@ public class NodeIthRunner {
         ClusterConfig.builder()
             .syncGroup("issue187")
             .seedMembers(address)
-            .metadataCodec(SimpleMapMetadataCodec.INSTANCE)
+            .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
+            .metadataDecoder(SimpleMapMetadataCodec.INSTANCE)
             .metadata(
-                SimpleMapMetadataCodec.INSTANCE.serialize(
-                    Collections.singletonMap(
-                        "node-i-th", Integer.toHexString(new Object().hashCode()))))
+                Collections.singletonMap("node-i-th", Integer.toHexString(new Object().hashCode())))
             .syncInterval(1000)
             .syncTimeout(1000)
             .metadataTimeout(1000)

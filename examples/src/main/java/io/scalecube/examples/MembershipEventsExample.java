@@ -29,10 +29,9 @@ public class MembershipEventsExample {
             .config(
                 options ->
                     options
-                        .metadataCodec(SimpleMapMetadataCodec.INSTANCE)
-                        .metadata(
-                            SimpleMapMetadataCodec.INSTANCE.serialize(
-                                Collections.singletonMap("name", "Alice"))))
+                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
+                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE)
+                        .metadata(Collections.singletonMap("name", "Alice")))
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {
@@ -52,10 +51,9 @@ public class MembershipEventsExample {
                 options ->
                     options
                         .seedMembers(alice.address())
-                        .metadataCodec(SimpleMapMetadataCodec.INSTANCE)
-                        .metadata(
-                            SimpleMapMetadataCodec.INSTANCE.serialize(
-                                Collections.singletonMap("name", "Bob"))))
+                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
+                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE)
+                        .metadata(Collections.singletonMap("name", "Bob")))
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {
@@ -75,10 +73,9 @@ public class MembershipEventsExample {
                 options ->
                     options
                         .seedMembers(alice.address(), bob.address())
-                        .metadataCodec(SimpleMapMetadataCodec.INSTANCE)
-                        .metadata(
-                            SimpleMapMetadataCodec.INSTANCE.serialize(
-                                Collections.singletonMap("name", "Carol"))))
+                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
+                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE)
+                        .metadata(Collections.singletonMap("name", "Carol")))
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {

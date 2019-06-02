@@ -26,7 +26,11 @@ public class ClusterMetadataExample {
     // Start seed cluster member Alice
     Cluster alice =
         new ClusterImpl()
-            .config(options -> options.metadataCodec(SimpleMapMetadataCodec.INSTANCE))
+            .config(
+                options ->
+                    options
+                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
+                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE))
             .startAwait();
 
     // Join Joe to cluster with metadata and listen for incoming messages and print them to stdout
@@ -37,10 +41,9 @@ public class ClusterMetadataExample {
                 options ->
                     options
                         .seedMembers(alice.address())
-                        .metadataCodec(SimpleMapMetadataCodec.INSTANCE)
-                        .metadata(
-                            SimpleMapMetadataCodec.INSTANCE.serialize(
-                                Collections.singletonMap("name", "Joe"))))
+                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
+                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE)
+                        .metadata(Collections.singletonMap("name", "Joe")))
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {

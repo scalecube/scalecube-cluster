@@ -3,11 +3,11 @@ package io.scalecube.cluster;
 import io.scalecube.cluster.fdetector.FailureDetectorConfig;
 import io.scalecube.cluster.gossip.GossipConfig;
 import io.scalecube.cluster.membership.MembershipConfig;
-import io.scalecube.cluster.metadata.MetadataCodec;
+import io.scalecube.cluster.metadata.MetadataDecoder;
+import io.scalecube.cluster.metadata.MetadataEncoder;
 import io.scalecube.cluster.transport.api.Address;
 import io.scalecube.cluster.transport.api.MessageCodec;
 import io.scalecube.cluster.transport.api.TransportConfig;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -60,7 +60,7 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
   public static final Integer DEFAULT_MEMBER_PORT = null;
 
   private final List<Address> seedMembers;
-  private final ByteBuffer metadata;
+  private final Object metadata;
   private final int syncInterval;
   private final int syncTimeout;
   private final int suspicionMult;
@@ -76,7 +76,8 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
   private final int gossipRepeatMult;
 
   private final TransportConfig transportConfig;
-  private final MetadataCodec metadataCodec;
+  private final MetadataEncoder metadataEncoder;
+  private final MetadataDecoder metadataDecoder;
   private final String memberHost;
   private final Integer memberPort;
 
@@ -98,7 +99,8 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
     this.gossipRepeatMult = builder.gossipRepeatMult;
 
     this.transportConfig = builder.transportConfigBuilder.build();
-    this.metadataCodec = builder.metadataCodec;
+    this.metadataEncoder = builder.metadataEncoder;
+    this.metadataDecoder = builder.metadataDecoder;
     this.memberHost = builder.memberHost;
     this.memberPort = builder.memberPort;
   }
@@ -129,7 +131,8 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
         .gossipFanout(clusterConfig.gossipFanout)
         .gossipRepeatMult(clusterConfig.gossipRepeatMult)
         .transportConfig(TransportConfig.builder().fillFrom(clusterConfig.transportConfig).build())
-        .metadataCodec(clusterConfig.metadataCodec)
+        .metadataEncoder(clusterConfig.metadataEncoder)
+        .metadataDecoder(clusterConfig.metadataDecoder)
         .memberHost(clusterConfig.memberHost)
         .memberPort(clusterConfig.memberPort);
   }
@@ -172,9 +175,8 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
     return seedMembers;
   }
 
-  public <T> T getMetadata() {
-    MetadataCodec<T> metadataCodec = getMetadataCodec();
-    return metadataCodec.deserialize(metadata);
+  public Object getMetadata() {
+    return metadata;
   }
 
   public int getSyncInterval() {
@@ -225,8 +227,12 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
     return transportConfig;
   }
 
-  public <T> MetadataCodec<T> getMetadataCodec() {
-    return metadataCodec;
+  public MetadataEncoder getMetadataEncoder() {
+    return metadataEncoder;
+  }
+
+  public MetadataDecoder getMetadataDecoder() {
+    return metadataDecoder;
   }
 
   public String getMemberHost() {
@@ -242,7 +248,7 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
     return "ClusterConfig{seedMembers="
         + seedMembers
         + ", metadata="
-        + metadataAsString()
+        + metadata
         + ", syncInterval="
         + syncInterval
         + ", syncTimeout="
@@ -268,8 +274,10 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
         + gossipRepeatMult
         + ", transportConfig="
         + transportConfig
-        + ", metadataCodec="
-        + metadataCodec
+        + ", metadataEncoder="
+        + metadataEncoder
+        + ", metadataDecoder="
+        + metadataDecoder
         + ", memberHost="
         + memberHost
         + ", memberPort="
@@ -277,18 +285,10 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
         + '}';
   }
 
-  private String metadataAsString() {
-    return metadata.remaining() == 0
-        ? "[]"
-        : "metadata@" + Integer.toHexString(metadata.hashCode()) + "[" + metadata.remaining() + "]";
-  }
-
   public static final class Builder {
 
-    public static final ByteBuffer EMPTY = ByteBuffer.wrap(new byte[0]);
-
     private List<Address> seedMembers = Collections.emptyList();
-    private ByteBuffer metadata = EMPTY;
+    private Object metadata;
     private int syncInterval = DEFAULT_SYNC_INTERVAL;
     private int syncTimeout = DEFAULT_SYNC_TIMEOUT;
     private String syncGroup = DEFAULT_SYNC_GROUP;
@@ -304,14 +304,15 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
     private int gossipRepeatMult = DEFAULT_GOSSIP_REPEAT_MULT;
 
     private TransportConfig.Builder transportConfigBuilder = TransportConfig.builder();
-    private MetadataCodec<?> metadataCodec;
+    private MetadataEncoder metadataEncoder;
+    private MetadataDecoder metadataDecoder;
 
     private String memberHost = DEFAULT_MEMBER_HOST;
     private Integer memberPort = DEFAULT_MEMBER_PORT;
 
     private Builder() {}
 
-    public Builder metadata(ByteBuffer metadata) {
+    public Builder metadata(Object metadata) {
       this.metadata = metadata;
       return this;
     }
@@ -387,8 +388,13 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
       return this;
     }
 
-    public Builder metadataCodec(MetadataCodec<?> metadataCodec) {
-      this.metadataCodec = metadataCodec;
+    public Builder metadataDecoder(MetadataDecoder metadataDecoder) {
+      this.metadataDecoder = metadataDecoder;
+      return this;
+    }
+
+    public Builder metadataEncoder(MetadataEncoder metadataEncoder) {
+      this.metadataEncoder = metadataEncoder;
       return this;
     }
 
