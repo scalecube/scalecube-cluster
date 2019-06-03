@@ -237,14 +237,14 @@ public final class NetworkEmulator {
   public void blockAllInbound() {
     inboundSettings.clear();
     setDefaultInboundSettings(false);
-    LOGGER.debug("Blocked inbound from {} to all destinations", address);
+    LOGGER.debug("Blocked inbound to {} from all destinations", address);
   }
 
   /** Unblocks inbound messages to all destinations. */
   public void unblockAllInbound() {
     inboundSettings.clear();
     setDefaultInboundSettings(true);
-    LOGGER.debug("Unblocked inbound from {} to all destinations", address);
+    LOGGER.debug("Unblocked inbound to {} from all destinations", address);
   }
 
   /**
@@ -265,7 +265,7 @@ public final class NetworkEmulator {
     for (Address destination : destinations) {
       inboundSettings.put(destination, new InboundSettings(false));
     }
-    LOGGER.debug("Blocked inbound from {} to {}", address, destinations);
+    LOGGER.debug("Blocked inbound to {} from {}", address, destinations);
   }
   
   /**
@@ -284,7 +284,7 @@ public final class NetworkEmulator {
    */
   public void unblockInbound(Collection<Address> destinations) {
     destinations.forEach(inboundSettings::remove);
-    LOGGER.debug("Unblocked inbound from {} to {}", address, destinations);
+    LOGGER.debug("Unblocked inbound to {} from {}", address, destinations);
   }
 
   /**

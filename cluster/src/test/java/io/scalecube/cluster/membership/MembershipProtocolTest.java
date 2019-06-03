@@ -26,6 +26,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import reactor.core.Exceptions;
@@ -472,19 +473,19 @@ public class MembershipProtocolTest extends BaseTest {
     NetworkEmulatorTransport e = createTransport();
 
     MembershipProtocolImpl cmA =
-        createMembership(a, testConfig(Collections.emptyList()).memberHost(localAddress).build());
+      createMembership(a, testConfig(Collections.emptyList()).memberHost(localAddress).build());
     MembershipProtocolImpl cmB =
-        createMembership(
-            b, testConfig(Collections.singletonList(a.address())).memberHost(localAddress).build());
+      createMembership(
+        b, testConfig(Collections.singletonList(a.address())).memberHost(localAddress).build());
     MembershipProtocolImpl cmC =
-        createMembership(
-            c, testConfig(Collections.singletonList(a.address())).memberHost(localAddress).build());
+      createMembership(
+        c, testConfig(Collections.singletonList(a.address())).memberHost(localAddress).build());
     MembershipProtocolImpl cmD =
-        createMembership(
-            d, testConfig(Collections.singletonList(b.address())).memberHost(localAddress).build());
+      createMembership(
+        d, testConfig(Collections.singletonList(b.address())).memberHost(localAddress).build());
     MembershipProtocolImpl cmE =
-        createMembership(
-            e, testConfig(Collections.singletonList(b.address())).memberHost(localAddress).build());
+      createMembership(
+        e, testConfig(Collections.singletonList(b.address())).memberHost(localAddress).build());
 
     try {
       awaitSeconds(3);
@@ -516,7 +517,7 @@ public class MembershipProtocolTest extends BaseTest {
     MembershipProtocolImpl cmA = createMembership(a, Collections.emptyList());
     MembershipProtocolImpl cmB = createMembership(b, Collections.singletonList(a.address()));
     MembershipProtocolImpl cm_noInbound =
-        createMembership(c_noInbound, Collections.singletonList(a.address()));
+      createMembership(c_noInbound, Collections.singletonList(a.address()));
 
     awaitSeconds(3);
 
@@ -543,7 +544,7 @@ public class MembershipProtocolTest extends BaseTest {
     MembershipProtocolImpl cmA = createMembership(a, Collections.emptyList());
     MembershipProtocolImpl cmB = createMembership(b, Collections.singletonList(a.address()));
     MembershipProtocolImpl cm_noInboundThenInboundOk =
-        createMembership(c_noInboundThenInboundOk, Collections.singletonList(a.address()));
+      createMembership(c_noInboundThenInboundOk, Collections.singletonList(a.address()));
 
     awaitSeconds(3);
 
@@ -757,7 +758,8 @@ public class MembershipProtocolTest extends BaseTest {
     NetworkEmulatorTransport b = createTransport();
     NetworkEmulatorTransport c = createTransport();
     NetworkEmulatorTransport d = createTransport();
-    List<Address> addresses = Arrays.asList(a.address(), b.address(), c.address(), d.address());
+    List<Address> addresses = Stream.of(a, b, c, d).map(NetworkEmulatorTransport::address)
+      .collect(Collectors.toList());
 
     MembershipProtocolImpl cmA = createMembership(a, addresses);
     MembershipProtocolImpl cmB = createMembership(b, addresses);
@@ -784,10 +786,10 @@ public class MembershipProtocolTest extends BaseTest {
 
       // Split into several clusters
       Stream.of(a, b, c, d)
-          .map(NetworkEmulatorTransport::networkEmulator)
-          .forEach(NetworkEmulator::blockAllInbound);
+        .map(NetworkEmulatorTransport::networkEmulator)
+        .forEach(NetworkEmulator::blockAllInbound);
 
-      awaitSeconds(1);
+      awaitSeconds(2);
 
       // Check partition: {a}, {b}, {c}, {d}
       assertSelfTrusted(cmA);
@@ -795,9 +797,9 @@ public class MembershipProtocolTest extends BaseTest {
       assertSelfTrusted(cmB);
       assertSuspected(cmB, cmA.member(), cmC.member(), cmD.member());
       assertSelfTrusted(cmC);
-      assertSuspected(cmC, cmB.member(), cmA.member(), cmD.member());
+      assertSuspected(cmC, cmA.member(), cmB.member(), cmD.member());
       assertSelfTrusted(cmD);
-      assertSuspected(cmD, cmB.member(), cmA.member(), cmC.member());
+      assertSuspected(cmD, cmA.member(), cmB.member(), cmC.member());
 
       awaitSuspicion(addresses.size());
 
@@ -808,8 +810,8 @@ public class MembershipProtocolTest extends BaseTest {
 
       // Recover network
       Stream.of(a, b, c, d)
-          .map(NetworkEmulatorTransport::networkEmulator)
-          .forEach(NetworkEmulator::unblockAllInbound);
+        .map(NetworkEmulatorTransport::networkEmulator)
+        .forEach(NetworkEmulator::unblockAllInbound);
 
       awaitSeconds(3);
 
@@ -830,16 +832,16 @@ public class MembershipProtocolTest extends BaseTest {
   private ClusterConfig.Builder testConfig(List<Address> seedAddresses) {
     // Create faster config for local testing
     return ClusterConfig.builder()
-        .seedMembers(seedAddresses)
-        .syncInterval(TEST_SYNC_INTERVAL)
-        .syncTimeout(100)
-        .pingInterval(PING_INTERVAL)
-        .pingTimeout(100)
-        .metadataTimeout(100);
+      .seedMembers(seedAddresses)
+      .syncInterval(TEST_SYNC_INTERVAL)
+      .syncTimeout(100)
+      .pingInterval(PING_INTERVAL)
+      .pingTimeout(100)
+      .metadataTimeout(100);
   }
 
   private MembershipProtocolImpl createMembership(
-      Transport transport, List<Address> seedAddresses) {
+    Transport transport, List<Address> seedAddresses) {
     return createMembership(transport, testConfig(seedAddresses).build());
   }
 
@@ -852,26 +854,26 @@ public class MembershipProtocolTest extends BaseTest {
     CorrelationIdGenerator cidGenerator = new CorrelationIdGenerator(localMember.id());
 
     FailureDetectorImpl failureDetector =
-        new FailureDetectorImpl(
-            localMember, transport, membershipProcessor, config, scheduler, cidGenerator);
+      new FailureDetectorImpl(
+        localMember, transport, membershipProcessor, config, scheduler, cidGenerator);
 
     GossipProtocolImpl gossipProtocol =
-        new GossipProtocolImpl(localMember, transport, membershipProcessor, config, scheduler);
+      new GossipProtocolImpl(localMember, transport, membershipProcessor, config, scheduler);
 
     MetadataStoreImpl metadataStore =
-        new MetadataStoreImpl(
-            localMember, transport, Collections.emptyMap(), config, scheduler, cidGenerator);
+      new MetadataStoreImpl(
+        localMember, transport, Collections.emptyMap(), config, scheduler, cidGenerator);
 
     MembershipProtocolImpl membership =
-        new MembershipProtocolImpl(
-            localMember,
-            transport,
-            failureDetector,
-            gossipProtocol,
-            metadataStore,
-            config,
-            scheduler,
-            cidGenerator);
+      new MembershipProtocolImpl(
+        localMember,
+        transport,
+        failureDetector,
+        gossipProtocol,
+        metadataStore,
+        config,
+        scheduler,
+        cidGenerator);
 
     membership.listen().subscribe(membershipSink::next);
 
@@ -913,34 +915,34 @@ public class MembershipProtocolTest extends BaseTest {
     List<Member> expectedList = new ArrayList<>(Arrays.asList(expected));
     expectedList.add(membership.member()); // add local since he always trusted (alive)
     assertEquals(
-        expectedList.size(),
-        actual.size(),
-        "Expected "
-            + expectedList.size()
-            + " trusted members "
-            + expectedList
-            + ", but actual: "
-            + actual);
+      expectedList.size(),
+      actual.size(),
+      "Expected "
+        + expectedList.size()
+        + " trusted members "
+        + expectedList
+        + ", but actual: "
+        + actual);
     for (Member member : expectedList) {
       assertTrue(
-          actual.contains(member), "Expected to trust " + member + ", but actual: " + actual);
+        actual.contains(member), "Expected to trust " + member + ", but actual: " + actual);
     }
   }
 
   private void assertSuspected(MembershipProtocolImpl membership, Member... expected) {
     List<Member> actual = membersByStatus(membership, MemberStatus.SUSPECT);
     assertEquals(
-        expected.length,
-        actual.size(),
-        "Expected "
-            + expected.length
-            + " suspect members "
-            + Arrays.toString(expected)
-            + ", but actual: "
-            + actual);
+      expected.length,
+      actual.size(),
+      "Expected "
+        + expected.length
+        + " suspect members "
+        + Arrays.toString(expected)
+        + ", but actual: "
+        + actual);
     for (Member member : expected) {
       assertTrue(
-          actual.contains(member), "Expected to suspect " + member + ", but actual: " + actual);
+        actual.contains(member), "Expected to suspect " + member + ", but actual: " + actual);
     }
   }
 
@@ -948,17 +950,17 @@ public class MembershipProtocolTest extends BaseTest {
     List<Member> actual = new ArrayList<>();
     recording.map(MembershipEvent::member).subscribe(actual::add);
     assertEquals(
-        expected.length,
-        actual.size(),
-        "Expected "
-            + expected.length
-            + " removed members "
-            + Arrays.toString(expected)
-            + ", but actual: "
-            + actual);
+      expected.length,
+      actual.size(),
+      "Expected "
+        + expected.length
+        + " removed members "
+        + Arrays.toString(expected)
+        + ", but actual: "
+        + actual);
     for (Member member : expected) {
       assertTrue(
-          actual.contains(member), "Expected to be removed " + member + ", but actual: " + actual);
+        actual.contains(member), "Expected to be removed " + member + ", but actual: " + actual);
     }
   }
 
@@ -976,15 +978,15 @@ public class MembershipProtocolTest extends BaseTest {
 
   private List<Member> membersByStatus(MembershipProtocolImpl membership, MemberStatus status) {
     return membership
-        .getMembershipRecords()
-        .stream()
-        .filter(member -> member.status() == status)
-        .map(MembershipRecord::member)
-        .collect(Collectors.toList());
+      .getMembershipRecords()
+      .stream()
+      .filter(member -> member.status() == status)
+      .map(MembershipRecord::member)
+      .collect(Collectors.toList());
   }
 
   private ReplayProcessor<MembershipEvent> startRecordingRemoved(
-      MembershipProtocolImpl membership) {
+    MembershipProtocolImpl membership) {
     ReplayProcessor<MembershipEvent> recording = ReplayProcessor.create();
     membership.listen().filter(MembershipEvent::isRemoved).subscribe(recording);
     return recording;
