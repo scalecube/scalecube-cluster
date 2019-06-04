@@ -6,10 +6,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.scalecube.cluster.BaseTest;
 import io.scalecube.cluster.Member;
-import io.scalecube.transport.Address;
-import io.scalecube.transport.JacksonMessageCodec;
-import io.scalecube.transport.Message;
-import io.scalecube.transport.MessageCodec;
+import io.scalecube.cluster.transport.api.JacksonMessageCodec;
+import io.scalecube.cluster.transport.api.Message;
+import io.scalecube.cluster.transport.api.MessageCodec;
+import io.scalecube.net.Address;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
@@ -26,9 +26,8 @@ public class GossipRequestTest extends BaseTest {
   private TestData testData;
   private MessageCodec messageCodec;
 
-  /** Setup. */
   @BeforeEach
-  public void init() throws Throwable {
+  public void init() {
     Map<String, String> properties = new HashMap<>();
     properties.put("key", "123");
     testData = new TestData();

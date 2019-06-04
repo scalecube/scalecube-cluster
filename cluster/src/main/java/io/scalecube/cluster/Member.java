@@ -1,6 +1,6 @@
 package io.scalecube.cluster;
 
-import io.scalecube.transport.Address;
+import io.scalecube.net.Address;
 import java.util.Objects;
 
 /**

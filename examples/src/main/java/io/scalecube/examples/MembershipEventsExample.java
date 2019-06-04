@@ -2,7 +2,10 @@ package io.scalecube.examples;
 
 import io.scalecube.cluster.Cluster;
 import io.scalecube.cluster.ClusterConfig;
+import io.scalecube.cluster.ClusterImpl;
 import io.scalecube.cluster.ClusterMath;
+import io.scalecube.cluster.ClusterMessageHandler;
+import io.scalecube.cluster.membership.MembershipEvent;
 import java.text.SimpleDateFormat;
 import java.util.Collections;
 import java.util.Date;
@@ -20,26 +23,60 @@ public class MembershipEventsExample {
   /** Main method. */
   public static void main(String[] args) throws Exception {
     // Alice init cluster
-    Cluster alice = Cluster.joinAwait(Collections.singletonMap("name", "Alice"));
+    Cluster alice =
+        new ClusterImpl()
+            .config(options -> options.metadata(Collections.singletonMap("name", "Alice")))
+            .handler(
+                cluster -> {
+                  return new ClusterMessageHandler() {
+                    @Override
+                    public void onMembershipEvent(MembershipEvent event) {
+                      System.out.println(now() + " Alice received: " + event);
+                    }
+                  };
+                })
+            .startAwait();
     System.out.println(now() + " Alice join members: " + alice.members());
-    alice
-        .listenMembership()
-        .subscribe(event -> System.out.println(now() + " Alice received: " + event));
 
     // Bob join cluster
-    Cluster bob = Cluster.joinAwait(Collections.singletonMap("name", "Bob"), alice.address());
+    Cluster bob =
+        new ClusterImpl()
+            .config(
+                options ->
+                    options
+                        .seedMembers(alice.address())
+                        .metadata(Collections.singletonMap("name", "Bob")))
+            .handler(
+                cluster -> {
+                  return new ClusterMessageHandler() {
+                    @Override
+                    public void onMembershipEvent(MembershipEvent event) {
+                      System.out.println(now() + " Bob received: " + event);
+                    }
+                  };
+                })
+            .startAwait();
     System.out.println(now() + " Bob join members: " + bob.members());
-    bob.listenMembership()
-        .subscribe(event -> System.out.println(now() + " Bob received: " + event));
 
     // Carol join cluster
     Cluster carol =
-        Cluster.joinAwait(
-            Collections.singletonMap("name", "Carol"), alice.address(), bob.address());
+        new ClusterImpl()
+            .config(
+                options ->
+                    options
+                        .seedMembers(alice.address(), bob.address())
+                        .metadata(Collections.singletonMap("name", "Carol")))
+            .handler(
+                cluster -> {
+                  return new ClusterMessageHandler() {
+                    @Override
+                    public void onMembershipEvent(MembershipEvent event) {
+                      System.out.println(now() + " Carol received: " + event);
+                    }
+                  };
+                })
+            .startAwait();
     System.out.println(now() + " Carol join members: " + carol.members());
-    carol
-        .listenMembership()
-        .subscribe(event -> System.out.println(now() + " Carol received: " + event));
 
     // Bob leave cluster
     bob.shutdown().block();

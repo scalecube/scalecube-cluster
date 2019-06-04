@@ -3,9 +3,9 @@ package io.scalecube.cluster.gossip;
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.membership.MembershipEvent;
-import io.scalecube.transport.Address;
-import io.scalecube.transport.Message;
-import io.scalecube.transport.Transport;
+import io.scalecube.cluster.transport.api.Message;
+import io.scalecube.cluster.transport.api.Transport;
+import io.scalecube.net.Address;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -275,10 +275,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
 
   private Message buildGossipRequestMessage(Gossip gossip) {
     GossipRequest gossipRequest = new GossipRequest(gossip, localMember.id());
-    return Message.withData(gossipRequest)
-        .qualifier(GOSSIP_REQ)
-        .sender(localMember.address())
-        .build();
+    return Message.withData(gossipRequest).qualifier(GOSSIP_REQ).build();
   }
 
   private void sweepGossips(long period) {

@@ -2,7 +2,8 @@ package io.scalecube.issues.i187;
 
 import io.scalecube.cluster.Cluster;
 import io.scalecube.cluster.ClusterConfig;
-import io.scalecube.transport.Address;
+import io.scalecube.cluster.ClusterImpl;
+import io.scalecube.net.Address;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,7 +36,7 @@ public class NodeIthRunner {
             .build();
 
     logger.debug("Starting Node-i-th with config {}", config);
-    Cluster cluster = Cluster.joinAwait(config);
+    Cluster cluster = new ClusterImpl(config).startAwait();
     logger.debug("Started Node-i-th: {}, address: {}", cluster, cluster.address());
 
     Thread.currentThread().join();

@@ -1,7 +1,9 @@
 package io.scalecube.examples;
 
 import io.scalecube.cluster.Cluster;
-import io.scalecube.transport.Message;
+import io.scalecube.cluster.ClusterImpl;
+import io.scalecube.cluster.ClusterMessageHandler;
+import io.scalecube.cluster.transport.api.Message;
 
 /**
  * Basic example for member gossiping between cluster members. to run the example Start ClusterNodeA
@@ -14,23 +16,70 @@ public class GossipExample {
   /** Main method. */
   public static void main(String[] args) throws Exception {
     // Start cluster nodes and subscribe on listening gossips
-    Cluster alice = Cluster.joinAwait();
-    alice.listenGossips().subscribe(gossip -> System.out.println("Alice heard: " + gossip.data()));
+    Cluster alice =
+        new ClusterImpl()
+            .handler(
+                cluster -> {
+                  return new ClusterMessageHandler() {
+                    @Override
+                    public void onGossip(Message gossip) {
+                      System.out.println("Alice heard: " + gossip.data());
+                    }
+                  };
+                })
+            .startAwait();
 
-    Cluster bob = Cluster.joinAwait(alice.address());
-    bob.listenGossips().subscribe(gossip -> System.out.println("Bob heard: " + gossip.data()));
+    //noinspection unused
+    Cluster bob =
+        new ClusterImpl()
+            .config(options -> options.seedMembers(alice.address()))
+            .handler(
+                cluster -> {
+                  return new ClusterMessageHandler() {
+                    @Override
+                    public void onGossip(Message gossip) {
+                      System.out.println("Bob heard: " + gossip.data());
+                    }
+                  };
+                })
+            .startAwait();
 
-    Cluster carol = Cluster.joinAwait(alice.address());
-    carol.listenGossips().subscribe(gossip -> System.out.println("Carol heard: " + gossip.data()));
+    //noinspection unused
+    Cluster carol =
+        new ClusterImpl()
+            .config(options -> options.seedMembers(alice.address()))
+            .handler(
+                cluster -> {
+                  return new ClusterMessageHandler() {
+                    @Override
+                    public void onGossip(Message gossip) {
+                      System.out.println("Carol heard: " + gossip.data());
+                    }
+                  };
+                })
+            .startAwait();
 
-    Cluster dan = Cluster.joinAwait(alice.address());
-    dan.listenGossips().subscribe(gossip -> System.out.println("Dan heard: " + gossip.data()));
+    //noinspection unused
+    Cluster dan =
+        new ClusterImpl()
+            .config(options -> options.seedMembers(alice.address()))
+            .handler(
+                cluster -> {
+                  return new ClusterMessageHandler() {
+                    @Override
+                    public void onGossip(Message gossip) {
+                      System.out.println("Dan heard: " + gossip.data());
+                    }
+                  };
+                })
+            .startAwait();
 
     // Start cluster node Eve that joins cluster and spreads gossip
-    Cluster eve = Cluster.joinAwait(alice.address());
+    Cluster eve =
+        new ClusterImpl().config(options -> options.seedMembers(alice.address())).startAwait();
     eve.spreadGossip(Message.fromData("Gossip from Eve"))
         .doOnError(System.err::println)
-        .subscribe();
+        .subscribe(null, Throwable::printStackTrace);
 
     // Avoid exit main thread immediately ]:->
     Thread.sleep(1000);

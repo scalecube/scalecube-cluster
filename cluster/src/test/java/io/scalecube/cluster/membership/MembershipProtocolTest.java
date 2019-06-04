@@ -1,20 +1,19 @@
 package io.scalecube.cluster.membership;
 
-import static io.scalecube.cluster.ClusterConfig.DEFAULT_SUSPICION_MULT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.scalecube.cluster.BaseTest;
 import io.scalecube.cluster.ClusterConfig;
-import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.CorrelationIdGenerator;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
 import io.scalecube.cluster.metadata.MetadataStoreImpl;
-import io.scalecube.transport.Address;
-import io.scalecube.transport.NetworkEmulator;
-import io.scalecube.transport.Transport;
+import io.scalecube.cluster.transport.api.Transport;
+import io.scalecube.cluster.utils.NetworkEmulator;
+import io.scalecube.cluster.utils.NetworkEmulatorTransport;
+import io.scalecube.net.Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.time.Duration;
@@ -23,7 +22,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
@@ -60,9 +58,9 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testInitialPhaseOk() {
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
+    Transport a = createTransport();
+    Transport b = createTransport();
+    Transport c = createTransport();
     List<Address> addresses = Arrays.asList(a.address(), b.address(), c.address());
 
     MembershipProtocolImpl cmA = createMembership(a, addresses);
@@ -85,9 +83,9 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testNetworkPartitionDueNoOutboundThenRecover() {
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c = createTransport();
     List<Address> addresses = Arrays.asList(a.address(), b.address(), c.address());
 
     MembershipProtocolImpl cmA = createMembership(a, addresses);
@@ -131,9 +129,9 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testMemberLostNetworkDueNoOutboundThenRecover() {
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c = createTransport();
     List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
 
     MembershipProtocolImpl cmA = createMembership(a, members);
@@ -187,9 +185,9 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testNetworkPartitionTwiceDueNoOutboundThenRecover() {
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c = createTransport();
     List<Address> addresses = Arrays.asList(a.address(), b.address(), c.address());
 
     MembershipProtocolImpl cmA = createMembership(a, addresses);
@@ -257,9 +255,9 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testNetworkLostOnAllNodesDueNoOutboundThenRecover() {
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c = createTransport();
     List<Address> addresses = Arrays.asList(a.address(), b.address(), c.address());
 
     MembershipProtocolImpl cmA = createMembership(a, addresses);
@@ -312,10 +310,10 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testLongNetworkPartitionDueNoOutboundThenRemoved() {
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
-    Transport d = Transport.bindAwait(true);
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c = createTransport();
+    NetworkEmulatorTransport d = createTransport();
     List<Address> addresses = Arrays.asList(a.address(), b.address(), c.address(), d.address());
 
     MembershipProtocolImpl cmA = createMembership(a, addresses);
@@ -365,10 +363,10 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testRestartStoppedMembers() {
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
-    Transport d = Transport.bindAwait(true);
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c = createTransport();
+    NetworkEmulatorTransport d = createTransport();
     List<Address> addresses = Arrays.asList(a.address(), b.address(), c.address(), d.address());
 
     MembershipProtocolImpl cmA = createMembership(a, addresses);
@@ -411,8 +409,8 @@ public class MembershipProtocolTest extends BaseTest {
       assertNoSuspected(cmB);
       assertRemoved(cmB_RemovedHistory, cmC.member(), cmD.member());
 
-      c_Restarted = Transport.bindAwait(true);
-      d_Restarted = Transport.bindAwait(true);
+      c_Restarted = createTransport();
+      d_Restarted = createTransport();
       cmC_Restarted = createMembership(c_Restarted, addresses);
       cmD_Restarted = createMembership(d_Restarted, addresses);
 
@@ -433,11 +431,11 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testLimitedSeedMembers() {
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
-    Transport d = Transport.bindAwait(true);
-    Transport e = Transport.bindAwait(true);
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c = createTransport();
+    NetworkEmulatorTransport d = createTransport();
+    NetworkEmulatorTransport e = createTransport();
 
     MembershipProtocolImpl cmA = createMembership(a, Collections.emptyList());
     MembershipProtocolImpl cmB = createMembership(b, Collections.singletonList(a.address()));
@@ -467,11 +465,11 @@ public class MembershipProtocolTest extends BaseTest {
   public void testOverrideMemberAddress() throws UnknownHostException {
     String localAddress = InetAddress.getLocalHost().getHostName();
 
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
-    Transport d = Transport.bindAwait(true);
-    Transport e = Transport.bindAwait(true);
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c = createTransport();
+    NetworkEmulatorTransport d = createTransport();
+    NetworkEmulatorTransport e = createTransport();
 
     MembershipProtocolImpl cmA =
         createMembership(a, testConfig(Collections.emptyList()).memberHost(localAddress).build());
@@ -508,9 +506,9 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testNodeJoinClusterWithNoInbound() {
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c_noInbound = Transport.bindAwait(true);
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c_noInbound = createTransport();
 
     // Block traffic
     c_noInbound.networkEmulator().blockAllInbound();
@@ -535,9 +533,9 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testNodeJoinClusterWithNoInboundThenInboundRecover() {
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c_noInboundThenInboundOk = Transport.bindAwait(true);
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c_noInboundThenInboundOk = createTransport();
 
     // Block traffic
     c_noInboundThenInboundOk.networkEmulator().blockAllInbound();
@@ -572,9 +570,9 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testNetworkPartitionDueNoInboundThenRemoved() {
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c = createTransport();
 
     MembershipProtocolImpl cmA = createMembership(a, Collections.emptyList());
     MembershipProtocolImpl cmB = createMembership(b, Collections.singletonList(a.address()));
@@ -612,9 +610,9 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testNetworkPartitionDueNoInboundUntilRemovedThenInboundRecover() {
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c = createTransport();
 
     MembershipProtocolImpl cmA = createMembership(a, Collections.emptyList());
     MembershipProtocolImpl cmB = createMembership(b, Collections.singletonList(a.address()));
@@ -664,9 +662,9 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testNetworkPartitionBetweenTwoMembersDueNoInbound() {
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c = createTransport();
 
     MembershipProtocolImpl cmA = createMembership(a, Collections.emptyList());
     MembershipProtocolImpl cmB = createMembership(b, Collections.singletonList(a.address()));
@@ -694,9 +692,9 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testNetworkPartitionBetweenTwoMembersDueNoOutbound() {
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c = createTransport();
 
     MembershipProtocolImpl cmA = createMembership(a, Collections.emptyList());
     MembershipProtocolImpl cmB = createMembership(b, Collections.singletonList(a.address()));
@@ -724,9 +722,9 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testNetworkPartitionBetweenTwoMembersDueNoTrafficAtAll() {
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c = createTransport();
 
     MembershipProtocolImpl cmA = createMembership(a, Collections.emptyList());
     MembershipProtocolImpl cmB = createMembership(b, Collections.singletonList(a.address()));
@@ -755,10 +753,10 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testNetworkPartitionManyDueNoInboundThenRemovedThenRecover() {
-    Transport a = Transport.bindAwait(true);
-    Transport b = Transport.bindAwait(true);
-    Transport c = Transport.bindAwait(true);
-    Transport d = Transport.bindAwait(true);
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c = createTransport();
+    NetworkEmulatorTransport d = createTransport();
     List<Address> addresses = Arrays.asList(a.address(), b.address(), c.address(), d.address());
 
     MembershipProtocolImpl cmA = createMembership(a, addresses);
@@ -786,10 +784,10 @@ public class MembershipProtocolTest extends BaseTest {
 
       // Split into several clusters
       Stream.of(a, b, c, d)
-          .map(Transport::networkEmulator)
+          .map(NetworkEmulatorTransport::networkEmulator)
           .forEach(NetworkEmulator::blockAllInbound);
 
-      awaitSeconds(1);
+      awaitSeconds(2);
 
       // Check partition: {a}, {b}, {c}, {d}
       assertSelfTrusted(cmA);
@@ -797,9 +795,9 @@ public class MembershipProtocolTest extends BaseTest {
       assertSelfTrusted(cmB);
       assertSuspected(cmB, cmA.member(), cmC.member(), cmD.member());
       assertSelfTrusted(cmC);
-      assertSuspected(cmC, cmB.member(), cmA.member(), cmD.member());
+      assertSuspected(cmC, cmA.member(), cmB.member(), cmD.member());
       assertSelfTrusted(cmD);
-      assertSuspected(cmD, cmB.member(), cmA.member(), cmC.member());
+      assertSuspected(cmD, cmA.member(), cmB.member(), cmC.member());
 
       awaitSuspicion(addresses.size());
 
@@ -810,8 +808,8 @@ public class MembershipProtocolTest extends BaseTest {
 
       // Recover network
       Stream.of(a, b, c, d)
-        .map(Transport::networkEmulator)
-        .forEach(NetworkEmulator::unblockAllInbound);
+          .map(NetworkEmulatorTransport::networkEmulator)
+          .forEach(NetworkEmulator::unblockAllInbound);
 
       awaitSeconds(3);
 
@@ -826,14 +824,6 @@ public class MembershipProtocolTest extends BaseTest {
       assertNoSuspected(cmD);
     } finally {
       stopAll(cmA, cmB, cmC, cmD);
-    }
-  }
-
-  private void awaitSeconds(long seconds) {
-    try {
-      TimeUnit.SECONDS.sleep(seconds);
-    } catch (InterruptedException e) {
-      throw Exceptions.propagate(e);
     }
   }
 
@@ -996,13 +986,5 @@ public class MembershipProtocolTest extends BaseTest {
     ReplayProcessor<MembershipEvent> recording = ReplayProcessor.create();
     membership.listen().filter(MembershipEvent::isRemoved).subscribe(recording);
     return recording;
-  }
-
-  private void awaitSuspicion(int clusterSize) {
-    int defaultSuspicionMult = DEFAULT_SUSPICION_MULT;
-    int pingInterval = PING_INTERVAL;
-    long suspicionTimeoutSec =
-        ClusterMath.suspicionTimeout(defaultSuspicionMult, clusterSize, pingInterval) / 1000;
-    awaitSeconds(suspicionTimeoutSec + 2);
   }
 }

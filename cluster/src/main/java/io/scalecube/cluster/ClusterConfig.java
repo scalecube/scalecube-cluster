@@ -3,9 +3,9 @@ package io.scalecube.cluster;
 import io.scalecube.cluster.fdetector.FailureDetectorConfig;
 import io.scalecube.cluster.gossip.GossipConfig;
 import io.scalecube.cluster.membership.MembershipConfig;
-import io.scalecube.transport.Address;
-import io.scalecube.transport.MessageCodec;
-import io.scalecube.transport.TransportConfig;
+import io.scalecube.cluster.transport.api.MessageCodec;
+import io.scalecube.cluster.transport.api.TransportConfig;
+import io.scalecube.net.Address;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -103,6 +103,32 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
 
   public static Builder builder() {
     return new Builder();
+  }
+
+  /**
+   * Creates a new {@link ClusterConfig.Builder} by the given {@link ClusterConfig}.
+   *
+   * @param clusterConfig cluster config
+   * @return {@link ClusterConfig.Builder}
+   */
+  public static Builder from(ClusterConfig clusterConfig) {
+    return new Builder()
+        .seedMembers(clusterConfig.seedMembers)
+        .metadata(clusterConfig.metadata)
+        .syncInterval(clusterConfig.syncInterval)
+        .syncTimeout(clusterConfig.syncTimeout)
+        .suspicionMult(clusterConfig.suspicionMult)
+        .syncGroup(clusterConfig.syncGroup)
+        .metadataTimeout(clusterConfig.metadataTimeout)
+        .pingInterval(clusterConfig.pingInterval)
+        .pingTimeout(clusterConfig.pingTimeout)
+        .pingReqMembers(clusterConfig.pingReqMembers)
+        .gossipInterval(clusterConfig.gossipInterval)
+        .gossipFanout(clusterConfig.gossipFanout)
+        .gossipRepeatMult(clusterConfig.gossipRepeatMult)
+        .transportConfig(TransportConfig.builder().fillFrom(clusterConfig.transportConfig).build())
+        .memberHost(clusterConfig.memberHost)
+        .memberPort(clusterConfig.memberPort);
   }
 
   public static ClusterConfig defaultConfig() {
@@ -363,11 +389,6 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
 
     public Builder connectTimeout(int connectTimeout) {
       this.transportConfigBuilder.connectTimeout(connectTimeout);
-      return this;
-    }
-
-    public Builder useNetworkEmulator(boolean useNetworkEmulator) {
-      this.transportConfigBuilder.useNetworkEmulator(useNetworkEmulator);
       return this;
     }
 

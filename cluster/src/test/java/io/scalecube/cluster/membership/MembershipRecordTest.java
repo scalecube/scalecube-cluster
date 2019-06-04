@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.scalecube.cluster.BaseTest;
 import io.scalecube.cluster.Member;
-import io.scalecube.transport.Address;
+import io.scalecube.net.Address;
 import org.junit.jupiter.api.Test;
 
 public class MembershipRecordTest extends BaseTest {

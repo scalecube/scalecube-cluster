@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipEvent.Type;
-import io.scalecube.transport.Address;
+import io.scalecube.net.Address;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -23,6 +23,7 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.ReplayProcessor;
 
 public class ClusterTest extends BaseTest {
 
@@ -31,8 +32,11 @@ public class ClusterTest extends BaseTest {
   @Test
   public void testMembersAccessFromScheduler() {
     // Start seed node
-    Cluster seedNode = Cluster.joinAwait();
-    Cluster otherNode = Cluster.joinAwait(seedNode.address());
+    Cluster seedNode = new ClusterImpl().startAwait();
+    Cluster otherNode =
+        new ClusterImpl().config(options -> options.seedMembers(seedNode.address())).startAwait();
+
+    awaitJoin(seedNode, otherNode).block(TIMEOUT);
 
     assertEquals(2, seedNode.members().size());
     assertEquals(2, otherNode.members().size());
@@ -50,12 +54,13 @@ public class ClusterTest extends BaseTest {
   public void testJoinLocalhostIgnored() {
     // Start seed node
     Cluster seedNode =
-        Cluster.joinAwait(
-            ClusterConfig.builder()
-                .port(4801)
-                .connectTimeout(500)
-                .seedMembers(Address.from("localhost:4801"), Address.from("127.0.0.1:4801"))
-                .build());
+        new ClusterImpl(
+                ClusterConfig.builder()
+                    .port(4801)
+                    .connectTimeout(500)
+                    .seedMembers(Address.from("localhost:4801"), Address.from("127.0.0.1:4801"))
+                    .build())
+            .startAwait();
 
     Collection<Member> otherMembers = seedNode.otherMembers();
     assertEquals(0, otherMembers.size(), "otherMembers: " + otherMembers);
@@ -65,14 +70,15 @@ public class ClusterTest extends BaseTest {
   public void testJoinLocalhostIgnoredWithOverride() {
     // Start seed node
     Cluster seedNode =
-        Cluster.joinAwait(
-            ClusterConfig.builder()
-                .port(7878)
-                .memberHost("localhost")
-                .memberPort(7878)
-                .connectTimeout(500)
-                .seedMembers(Address.from("localhost:7878"))
-                .build());
+        new ClusterImpl(
+                ClusterConfig.builder()
+                    .port(7878)
+                    .memberHost("localhost")
+                    .memberPort(7878)
+                    .connectTimeout(500)
+                    .seedMembers(Address.from("localhost:7878"))
+                    .build())
+            .startAwait();
 
     Collection<Member> otherMembers = seedNode.otherMembers();
     assertEquals(0, otherMembers.size(), "otherMembers: " + otherMembers);
@@ -81,7 +87,7 @@ public class ClusterTest extends BaseTest {
   @Test
   public void testJoinDynamicPort() {
     // Start seed node
-    Cluster seedNode = Cluster.joinAwait();
+    Cluster seedNode = new ClusterImpl().startAwait();
 
     int membersNum = 10;
     List<Cluster> otherNodes = new ArrayList<>(membersNum);
@@ -89,8 +95,14 @@ public class ClusterTest extends BaseTest {
       // Start other nodes
       long startAt = System.currentTimeMillis();
       for (int i = 0; i < membersNum; i++) {
-        otherNodes.add(Cluster.joinAwait(seedNode.address()));
+        otherNodes.add(
+            new ClusterImpl()
+                .config(options -> options.seedMembers(seedNode.address()))
+                .startAwait());
       }
+
+      awaitJoin(otherNodes, seedNode).block(TIMEOUT);
+
       LOGGER.info("Start up time: {} ms", System.currentTimeMillis() - startAt);
       assertEquals(membersNum + 1, seedNode.members().size());
       LOGGER.info("Cluster nodes: {}", seedNode.members());
@@ -105,27 +117,46 @@ public class ClusterTest extends BaseTest {
   }
 
   @Test
-  public void testUpdateMetadata() throws Exception {
+  public void testUpdateMetadata() {
     // Start seed member
-    Cluster seedNode = Cluster.joinAwait();
+    Cluster seedNode = new ClusterImpl().startAwait();
 
     Cluster metadataNode = null;
     int testMembersNum = 10;
     List<Cluster> otherNodes = new ArrayList<>(testMembersNum);
+    CountDownLatch updateLatch = new CountDownLatch(testMembersNum);
     try {
       // Start member with metadata
       Map<String, String> metadata = new HashMap<>();
       metadata.put("key1", "value1");
       metadata.put("key2", "value2");
-      metadataNode = Cluster.joinAwait(metadata, seedNode.address());
+      metadataNode =
+          new ClusterImpl()
+              .config(options -> options.seedMembers(seedNode.address()).metadata(metadata))
+              .startAwait();
 
       // Start other test members
       Flux.range(0, testMembersNum)
-          .flatMap(integer -> Cluster.join(seedNode.address()))
+          .flatMap(
+              integer ->
+                  new ClusterImpl()
+                      .config(options -> options.seedMembers(seedNode.address()))
+                      .handler(
+                          cluster ->
+                              new ClusterMessageHandler() {
+                                @Override
+                                public void onMembershipEvent(MembershipEvent event) {
+                                  if (event.isUpdated()) {
+                                    LOGGER.info("Received membership update event: {}", event);
+                                    updateLatch.countDown();
+                                  }
+                                }
+                              })
+                      .start())
           .doOnNext(otherNodes::add)
           .blockLast(TIMEOUT);
 
-      TimeUnit.SECONDS.sleep(3);
+      awaitJoin(otherNodes, seedNode, metadataNode).block(TIMEOUT);
 
       // Check all test members know valid metadata
       for (Cluster node : otherNodes) {
@@ -133,18 +164,6 @@ public class ClusterTest extends BaseTest {
         assertTrue(memberOptional.isPresent());
         Member member = memberOptional.get();
         assertEquals(metadata, node.metadata(member));
-      }
-
-      // Subscribe for membership update event all nodes
-      CountDownLatch updateLatch = new CountDownLatch(testMembersNum);
-      for (Cluster node : otherNodes) {
-        node.listenMembership()
-            .filter(MembershipEvent::isUpdated)
-            .subscribe(
-                event -> {
-                  LOGGER.info("Received membership update event: {}", event);
-                  updateLatch.countDown();
-                });
       }
 
       // Update metadata
@@ -169,28 +188,47 @@ public class ClusterTest extends BaseTest {
   }
 
   @Test
-  public void testUpdateMetadataProperty() throws Exception {
+  public void testUpdateMetadataProperty() {
     // Start seed member
-    Cluster seedNode = Cluster.joinAwait();
+    Cluster seedNode = new ClusterImpl().startAwait();
 
     Cluster metadataNode = null;
     int testMembersNum = 10;
     List<Cluster> otherNodes = new ArrayList<>(testMembersNum);
+    CountDownLatch updateLatch = new CountDownLatch(testMembersNum);
 
     try {
       // Start member with metadata
       Map<String, String> metadata = new HashMap<>();
       metadata.put("key1", "value1");
       metadata.put("key2", "value2");
-      metadataNode = Cluster.joinAwait(metadata, seedNode.address());
+      metadataNode =
+          new ClusterImpl()
+              .config(options -> options.seedMembers(seedNode.address()).metadata(metadata))
+              .startAwait();
 
       // Start other test members
       Flux.range(0, testMembersNum)
-          .flatMap(integer -> Cluster.join(seedNode.address()))
+          .flatMap(
+              integer ->
+                  new ClusterImpl()
+                      .config(options -> options.seedMembers(seedNode.address()))
+                      .handler(
+                          cluster ->
+                              new ClusterMessageHandler() {
+                                @Override
+                                public void onMembershipEvent(MembershipEvent event) {
+                                  if (event.isUpdated()) {
+                                    LOGGER.info("Received membership update event: {}", event);
+                                    updateLatch.countDown();
+                                  }
+                                }
+                              })
+                      .start())
           .doOnNext(otherNodes::add)
           .blockLast(TIMEOUT);
 
-      TimeUnit.SECONDS.sleep(3);
+      awaitJoin(otherNodes, seedNode, metadataNode).block(TIMEOUT);
 
       // Check all test members know valid metadata
       for (Cluster node : otherNodes) {
@@ -198,18 +236,6 @@ public class ClusterTest extends BaseTest {
         assertTrue(memberOptional.isPresent());
         Member member = memberOptional.get();
         assertEquals(metadata, node.metadata(member));
-      }
-
-      // Subscribe for membership update event all nodes
-      CountDownLatch updateLatch = new CountDownLatch(testMembersNum);
-      for (Cluster node : otherNodes) {
-        node.listenMembership()
-            .filter(MembershipEvent::isUpdated)
-            .subscribe(
-                event -> {
-                  LOGGER.info("Received membership update event: {}", event);
-                  updateLatch.countDown();
-                });
       }
 
       // Update metadata
@@ -236,28 +262,47 @@ public class ClusterTest extends BaseTest {
   }
 
   @Test
-  public void testRemoveMetadataProperty() throws Exception {
+  public void testRemoveMetadataProperty() {
     // Start seed member
-    Cluster seedNode = Cluster.joinAwait();
+    Cluster seedNode = new ClusterImpl().startAwait();
 
     Cluster metadataNode = null;
     int testMembersNum = 10;
     List<Cluster> otherNodes = new ArrayList<>(testMembersNum);
+    CountDownLatch updateLatch = new CountDownLatch(testMembersNum);
 
     try {
       // Start member with metadata
       Map<String, String> metadata = new HashMap<>();
       metadata.put("key1", "value1");
       metadata.put("key2", "value2");
-      metadataNode = Cluster.joinAwait(metadata, seedNode.address());
+      metadataNode =
+          new ClusterImpl()
+              .config(options -> options.seedMembers(seedNode.address()).metadata(metadata))
+              .startAwait();
 
       // Start other test members
       Flux.range(0, testMembersNum)
-          .flatMap(integer -> Cluster.join(seedNode.address()))
+          .flatMap(
+              integer ->
+                  new ClusterImpl()
+                      .config(options -> options.seedMembers(seedNode.address()))
+                      .handler(
+                          cluster ->
+                              new ClusterMessageHandler() {
+                                @Override
+                                public void onMembershipEvent(MembershipEvent event) {
+                                  if (event.isUpdated()) {
+                                    LOGGER.info("Received membership update event: {}", event);
+                                    updateLatch.countDown();
+                                  }
+                                }
+                              })
+                      .start())
           .doOnNext(otherNodes::add)
           .blockLast(TIMEOUT);
 
-      TimeUnit.SECONDS.sleep(3);
+      awaitJoin(otherNodes, seedNode, metadataNode).block(TIMEOUT);
 
       // Check all test members know valid metadata
       for (Cluster node : otherNodes) {
@@ -265,18 +310,6 @@ public class ClusterTest extends BaseTest {
         assertTrue(memberOptional.isPresent());
         Member member = memberOptional.get();
         assertEquals(metadata, node.metadata(member));
-      }
-
-      // Subscribe for membership update event all nodes
-      CountDownLatch updateLatch = new CountDownLatch(testMembersNum);
-      for (Cluster node : otherNodes) {
-        node.listenMembership()
-            .filter(MembershipEvent::isUpdated)
-            .subscribe(
-                event -> {
-                  LOGGER.info("Received membership update event: {}", event);
-                  updateLatch.countDown();
-                });
       }
 
       // Update metadata
@@ -304,21 +337,39 @@ public class ClusterTest extends BaseTest {
 
   @Test
   public void testShutdownCluster() throws Exception {
-    // Start seed member
-    final Cluster seedNode = Cluster.joinAwait();
-
-    // Start nodes
-    final Cluster node1 = Cluster.joinAwait(seedNode.address());
-    final Cluster node2 = Cluster.joinAwait(seedNode.address());
-    final Cluster node3 = Cluster.joinAwait(seedNode.address());
-
     CountDownLatch latch = new CountDownLatch(3);
 
-    Flux.merge(seedNode.listenMembership(), node1.listenMembership(), node3.listenMembership())
-        .filter(MembershipEvent::isRemoved)
-        .filter(event -> event.member().id().equals(node2.member().id()))
-        .doOnNext(event -> latch.countDown())
-        .subscribe();
+    ClusterMessageHandler listener =
+        new ClusterMessageHandler() {
+          @Override
+          public void onMembershipEvent(MembershipEvent event) {
+            if (event.isRemoved()) {
+              latch.countDown();
+            }
+          }
+        };
+
+    // Start seed member
+    final Cluster seedNode = new ClusterImpl().handler(cluster -> listener).startAwait();
+
+    // Start nodes
+    final Cluster node1 =
+        new ClusterImpl()
+            .config(options -> options.seedMembers(seedNode.address()))
+            .handler(cluster -> listener)
+            .startAwait();
+    final Cluster node2 =
+        new ClusterImpl()
+            .config(options -> options.seedMembers(seedNode.address()))
+            .handler(cluster -> listener)
+            .startAwait();
+    final Cluster node3 =
+        new ClusterImpl()
+            .config(options -> options.seedMembers(seedNode.address()))
+            .handler(cluster -> listener)
+            .startAwait();
+
+    awaitJoin(seedNode, node1, node2, node3).block(TIMEOUT);
 
     node2.shutdown().block(TIMEOUT);
 
@@ -331,23 +382,45 @@ public class ClusterTest extends BaseTest {
   @Test
   public void testMemberMetadataRemoved() throws InterruptedException {
     // Start seed member
+    ReplayProcessor<MembershipEvent> seedEvents = ReplayProcessor.create();
     Map<String, String> seedMetadata = new HashMap<>();
     seedMetadata.put("seed", "shmid");
-    final Cluster seedNode = Cluster.joinAwait(seedMetadata);
+    final Cluster seedNode =
+        new ClusterImpl()
+            .config(options -> options.metadata(seedMetadata))
+            .handler(
+                cluster ->
+                    new ClusterMessageHandler() {
+                      @Override
+                      public void onMembershipEvent(MembershipEvent event) {
+                        seedEvents.onNext(event);
+                      }
+                    })
+            .startAwait();
 
     // Start nodes
     // Start member with metadata
     Map<String, String> node1Metadata = new HashMap<>();
     node1Metadata.put("node", "shmod");
-    final Cluster node1 = Cluster.joinAwait(node1Metadata, seedNode.address());
+    ReplayProcessor<MembershipEvent> node1Events = ReplayProcessor.create();
+    final Cluster node1 =
+        new ClusterImpl()
+            .config(options -> options.seedMembers(seedNode.address()).metadata(node1Metadata))
+            .handler(
+                cluster ->
+                    new ClusterMessageHandler() {
+                      @Override
+                      public void onMembershipEvent(MembershipEvent event) {
+                        node1Events.onNext(event);
+                      }
+                    })
+            .startAwait();
 
     // Check events
-    MembershipEvent nodeAddedEvent =
-        seedNode.listenMembership().as(Mono::from).block(Duration.ofSeconds(3));
+    MembershipEvent nodeAddedEvent = seedEvents.as(Mono::from).block(Duration.ofSeconds(3));
     assertEquals(Type.ADDED, nodeAddedEvent.type());
 
-    MembershipEvent seedAddedEvent =
-        node1.listenMembership().as(Mono::from).block(Duration.ofSeconds(3));
+    MembershipEvent seedAddedEvent = node1Events.as(Mono::from).block(Duration.ofSeconds(3));
     assertEquals(Type.ADDED, seedAddedEvent.type());
 
     // Check metadata
@@ -357,8 +430,7 @@ public class ClusterTest extends BaseTest {
     // Remove node1 from cluster
     CountDownLatch latch = new CountDownLatch(1);
     AtomicReference<Map<String, String>> removedMetadata = new AtomicReference<>();
-    seedNode
-        .listenMembership()
+    seedEvents
         .filter(MembershipEvent::isRemoved)
         .subscribe(
             event -> {
@@ -375,13 +447,16 @@ public class ClusterTest extends BaseTest {
   @Test
   public void testJoinSeedClusterWithNoExistingSeedMember() {
     // Start seed node
-    Cluster seedNode = Cluster.joinAwait();
+    Cluster seedNode = new ClusterImpl().startAwait();
 
     Address nonExistingSeed1 = Address.from("localhost:1234");
     Address nonExistingSeed2 = Address.from("localhost:5678");
     Address[] seeds = new Address[] {nonExistingSeed1, nonExistingSeed2, seedNode.address()};
 
-    Cluster otherNode = Cluster.joinAwait(seeds);
+    Cluster otherNode =
+        new ClusterImpl().config(options -> options.seedMembers(seeds)).startAwait();
+
+    awaitJoin(seedNode, otherNode).block(TIMEOUT);
 
     assertEquals(otherNode.member(), seedNode.otherMembers().iterator().next());
     assertEquals(seedNode.member(), otherNode.otherMembers().iterator().next());
@@ -397,5 +472,32 @@ public class ClusterTest extends BaseTest {
     } catch (Exception ex) {
       LOGGER.error("Exception on cluster shutdown", ex);
     }
+  }
+
+  private Mono<Void> awaitJoin(Cluster... nodes) {
+    return awaitJoin(Collections.emptyList(), nodes);
+  }
+
+  private Mono<Void> awaitJoin(List<Cluster> nodeList, Cluster... nodeArray) {
+    Cluster[] nodes = new Cluster[nodeList.size() + nodeArray.length];
+    for (int i = 0; i < nodeList.size(); i++) {
+      nodes[i] = nodeList.get(i);
+    }
+    for (int i = 0, offset = nodeList.size(); i < nodeArray.length; i++) {
+      nodes[offset + i] = nodeArray[i];
+    }
+    if (nodes.length < 2) {
+      return Mono.empty();
+    }
+    return Mono.delay(Duration.ofMillis(100))
+        .repeat(
+            () -> {
+              int countDownLatch = (nodes.length - 1) * nodes.length;
+              for (Cluster node : nodes) {
+                countDownLatch -= node.otherMembers().size();
+              }
+              return countDownLatch != 0;
+            })
+        .then();
   }
 }

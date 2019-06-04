@@ -2,6 +2,7 @@ package io.scalecube.issues.i187;
 
 import io.scalecube.cluster.Cluster;
 import io.scalecube.cluster.ClusterConfig;
+import io.scalecube.cluster.ClusterImpl;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,7 +34,7 @@ public class SeedRunner {
             .build();
 
     logger.debug("Starting Seed with config {}", config);
-    Cluster cluster = Cluster.joinAwait(config);
+    Cluster cluster = new ClusterImpl(config).startAwait();
     logger.debug("Started Seed: {}, address: {}", cluster, cluster.address());
 
     Thread.currentThread().join();

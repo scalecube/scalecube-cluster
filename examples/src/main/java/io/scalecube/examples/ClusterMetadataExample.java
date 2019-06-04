@@ -1,8 +1,10 @@
 package io.scalecube.examples;
 
 import io.scalecube.cluster.Cluster;
+import io.scalecube.cluster.ClusterImpl;
+import io.scalecube.cluster.ClusterMessageHandler;
 import io.scalecube.cluster.Member;
-import io.scalecube.transport.Message;
+import io.scalecube.cluster.transport.api.Message;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -20,17 +22,27 @@ public class ClusterMetadataExample {
   /** Main method. */
   public static void main(String[] args) throws Exception {
     // Start seed cluster member Alice
-    Cluster alice = Cluster.joinAwait();
+    Cluster alice = new ClusterImpl().startAwait();
 
-    // Join Joe to cluster with metadata
-    Cluster joe = Cluster.joinAwait(Collections.singletonMap("name", "Joe"), alice.address());
-
-    // Subscribe Joe to listen for incoming messages and print them to system out
-    joe.listen()
-        .map(Message::data)
-        .subscribe(
-            o -> System.err.println("joe.listen(): " + o),
-            ex -> System.err.println("joe.listen(): " + ex));
+    // Join Joe to cluster with metadata and listen for incoming messages and print them to stdout
+    //noinspection unused
+    Cluster joe =
+        new ClusterImpl()
+            .config(
+                options ->
+                    options
+                        .seedMembers(alice.address())
+                        .metadata(Collections.singletonMap("name", "Joe")))
+            .handler(
+                cluster -> {
+                  return new ClusterMessageHandler() {
+                    @Override
+                    public void onMessage(Message message) {
+                      System.out.println("joe.listen(): " + message.data());
+                    }
+                  };
+                })
+            .startAwait();
 
     // Scan the list of members in the cluster and find Joe there
     Optional<Member> joeMemberOptional =
@@ -44,7 +56,7 @@ public class ClusterMetadataExample {
     joeMemberOptional.ifPresent(
         member ->
             alice
-                .send(member, Message.withData("Hello Joe").sender(alice.address()).build())
+                .send(member, Message.withData("Hello Joe").build())
                 .subscribe(
                     null,
                     ex -> {

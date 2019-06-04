@@ -1,90 +1,14 @@
 package io.scalecube.cluster;
 
-import io.scalecube.cluster.membership.MembershipEvent;
-import io.scalecube.transport.Address;
-import io.scalecube.transport.Message;
-import io.scalecube.transport.NetworkEmulator;
-import java.util.Arrays;
+import io.scalecube.cluster.transport.api.Message;
+import io.scalecube.net.Address;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
-import reactor.core.Exceptions;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /** Facade cluster interface which provides API to interact with cluster members. */
 public interface Cluster {
-
-  /** Init cluster instance and join cluster synchronously. */
-  static Cluster joinAwait() {
-    try {
-      return join().block();
-    } catch (Exception e) {
-      throw Exceptions.propagate(e.getCause() != null ? e.getCause() : e);
-    }
-  }
-
-  /** Init cluster instance with the given seed members and join cluster synchronously. */
-  static Cluster joinAwait(Address... seedMembers) {
-    try {
-      return join(seedMembers).block();
-    } catch (Exception e) {
-      throw Exceptions.propagate(e.getCause() != null ? e.getCause() : e);
-    }
-  }
-
-  /**
-   * Init cluster instance with the given metadata and seed members and join cluster synchronously.
-   */
-  static Cluster joinAwait(Map<String, String> metadata, Address... seedMembers) {
-    try {
-      return join(metadata, seedMembers).block();
-    } catch (Exception e) {
-      throw Exceptions.propagate(e.getCause() != null ? e.getCause() : e);
-    }
-  }
-
-  /** Init cluster instance with the given configuration and join cluster synchronously. */
-  static Cluster joinAwait(ClusterConfig config) {
-    try {
-      return join(config).block();
-    } catch (Exception e) {
-      throw Exceptions.propagate(e.getCause() != null ? e.getCause() : e);
-    }
-  }
-
-  /** Init cluster instance and join cluster asynchronously. */
-  static Mono<Cluster> join() {
-    return join(ClusterConfig.defaultConfig());
-  }
-
-  /** Init cluster instance with the given seed members and join cluster asynchronously. */
-  static Mono<Cluster> join(Address... seedMembers) {
-    ClusterConfig config = ClusterConfig.builder().seedMembers(seedMembers).build();
-    return join(config);
-  }
-
-  /**
-   * Init cluster instance with the given metadata and seed members and join cluster synchronously.
-   *
-   * @param metadata metadata
-   * @param seedMembers seed members
-   */
-  static Mono<Cluster> join(Map<String, String> metadata, Address... seedMembers) {
-    ClusterConfig config =
-        ClusterConfig.builder().seedMembers(Arrays.asList(seedMembers)).metadata(metadata).build();
-    return join(config);
-  }
-
-  /**
-   * Init cluster instance with the given configuration and join cluster synchronously.
-   *
-   * @param config cluster config
-   * @return result future
-   */
-  static Mono<Cluster> join(final ClusterConfig config) {
-    return new ClusterImpl(config).join0();
-  }
 
   /**
    * Returns {@link Address} of this cluster instance.
@@ -136,26 +60,12 @@ public interface Cluster {
   Mono<Message> requestResponse(Member member, Message request);
 
   /**
-   * Subscription point for listening incoming messages.
-   *
-   * @return stream of incoming messages
-   */
-  Flux<Message> listen();
-
-  /**
    * Spreads given message between cluster members using gossiping protocol.
    *
    * @param message message to disseminate.
    * @return result future
    */
   Mono<String> spreadGossip(Message message);
-
-  /**
-   * Listens for gossips from other cluster members.
-   *
-   * @return gossip publisher
-   */
-  Flux<Message> listenGossips();
 
   /**
    * Returns local cluster member metadata.
@@ -240,13 +150,6 @@ public interface Cluster {
   Mono<Void> removeMetadataProperty(String key);
 
   /**
-   * Listen changes in cluster membership.
-   *
-   * @return membershiop publisher
-   */
-  Flux<MembershipEvent> listenMembership();
-
-  /**
    * Member notifies other members of the cluster about leaving and gracefully shutdown and free
    * occupied resources.
    *
@@ -260,13 +163,4 @@ public interface Cluster {
    * @return Returns true if cluster instance has been shut down; false otherwise.
    */
   boolean isShutdown();
-
-  /**
-   * Returns network emulator associated with this instance of cluster. It always returns non null
-   * instance even if network emulator is disabled by transport config. In case when network
-   * emulator is disable all calls to network emulator instance will result in no operation.
-   *
-   * @return network emulator object
-   */
-  NetworkEmulator networkEmulator();
 }
