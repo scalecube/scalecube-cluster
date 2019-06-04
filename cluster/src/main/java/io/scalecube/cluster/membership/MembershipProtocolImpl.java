@@ -43,6 +43,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxProcessor;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.MonoSink;
 import reactor.core.publisher.ReplayProcessor;
 import reactor.core.scheduler.Scheduler;
 
@@ -208,15 +209,16 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   @Override
   public Mono<Void> start() {
     // Make initial sync with all seed members
-    return Mono.fromRunnable(this::start0)
+    return Mono.create(this::start0)
         .then(Mono.fromCallable(() -> JmxMonitorMBean.start(this)))
         .then();
   }
 
-  private void start0() {
+  private void start0(MonoSink<Object> sink) {
     // In case no members at the moment just schedule periodic sync
     if (seedMembers.isEmpty()) {
       schedulePeriodicSync();
+      sink.success();
       return;
     }
     // If seed addresses are specified in config - send initial sync to those nodes
@@ -240,7 +242,11 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
         .timeout(Duration.ofMillis(config.getSyncTimeout()), scheduler)
         .publishOn(scheduler)
         .flatMap(message -> onSyncAck(message, true))
-        .doFinally(s -> schedulePeriodicSync())
+        .doFinally(
+            s -> {
+              schedulePeriodicSync();
+              sink.success();
+            })
         .subscribe(
             null, ex -> LOGGER.debug("Exception on initial SyncAck, cause: {}", ex.toString()));
   }
