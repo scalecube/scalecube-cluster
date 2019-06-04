@@ -2,6 +2,7 @@ package io.scalecube.cluster.transport.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import io.scalecube.net.Address;
 import org.junit.jupiter.api.Test;
 
 public class AddressTest {

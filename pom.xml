@@ -22,6 +22,7 @@
   </scm>
 
   <properties>
+    <scalecube-commons.version>1.0.1</scalecube-commons.version>
     <slf4j.version>1.7.7</slf4j.version>
     <protostuff.version>1.6.0</protostuff.version>
     <protobuf.version>3.4.0</protobuf.version>
@@ -116,6 +117,13 @@
         <version>${reactor.version}</version>
         <type>pom</type>
         <scope>import</scope>
+      </dependency>
+
+      <!-- Scalecube Commons -->
+      <dependency>
+        <groupId>io.scalecube</groupId>
+        <artifactId>scalecube-commons</artifactId>
+        <version>${scalecube-commons.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

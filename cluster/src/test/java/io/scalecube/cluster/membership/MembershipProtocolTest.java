@@ -10,10 +10,10 @@ import io.scalecube.cluster.Member;
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
 import io.scalecube.cluster.metadata.MetadataStoreImpl;
-import io.scalecube.cluster.transport.api.Address;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.utils.NetworkEmulator;
 import io.scalecube.cluster.utils.NetworkEmulatorTransport;
+import io.scalecube.net.Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.time.Duration;
@@ -787,7 +787,7 @@ public class MembershipProtocolTest extends BaseTest {
           .map(NetworkEmulatorTransport::networkEmulator)
           .forEach(NetworkEmulator::blockAllInbound);
 
-      awaitSeconds(1);
+      awaitSeconds(2);
 
       // Check partition: {a}, {b}, {c}, {d}
       assertSelfTrusted(cmA);
@@ -795,9 +795,9 @@ public class MembershipProtocolTest extends BaseTest {
       assertSelfTrusted(cmB);
       assertSuspected(cmB, cmA.member(), cmC.member(), cmD.member());
       assertSelfTrusted(cmC);
-      assertSuspected(cmC, cmB.member(), cmA.member(), cmD.member());
+      assertSuspected(cmC, cmA.member(), cmB.member(), cmD.member());
       assertSelfTrusted(cmD);
-      assertSuspected(cmD, cmB.member(), cmA.member(), cmC.member());
+      assertSuspected(cmD, cmA.member(), cmB.member(), cmC.member());
 
       awaitSuspicion(addresses.size());
 
