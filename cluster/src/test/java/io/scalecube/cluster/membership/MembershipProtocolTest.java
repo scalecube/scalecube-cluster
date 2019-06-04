@@ -752,7 +752,7 @@ public class MembershipProtocolTest extends BaseTest {
     }
   }
 
-  @RepeatedTest(100)
+  @Test
   public void testNetworkPartitionManyDueNoInboundThenRemovedThenRecover() {
     NetworkEmulatorTransport a = createTransport();
     NetworkEmulatorTransport b = createTransport();
