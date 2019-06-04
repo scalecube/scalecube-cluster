@@ -6,9 +6,9 @@ import io.scalecube.cluster.membership.IdGenerator;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipProtocolImpl;
 import io.scalecube.cluster.metadata.MetadataStoreImpl;
-import io.scalecube.cluster.transport.api.Address;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
+import io.scalecube.net.Address;
 import io.scalecube.transport.netty.TransportImpl;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
@@ -146,7 +146,7 @@ public final class ClusterImpl implements Cluster {
   }
 
   /**
-   * Starts this instance. See {@link Cluster#doStart()} function.
+   * Starts this instance. See {@link ClusterImpl#doStart()} function.
    *
    * @return mono result
    */
