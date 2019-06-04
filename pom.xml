@@ -84,11 +84,6 @@
 
   <dependencyManagement>
     <dependencies>
-      <dependency>
-        <groupId>io.scalecube</groupId>
-        <artifactId>scalecube-commons</artifactId>
-        <version>${scalecube-commons.version}</version>
-      </dependency>
       <!-- Slf4j -->
       <dependency>
         <groupId>org.slf4j</groupId>
@@ -122,6 +117,13 @@
         <version>${reactor.version}</version>
         <type>pom</type>
         <scope>import</scope>
+      </dependency>
+
+      <!-- Scalecube Commons -->
+      <dependency>
+        <groupId>io.scalecube</groupId>
+        <artifactId>scalecube-commons</artifactId>
+        <version>${scalecube-commons.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

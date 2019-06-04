@@ -267,7 +267,7 @@ public final class NetworkEmulator {
     }
     LOGGER.debug("Blocked inbound to {} from {}", address, destinations);
   }
-  
+
   /**
    * Unblocks inbound messages to given destinations.
    *

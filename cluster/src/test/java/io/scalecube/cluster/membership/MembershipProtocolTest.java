@@ -26,6 +26,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import reactor.core.Exceptions;
@@ -751,7 +752,7 @@ public class MembershipProtocolTest extends BaseTest {
     }
   }
 
-  @Test
+  @RepeatedTest(100)
   public void testNetworkPartitionManyDueNoInboundThenRemovedThenRecover() {
     NetworkEmulatorTransport a = createTransport();
     NetworkEmulatorTransport b = createTransport();

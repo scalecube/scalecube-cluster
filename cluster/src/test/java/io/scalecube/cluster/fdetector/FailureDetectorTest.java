@@ -452,8 +452,7 @@ public class FailureDetectorTest extends BaseTest {
       Collection<FailureDetectorEvent> events,
       Address... expected) {
     List<Address> actual =
-        events
-            .stream()
+        events.stream()
             .filter(event -> event.status() == status)
             .map(FailureDetectorEvent::member)
             .map(Member::address)

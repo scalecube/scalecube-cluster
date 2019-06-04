@@ -146,7 +146,7 @@ public final class ClusterImpl implements Cluster {
   }
 
   /**
-   * Starts this instance. See {@link Cluster#doStart()} function.
+   * Starts this instance. See {@link ClusterImpl#doStart()} function.
    *
    * @return mono result
    */
@@ -471,10 +471,7 @@ public final class ClusterImpl implements Cluster {
 
     @Override
     public Collection<String> getMetadata() {
-      return cluster
-          .metadata()
-          .entrySet()
-          .stream()
+      return cluster.metadata().entrySet().stream()
           .map(e -> e.getKey() + ":" + e.getValue())
           .collect(Collectors.toCollection(ArrayList::new));
     }
