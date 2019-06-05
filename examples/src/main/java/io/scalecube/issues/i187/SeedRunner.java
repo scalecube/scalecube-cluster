@@ -1,6 +1,5 @@
 package io.scalecube.issues.i187;
 
-import io.scalecube.SimpleMapMetadataCodec;
 import io.scalecube.cluster.Cluster;
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterImpl;
@@ -27,8 +26,6 @@ public class SeedRunner {
     ClusterConfig config =
         ClusterConfig.builder()
             .syncGroup("issue187")
-            .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
-            .metadataDecoder(SimpleMapMetadataCodec.INSTANCE)
             .metadata(
                 Collections.singletonMap("seed", Integer.toHexString(new Object().hashCode())))
             .syncInterval(1000)

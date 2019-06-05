@@ -42,6 +42,7 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
   public static final int DEFAULT_WAN_PING_INTERVAL = 5_000;
   public static final int DEFAULT_WAN_GOSSIP_FANOUT = 4;
   public static final int DEFAULT_WAN_CONNECT_TIMEOUT = 10_000;
+  public static final int DEFAULT_WAN_METADATA_TIMEOUT = 10_000;
 
   // Default settings for local cluster working via loopback interface (overrides default/LAN
   // settings)
@@ -53,6 +54,7 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
   public static final int DEFAULT_LOCAL_PING_REQ_MEMBERS = 1;
   public static final int DEFAULT_LOCAL_GOSSIP_INTERVAL = 100;
   public static final int DEFAULT_LOCAL_CONNECT_TIMEOUT = 1_000;
+  public static final int DEFAULT_LOCAL_METADATA_TIMEOUT = 1_000;
 
   public static final int DEFAULT_METADATA_TIMEOUT = 3_000;
 
@@ -60,7 +62,6 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
   public static final Integer DEFAULT_MEMBER_PORT = null;
 
   private final List<Address> seedMembers;
-  private final Object metadata;
   private final int syncInterval;
   private final int syncTimeout;
   private final int suspicionMult;
@@ -76,8 +77,11 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
   private final int gossipRepeatMult;
 
   private final TransportConfig transportConfig;
+
+  private final Object metadata;
   private final MetadataEncoder metadataEncoder;
   private final MetadataDecoder metadataDecoder;
+
   private final String memberHost;
   private final Integer memberPort;
 
@@ -154,6 +158,7 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
         .pingInterval(DEFAULT_WAN_PING_INTERVAL)
         .gossipFanout(DEFAULT_WAN_GOSSIP_FANOUT)
         .connectTimeout(DEFAULT_WAN_CONNECT_TIMEOUT)
+        .metadataTimeout(DEFAULT_WAN_METADATA_TIMEOUT)
         .build();
   }
 
@@ -168,15 +173,12 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
         .pingReqMembers(DEFAULT_LOCAL_PING_REQ_MEMBERS)
         .gossipInterval(DEFAULT_LOCAL_GOSSIP_INTERVAL)
         .connectTimeout(DEFAULT_LOCAL_CONNECT_TIMEOUT)
+        .connectTimeout(DEFAULT_LOCAL_METADATA_TIMEOUT)
         .build();
   }
 
   public List<Address> getSeedMembers() {
     return seedMembers;
-  }
-
-  public Object getMetadata() {
-    return metadata;
   }
 
   public int getSyncInterval() {
@@ -193,10 +195,6 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
 
   public String getSyncGroup() {
     return syncGroup;
-  }
-
-  public int getMetadataTimeout() {
-    return metadataTimeout;
   }
 
   public int getPingInterval() {
@@ -225,6 +223,14 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
 
   public TransportConfig getTransportConfig() {
     return transportConfig;
+  }
+
+  public Object getMetadata() {
+    return metadata;
+  }
+
+  public int getMetadataTimeout() {
+    return metadataTimeout;
   }
 
   public MetadataEncoder getMetadataEncoder() {
@@ -288,12 +294,10 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
   public static final class Builder {
 
     private List<Address> seedMembers = Collections.emptyList();
-    private Object metadata;
     private int syncInterval = DEFAULT_SYNC_INTERVAL;
     private int syncTimeout = DEFAULT_SYNC_TIMEOUT;
     private String syncGroup = DEFAULT_SYNC_GROUP;
     private int suspicionMult = DEFAULT_SUSPICION_MULT;
-    private int metadataTimeout = DEFAULT_METADATA_TIMEOUT;
 
     private int pingInterval = DEFAULT_PING_INTERVAL;
     private int pingTimeout = DEFAULT_PING_TIMEOUT;
@@ -304,8 +308,11 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
     private int gossipRepeatMult = DEFAULT_GOSSIP_REPEAT_MULT;
 
     private TransportConfig.Builder transportConfigBuilder = TransportConfig.builder();
-    private MetadataEncoder metadataEncoder;
-    private MetadataDecoder metadataDecoder;
+
+    private Object metadata;
+    private int metadataTimeout = DEFAULT_METADATA_TIMEOUT;
+    private MetadataEncoder metadataEncoder = MetadataEncoder.INSTANCE;
+    private MetadataDecoder metadataDecoder = MetadataDecoder.INSTANCE;
 
     private String memberHost = DEFAULT_MEMBER_HOST;
     private Integer memberPort = DEFAULT_MEMBER_PORT;

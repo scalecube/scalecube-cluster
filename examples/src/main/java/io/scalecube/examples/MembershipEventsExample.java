@@ -1,6 +1,5 @@
 package io.scalecube.examples;
 
-import io.scalecube.SimpleMapMetadataCodec;
 import io.scalecube.cluster.Cluster;
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterImpl;
@@ -26,12 +25,7 @@ public class MembershipEventsExample {
     // Alice init cluster
     Cluster alice =
         new ClusterImpl()
-            .config(
-                options ->
-                    options
-                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
-                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE)
-                        .metadata(Collections.singletonMap("name", "Alice")))
+            .config(options -> options.metadata(Collections.singletonMap("name", "Alice")))
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {
@@ -51,8 +45,6 @@ public class MembershipEventsExample {
                 options ->
                     options
                         .seedMembers(alice.address())
-                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
-                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE)
                         .metadata(Collections.singletonMap("name", "Bob")))
             .handler(
                 cluster -> {
@@ -73,8 +65,6 @@ public class MembershipEventsExample {
                 options ->
                     options
                         .seedMembers(alice.address(), bob.address())
-                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
-                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE)
                         .metadata(Collections.singletonMap("name", "Carol")))
             .handler(
                 cluster -> {

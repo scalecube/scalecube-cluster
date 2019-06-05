@@ -1,4 +1,4 @@
-package io.scalecube;
+package io.scalecube.cluster.metadata;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;

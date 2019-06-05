@@ -33,23 +33,10 @@ public class ClusterTest extends BaseTest {
   @Test
   public void testMembersAccessFromScheduler() {
     // Start seed node
-    Cluster seedNode =
-        new ClusterImpl()
-            .config(
-                options ->
-                    options
-                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
-                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE))
-            .startAwait();
+    Cluster seedNode = new ClusterImpl().startAwait();
+
     Cluster otherNode =
-        new ClusterImpl()
-            .config(
-                options ->
-                    options
-                        .seedMembers(seedNode.address())
-                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
-                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE))
-            .startAwait();
+        new ClusterImpl().config(options -> options.seedMembers(seedNode.address())).startAwait();
 
     assertEquals(2, seedNode.members().size());
     assertEquals(2, otherNode.members().size());
@@ -72,8 +59,6 @@ public class ClusterTest extends BaseTest {
                     .port(4801)
                     .connectTimeout(500)
                     .seedMembers(Address.from("localhost:4801"), Address.from("127.0.0.1:4801"))
-                    .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
-                    .metadataDecoder(SimpleMapMetadataCodec.INSTANCE)
                     .build())
             .startAwait();
 
@@ -92,8 +77,6 @@ public class ClusterTest extends BaseTest {
                     .memberPort(7878)
                     .connectTimeout(500)
                     .seedMembers(Address.from("localhost:7878"))
-                    .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
-                    .metadataDecoder(SimpleMapMetadataCodec.INSTANCE)
                     .build())
             .startAwait();
 
@@ -104,14 +87,7 @@ public class ClusterTest extends BaseTest {
   @Test
   public void testJoinDynamicPort() {
     // Start seed node
-    Cluster seedNode =
-        new ClusterImpl()
-            .config(
-                options ->
-                    options
-                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
-                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE))
-            .startAwait();
+    Cluster seedNode = new ClusterImpl().startAwait();
 
     int membersNum = 10;
     List<Cluster> otherNodes = new ArrayList<>(membersNum);
@@ -121,12 +97,7 @@ public class ClusterTest extends BaseTest {
       for (int i = 0; i < membersNum; i++) {
         otherNodes.add(
             new ClusterImpl()
-                .config(
-                    options ->
-                        options
-                            .seedMembers(seedNode.address())
-                            .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
-                            .metadataDecoder(SimpleMapMetadataCodec.INSTANCE))
+                .config(options -> options.seedMembers(seedNode.address()))
                 .startAwait());
       }
       LOGGER.info("Start up time: {} ms", System.currentTimeMillis() - startAt);
@@ -145,14 +116,7 @@ public class ClusterTest extends BaseTest {
   @Test
   public void testUpdateMetadata() throws Exception {
     // Start seed member
-    Cluster seedNode =
-        new ClusterImpl()
-            .config(
-                options ->
-                    options
-                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
-                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE))
-            .startAwait();
+    Cluster seedNode = new ClusterImpl().startAwait();
 
     Cluster metadataNode = null;
     int testMembersNum = 10;
@@ -165,13 +129,7 @@ public class ClusterTest extends BaseTest {
       metadata.put("key2", "value2");
       metadataNode =
           new ClusterImpl()
-              .config(
-                  options ->
-                      options
-                          .seedMembers(seedNode.address())
-                          .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
-                          .metadataDecoder(SimpleMapMetadataCodec.INSTANCE)
-                          .metadata(metadata))
+              .config(options -> options.seedMembers(seedNode.address()).metadata(metadata))
               .startAwait();
 
       // Start other test members
@@ -179,12 +137,7 @@ public class ClusterTest extends BaseTest {
           .flatMap(
               integer ->
                   new ClusterImpl()
-                      .config(
-                          options ->
-                              options
-                                  .seedMembers(seedNode.address())
-                                  .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
-                                  .metadataDecoder(SimpleMapMetadataCodec.INSTANCE))
+                      .config(options -> options.seedMembers(seedNode.address()))
                       .handler(
                           cluster ->
                               new ClusterMessageHandler() {
@@ -234,14 +187,7 @@ public class ClusterTest extends BaseTest {
   @Test
   public void testUpdateMetadataProperty() throws Exception {
     // Start seed member
-    Cluster seedNode =
-        new ClusterImpl()
-            .config(
-                options ->
-                    options
-                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
-                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE))
-            .startAwait();
+    Cluster seedNode = new ClusterImpl().startAwait();
 
     Cluster metadataNode = null;
     int testMembersNum = 10;
@@ -255,13 +201,7 @@ public class ClusterTest extends BaseTest {
       metadata.put("key2", "value2");
       metadataNode =
           new ClusterImpl()
-              .config(
-                  options ->
-                      options
-                          .seedMembers(seedNode.address())
-                          .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
-                          .metadataDecoder(SimpleMapMetadataCodec.INSTANCE)
-                          .metadata(metadata))
+              .config(options -> options.seedMembers(seedNode.address()).metadata(metadata))
               .startAwait();
 
       // Start other test members
@@ -269,12 +209,7 @@ public class ClusterTest extends BaseTest {
           .flatMap(
               integer ->
                   new ClusterImpl()
-                      .config(
-                          options ->
-                              options
-                                  .seedMembers(seedNode.address())
-                                  .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
-                                  .metadataDecoder(SimpleMapMetadataCodec.INSTANCE))
+                      .config(options -> options.seedMembers(seedNode.address()))
                       .handler(
                           cluster ->
                               new ClusterMessageHandler() {
@@ -328,14 +263,7 @@ public class ClusterTest extends BaseTest {
   @Test
   public void testRemoveMetadataProperty() throws Exception {
     // Start seed member
-    Cluster seedNode =
-        new ClusterImpl()
-            .config(
-                options ->
-                    options
-                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
-                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE))
-            .startAwait();
+    Cluster seedNode = new ClusterImpl().startAwait();
 
     Cluster metadataNode = null;
     int testMembersNum = 10;
@@ -349,13 +277,7 @@ public class ClusterTest extends BaseTest {
       metadata.put("key2", "value2");
       metadataNode =
           new ClusterImpl()
-              .config(
-                  options ->
-                      options
-                          .seedMembers(seedNode.address())
-                          .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
-                          .metadataDecoder(SimpleMapMetadataCodec.INSTANCE)
-                          .metadata(metadata))
+              .config(options -> options.seedMembers(seedNode.address()).metadata(metadata))
               .startAwait();
 
       // Start other test members
@@ -363,12 +285,7 @@ public class ClusterTest extends BaseTest {
           .flatMap(
               integer ->
                   new ClusterImpl()
-                      .config(
-                          options ->
-                              options
-                                  .seedMembers(seedNode.address())
-                                  .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
-                                  .metadataDecoder(SimpleMapMetadataCodec.INSTANCE))
+                      .config(options -> options.seedMembers(seedNode.address()))
                       .handler(
                           cluster ->
                               new ClusterMessageHandler() {
@@ -435,45 +352,22 @@ public class ClusterTest extends BaseTest {
         };
 
     // Start seed member
-    final Cluster seedNode =
-        new ClusterImpl()
-            .config(
-                options ->
-                    options
-                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
-                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE))
-            .handler(cluster -> listener)
-            .startAwait();
+    final Cluster seedNode = new ClusterImpl().handler(cluster -> listener).startAwait();
 
     // Start nodes
     final Cluster node1 =
         new ClusterImpl()
-            .config(
-                options ->
-                    options
-                        .seedMembers(seedNode.address())
-                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
-                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE))
+            .config(options -> options.seedMembers(seedNode.address()))
             .handler(cluster -> listener)
             .startAwait();
     final Cluster node2 =
         new ClusterImpl()
-            .config(
-                options ->
-                    options
-                        .seedMembers(seedNode.address())
-                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
-                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE))
+            .config(options -> options.seedMembers(seedNode.address()))
             .handler(cluster -> listener)
             .startAwait();
     final Cluster node3 =
         new ClusterImpl()
-            .config(
-                options ->
-                    options
-                        .seedMembers(seedNode.address())
-                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
-                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE))
+            .config(options -> options.seedMembers(seedNode.address()))
             .handler(cluster -> listener)
             .startAwait();
 
@@ -493,12 +387,7 @@ public class ClusterTest extends BaseTest {
     seedMetadata.put("seed", "shmid");
     final Cluster seedNode =
         new ClusterImpl()
-            .config(
-                options ->
-                    options
-                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
-                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE)
-                        .metadata(seedMetadata))
+            .config(options -> options.metadata(seedMetadata))
             .handler(
                 cluster ->
                     new ClusterMessageHandler() {
@@ -516,13 +405,7 @@ public class ClusterTest extends BaseTest {
     ReplayProcessor<MembershipEvent> node1Events = ReplayProcessor.create();
     final Cluster node1 =
         new ClusterImpl()
-            .config(
-                options ->
-                    options
-                        .seedMembers(seedNode.address())
-                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
-                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE)
-                        .metadata(node1Metadata))
+            .config(options -> options.seedMembers(seedNode.address()).metadata(node1Metadata))
             .handler(
                 cluster ->
                     new ClusterMessageHandler() {
@@ -564,28 +447,14 @@ public class ClusterTest extends BaseTest {
   @Test
   public void testJoinSeedClusterWithNoExistingSeedMember() {
     // Start seed node
-    Cluster seedNode =
-        new ClusterImpl()
-            .config(
-                options ->
-                    options
-                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
-                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE))
-            .startAwait();
+    Cluster seedNode = new ClusterImpl().startAwait();
 
     Address nonExistingSeed1 = Address.from("localhost:1234");
     Address nonExistingSeed2 = Address.from("localhost:5678");
     Address[] seeds = new Address[] {nonExistingSeed1, nonExistingSeed2, seedNode.address()};
 
     Cluster otherNode =
-        new ClusterImpl()
-            .config(
-                options ->
-                    options
-                        .seedMembers(seeds)
-                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
-                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE))
-            .startAwait();
+        new ClusterImpl().config(options -> options.seedMembers(seeds)).startAwait();
 
     assertEquals(otherNode.member(), seedNode.otherMembers().iterator().next());
     assertEquals(seedNode.member(), otherNode.otherMembers().iterator().next());

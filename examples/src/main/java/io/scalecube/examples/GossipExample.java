@@ -1,6 +1,5 @@
 package io.scalecube.examples;
 
-import io.scalecube.SimpleMapMetadataCodec;
 import io.scalecube.cluster.Cluster;
 import io.scalecube.cluster.ClusterImpl;
 import io.scalecube.cluster.ClusterMessageHandler;
@@ -19,11 +18,6 @@ public class GossipExample {
     // Start cluster nodes and subscribe on listening gossips
     Cluster alice =
         new ClusterImpl()
-            .config(
-                options ->
-                    options
-                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
-                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE))
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {
@@ -38,12 +32,7 @@ public class GossipExample {
     //noinspection unused
     Cluster bob =
         new ClusterImpl()
-            .config(
-                options ->
-                    options
-                        .seedMembers(alice.address())
-                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
-                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE))
+            .config(options -> options.seedMembers(alice.address()))
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {
@@ -58,12 +47,7 @@ public class GossipExample {
     //noinspection unused
     Cluster carol =
         new ClusterImpl()
-            .config(
-                options ->
-                    options
-                        .seedMembers(alice.address())
-                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
-                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE))
+            .config(options -> options.seedMembers(alice.address()))
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {
@@ -78,12 +62,7 @@ public class GossipExample {
     //noinspection unused
     Cluster dan =
         new ClusterImpl()
-            .config(
-                options ->
-                    options
-                        .seedMembers(alice.address())
-                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
-                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE))
+            .config(options -> options.seedMembers(alice.address()))
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {
@@ -97,14 +76,7 @@ public class GossipExample {
 
     // Start cluster node Eve that joins cluster and spreads gossip
     Cluster eve =
-        new ClusterImpl()
-            .config(
-                options ->
-                    options
-                        .seedMembers(alice.address())
-                        .metadataEncoder(SimpleMapMetadataCodec.INSTANCE)
-                        .metadataDecoder(SimpleMapMetadataCodec.INSTANCE))
-            .startAwait();
+        new ClusterImpl().config(options -> options.seedMembers(alice.address())).startAwait();
     eve.spreadGossip(Message.fromData("Gossip from Eve"))
         .doOnError(System.err::println)
         .subscribe(null, Throwable::printStackTrace);
