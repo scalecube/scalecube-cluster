@@ -1,7 +1,7 @@
 package io.scalecube.cluster.membership;
 
 import io.scalecube.cluster.Member;
-import io.scalecube.cluster.transport.api.Address;
+import io.scalecube.net.Address;
 import java.util.Collection;
 import java.util.Optional;
 import reactor.core.publisher.Flux;

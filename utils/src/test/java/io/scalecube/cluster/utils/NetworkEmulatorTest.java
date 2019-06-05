@@ -1,7 +1,7 @@
 package io.scalecube.cluster.utils;
 
-import io.scalecube.cluster.transport.api.Address;
 import io.scalecube.cluster.utils.NetworkEmulator.OutboundSettings;
+import io.scalecube.net.Address;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 

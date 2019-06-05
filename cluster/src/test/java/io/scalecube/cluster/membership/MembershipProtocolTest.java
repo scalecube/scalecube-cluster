@@ -10,10 +10,11 @@ import io.scalecube.cluster.Member;
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
 import io.scalecube.cluster.metadata.MetadataStoreImpl;
-import io.scalecube.cluster.transport.api.Address;
 import io.scalecube.cluster.transport.api.Transport;
+import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.cluster.utils.NetworkEmulator;
 import io.scalecube.cluster.utils.NetworkEmulatorTransport;
+import io.scalecube.net.Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
@@ -22,7 +23,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
@@ -433,6 +433,75 @@ public class MembershipProtocolTest extends BaseTest {
   }
 
   @Test
+  public void testRestartStoppedMembersOnSameAddresses() {
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c = createTransport();
+    NetworkEmulatorTransport d = createTransport();
+    List<Address> addresses = Arrays.asList(a.address(), b.address(), c.address(), d.address());
+
+    MembershipProtocolImpl cmA = createMembership(a, addresses);
+    MembershipProtocolImpl cmB = createMembership(b, addresses);
+    MembershipProtocolImpl cmC = createMembership(c, addresses);
+    MembershipProtocolImpl cmD = createMembership(d, addresses);
+
+    Transport c_Restarted;
+    Transport d_Restarted;
+    MembershipProtocolImpl cmC_Restarted = null;
+    MembershipProtocolImpl cmD_Restarted = null;
+
+    try {
+      awaitSeconds(1);
+
+      assertTrusted(cmA, cmB.member(), cmC.member(), cmD.member());
+      assertTrusted(cmB, cmA.member(), cmC.member(), cmD.member());
+      assertTrusted(cmC, cmB.member(), cmA.member(), cmD.member());
+      assertTrusted(cmD, cmB.member(), cmC.member(), cmA.member());
+
+      ReplayProcessor<MembershipEvent> cmA_RemovedHistory = startRecordingRemoved(cmA);
+      ReplayProcessor<MembershipEvent> cmB_RemovedHistory = startRecordingRemoved(cmB);
+
+      stop(cmC);
+      stop(cmD);
+
+      awaitSeconds(1);
+
+      // Verify members C and D were detected as Suspected
+      assertTrusted(cmA, cmB.member());
+      assertSuspected(cmA, cmC.member(), cmD.member());
+      assertTrusted(cmB, cmA.member());
+      assertSuspected(cmB, cmC.member(), cmD.member());
+
+      // Restart C and D on same ports
+      c_Restarted = createTransport(TransportConfig.builder().port(c.address().port()).build());
+      d_Restarted = createTransport(TransportConfig.builder().port(d.address().port()).build());
+      cmC_Restarted = createMembership(c_Restarted, addresses);
+      cmD_Restarted = createMembership(d_Restarted, addresses);
+
+      awaitSeconds(2);
+
+      // new C -> A, B, new D
+      assertTrusted(cmC_Restarted, cmA.member(), cmB.member(), cmD_Restarted.member());
+      assertNoSuspected(cmC_Restarted);
+      // new D -> A, B, new C
+      assertTrusted(cmD_Restarted, cmA.member(), cmB.member(), cmC_Restarted.member());
+      assertNoSuspected(cmD_Restarted);
+      // A -> B, new C, new D
+      // A -> removed old C, removed old D
+      assertTrusted(cmA, cmB.member(), cmC_Restarted.member(), cmD_Restarted.member());
+      assertNoSuspected(cmA);
+      assertRemoved(cmA_RemovedHistory, cmC.member(), cmD.member());
+      // B -> A, new C, new D
+      // B -> removed old C, removed old D
+      assertTrusted(cmB, cmA.member(), cmC_Restarted.member(), cmD_Restarted.member());
+      assertNoSuspected(cmB);
+      assertRemoved(cmB_RemovedHistory, cmC.member(), cmD.member());
+    } finally {
+      stopAll(cmA, cmB, cmC_Restarted, cmD_Restarted);
+    }
+  }
+
+  @Test
   public void testLimitedSeedMembers() {
     NetworkEmulatorTransport a = createTransport();
     NetworkEmulatorTransport b = createTransport();
@@ -790,7 +859,7 @@ public class MembershipProtocolTest extends BaseTest {
           .map(NetworkEmulatorTransport::networkEmulator)
           .forEach(NetworkEmulator::blockAllInbound);
 
-      awaitSeconds(1);
+      awaitSeconds(2);
 
       // Check partition: {a}, {b}, {c}, {d}
       assertSelfTrusted(cmA);
@@ -798,9 +867,9 @@ public class MembershipProtocolTest extends BaseTest {
       assertSelfTrusted(cmB);
       assertSuspected(cmB, cmA.member(), cmC.member(), cmD.member());
       assertSelfTrusted(cmC);
-      assertSuspected(cmC, cmB.member(), cmA.member(), cmD.member());
+      assertSuspected(cmC, cmA.member(), cmB.member(), cmD.member());
       assertSelfTrusted(cmD);
-      assertSuspected(cmD, cmB.member(), cmA.member(), cmC.member());
+      assertSuspected(cmD, cmA.member(), cmB.member(), cmC.member());
 
       awaitSuspicion(addresses.size());
 
@@ -847,7 +916,7 @@ public class MembershipProtocolTest extends BaseTest {
   }
 
   private MembershipProtocolImpl createMembership(Transport transport, ClusterConfig config) {
-    Member localMember = new Member(UUID.randomUUID().toString(), transport.address());
+    Member localMember = new Member(IdGenerator.generateId(), transport.address());
 
     DirectProcessor<MembershipEvent> membershipProcessor = DirectProcessor.create();
     FluxSink<MembershipEvent> membershipSink = membershipProcessor.sink();

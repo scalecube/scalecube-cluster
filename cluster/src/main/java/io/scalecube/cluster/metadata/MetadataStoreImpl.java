@@ -3,9 +3,9 @@ package io.scalecube.cluster.metadata;
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.CorrelationIdGenerator;
 import io.scalecube.cluster.Member;
-import io.scalecube.cluster.transport.api.Address;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
+import io.scalecube.net.Address;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.Map;
@@ -122,9 +122,11 @@ public class MetadataStoreImpl implements MetadataStore {
     } else {
       // updated
       if (result == null) {
-        LOGGER.debug("Added metadata: {} for member {}", value.remaining(), member);
+        LOGGER.debug(
+            "Added metadata: {} for member {} [at {}]", value.remaining(), member, localMember);
       } else {
-        LOGGER.debug("Updated metadata: {} for member {}", value.remaining(), member);
+        LOGGER.debug(
+            "Updated metadata: {} for member {} [at {}]", value.remaining(), member, localMember);
       }
     }
     return result;
@@ -138,7 +140,7 @@ public class MetadataStoreImpl implements MetadataStore {
     // remove
     ByteBuffer metadata = membersMetadata.remove(member);
     if (metadata != null) {
-      LOGGER.debug("Removed metadata for member {}", member);
+      LOGGER.debug("Removed metadata for member {} [at {}]", member, localMember);
       return metadata;
     }
     return null;
@@ -148,7 +150,7 @@ public class MetadataStoreImpl implements MetadataStore {
   public Mono<ByteBuffer> fetchMetadata(Member member) {
     return Mono.create(
         sink -> {
-          LOGGER.debug("Getting metadata for member {}", member);
+          LOGGER.debug("Getting metadata for member {} [at {}]", member, localMember);
 
           // Increment counter
           final String cid = cidGenerator.nextCid();
@@ -166,17 +168,23 @@ public class MetadataStoreImpl implements MetadataStore {
               .publishOn(scheduler)
               .subscribe(
                   response -> {
-                    LOGGER.debug("Received GetMetadataResp[{}] from {}", cid, targetAddress);
+                    LOGGER.debug(
+                        "Received GetMetadataResp[{}] from {} [at {}]",
+                        cid,
+                        targetAddress,
+                        localMember);
                     GetMetadataResponse respData = response.data();
                     ByteBuffer metadata = respData.getMetadata();
                     sink.success(metadata);
                   },
                   th -> {
                     LOGGER.warn(
-                        "Failed getting GetMetadataResp[{}] from {} within {} ms, cause : {}",
+                        "Failed getting GetMetadataResp[{}] "
+                            + "from {} within {} ms [at {}], cause : {}",
                         cid,
                         targetAddress,
                         config.getMetadataTimeout(),
+                        localMember,
                         th.toString());
                     sink.error(th);
                   });
@@ -198,7 +206,7 @@ public class MetadataStoreImpl implements MetadataStore {
   }
 
   private void onMetadataRequest(Message message) {
-    LOGGER.debug("Received GetMetadataReq: {}", message);
+    LOGGER.debug("Received GetMetadataReq: {} [at {}]", message, localMember);
 
     GetMetadataRequest reqData = message.data();
     Member targetMember = reqData.getMember();
@@ -224,16 +232,17 @@ public class MetadataStoreImpl implements MetadataStore {
             .build();
 
     Address responseAddress = message.sender();
-    LOGGER.debug("Send GetMetadataResp: {} to {}", response, responseAddress);
+    LOGGER.debug("Send GetMetadataResp: {} to {} [at {}]", response, responseAddress, localMember);
     transport
         .send(responseAddress, response)
         .subscribe(
             null,
             ex ->
                 LOGGER.debug(
-                    "Failed to send GetMetadataResp: {} to {}, cause: {}",
+                    "Failed to send GetMetadataResp: {} to {} [at {}], cause: {}",
                     response,
                     responseAddress,
+                    localMember,
                     ex.toString()));
   }
 }

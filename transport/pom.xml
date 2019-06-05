@@ -5,35 +5,41 @@
   <parent>
     <groupId>io.scalecube</groupId>
     <artifactId>scalecube-cluster-parent</artifactId>
-    <version>2.3.2-SNAPSHOT</version>
+    <version>2.2.8-SNAPSHOT</version>
   </parent>
 
-  <artifactId>scalecube-cluster</artifactId>
-  <name>ScaleCube/Cluster</name>
+  <artifactId>scalecube-transport</artifactId>
+  <name>ScaleCube/Transport</name>
 
   <dependencies>
     <dependency>
-      <groupId>io.scalecube</groupId>
-      <artifactId>scalecube-commons</artifactId>
+      <groupId>io.projectreactor</groupId>
+      <artifactId>reactor-core</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.projectreactor.netty</groupId>
+      <artifactId>reactor-netty</artifactId>
+    </dependency>
+
+    <!-- Jackson -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-core</artifactId>
+      <version>${jackson.version}</version>
     </dependency>
     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>scalecube-transport-api</artifactId>
-      <version>${project.version}</version>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>${jackson.version}</version>
     </dependency>
+
     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>scalecube-transport-netty</artifactId>
-      <version>${project.version}</version>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
     </dependency>
 
     <!-- Test dependencies -->
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>scalecube-cluster-utils</artifactId>
-      <version>${project.version}</version>
-      <scope>test</scope>
-    </dependency>
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
       <artifactId>log4j-slf4j-impl</artifactId>
