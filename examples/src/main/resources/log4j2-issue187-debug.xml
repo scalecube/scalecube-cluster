@@ -35,7 +35,7 @@
     <Logger name="io.netty" level="warn"/>
     <Logger name="io.scalecube" level="trace"/>
 
-    <Logger name="membership" level="trace">
+    <Logger name="io.scalecube.cluster.Membership" level="trace">
       <AppenderRef ref="fileMembership"/>
     </Logger>
 

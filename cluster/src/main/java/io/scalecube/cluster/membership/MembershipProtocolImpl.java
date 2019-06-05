@@ -43,13 +43,15 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxProcessor;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.MonoSink;
 import reactor.core.publisher.ReplayProcessor;
 import reactor.core.scheduler.Scheduler;
 
 public final class MembershipProtocolImpl implements MembershipProtocol {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MembershipProtocolImpl.class);
-  private static final Logger LOGGER_MEMBERSHIP = LoggerFactory.getLogger("membership");
+  private static final Logger LOGGER_MEMBERSHIP =
+      LoggerFactory.getLogger("io.scalecube.cluster.Membership");
 
   private enum MembershipUpdateReason {
     FAILURE_DETECTOR_EVENT,
@@ -208,15 +210,16 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   @Override
   public Mono<Void> start() {
     // Make initial sync with all seed members
-    return Mono.fromRunnable(this::start0)
+    return Mono.create(this::start0)
         .then(Mono.fromCallable(() -> JmxMonitorMBean.start(this)))
         .then();
   }
 
-  private void start0() {
+  private void start0(MonoSink<Object> sink) {
     // In case no members at the moment just schedule periodic sync
     if (seedMembers.isEmpty()) {
       schedulePeriodicSync();
+      sink.success();
       return;
     }
     // If seed addresses are specified in config - send initial sync to those nodes
@@ -240,7 +243,11 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
         .timeout(Duration.ofMillis(config.getSyncTimeout()), scheduler)
         .publishOn(scheduler)
         .flatMap(message -> onSyncAck(message, true))
-        .doFinally(s -> schedulePeriodicSync())
+        .doFinally(
+            s -> {
+              schedulePeriodicSync();
+              sink.success();
+            })
         .subscribe(
             null, ex -> LOGGER.debug("Exception on initial SyncAck, cause: {}", ex.toString()));
   }
@@ -456,7 +463,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
               onStart ? MembershipUpdateReason.INITIAL_SYNC : MembershipUpdateReason.SYNC;
           return Mono.whenDelayError(
               syncData.getMembership().stream()
-                  .filter(r1 -> !r1.equals(membershipTable.get(r1.id())))
                   .map(r1 -> updateMembership(r1, reason))
                   .toArray(Mono[]::new));
         });
@@ -476,7 +482,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           MembershipRecord r0 = membershipTable.get(r1.id());
 
           // Check if new record r1 overrides existing membership record r0
-          if (!r1.isOverrides(r0)) {
+          if (r1.equals(r0) || !r1.isOverrides(r0)) {
             LOGGER_MEMBERSHIP.debug(
                 "(update reason: {}) skipping update, can't override r0: {} with received r1: {}",
                 reason,
@@ -486,8 +492,12 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           }
 
           // If received updated for local member then increase incarnation and spread Alive gossip
-          if (r1.member().id().equals(localMember.id())) {
-            return onSelfMemberDetected(r0, r1, reason);
+          if (r1.member().address().equals(localMember.address())) {
+            if (r1.member().id().equals(localMember.id())) {
+              return onSelfMemberDetected(r0, r1, reason);
+            } else {
+              return Mono.empty();
+            }
           }
 
           if (r1.isDead()) {
@@ -561,6 +571,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private Mono<Void> onDeadMemberDetected(MembershipRecord r1) {
     return Mono.fromRunnable(
         () -> {
+          cancelSuspicionTimeoutTask(r1.id());
           if (!members.containsKey(r1.id())) {
             return;
           }
@@ -601,6 +612,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private void cancelSuspicionTimeoutTask(String memberId) {
     Disposable future = suspicionTimeoutTasks.remove(memberId);
     if (future != null && !future.isDisposed()) {
+      LOGGER.debug("Cancelled SuspicionTimeoutTask for {}", memberId);
       future.dispose();
     }
   }
@@ -611,9 +623,12 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
             config.getSuspicionMult(), membershipTable.size(), config.getPingInterval());
     suspicionTimeoutTasks.computeIfAbsent(
         record.id(),
-        id ->
-            scheduler.schedule(
-                () -> onSuspicionTimeout(id), suspicionTimeout, TimeUnit.MILLISECONDS));
+        id -> {
+          LOGGER.debug(
+              "Scheduled SuspicionTimeoutTask for {}, suspicionTimeout {}", id, suspicionTimeout);
+          return scheduler.schedule(
+              () -> onSuspicionTimeout(id), suspicionTimeout, TimeUnit.MILLISECONDS);
+        });
   }
 
   private void onSuspicionTimeout(String memberId) {
