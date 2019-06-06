@@ -246,6 +246,7 @@ public final class ClusterImpl implements Cluster {
   }
 
   private Flux<MembershipEvent> listenMembership() {
+    // listen on live stream
     return membershipEvents.onBackpressureBuffer();
   }
 
