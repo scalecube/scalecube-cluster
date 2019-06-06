@@ -5,17 +5,16 @@ import io.scalecube.cluster.gossip.GossipProtocolImpl;
 import io.scalecube.cluster.membership.IdGenerator;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipProtocolImpl;
+import io.scalecube.cluster.metadata.MetadataStore;
 import io.scalecube.cluster.metadata.MetadataStoreImpl;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.net.Address;
 import io.scalecube.transport.netty.TransportImpl;
 import java.lang.management.ManagementFactory;
-import java.util.ArrayList;
+import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -82,7 +81,7 @@ public final class ClusterImpl implements Cluster {
   private FailureDetectorImpl failureDetector;
   private GossipProtocolImpl gossip;
   private MembershipProtocolImpl membership;
-  private MetadataStoreImpl metadataStore;
+  private MetadataStore metadataStore;
   private Scheduler scheduler;
   private CorrelationIdGenerator cidGenerator;
 
@@ -252,7 +251,11 @@ public final class ClusterImpl implements Cluster {
     return Flux.defer(
         () ->
             Flux.fromIterable(otherMembers())
-                .map(member -> MembershipEvent.createAdded(member, metadata(member)))
+                .map(
+                    member -> {
+                      ByteBuffer metadata = metadataStore.metadata(member).orElse(null);
+                      return MembershipEvent.createAdded(member, metadata);
+                    })
                 .concatWith(membershipEvents)
                 .onBackpressureBuffer());
   }
@@ -317,13 +320,18 @@ public final class ClusterImpl implements Cluster {
   }
 
   @Override
-  public Map<String, String> metadata() {
+  public <T> Optional<T> metadata() {
     return metadataStore.metadata();
   }
 
   @Override
-  public Map<String, String> metadata(Member member) {
-    return metadataStore.metadata(member);
+  public <T> Optional<T> metadata(Member member) {
+    if (member().equals(member)) {
+      return metadata();
+    }
+    return metadataStore
+        .metadata(member)
+        .map(byteBuffer -> config.getMetadataDecoder().decode(byteBuffer));
   }
 
   @Override
@@ -342,37 +350,10 @@ public final class ClusterImpl implements Cluster {
   }
 
   @Override
-  public Mono<Void> updateMetadata(Map<String, String> metadata) {
+  public <T> Mono<Void> updateMetadata(T metadata) {
     return Mono.fromRunnable(() -> metadataStore.updateMetadata(metadata))
         .then(membership.updateIncarnation())
         .subscribeOn(scheduler);
-  }
-
-  @Override
-  public Mono<Void> updateMetadataProperty(String key, String value) {
-    return Mono.fromCallable(() -> updateMetadataProperty0(key, value))
-        .flatMap(this::updateMetadata)
-        .subscribeOn(scheduler);
-  }
-
-  private Map<String, String> updateMetadataProperty0(String key, String value) {
-    Map<String, String> metadata = new HashMap<>(metadataStore.metadata());
-    metadata.put(key, value);
-    return metadata;
-  }
-
-  @Override
-  public Mono<Void> removeMetadataProperty(String key) {
-    return Mono.fromCallable(() -> removeMetadataProperty0(key))
-        .flatMap(this::updateMetadata)
-        .subscribeOn(scheduler)
-        .then();
-  }
-
-  private Map<String, String> removeMetadataProperty0(String key) {
-    Map<String, String> metadata = new HashMap<>(metadataStore.metadata());
-    metadata.remove(key);
-    return metadata;
   }
 
   @Override
@@ -471,9 +452,8 @@ public final class ClusterImpl implements Cluster {
 
     @Override
     public Collection<String> getMetadata() {
-      return cluster.metadata().entrySet().stream()
-          .map(e -> e.getKey() + ":" + e.getValue())
-          .collect(Collectors.toCollection(ArrayList::new));
+      return Collections.singletonList(
+          Optional.ofNullable(cluster.metadataStore.metadata()).map(Object::toString).orElse(null));
     }
   }
 
@@ -482,11 +462,7 @@ public final class ClusterImpl implements Cluster {
     private final Transport transport;
     private final Address sender;
 
-    private SenderAwareTransport(Transport transport) {
-      this(transport, transport.address());
-    }
-
-    public SenderAwareTransport(Transport transport, Address sender) {
+    private SenderAwareTransport(Transport transport, Address sender) {
       this.transport = Objects.requireNonNull(transport);
       this.sender = Objects.requireNonNull(sender);
     }

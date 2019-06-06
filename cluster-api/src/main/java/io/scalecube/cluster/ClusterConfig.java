@@ -3,15 +3,16 @@ package io.scalecube.cluster;
 import io.scalecube.cluster.fdetector.FailureDetectorConfig;
 import io.scalecube.cluster.gossip.GossipConfig;
 import io.scalecube.cluster.membership.MembershipConfig;
+import io.scalecube.cluster.metadata.MetadataDecoder;
+import io.scalecube.cluster.metadata.MetadataEncoder;
 import io.scalecube.cluster.transport.api.MessageCodec;
 import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.net.Address;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.Optional;
 
 /**
  * Cluster configuration encapsulate settings needed cluster to create and successfully join.
@@ -42,6 +43,7 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
   public static final int DEFAULT_WAN_PING_INTERVAL = 5_000;
   public static final int DEFAULT_WAN_GOSSIP_FANOUT = 4;
   public static final int DEFAULT_WAN_CONNECT_TIMEOUT = 10_000;
+  public static final int DEFAULT_WAN_METADATA_TIMEOUT = 10_000;
 
   // Default settings for local cluster working via loopback interface (overrides default/LAN
   // settings)
@@ -53,6 +55,7 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
   public static final int DEFAULT_LOCAL_PING_REQ_MEMBERS = 1;
   public static final int DEFAULT_LOCAL_GOSSIP_INTERVAL = 100;
   public static final int DEFAULT_LOCAL_CONNECT_TIMEOUT = 1_000;
+  public static final int DEFAULT_LOCAL_METADATA_TIMEOUT = 1_000;
 
   public static final int DEFAULT_METADATA_TIMEOUT = 3_000;
 
@@ -60,7 +63,6 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
   public static final Integer DEFAULT_MEMBER_PORT = null;
 
   private final List<Address> seedMembers;
-  private final Map<String, String> metadata;
   private final int syncInterval;
   private final int syncTimeout;
   private final int suspicionMult;
@@ -76,12 +78,17 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
   private final int gossipRepeatMult;
 
   private final TransportConfig transportConfig;
+
+  private final Object metadata;
+  private final MetadataEncoder metadataEncoder;
+  private final MetadataDecoder metadataDecoder;
+
   private final String memberHost;
   private final Integer memberPort;
 
   private ClusterConfig(Builder builder) {
     this.seedMembers = Collections.unmodifiableList(builder.seedMembers);
-    this.metadata = Collections.unmodifiableMap(builder.metadata);
+    this.metadata = builder.metadata;
     this.syncInterval = builder.syncInterval;
     this.syncTimeout = builder.syncTimeout;
     this.syncGroup = builder.syncGroup;
@@ -97,6 +104,8 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
     this.gossipRepeatMult = builder.gossipRepeatMult;
 
     this.transportConfig = builder.transportConfigBuilder.build();
+    this.metadataEncoder = builder.metadataEncoder;
+    this.metadataDecoder = builder.metadataDecoder;
     this.memberHost = builder.memberHost;
     this.memberPort = builder.memberPort;
   }
@@ -127,6 +136,8 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
         .gossipFanout(clusterConfig.gossipFanout)
         .gossipRepeatMult(clusterConfig.gossipRepeatMult)
         .transportConfig(TransportConfig.builder().fillFrom(clusterConfig.transportConfig).build())
+        .metadataEncoder(clusterConfig.metadataEncoder)
+        .metadataDecoder(clusterConfig.metadataDecoder)
         .memberHost(clusterConfig.memberHost)
         .memberPort(clusterConfig.memberPort);
   }
@@ -148,6 +159,7 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
         .pingInterval(DEFAULT_WAN_PING_INTERVAL)
         .gossipFanout(DEFAULT_WAN_GOSSIP_FANOUT)
         .connectTimeout(DEFAULT_WAN_CONNECT_TIMEOUT)
+        .metadataTimeout(DEFAULT_WAN_METADATA_TIMEOUT)
         .build();
   }
 
@@ -162,15 +174,12 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
         .pingReqMembers(DEFAULT_LOCAL_PING_REQ_MEMBERS)
         .gossipInterval(DEFAULT_LOCAL_GOSSIP_INTERVAL)
         .connectTimeout(DEFAULT_LOCAL_CONNECT_TIMEOUT)
+        .connectTimeout(DEFAULT_LOCAL_METADATA_TIMEOUT)
         .build();
   }
 
   public List<Address> getSeedMembers() {
     return seedMembers;
-  }
-
-  public Map<String, String> getMetadata() {
-    return metadata;
   }
 
   public int getSyncInterval() {
@@ -187,10 +196,6 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
 
   public String getSyncGroup() {
     return syncGroup;
-  }
-
-  public int getMetadataTimeout() {
-    return metadataTimeout;
   }
 
   public int getPingInterval() {
@@ -219,6 +224,22 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
 
   public TransportConfig getTransportConfig() {
     return transportConfig;
+  }
+
+  public Object getMetadata() {
+    return metadata;
+  }
+
+  public int getMetadataTimeout() {
+    return metadataTimeout;
+  }
+
+  public MetadataEncoder getMetadataEncoder() {
+    return metadataEncoder;
+  }
+
+  public MetadataDecoder getMetadataDecoder() {
+    return metadataDecoder;
   }
 
   public String getMemberHost() {
@@ -260,6 +281,10 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
         + gossipRepeatMult
         + ", transportConfig="
         + transportConfig
+        + ", metadataEncoder="
+        + metadataEncoder
+        + ", metadataDecoder="
+        + metadataDecoder
         + ", memberHost="
         + memberHost
         + ", memberPort="
@@ -268,18 +293,19 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
   }
 
   private String metadataAsString() {
-    return metadata.isEmpty() ? "[]" : "metadata@" + Integer.toHexString(metadata.hashCode());
+    return Optional.ofNullable(metadata)
+        .map(Object::hashCode)
+        .map(Integer::toHexString)
+        .orElse(null);
   }
 
   public static final class Builder {
 
     private List<Address> seedMembers = Collections.emptyList();
-    private Map<String, String> metadata = new HashMap<>();
     private int syncInterval = DEFAULT_SYNC_INTERVAL;
     private int syncTimeout = DEFAULT_SYNC_TIMEOUT;
     private String syncGroup = DEFAULT_SYNC_GROUP;
     private int suspicionMult = DEFAULT_SUSPICION_MULT;
-    private int metadataTimeout = DEFAULT_METADATA_TIMEOUT;
 
     private int pingInterval = DEFAULT_PING_INTERVAL;
     private int pingTimeout = DEFAULT_PING_TIMEOUT;
@@ -291,23 +317,18 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
 
     private TransportConfig.Builder transportConfigBuilder = TransportConfig.builder();
 
+    private Object metadata;
+    private int metadataTimeout = DEFAULT_METADATA_TIMEOUT;
+    private MetadataEncoder metadataEncoder = MetadataEncoder.INSTANCE;
+    private MetadataDecoder metadataDecoder = MetadataDecoder.INSTANCE;
+
     private String memberHost = DEFAULT_MEMBER_HOST;
     private Integer memberPort = DEFAULT_MEMBER_PORT;
 
     private Builder() {}
 
-    public Builder metadata(Map<String, String> metadata) {
-      this.metadata = new HashMap<>(metadata);
-      return this;
-    }
-
-    public Builder addMetadata(String key, String value) {
-      this.metadata.put(key, value);
-      return this;
-    }
-
-    public Builder addMetadata(Map<String, String> metadata) {
-      this.metadata.putAll(metadata);
+    public Builder metadata(Object metadata) {
+      this.metadata = metadata;
       return this;
     }
 
@@ -379,6 +400,16 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
     /** Sets all transport config settings equal to provided transport config. */
     public Builder transportConfig(TransportConfig transportConfig) {
       this.transportConfigBuilder.fillFrom(transportConfig);
+      return this;
+    }
+
+    public Builder metadataDecoder(MetadataDecoder metadataDecoder) {
+      this.metadataDecoder = metadataDecoder;
+      return this;
+    }
+
+    public Builder metadataEncoder(MetadataEncoder metadataEncoder) {
+      this.metadataEncoder = metadataEncoder;
       return this;
     }
 

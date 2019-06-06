@@ -1,7 +1,7 @@
 package io.scalecube.cluster.metadata;
 
 import io.scalecube.cluster.Member;
-import java.util.Map;
+import java.nio.ByteBuffer;
 
 /**
  * DTO class. Stands for response for preceding remote request on getting metadata in remote
@@ -13,12 +13,12 @@ final class GetMetadataResponse {
   private Member member;
 
   /** Cluster member metadata. */
-  private Map<String, String> metadata;
+  private ByteBuffer metadata;
 
   /** Instantiates empty GetMetadataResponse for deserialization purpose. */
   GetMetadataResponse() {}
 
-  GetMetadataResponse(Member member, Map<String, String> metadata) {
+  GetMetadataResponse(Member member, ByteBuffer metadata) {
     this.member = member;
     this.metadata = metadata;
   }
@@ -27,12 +27,12 @@ final class GetMetadataResponse {
     return member;
   }
 
-  Map<String, String> getMetadata() {
+  ByteBuffer getMetadata() {
     return metadata;
   }
 
   @Override
   public String toString() {
-    return "GetMetadataResponse{" + "member=" + member + ", metadata=" + metadata + '}';
+    return "GetMetadataResponse{" + "member=" + member + ", metadata=" + metadata.remaining() + '}';
   }
 }

@@ -37,6 +37,7 @@
 
   <modules>
     <module>cluster</module>
+    <module>cluster-api</module>
     <module>examples</module>
     <module>utils</module>
     <module>transport-parent</module>

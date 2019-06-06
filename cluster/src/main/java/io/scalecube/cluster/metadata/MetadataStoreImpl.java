@@ -6,11 +6,11 @@ import io.scalecube.cluster.Member;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.net.Address;
+import java.nio.ByteBuffer;
 import java.time.Duration;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +30,7 @@ public class MetadataStoreImpl implements MetadataStore {
 
   // Injected
 
+  private Object localMetadata;
   private final Member localMember;
   private final Transport transport;
   private final ClusterConfig config;
@@ -37,7 +38,7 @@ public class MetadataStoreImpl implements MetadataStore {
 
   // State
 
-  private final Map<Member, Map<String, String>> membersMetadata = new ConcurrentHashMap<>();
+  private final Map<Member, ByteBuffer> membersMetadata = new ConcurrentHashMap<>();
 
   // Scheduler
 
@@ -52,7 +53,7 @@ public class MetadataStoreImpl implements MetadataStore {
    *
    * @param localMember local member
    * @param transport transport
-   * @param metadata local metadata
+   * @param localMetadata local metadata (nullable)
    * @param config config
    * @param scheduler scheduler
    * @param cidGenerator correlationId generator
@@ -60,7 +61,7 @@ public class MetadataStoreImpl implements MetadataStore {
   public MetadataStoreImpl(
       Member localMember,
       Transport transport,
-      Map<String, String> metadata,
+      Object localMetadata,
       ClusterConfig config,
       Scheduler scheduler,
       CorrelationIdGenerator cidGenerator) {
@@ -69,8 +70,7 @@ public class MetadataStoreImpl implements MetadataStore {
     this.config = Objects.requireNonNull(config);
     this.scheduler = Objects.requireNonNull(scheduler);
     this.cidGenerator = Objects.requireNonNull(cidGenerator);
-    // store local metadata
-    updateMetadata(Objects.requireNonNull(metadata));
+    this.localMetadata = localMetadata;
   }
 
   @Override
@@ -93,53 +93,53 @@ public class MetadataStoreImpl implements MetadataStore {
   }
 
   @Override
-  public Map<String, String> metadata() {
-    return metadata(localMember);
+  public <T> Optional<T> metadata() {
+    //noinspection unchecked
+    return Optional.ofNullable((T) localMetadata);
   }
 
   @Override
-  public Map<String, String> metadata(Member member) {
-    return membersMetadata.get(member);
+  public Optional<ByteBuffer> metadata(Member member) {
+    return Optional.ofNullable(membersMetadata.get(member)).map(ByteBuffer::slice);
   }
 
   @Override
-  public Map<String, String> updateMetadata(Map<String, String> metadata) {
-    return updateMetadata(localMember, metadata);
+  public void updateMetadata(Object metadata) {
+    localMetadata = metadata;
   }
 
   @Override
-  public Map<String, String> updateMetadata(Member member, Map<String, String> metadata) {
-    Map<String, String> memberMetadata =
-        Collections.unmodifiableMap(new HashMap<>(Objects.requireNonNull(metadata)));
-    Map<String, String> result = membersMetadata.put(member, memberMetadata);
-
+  public ByteBuffer updateMetadata(Member member, ByteBuffer metadata) {
     if (localMember.equals(member)) {
-      // added
-      if (result == null) {
-        LOGGER.debug("Added metadata: {} for local member {}", memberMetadata, localMember);
-      } else {
-        LOGGER.debug("Updated metadata: {} for local member {}", memberMetadata, localMember);
-      }
+      throw new IllegalArgumentException("removeMetadata must not accept local member");
+    }
+
+    // If metadata is null then 'update' turns into 'remove'
+    if (metadata == null) {
+      return removeMetadata(member);
+    }
+
+    ByteBuffer value = metadata.slice();
+    ByteBuffer result = membersMetadata.put(member, value);
+
+    // updated
+    if (result == null) {
+      LOGGER.debug(
+          "Added metadata: {} for member {} [at {}]", value.remaining(), member, localMember);
     } else {
-      // updated
-      if (result == null) {
-        LOGGER.debug(
-            "Added metadata: {} for member {} [at {}]", memberMetadata, member, localMember);
-      } else {
-        LOGGER.debug(
-            "Updated metadata: {} for member {} [at {}]", memberMetadata, member, localMember);
-      }
+      LOGGER.debug(
+          "Updated metadata: {} for member {} [at {}]", value.remaining(), member, localMember);
     }
     return result;
   }
 
   @Override
-  public Map<String, String> removeMetadata(Member member) {
+  public ByteBuffer removeMetadata(Member member) {
     if (localMember.equals(member)) {
       throw new IllegalArgumentException("removeMetadata must not accept local member");
     }
     // remove
-    Map<String, String> metadata = membersMetadata.remove(member);
+    ByteBuffer metadata = membersMetadata.remove(member);
     if (metadata != null) {
       LOGGER.debug("Removed metadata for member {} [at {}]", member, localMember);
       return metadata;
@@ -148,7 +148,7 @@ public class MetadataStoreImpl implements MetadataStore {
   }
 
   @Override
-  public Mono<Map<String, String>> fetchMetadata(Member member) {
+  public Mono<ByteBuffer> fetchMetadata(Member member) {
     return Mono.create(
         sink -> {
           LOGGER.debug("Getting metadata for member {} [at {}]", member, localMember);
@@ -175,7 +175,7 @@ public class MetadataStoreImpl implements MetadataStore {
                         targetAddress,
                         localMember);
                     GetMetadataResponse respData = response.data();
-                    Map<String, String> metadata = respData.getMetadata();
+                    ByteBuffer metadata = respData.getMetadata();
                     sink.success(metadata);
                   },
                   th -> {
@@ -223,7 +223,8 @@ public class MetadataStoreImpl implements MetadataStore {
     }
 
     // Prepare repopnse
-    GetMetadataResponse respData = new GetMetadataResponse(localMember, metadata());
+    ByteBuffer byteBuffer = config.getMetadataEncoder().encode(localMetadata);
+    GetMetadataResponse respData = new GetMetadataResponse(localMember, byteBuffer);
 
     Message response =
         Message.builder()

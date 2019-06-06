@@ -928,8 +928,7 @@ public class MembershipProtocolTest extends BaseTest {
         new GossipProtocolImpl(localMember, transport, membershipProcessor, config, scheduler);
 
     MetadataStoreImpl metadataStore =
-        new MetadataStoreImpl(
-            localMember, transport, Collections.emptyMap(), config, scheduler, cidGenerator);
+        new MetadataStoreImpl(localMember, transport, null, config, scheduler, cidGenerator);
 
     MembershipProtocolImpl membership =
         new MembershipProtocolImpl(

@@ -6,6 +6,7 @@ import io.scalecube.cluster.ClusterMessageHandler;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.transport.api.Message;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -47,7 +48,12 @@ public class ClusterMetadataExample {
     // Scan the list of members in the cluster and find Joe there
     Optional<Member> joeMemberOptional =
         alice.otherMembers().stream()
-            .filter(member -> "Joe".equals(alice.metadata(member).get("name")))
+            .filter(
+                member -> {
+                  //noinspection unchecked
+                  Map<String, String> metadata = (Map<String, String>) alice.metadata(member).get();
+                  return "Joe".equals(metadata.get("name"));
+                })
             .findAny();
 
     System.err.println("### joeMemberOptional: " + joeMemberOptional);

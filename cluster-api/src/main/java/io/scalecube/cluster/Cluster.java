@@ -3,7 +3,6 @@ package io.scalecube.cluster;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.net.Address;
 import java.util.Collection;
-import java.util.Map;
 import java.util.Optional;
 import reactor.core.publisher.Mono;
 
@@ -72,15 +71,15 @@ public interface Cluster {
    *
    * @return local member metadata
    */
-  Map<String, String> metadata();
+  <T> Optional<T> metadata();
 
   /**
-   * Returns cluster member metadata by given member reference.
+   * Returns cluster member metadata by given member with default metadata type.
    *
    * @param member cluster member
    * @return cluster member metadata
    */
-  Map<String, String> metadata(Member member);
+  <T> Optional<T> metadata(Member member);
 
   /**
    * Returns local cluster member which corresponds to this cluster instance.
@@ -128,26 +127,7 @@ public interface Cluster {
    *
    * @param metadata new metadata
    */
-  Mono<Void> updateMetadata(Map<String, String> metadata);
-
-  /**
-   * Updates single key-value pair of local member's metadata. This is a shortcut method and anyway
-   * update will result in a full metadata update. In case if you need to update several metadata
-   * property together it is recommended to use {@link #updateMetadata(Map)}.
-   *
-   * @param key metadata key to update
-   * @param value metadata value to update
-   */
-  Mono<Void> updateMetadataProperty(String key, String value);
-
-  /**
-   * Remove single key-value pair of local member's metadata. This is a shortcut method and anyway
-   * update will result in a full metadata update. In case if you need to update several metadata
-   * property together it is recommended to use {@link #updateMetadata(Map)}.
-   *
-   * @param key metadata key to remove.
-   */
-  Mono<Void> removeMetadataProperty(String key);
+  <T> Mono<Void> updateMetadata(T metadata);
 
   /**
    * Member notifies other members of the cluster about leaving and gracefully shutdown and free

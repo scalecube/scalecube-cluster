@@ -20,7 +20,6 @@ import io.scalecube.net.Address;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.LongSummaryStatistics;
 import java.util.Map;
@@ -264,7 +263,7 @@ class GossipProtocolTest extends BaseTest {
         Flux.fromIterable(members)
             .filter(address -> !transport.address().equals(address))
             .map(address -> new Member("member-" + address.port(), address))
-            .map(member -> MembershipEvent.createAdded(member, Collections.emptyMap()));
+            .map(member -> MembershipEvent.createAdded(member, null));
 
     GossipProtocolImpl gossipProtocol =
         new GossipProtocolImpl(localMember, transport, membershipFlux, gossipConfig, scheduler);
