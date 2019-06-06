@@ -25,19 +25,19 @@ public interface MetadataStore {
   <T> Optional<T> metadata();
 
   /**
-   * Updates local cluster member metadata.
-   *
-   * @param metadata local member metadata
-   */
-  void updateMetadata(Object metadata);
-
-  /**
    * Returns cluster member metadata from local store.
    *
    * @param member cluster member
    * @return metadata of the cluster member
    */
   Optional<ByteBuffer> metadata(Member member);
+
+  /**
+   * Updates local cluster member metadata.
+   *
+   * @param metadata local member metadata
+   */
+  void updateMetadata(Object metadata);
 
   /**
    * Updates cluster member metadata in store.
