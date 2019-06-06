@@ -12,7 +12,6 @@ import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.net.Address;
 import io.scalecube.transport.netty.TransportImpl;
 import java.lang.management.ManagementFactory;
-import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
@@ -247,17 +246,8 @@ public final class ClusterImpl implements Cluster {
   }
 
   private Flux<MembershipEvent> listenMembership() {
-    // concat with existing members and listen on live stream
-    return Flux.defer(
-        () ->
-            Flux.fromIterable(otherMembers())
-                .map(
-                    member -> {
-                      ByteBuffer metadata = metadataStore.metadata(member).orElse(null);
-                      return MembershipEvent.createAdded(member, metadata);
-                    })
-                .concatWith(membershipEvents)
-                .onBackpressureBuffer());
+    // listen on live stream
+    return membershipEvents.onBackpressureBuffer();
   }
 
   /**
