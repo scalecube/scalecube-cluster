@@ -74,7 +74,7 @@ public interface Cluster {
   <T> Optional<T> metadata();
 
   /**
-   * Returns cluster member metadata by given member reference.
+   * Returns cluster member metadata by given member with default metadata type.
    *
    * @param member cluster member
    * @return cluster member metadata
