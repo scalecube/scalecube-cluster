@@ -78,7 +78,6 @@ public final class ClusterImpl implements Cluster {
   // Cluster components
   private Transport transport;
   private Member localMember;
-  private Object localMetadata;
   private FailureDetectorImpl failureDetector;
   private GossipProtocolImpl gossip;
   private MembershipProtocolImpl membership;
@@ -167,7 +166,6 @@ public final class ClusterImpl implements Cluster {
         .flatMap(
             transport1 -> {
               localMember = createLocalMember(transport1.address().port());
-              localMetadata = config.getMetadata();
               transport = new SenderAwareTransport(transport1, localMember.address());
 
               cidGenerator = new CorrelationIdGenerator(localMember.id());
@@ -194,7 +192,7 @@ public final class ClusterImpl implements Cluster {
                   new MetadataStoreImpl(
                       localMember,
                       transport,
-                      config.getMetadataEncoder().encode(localMetadata),
+                      config.getMetadata(),
                       config,
                       scheduler,
                       cidGenerator);
@@ -253,7 +251,11 @@ public final class ClusterImpl implements Cluster {
     return Flux.defer(
         () ->
             Flux.fromIterable(otherMembers())
-                .map(member -> MembershipEvent.createAdded(member, metadataStore.metadata(member)))
+                .map(
+                    member -> {
+                      ByteBuffer metadata = metadataStore.metadata(member).orElse(null);
+                      return MembershipEvent.createAdded(member, metadata);
+                    })
                 .concatWith(membershipEvents)
                 .onBackpressureBuffer());
   }
@@ -318,13 +320,18 @@ public final class ClusterImpl implements Cluster {
   }
 
   @Override
-  public <T> T metadata() {
-    return (T) localMetadata;
+  public <T> Optional<T> metadata() {
+    return metadataStore.metadata();
   }
 
   @Override
-  public <T> T metadata(Member member) {
-    return (T) config.getMetadataDecoder().decode(metadataStore.metadata(member));
+  public <T> Optional<T> metadata(Member member) {
+    if (member().equals(member)) {
+      return metadata();
+    }
+    return metadataStore
+        .metadata(member)
+        .map(byteBuffer -> config.getMetadataDecoder().decode(byteBuffer));
   }
 
   @Override
@@ -344,9 +351,7 @@ public final class ClusterImpl implements Cluster {
 
   @Override
   public <T> Mono<Void> updateMetadata(T metadata) {
-    return Mono.fromCallable(() -> config.getMetadataEncoder().encode(metadata))
-        .doOnNext(byteBuffer -> metadataStore.updateMetadata(byteBuffer))
-        .then(Mono.fromRunnable(() -> localMetadata = metadata))
+    return Mono.fromRunnable(() -> metadataStore.updateMetadata(metadata))
         .then(membership.updateIncarnation())
         .subscribeOn(scheduler);
   }
@@ -447,13 +452,8 @@ public final class ClusterImpl implements Cluster {
 
     @Override
     public Collection<String> getMetadata() {
-      ByteBuffer metadata = cluster.metadataStore.metadata();
-      return Collections.singleton(
-          "metadata@"
-              + Integer.toHexString(metadata.hashCode())
-              + "["
-              + metadata.remaining()
-              + "]");
+      return Collections.singletonList(
+          Optional.ofNullable(cluster.metadataStore.metadata()).map(Object::toString).orElse(null));
     }
   }
 
@@ -462,11 +462,7 @@ public final class ClusterImpl implements Cluster {
     private final Transport transport;
     private final Address sender;
 
-    private SenderAwareTransport(Transport transport) {
-      this(transport, transport.address());
-    }
-
-    public SenderAwareTransport(Transport transport, Address sender) {
+    private SenderAwareTransport(Transport transport, Address sender) {
       this.transport = Objects.requireNonNull(transport);
       this.sender = Objects.requireNonNull(sender);
     }

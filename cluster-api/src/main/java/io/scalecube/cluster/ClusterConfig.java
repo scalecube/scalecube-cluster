@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Cluster configuration encapsulate settings needed cluster to create and successfully join.
@@ -254,7 +255,7 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
     return "ClusterConfig{seedMembers="
         + seedMembers
         + ", metadata="
-        + metadata
+        + metadataAsString()
         + ", syncInterval="
         + syncInterval
         + ", syncTimeout="
@@ -289,6 +290,13 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
         + ", memberPort="
         + memberPort
         + '}';
+  }
+
+  private String metadataAsString() {
+    return Optional.ofNullable(metadata)
+        .map(Object::hashCode)
+        .map(Integer::toHexString)
+        .orElse(null);
   }
 
   public static final class Builder {

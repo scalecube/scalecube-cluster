@@ -71,7 +71,7 @@ public interface Cluster {
    *
    * @return local member metadata
    */
-  <T> T metadata();
+  <T> Optional<T> metadata();
 
   /**
    * Returns cluster member metadata by given member reference.
@@ -79,7 +79,7 @@ public interface Cluster {
    * @param member cluster member
    * @return cluster member metadata
    */
-  <T> T metadata(Member member);
+  <T> Optional<T> metadata(Member member);
 
   /**
    * Returns local cluster member which corresponds to this cluster instance.

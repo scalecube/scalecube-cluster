@@ -50,7 +50,6 @@ public final class MembershipEvent {
    */
   public static MembershipEvent createAdded(Member member, ByteBuffer metadata) {
     Objects.requireNonNull(member, "member must be not null");
-    Objects.requireNonNull(metadata, "metadata must be not null for ADDED event");
     return new MembershipEvent(Type.ADDED, member, null, metadata);
   }
 
@@ -65,8 +64,6 @@ public final class MembershipEvent {
   public static MembershipEvent createUpdated(
       Member member, ByteBuffer oldMetadata, ByteBuffer newMetadata) {
     Objects.requireNonNull(member, "member must be not null");
-    Objects.requireNonNull(newMetadata, "old metadata must be not null for UPDATED event");
-    Objects.requireNonNull(newMetadata, "new metadata must be not null for UPDATED event");
     return new MembershipEvent(Type.UPDATED, member, oldMetadata, newMetadata);
   }
 
@@ -115,8 +112,6 @@ public final class MembershipEvent {
     if (metadata == null) {
       return null;
     }
-    return Integer.toHexString(metadata.hashCode() & Integer.MAX_VALUE)
-        + "-"
-        + metadata.remaining();
+    return Integer.toHexString(metadata.hashCode()) + "-" + metadata.remaining();
   }
 }

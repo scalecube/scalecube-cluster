@@ -10,6 +10,7 @@ import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +30,7 @@ public class MetadataStoreImpl implements MetadataStore {
 
   // Injected
 
+  private Object localMetadata;
   private final Member localMember;
   private final Transport transport;
   private final ClusterConfig config;
@@ -51,7 +53,7 @@ public class MetadataStoreImpl implements MetadataStore {
    *
    * @param localMember local member
    * @param transport transport
-   * @param metadata local metadata
+   * @param localMetadata local metadata (nullable)
    * @param config config
    * @param scheduler scheduler
    * @param cidGenerator correlationId generator
@@ -59,7 +61,7 @@ public class MetadataStoreImpl implements MetadataStore {
   public MetadataStoreImpl(
       Member localMember,
       Transport transport,
-      ByteBuffer metadata,
+      Object localMetadata,
       ClusterConfig config,
       Scheduler scheduler,
       CorrelationIdGenerator cidGenerator) {
@@ -68,8 +70,7 @@ public class MetadataStoreImpl implements MetadataStore {
     this.config = Objects.requireNonNull(config);
     this.scheduler = Objects.requireNonNull(scheduler);
     this.cidGenerator = Objects.requireNonNull(cidGenerator);
-    // store local metadata
-    updateMetadata(Objects.requireNonNull(metadata));
+    this.localMetadata = localMetadata;
   }
 
   @Override
@@ -92,42 +93,42 @@ public class MetadataStoreImpl implements MetadataStore {
   }
 
   @Override
-  public ByteBuffer metadata() {
-    return metadata(localMember);
+  public <T> Optional<T> metadata() {
+    //noinspection unchecked
+    return Optional.ofNullable((T) localMetadata);
   }
 
   @Override
-  public ByteBuffer metadata(Member member) {
-    ByteBuffer byteBuffer = membersMetadata.get(member);
-    return byteBuffer != null ? byteBuffer.slice() : null;
+  public Optional<ByteBuffer> metadata(Member member) {
+    return Optional.ofNullable(membersMetadata.get(member)).map(ByteBuffer::slice);
   }
 
   @Override
-  public ByteBuffer updateMetadata(ByteBuffer metadata) {
-    return updateMetadata(localMember, metadata);
+  public void updateMetadata(Object metadata) {
+    localMetadata = metadata;
   }
 
   @Override
   public ByteBuffer updateMetadata(Member member, ByteBuffer metadata) {
-    ByteBuffer value = Objects.requireNonNull(metadata).slice();
+    if (localMember.equals(member)) {
+      throw new IllegalArgumentException("removeMetadata must not accept local member");
+    }
+
+    // If metadata is null then 'update' turns into 'remove'
+    if (metadata == null) {
+      return removeMetadata(member);
+    }
+
+    ByteBuffer value = metadata.slice();
     ByteBuffer result = membersMetadata.put(member, value);
 
-    if (localMember.equals(member)) {
-      // added
-      if (result == null) {
-        LOGGER.debug("Added metadata: {} for local member {}", value.remaining(), localMember);
-      } else {
-        LOGGER.debug("Updated metadata: {} for local member {}", value.remaining(), localMember);
-      }
+    // updated
+    if (result == null) {
+      LOGGER.debug(
+          "Added metadata: {} for member {} [at {}]", value.remaining(), member, localMember);
     } else {
-      // updated
-      if (result == null) {
-        LOGGER.debug(
-            "Added metadata: {} for member {} [at {}]", value.remaining(), member, localMember);
-      } else {
-        LOGGER.debug(
-            "Updated metadata: {} for member {} [at {}]", value.remaining(), member, localMember);
-      }
+      LOGGER.debug(
+          "Updated metadata: {} for member {} [at {}]", value.remaining(), member, localMember);
     }
     return result;
   }
@@ -222,7 +223,8 @@ public class MetadataStoreImpl implements MetadataStore {
     }
 
     // Prepare repopnse
-    GetMetadataResponse respData = new GetMetadataResponse(localMember, metadata());
+    ByteBuffer byteBuffer = config.getMetadataEncoder().encode(localMetadata);
+    GetMetadataResponse respData = new GetMetadataResponse(localMember, byteBuffer);
 
     Message response =
         Message.builder()

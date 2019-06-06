@@ -531,8 +531,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                         spreadMembershipGossipUnlessGossiped(r1, reason);
                         // Update membership
                         ByteBuffer metadata0 = metadataStore.updateMetadata(r1.member(), metadata1);
-                        onAliveMemberDetected(
-                            r1, Optional.ofNullable(metadata0).orElse(null), metadata1);
+                        onAliveMemberDetected(r1, metadata0, metadata1);
                       })
                   .onErrorResume(Exception.class, e -> Mono.empty())
                   .then();
@@ -576,8 +575,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           members.remove(r1.id());
           membershipTable.remove(r1.id());
           // removed
-          ByteBuffer metadata = metadataStore.removeMetadata(r1.member());
-          MembershipEvent event = MembershipEvent.createRemoved(r1.member(), metadata);
+          ByteBuffer metadata0 = metadataStore.removeMetadata(r1.member());
+          MembershipEvent event = MembershipEvent.createRemoved(r1.member(), metadata0);
           LOGGER_MEMBERSHIP.debug("Emitting membership event {}", event);
           sink.next(event);
         });

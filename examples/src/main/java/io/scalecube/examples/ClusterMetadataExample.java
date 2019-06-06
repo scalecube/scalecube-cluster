@@ -50,7 +50,8 @@ public class ClusterMetadataExample {
         alice.otherMembers().stream()
             .filter(
                 member -> {
-                  Map<String, String> metadata = alice.metadata(member);
+                  //noinspection unchecked
+                  Map<String, String> metadata = (Map<String, String>) alice.metadata(member).get();
                   return "Joe".equals(metadata.get("name"));
                 })
             .findAny();

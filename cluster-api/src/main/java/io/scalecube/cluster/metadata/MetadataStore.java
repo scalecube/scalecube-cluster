@@ -2,6 +2,7 @@ package io.scalecube.cluster.metadata;
 
 import io.scalecube.cluster.Member;
 import java.nio.ByteBuffer;
+import java.util.Optional;
 import reactor.core.publisher.Mono;
 
 /**
@@ -17,50 +18,48 @@ public interface MetadataStore {
   void stop();
 
   /**
-   * Returns local cluster member metadata from local store. Never null.
+   * Returns local cluster member metadata from local store.
    *
    * @return local member metadata
    */
-  ByteBuffer metadata();
+  <T> Optional<T> metadata();
 
   /**
-   * Returns cluster member metadata from local store. Null if member was removed.
+   * Updates local cluster member metadata.
+   *
+   * @param metadata local member metadata
+   */
+  void updateMetadata(Object metadata);
+
+  /**
+   * Returns cluster member metadata from local store.
    *
    * @param member cluster member
    * @return metadata of the cluster member
    */
-  ByteBuffer metadata(Member member);
+  Optional<ByteBuffer> metadata(Member member);
 
   /**
-   * Updates local cluster member metadata locally. Shortcut method for {@link
-   * #updateMetadata(Member, ByteBuffer)}.
-   *
-   * @param metadata local member metadata
-   * @return old metadata or null
-   */
-  ByteBuffer updateMetadata(ByteBuffer metadata);
-
-  /**
-   * Updates cluster member metadata locally.
+   * Updates cluster member metadata in store.
    *
    * @param member member
-   * @param metadata cluster member metadtaa
+   * @param metadata cluster member metadata
    * @return old metadata or null
    */
   ByteBuffer updateMetadata(Member member, ByteBuffer metadata);
 
   /**
-   * Retrives cluster member metadata remotely.
+   * Retrives metadata from cluster member.
    *
    * @param member cluster member
-   * @return mono result of getting remote member metadata
+   * @return mono result of getting member metadata
    */
   Mono<ByteBuffer> fetchMetadata(Member member);
 
   /**
    * Removes cluster member metadata from store.
    *
-   * @param member cluster member (local member is not allowed here)
+   * @param member cluster member
    * @return old metadata or null
    */
   ByteBuffer removeMetadata(Member member);
