@@ -246,7 +246,6 @@ public final class ClusterImpl implements Cluster {
   }
 
   private Flux<MembershipEvent> listenMembership() {
-    // concat with existing members and listen on live stream
     return membershipEvents.onBackpressureBuffer();
   }
 
