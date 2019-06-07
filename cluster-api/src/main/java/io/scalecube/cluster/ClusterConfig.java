@@ -29,19 +29,9 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
   public static final int DEFAULT_SYNC_INTERVAL = 30_000;
   public static final int DEFAULT_SYNC_TIMEOUT = 3_000;
   public static final int DEFAULT_SUSPICION_MULT = 5;
-  public static final int DEFAULT_PING_INTERVAL = 1_000;
-  public static final int DEFAULT_PING_TIMEOUT = 500;
-  public static final int DEFAULT_PING_REQ_MEMBERS = 3;
-  public static final long DEFAULT_GOSSIP_INTERVAL = 200;
-  public static final int DEFAULT_GOSSIP_FANOUT = 3;
-  public static final int DEFAULT_GOSSIP_REPEAT_MULT = 3;
 
   // Default settings for WAN cluster (overrides default/LAN settings)
   public static final int DEFAULT_WAN_SUSPICION_MULT = 6;
-  public static final int DEFAULT_WAN_SYNC_INTERVAL = 60_000;
-  public static final int DEFAULT_WAN_PING_TIMEOUT = 3_000;
-  public static final int DEFAULT_WAN_PING_INTERVAL = 5_000;
-  public static final int DEFAULT_WAN_GOSSIP_FANOUT = 4;
   public static final int DEFAULT_WAN_CONNECT_TIMEOUT = 10_000;
   public static final int DEFAULT_WAN_METADATA_TIMEOUT = 10_000;
 
@@ -49,11 +39,6 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
   // settings)
   public static final int DEFAULT_LOCAL_SUSPICION_MULT = 3;
   public static final int DEFAULT_LOCAL_SYNC_INTERVAL = 15_000;
-  public static final int DEFAULT_LOCAL_PING_TIMEOUT = 200;
-  public static final int DEFAULT_LOCAL_PING_INTERVAL = 1_000;
-  public static final int DEFAULT_LOCAL_GOSSIP_REPEAT_MULT = 2;
-  public static final int DEFAULT_LOCAL_PING_REQ_MEMBERS = 1;
-  public static final int DEFAULT_LOCAL_GOSSIP_INTERVAL = 100;
   public static final int DEFAULT_LOCAL_CONNECT_TIMEOUT = 1_000;
   public static final int DEFAULT_LOCAL_METADATA_TIMEOUT = 1_000;
 
@@ -157,7 +142,6 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
         .syncInterval(DEFAULT_WAN_SYNC_INTERVAL)
         .pingTimeout(DEFAULT_WAN_PING_TIMEOUT)
         .pingInterval(DEFAULT_WAN_PING_INTERVAL)
-        .gossipFanout(DEFAULT_WAN_GOSSIP_FANOUT)
         .connectTimeout(DEFAULT_WAN_CONNECT_TIMEOUT)
         .metadataTimeout(DEFAULT_WAN_METADATA_TIMEOUT)
         .build();
@@ -170,9 +154,7 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
         .syncInterval(DEFAULT_LOCAL_SYNC_INTERVAL)
         .pingTimeout(DEFAULT_LOCAL_PING_TIMEOUT)
         .pingInterval(DEFAULT_LOCAL_PING_INTERVAL)
-        .gossipRepeatMult(DEFAULT_LOCAL_GOSSIP_REPEAT_MULT)
         .pingReqMembers(DEFAULT_LOCAL_PING_REQ_MEMBERS)
-        .gossipInterval(DEFAULT_LOCAL_GOSSIP_INTERVAL)
         .connectTimeout(DEFAULT_LOCAL_CONNECT_TIMEOUT)
         .connectTimeout(DEFAULT_LOCAL_METADATA_TIMEOUT)
         .build();

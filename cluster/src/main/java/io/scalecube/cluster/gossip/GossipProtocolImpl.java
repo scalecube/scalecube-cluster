@@ -106,8 +106,8 @@ public final class GossipProtocolImpl implements GossipProtocol {
     actionsDisposables.add(
         scheduler.schedulePeriodically(
             this::doSpreadGossip,
-            config.getGossipInterval(),
-            config.getGossipInterval(),
+            config.gossipInterval(),
+            config.gossipInterval(),
             TimeUnit.MILLISECONDS));
   }
 
@@ -241,7 +241,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
 
   private List<Gossip> selectGossipsToSend(long period, Member member) {
     int periodsToSpread =
-        ClusterMath.gossipPeriodsToSpread(config.getGossipRepeatMult(), remoteMembers.size() + 1);
+        ClusterMath.gossipPeriodsToSpread(config.gossipRepeatMult(), remoteMembers.size() + 1);
     return gossips.values().stream()
         .filter(
             gossipState -> gossipState.infectionPeriod() + periodsToSpread >= period) // max rounds
@@ -251,7 +251,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
   }
 
   private List<Member> selectGossipMembers() {
-    int gossipFanout = config.getGossipFanout();
+    int gossipFanout = config.gossipFanout();
     if (remoteMembers.size() < gossipFanout) { // select all
       return remoteMembers;
     } else { // select random members
@@ -281,7 +281,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
   private void sweepGossips(long period) {
     // Select gossips to sweep
     int periodsToSweep =
-        ClusterMath.gossipPeriodsToSweep(config.getGossipRepeatMult(), remoteMembers.size() + 1);
+        ClusterMath.gossipPeriodsToSweep(config.gossipRepeatMult(), remoteMembers.size() + 1);
     Set<GossipState> gossipsToRemove =
         gossips.values().stream()
             .filter(gossipState -> period > gossipState.infectionPeriod() + periodsToSweep)
