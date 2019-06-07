@@ -4,7 +4,7 @@ public final class TransportConfig {
 
   public static final int DEFAULT_PORT = 0;
   public static final int DEFAULT_CONNECT_TIMEOUT = 3000;
-  public static final MessageCodec DEFAULT_MESSAGE_CODEC = new JacksonMessageCodec();
+  public static final MessageCodec DEFAULT_MESSAGE_CODEC = MessageCodec.INSTANCE;
   public static final int DEFAULT_MAX_FRAME_LENGTH = 2 * 1024 * 1024; // 2MB
 
   private final int port;

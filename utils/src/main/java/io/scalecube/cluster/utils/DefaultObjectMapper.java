@@ -1,4 +1,4 @@
-package io.scalecube.cluster.transport.api;
+package io.scalecube.cluster.utils;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -8,34 +8,13 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectMapper.DefaultTyping;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import java.io.InputStream;
-import java.io.OutputStream;
 
-/** Contains methods for message serializing/deserializing logic. */
-public final class JacksonMessageCodec implements MessageCodec {
+public class DefaultObjectMapper {
 
-  private static final ObjectMapper mapper = initMapper();
+  public static final ObjectMapper OBJECT_MAPPER = initMapper();
 
-  /**
-   * Deserializes message from given input stream.
-   *
-   * @param stream input stream
-   * @return message from the input stream
-   */
-  @Override
-  public Message deserialize(InputStream stream) throws Exception {
-    return mapper.readValue(stream, Message.class);
-  }
-
-  /**
-   * Serializes given message into given output stream.
-   *
-   * @param message message
-   * @param stream output stream
-   */
-  @Override
-  public void serialize(Message message, OutputStream stream) throws Exception {
-    mapper.writeValue(stream, message);
+  private DefaultObjectMapper() {
+    // Do not instantiate
   }
 
   private static ObjectMapper initMapper() {
