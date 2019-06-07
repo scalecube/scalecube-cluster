@@ -23,9 +23,6 @@
   <properties>
     <scalecube-commons.version>1.0.1</scalecube-commons.version>
     <slf4j.version>1.7.7</slf4j.version>
-    <protostuff.version>1.6.0</protostuff.version>
-    <protobuf.version>3.4.0</protobuf.version>
-    <metrics.version>3.1.2</metrics.version>
     <jackson.version>2.9.9</jackson.version>
     <log4j.version>2.8.2</log4j.version>
     <reactor.version>Californium-SR8</reactor.version>
@@ -39,7 +36,7 @@
     <module>cluster</module>
     <module>cluster-api</module>
     <module>examples</module>
-    <module>utils</module>
+    <module>cluster-testlib</module>
     <module>transport-parent</module>
   </modules>
 
@@ -89,13 +86,6 @@
         <groupId>org.slf4j</groupId>
         <artifactId>slf4j-api</artifactId>
         <version>${slf4j.version}</version>
-      </dependency>
-
-      <!-- Dropwizard -->
-      <dependency>
-        <groupId>io.dropwizard.metrics</groupId>
-        <artifactId>metrics-core</artifactId>
-        <version>${metrics.version}</version>
       </dependency>
 
       <!-- Jackson -->

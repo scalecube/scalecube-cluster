@@ -1,29 +1,26 @@
 package io.scalecube.cluster.metadata;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.scalecube.cluster.metadata.MetadataDecoder;
-import io.scalecube.cluster.metadata.MetadataEncoder;
+import io.scalecube.cluster.utils.DefaultObjectMapper;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.Map;
 import reactor.core.Exceptions;
 
-public class SimpleMapMetadataCodec implements MetadataEncoder, MetadataDecoder {
+public final class SimpleMapMetadataCodec implements MetadataEncoder, MetadataDecoder {
 
   public static final SimpleMapMetadataCodec INSTANCE = new SimpleMapMetadataCodec();
 
-  private static final ObjectMapper mapper = new ObjectMapper();
-
   private static final TypeReference TYPE = new TypeReference<Map<String, String>>() {};
 
+  @SuppressWarnings("unchecked")
   @Override
-  public <T> T decode(ByteBuffer buffer) {
+  public Map<String, String> decode(ByteBuffer buffer) {
     try {
       if (buffer.remaining() == 0) {
-        return (T) Collections.emptyMap();
+        return Collections.emptyMap();
       }
-      return mapper.readValue(buffer.array(), TYPE);
+      return DefaultObjectMapper.OBJECT_MAPPER.readValue(buffer.array(), TYPE);
     } catch (Exception e) {
       throw Exceptions.propagate(e);
     }
@@ -32,8 +29,7 @@ public class SimpleMapMetadataCodec implements MetadataEncoder, MetadataDecoder 
   @Override
   public ByteBuffer encode(Object metadata) {
     try {
-      byte[] bytes = mapper.writeValueAsBytes(metadata);
-      return ByteBuffer.wrap(bytes);
+      return ByteBuffer.wrap(DefaultObjectMapper.OBJECT_MAPPER.writeValueAsBytes(metadata));
     } catch (Exception e) {
       throw Exceptions.propagate(e);
     }

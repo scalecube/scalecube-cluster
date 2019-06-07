@@ -1,8 +1,10 @@
-package io.scalecube.cluster.transport.api;
+package io.scalecube.cluster.transport;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import io.scalecube.cluster.transport.api.Message;
+import io.scalecube.cluster.transport.api.MessageCodec;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;

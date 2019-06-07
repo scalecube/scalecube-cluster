@@ -9,6 +9,7 @@
   </parent>
 
   <artifactId>scalecube-transport-netty</artifactId>
+  <name>ScaleCube/ClusterTransportNetty</name>
 
   <dependencies>
     <dependency>
@@ -25,7 +26,7 @@
     <!-- Test dependencies -->
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>scalecube-cluster-utils</artifactId>
+      <artifactId>scalecube-cluster-testlib</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>

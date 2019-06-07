@@ -120,7 +120,7 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
    * @param clusterConfig cluster config
    * @return {@link ClusterConfig.Builder}
    */
-  public static Builder from(ClusterConfig clusterConfig) {
+  public static Builder builderFrom(ClusterConfig clusterConfig) {
     return new Builder()
         .seedMembers(clusterConfig.seedMembers)
         .metadata(clusterConfig.metadata)

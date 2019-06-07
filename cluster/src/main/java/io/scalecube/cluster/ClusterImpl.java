@@ -94,7 +94,7 @@ public final class ClusterImpl implements Cluster {
   }
 
   private ClusterImpl(ClusterImpl that) {
-    this.config = ClusterConfig.from(that.config).build();
+    this.config = ClusterConfig.builderFrom(that.config).build();
     this.handler = that.handler;
     initLifecycle();
   }
@@ -126,7 +126,7 @@ public final class ClusterImpl implements Cluster {
   public ClusterImpl config(UnaryOperator<ClusterConfig.Builder> options) {
     Objects.requireNonNull(options);
     ClusterImpl cluster = new ClusterImpl(this);
-    cluster.config = options.apply(ClusterConfig.from(cluster.config)).build();
+    cluster.config = options.apply(ClusterConfig.builderFrom(cluster.config)).build();
     return cluster;
   }
 
