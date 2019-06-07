@@ -9,6 +9,7 @@
   </parent>
 
   <artifactId>scalecube-transport-netty</artifactId>
+  <name>ScaleCube/ClusterTransportNetty</name>
 
   <dependencies>
     <dependency>
