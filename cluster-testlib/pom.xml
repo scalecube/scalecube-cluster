@@ -7,8 +7,8 @@
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
-  <artifactId>scalecube-cluster-utils</artifactId>
-  <name>ScaleCube/ClusterUtils</name>
+  <artifactId>scalecube-cluster-testlib</artifactId>
+  <name>ScaleCube/ClusterTestLib</name>
 
   <dependencies>
     <dependency>
