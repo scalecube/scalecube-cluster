@@ -10,7 +10,6 @@ public final class FailureDetectorConfig implements Cloneable {
   public static final int DEFAULT_PING_REQ_MEMBERS = 3;
 
   // Default settings for WAN cluster (overrides default/LAN settings)
-  public static final int DEFAULT_WAN_SYNC_INTERVAL = 60_000;
   public static final int DEFAULT_WAN_PING_TIMEOUT = 3_000;
   public static final int DEFAULT_WAN_PING_INTERVAL = 5_000;
 
@@ -24,17 +23,87 @@ public final class FailureDetectorConfig implements Cloneable {
   private int pingTimeout = DEFAULT_PING_TIMEOUT;
   private int pingReqMembers = DEFAULT_PING_REQ_MEMBERS;
 
-  public FailureDetectorConfig() {
+  public FailureDetectorConfig() {}
+
+  public static FailureDetectorConfig defaultConfig() {
+    return new FailureDetectorConfig();
   }
 
-  public static FailureDetectorConfig
+  /**
+   * Creates {@code FailureDetectorConfig} with default settings for cluster on LAN network.
+   *
+   * @return new {@code FailureDetectorConfig}
+   */
+  public static FailureDetectorConfig defaultLanConfig() {
+    return defaultConfig();
+  }
+
+  /**
+   * Creates {@code FailureDetectorConfig} with default settings for cluster on WAN network.
+   *
+   * @return new {@code FailureDetectorConfig}
+   */
+  public static FailureDetectorConfig defaultWanConfig() {
+    return defaultConfig()
+        .pingTimeout(DEFAULT_WAN_PING_TIMEOUT)
+        .pingInterval(DEFAULT_WAN_PING_INTERVAL);
+  }
+
+  /**
+   * Creates {@code FailureDetectorConfig} with default settings for cluster on local loopback
+   * interface.
+   *
+   * @return new {@code FailureDetectorConfig}
+   */
+  public static FailureDetectorConfig defaultLocalConfig() {
+    return defaultConfig()
+        .pingTimeout(DEFAULT_LOCAL_PING_TIMEOUT)
+        .pingInterval(DEFAULT_LOCAL_PING_INTERVAL)
+        .pingReqMembers(DEFAULT_LOCAL_PING_REQ_MEMBERS);
+  }
+
+  /**
+   * Sets pingInterval.
+   *
+   * @param pingInterval ping interval
+   * @return new {@code FailureDetectorConfig}
+   */
+  public FailureDetectorConfig pingInterval(int pingInterval) {
+    FailureDetectorConfig f = clone();
+    f.pingInterval = pingInterval;
+    return f;
+  }
 
   public int pingInterval() {
     return pingInterval;
   }
 
+  /**
+   * Sets ping timeout.
+   *
+   * @param pingTimeout ping timeout
+   * @return new {@code FailureDetectorConfig}
+   */
+  public FailureDetectorConfig pingTimeout(int pingTimeout) {
+    FailureDetectorConfig f = clone();
+    f.pingTimeout = pingTimeout;
+    return f;
+  }
+
   public int pingTimeout() {
     return pingTimeout;
+  }
+
+  /**
+   * Sets number of members for requesting a ping.
+   *
+   * @param pingReqMembers number of members for requesting a ping
+   * @return new {@code FailureDetectorConfig}
+   */
+  public FailureDetectorConfig pingReqMembers(int pingReqMembers) {
+    FailureDetectorConfig f = clone();
+    this.pingReqMembers = pingReqMembers;
+    return f;
   }
 
   public int pingReqMembers() {

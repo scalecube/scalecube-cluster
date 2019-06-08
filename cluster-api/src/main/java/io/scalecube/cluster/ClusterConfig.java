@@ -22,7 +22,7 @@ import java.util.Optional;
  * @see GossipConfig
  * @see TransportConfig
  */
-public final class ClusterConfig implements FailureDetectorConfig, GossipConfig, MembershipConfig {
+public final class ClusterConfig {
 
   // Default settings for LAN cluster
   public static final String DEFAULT_SYNC_GROUP = "default";
@@ -32,6 +32,7 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
 
   // Default settings for WAN cluster (overrides default/LAN settings)
   public static final int DEFAULT_WAN_SUSPICION_MULT = 6;
+  public static final int DEFAULT_WAN_SYNC_INTERVAL = 60_000;
   public static final int DEFAULT_WAN_CONNECT_TIMEOUT = 10_000;
   public static final int DEFAULT_WAN_METADATA_TIMEOUT = 10_000;
 
@@ -54,14 +55,6 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
   private final String syncGroup;
   private final int metadataTimeout;
 
-  private final int pingInterval;
-  private final int pingTimeout;
-  private final int pingReqMembers;
-
-  private final long gossipInterval;
-  private final int gossipFanout;
-  private final int gossipRepeatMult;
-
   private final TransportConfig transportConfig;
 
   private final Object metadata;
@@ -79,15 +72,6 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
     this.syncGroup = builder.syncGroup;
     this.suspicionMult = builder.suspicionMult;
     this.metadataTimeout = builder.metadataTimeout;
-
-    this.pingInterval = builder.pingInterval;
-    this.pingTimeout = builder.pingTimeout;
-    this.pingReqMembers = builder.pingReqMembers;
-
-    this.gossipFanout = builder.gossipFanout;
-    this.gossipInterval = builder.gossipInterval;
-    this.gossipRepeatMult = builder.gossipRepeatMult;
-
     this.transportConfig = builder.transportConfigBuilder.build();
     this.metadataEncoder = builder.metadataEncoder;
     this.metadataDecoder = builder.metadataDecoder;
@@ -140,8 +124,6 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
     return builder()
         .suspicionMult(DEFAULT_WAN_SUSPICION_MULT)
         .syncInterval(DEFAULT_WAN_SYNC_INTERVAL)
-        .pingTimeout(DEFAULT_WAN_PING_TIMEOUT)
-        .pingInterval(DEFAULT_WAN_PING_INTERVAL)
         .connectTimeout(DEFAULT_WAN_CONNECT_TIMEOUT)
         .metadataTimeout(DEFAULT_WAN_METADATA_TIMEOUT)
         .build();
@@ -152,9 +134,6 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
     return builder()
         .suspicionMult(DEFAULT_LOCAL_SUSPICION_MULT)
         .syncInterval(DEFAULT_LOCAL_SYNC_INTERVAL)
-        .pingTimeout(DEFAULT_LOCAL_PING_TIMEOUT)
-        .pingInterval(DEFAULT_LOCAL_PING_INTERVAL)
-        .pingReqMembers(DEFAULT_LOCAL_PING_REQ_MEMBERS)
         .connectTimeout(DEFAULT_LOCAL_CONNECT_TIMEOUT)
         .connectTimeout(DEFAULT_LOCAL_METADATA_TIMEOUT)
         .build();
@@ -289,14 +268,6 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
     private String syncGroup = DEFAULT_SYNC_GROUP;
     private int suspicionMult = DEFAULT_SUSPICION_MULT;
 
-    private int pingInterval = DEFAULT_PING_INTERVAL;
-    private int pingTimeout = DEFAULT_PING_TIMEOUT;
-    private int pingReqMembers = DEFAULT_PING_REQ_MEMBERS;
-
-    private long gossipInterval = DEFAULT_GOSSIP_INTERVAL;
-    private int gossipFanout = DEFAULT_GOSSIP_FANOUT;
-    private int gossipRepeatMult = DEFAULT_GOSSIP_REPEAT_MULT;
-
     private TransportConfig.Builder transportConfigBuilder = TransportConfig.builder();
 
     private Object metadata;
@@ -346,36 +317,6 @@ public final class ClusterConfig implements FailureDetectorConfig, GossipConfig,
 
     public Builder metadataTimeout(int metadataTimeout) {
       this.metadataTimeout = metadataTimeout;
-      return this;
-    }
-
-    public Builder pingInterval(int pingInterval) {
-      this.pingInterval = pingInterval;
-      return this;
-    }
-
-    public Builder pingTimeout(int pingTimeout) {
-      this.pingTimeout = pingTimeout;
-      return this;
-    }
-
-    public Builder pingReqMembers(int pingReqMembers) {
-      this.pingReqMembers = pingReqMembers;
-      return this;
-    }
-
-    public Builder gossipInterval(long gossipInterval) {
-      this.gossipInterval = gossipInterval;
-      return this;
-    }
-
-    public Builder gossipFanout(int gossipFanout) {
-      this.gossipFanout = gossipFanout;
-      return this;
-    }
-
-    public Builder gossipRepeatMult(int gossipRepeatMult) {
-      this.gossipRepeatMult = gossipRepeatMult;
       return this;
     }
 

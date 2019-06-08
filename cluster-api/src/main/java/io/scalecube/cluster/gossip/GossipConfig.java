@@ -28,6 +28,15 @@ public final class GossipConfig implements Cloneable {
   }
 
   /**
+   * Creates {@code GossipConfig} with default settings for cluster on LAN network.
+   *
+   * @return new {@code GossipConfig}
+   */
+  public static GossipConfig defaultLanConfig() {
+    return defaultConfig();
+  }
+
+  /**
    * Creates {@code GossipConfig} with default settings for cluster on WAN network.
    *
    * @return new {@code GossipConfig}
