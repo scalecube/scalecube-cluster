@@ -1,23 +1,142 @@
 package io.scalecube.cluster.membership;
 
 import io.scalecube.net.Address;
+import java.util.Collections;
 import java.util.List;
+import reactor.core.Exceptions;
 
-public interface MembershipConfig {
+public final class MembershipConfig implements Cloneable {
 
-  List<Address> getSeedMembers();
+  // Default settings for LAN cluster
+  public static final int DEFAULT_SYNC_INTERVAL = 30_000;
+  public static final int DEFAULT_SYNC_TIMEOUT = 3_000;
+  public static final int DEFAULT_SUSPICION_MULT = 5;
 
-  int getSyncInterval();
+  // Default settings for WAN cluster (overrides default/LAN settings)
+  public static final int DEFAULT_WAN_SUSPICION_MULT = 6;
+  public static final int DEFAULT_WAN_SYNC_INTERVAL = 60_000;
 
-  int getSyncTimeout();
+  // Default settings for local cluster working via loopback interface (overrides default/LAN
+  // settings)
+  public static final int DEFAULT_LOCAL_SUSPICION_MULT = 3;
+  public static final int DEFAULT_LOCAL_SYNC_INTERVAL = 15_000;
 
-  String getSyncGroup();
+  private List<Address> seedMembers = Collections.emptyList();
+  private int syncInterval = DEFAULT_SYNC_INTERVAL;
+  private int syncTimeout = DEFAULT_SYNC_TIMEOUT;
+  private int suspicionMult = DEFAULT_SUSPICION_MULT;
+  private String syncGroup = "default";
 
-  int getPingInterval();
+  public MembershipConfig() {}
 
-  int getSuspicionMult();
+  public static MembershipConfig defaultConfig() {
+    return new MembershipConfig();
+  }
 
-  String getMemberHost();
+  /**
+   * Creates {@code MembershipConfig} with default settings for cluster on LAN network.
+   *
+   * @return new {@code MembershipConfig}
+   */
+  public static MembershipConfig defaultLanConfig() {
+    return defaultConfig();
+  }
 
-  Integer getMemberPort();
+  /**
+   * Creates {@code MembershipConfig} with default settings for cluster on WAN network.
+   *
+   * @return new {@code MembershipConfig}
+   */
+  public static MembershipConfig defaultWanConfig() {
+    return defaultConfig()
+        .suspicionMult(DEFAULT_WAN_SUSPICION_MULT)
+        .syncInterval(DEFAULT_WAN_SYNC_INTERVAL);
+  }
+
+  /**
+   * Creates {@code MembershipConfig} with default settings for cluster on local loopback interface.
+   *
+   * @return new {@code MembershipConfig}
+   */
+  public static MembershipConfig defaultLocalConfig() {
+    return defaultConfig()
+        .suspicionMult(DEFAULT_LOCAL_SUSPICION_MULT)
+        .syncInterval(DEFAULT_LOCAL_SYNC_INTERVAL);
+  }
+
+  public List<Address> seedMembers() {
+    return seedMembers;
+  }
+
+  public MembershipConfig seedMembers(List<Address> seedMembers) {
+    MembershipConfig m = clone();
+    m.seedMembers = seedMembers;
+    return m;
+  }
+
+  public int syncInterval() {
+    return syncInterval;
+  }
+
+  public MembershipConfig syncInterval(int syncInterval) {
+    MembershipConfig m = clone();
+    m.syncInterval = syncInterval;
+    return m;
+  }
+
+  public int syncTimeout() {
+    return syncTimeout;
+  }
+
+  public MembershipConfig syncTimeout(int syncTimeout) {
+    MembershipConfig m = clone();
+    m.syncTimeout = syncTimeout;
+    return m;
+  }
+
+  public int suspicionMult() {
+    return suspicionMult;
+  }
+
+  public MembershipConfig suspicionMult(int suspicionMult) {
+    MembershipConfig m = clone();
+    m.suspicionMult = suspicionMult;
+    return m;
+  }
+
+  public String syncGroup() {
+    return syncGroup;
+  }
+
+  public MembershipConfig syncGroup(String syncGroup) {
+    MembershipConfig m = clone();
+    m.syncGroup = syncGroup;
+    return m;
+  }
+
+  @Override
+  public MembershipConfig clone() {
+    try {
+      return (MembershipConfig) super.clone();
+    } catch (CloneNotSupportedException e) {
+      throw Exceptions.propagate(e);
+    }
+  }
+
+  @Override
+  public String toString() {
+    return "MembershipConfig{"
+        + "seedMembers="
+        + seedMembers
+        + ", syncInterval="
+        + syncInterval
+        + ", syncTimeout="
+        + syncTimeout
+        + ", suspicionMult="
+        + suspicionMult
+        + ", syncGroup='"
+        + syncGroup
+        + '\''
+        + '}';
+  }
 }

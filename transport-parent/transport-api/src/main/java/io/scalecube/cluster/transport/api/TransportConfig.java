@@ -1,51 +1,69 @@
 package io.scalecube.cluster.transport.api;
 
-public final class TransportConfig {
+import reactor.core.Exceptions;
+
+public final class TransportConfig implements Cloneable {
+
+  // LAN cluster
+  public static final int DEFAULT_CONNECT_TIMEOUT = 3_000;
+
+  // WAN cluster (overrides default/LAN settings)
+  public static final int DEFAULT_WAN_CONNECT_TIMEOUT = 10_000;
+
+  // Local cluster working via loopback interface (overrides default/LAN settings)
+  public static final int DEFAULT_LOCAL_CONNECT_TIMEOUT = 1_000;
 
   public static final int DEFAULT_PORT = 0;
-  public static final int DEFAULT_CONNECT_TIMEOUT = 3000;
   public static final MessageCodec DEFAULT_MESSAGE_CODEC = MessageCodec.INSTANCE;
   public static final int DEFAULT_MAX_FRAME_LENGTH = 2 * 1024 * 1024; // 2MB
 
-  private final int port;
-  private final int connectTimeout;
-  private final MessageCodec messageCodec;
-  private final int maxFrameLength;
+  private int port;
+  private int connectTimeout;
+  private MessageCodec messageCodec;
+  private int maxFrameLength;
 
-  private TransportConfig(Builder builder) {
-    this.port = builder.port;
-    this.connectTimeout = builder.connectTimeout;
-    this.messageCodec = builder.messageCodec;
-    this.maxFrameLength = builder.maxFrameLength;
+  public TransportConfig() {}
+
+  //  private TransportConfig(TransportConfig other) {
+  //    this.port = other.port;
+  //    this.connectTimeout = other.connectTimeout;
+  //    this.messageCodec = other.messageCodec;
+  //    this.maxFrameLength = other.maxFrameLength;
+  //  }
+
+  @Override
+  public TransportConfig clone() {
+    try {
+      return (TransportConfig) super.clone();
+    } catch (CloneNotSupportedException e) {
+      throw Exceptions.propagate(e);
+    }
   }
 
   public static TransportConfig defaultConfig() {
-    return builder().build();
+    return new TransportConfig();
   }
 
-  public static Builder builder() {
-    return new Builder();
-  }
-
-  public int getPort() {
+  public int port() {
     return port;
   }
 
-  public int getConnectTimeout() {
+  public int connectTimeout() {
     return connectTimeout;
   }
 
-  public MessageCodec getMessageCodec() {
+  public MessageCodec messageCodec() {
     return messageCodec;
   }
 
-  public int getMaxFrameLength() {
+  public int maxFrameLength() {
     return maxFrameLength;
   }
 
   @Override
   public String toString() {
-    return "TransportConfig{port="
+    return "TransportConfig{"
+        + "port="
         + port
         + ", connectTimeout="
         + connectTimeout
@@ -54,57 +72,5 @@ public final class TransportConfig {
         + ", maxFrameLength="
         + maxFrameLength
         + '}';
-  }
-
-  public static final class Builder {
-
-    private int port = DEFAULT_PORT;
-    private int connectTimeout = DEFAULT_CONNECT_TIMEOUT;
-    private MessageCodec messageCodec = DEFAULT_MESSAGE_CODEC;
-    private int maxFrameLength = DEFAULT_MAX_FRAME_LENGTH;
-
-    private Builder() {}
-
-    /**
-     * Fills config with values equal to provided config.
-     *
-     * @param config transport config
-     */
-    public Builder fillFrom(TransportConfig config) {
-      this.port = config.port;
-      this.connectTimeout = config.connectTimeout;
-      this.messageCodec = config.messageCodec;
-      this.maxFrameLength = config.maxFrameLength;
-      return this;
-    }
-
-    public Builder port(int port) {
-      this.port = port;
-      return this;
-    }
-
-    public Builder connectTimeout(int connectTimeout) {
-      this.connectTimeout = connectTimeout;
-      return this;
-    }
-
-    public Builder messageCodec(MessageCodec messageCodec) {
-      this.messageCodec = messageCodec;
-      return this;
-    }
-
-    public Builder maxFrameLength(int maxFrameLength) {
-      this.maxFrameLength = maxFrameLength;
-      return this;
-    }
-
-    /**
-     * Finish configuration.
-     *
-     * @return transport config
-     */
-    public TransportConfig build() {
-      return new TransportConfig(this);
-    }
   }
 }
