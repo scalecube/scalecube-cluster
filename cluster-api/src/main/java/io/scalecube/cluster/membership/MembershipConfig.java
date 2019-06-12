@@ -1,6 +1,7 @@
 package io.scalecube.cluster.membership;
 
 import io.scalecube.net.Address;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import reactor.core.Exceptions;
@@ -68,9 +69,15 @@ public final class MembershipConfig implements Cloneable {
     return seedMembers;
   }
 
+  /**
+   * Sets a seedMembers.
+   *
+   * @param seedMembers seed members
+   * @return new {@code MembershipConfig} instance
+   */
   public MembershipConfig seedMembers(List<Address> seedMembers) {
     MembershipConfig m = clone();
-    m.seedMembers = seedMembers;
+    m.seedMembers = new ArrayList<>(seedMembers);
     return m;
   }
 
@@ -78,6 +85,12 @@ public final class MembershipConfig implements Cloneable {
     return syncInterval;
   }
 
+  /**
+   * Sets a syncInterval.
+   *
+   * @param syncInterval sync interval
+   * @return new {@code MembershipConfig} instance
+   */
   public MembershipConfig syncInterval(int syncInterval) {
     MembershipConfig m = clone();
     m.syncInterval = syncInterval;
@@ -88,6 +101,12 @@ public final class MembershipConfig implements Cloneable {
     return syncTimeout;
   }
 
+  /**
+   * Sets a syncTimeout.
+   *
+   * @param syncTimeout sync timeout
+   * @return new {@code MembershipConfig} instance
+   */
   public MembershipConfig syncTimeout(int syncTimeout) {
     MembershipConfig m = clone();
     m.syncTimeout = syncTimeout;
@@ -98,6 +117,12 @@ public final class MembershipConfig implements Cloneable {
     return suspicionMult;
   }
 
+  /**
+   * Sets a suspicionMult.
+   *
+   * @param suspicionMult suspicion multiplier
+   * @return new {@code MembershipConfig} instance
+   */
   public MembershipConfig suspicionMult(int suspicionMult) {
     MembershipConfig m = clone();
     m.suspicionMult = suspicionMult;
@@ -108,6 +133,12 @@ public final class MembershipConfig implements Cloneable {
     return syncGroup;
   }
 
+  /**
+   * Sets a syncGroup.
+   *
+   * @param syncGroup sync group
+   * @return new {@code MembershipConfig} instance
+   */
   public MembershipConfig syncGroup(String syncGroup) {
     MembershipConfig m = clone();
     m.syncGroup = syncGroup;

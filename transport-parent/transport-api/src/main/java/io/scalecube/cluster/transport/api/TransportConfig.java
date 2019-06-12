@@ -13,23 +13,107 @@ public final class TransportConfig implements Cloneable {
   // Local cluster working via loopback interface (overrides default/LAN settings)
   public static final int DEFAULT_LOCAL_CONNECT_TIMEOUT = 1_000;
 
-  public static final int DEFAULT_PORT = 0;
-  public static final MessageCodec DEFAULT_MESSAGE_CODEC = MessageCodec.INSTANCE;
-  public static final int DEFAULT_MAX_FRAME_LENGTH = 2 * 1024 * 1024; // 2MB
-
-  private int port;
-  private int connectTimeout;
-  private MessageCodec messageCodec;
-  private int maxFrameLength;
+  private int port = 0;
+  private int connectTimeout = DEFAULT_CONNECT_TIMEOUT;
+  private MessageCodec messageCodec = MessageCodec.INSTANCE;
+  private int maxFrameLength = 2 * 1024 * 1024; // 2 MB
 
   public TransportConfig() {}
 
-  //  private TransportConfig(TransportConfig other) {
-  //    this.port = other.port;
-  //    this.connectTimeout = other.connectTimeout;
-  //    this.messageCodec = other.messageCodec;
-  //    this.maxFrameLength = other.maxFrameLength;
-  //  }
+  public static TransportConfig defaultConfig() {
+    return new TransportConfig();
+  }
+
+  /**
+   * Creates {@code ClusterConfig} with default settings for cluster on LAN network.
+   *
+   * @return new {@code ClusterConfig}
+   */
+  public static TransportConfig defaultLanConfig() {
+    return defaultConfig();
+  }
+
+  /**
+   * Creates {@code ClusterConfig} with default settings for cluster on WAN network.
+   *
+   * @return new {@code ClusterConfig}
+   */
+  public static TransportConfig defaultWanConfig() {
+    return defaultConfig().connectTimeout(DEFAULT_WAN_CONNECT_TIMEOUT);
+  }
+
+  /**
+   * Creates {@code MembershipConfig} with default settings for cluster on local loopback interface.
+   *
+   * @return new {@code MembershipConfig}
+   */
+  public static TransportConfig defaultLocalConfig() {
+    return defaultConfig().connectTimeout(DEFAULT_LOCAL_CONNECT_TIMEOUT);
+  }
+
+  public int port() {
+    return port;
+  }
+
+  /**
+   * Sets a port.
+   *
+   * @param port port
+   * @return new {@code TransportConfig} instance
+   */
+  public TransportConfig port(int port) {
+    TransportConfig t = clone();
+    t.port = port;
+    return t;
+  }
+
+  public int connectTimeout() {
+    return connectTimeout;
+  }
+
+  /**
+   * Sets a connectTimeout.
+   *
+   * @param connectTimeout connect timeout
+   * @return new {@code TransportConfig} instance
+   */
+  public TransportConfig connectTimeout(int connectTimeout) {
+    TransportConfig t = clone();
+    t.connectTimeout = connectTimeout;
+    return t;
+  }
+
+  public MessageCodec messageCodec() {
+    return messageCodec;
+  }
+
+  /**
+   * Sets a messageCodec.
+   *
+   * @param messageCodec message codec
+   * @return new {@code TransportConfig} instance
+   */
+  public TransportConfig messageCodec(MessageCodec messageCodec) {
+    TransportConfig t = clone();
+    t.messageCodec = messageCodec;
+    return t;
+  }
+
+  public int maxFrameLength() {
+    return maxFrameLength;
+  }
+
+  /**
+   * Sets a maxFrameLength.
+   *
+   * @param maxFrameLength max frame length
+   * @return new {@code TransportConfig} instance
+   */
+  public TransportConfig maxFrameLength(int maxFrameLength) {
+    TransportConfig t = clone();
+    t.maxFrameLength = maxFrameLength;
+    return t;
+  }
 
   @Override
   public TransportConfig clone() {
@@ -38,26 +122,6 @@ public final class TransportConfig implements Cloneable {
     } catch (CloneNotSupportedException e) {
       throw Exceptions.propagate(e);
     }
-  }
-
-  public static TransportConfig defaultConfig() {
-    return new TransportConfig();
-  }
-
-  public int port() {
-    return port;
-  }
-
-  public int connectTimeout() {
-    return connectTimeout;
-  }
-
-  public MessageCodec messageCodec() {
-    return messageCodec;
-  }
-
-  public int maxFrameLength() {
-    return maxFrameLength;
   }
 
   @Override

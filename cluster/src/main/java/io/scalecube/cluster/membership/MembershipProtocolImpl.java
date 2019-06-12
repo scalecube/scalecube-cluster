@@ -129,7 +129,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     this.cidGenerator = Objects.requireNonNull(cidGenerator);
 
     // Prepare seeds
-    seedMembers = cleanUpSeedMembers(config.getSeedMembers());
+    seedMembers = cleanUpSeedMembers(config.seedMembers());
 
     // Init membership table with local member record
     membershipTable.put(localMember.id(), new MembershipRecord(localMember, ALIVE, 0));
@@ -240,7 +240,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     // Process initial SyncAck
     Flux.mergeDelayError(syncs.length, syncs)
         .take(1)
-        .timeout(Duration.ofMillis(config.getSyncTimeout()), scheduler)
+        .timeout(Duration.ofMillis(config.syncTimeout()), scheduler)
         .publishOn(scheduler)
         .flatMap(message -> onSyncAck(message, true))
         .doFinally(
@@ -438,13 +438,13 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private boolean checkSyncGroup(Message message) {
     if (message.data() instanceof SyncData) {
       SyncData syncData = message.data();
-      return config.getSyncGroup().equals(syncData.getSyncGroup());
+      return config.syncGroup().equals(syncData.getSyncGroup());
     }
     return false;
   }
 
   private void schedulePeriodicSync() {
-    int syncInterval = config.getSyncInterval();
+    int syncInterval = config.syncInterval();
     actionsDisposables.add(
         scheduler.schedulePeriodically(
             this::doSync, syncInterval, syncInterval, TimeUnit.MILLISECONDS));
@@ -452,7 +452,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   private Message prepareSyncDataMsg(String qualifier, String cid) {
     List<MembershipRecord> membershipRecords = new ArrayList<>(membershipTable.values());
-    SyncData syncData = new SyncData(membershipRecords, config.getSyncGroup());
+    SyncData syncData = new SyncData(membershipRecords, config.syncGroup());
     return Message.withData(syncData).qualifier(qualifier).correlationId(cid).build();
   }
 
@@ -616,7 +616,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private void scheduleSuspicionTimeoutTask(MembershipRecord record) {
     long suspicionTimeout =
         ClusterMath.suspicionTimeout(
-            config.getSuspicionMult(), membershipTable.size(), config.getPingInterval());
+            config.suspicionMult(), membershipTable.size(), config.pingInterval());
     suspicionTimeoutTasks.computeIfAbsent(
         record.id(),
         id -> {

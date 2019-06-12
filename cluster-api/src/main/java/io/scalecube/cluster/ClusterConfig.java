@@ -7,6 +7,8 @@ import io.scalecube.cluster.metadata.MetadataDecoder;
 import io.scalecube.cluster.metadata.MetadataEncoder;
 import io.scalecube.cluster.transport.api.TransportConfig;
 import java.util.Optional;
+import java.util.function.UnaryOperator;
+import reactor.core.Exceptions;
 
 /**
  * Cluster configuration encapsulate settings needed cluster to create and successfully join.
@@ -62,11 +64,12 @@ public final class ClusterConfig {
    */
   public static ClusterConfig defaultWanConfig() {
     return defaultConfig()
-        .suspicionMult(DEFAULT_WAN_SUSPICION_MULT)
-        .syncInterval(DEFAULT_WAN_SYNC_INTERVAL)
-        .connectTimeout(DEFAULT_WAN_CONNECT_TIMEOUT)
-        .metadataTimeout(DEFAULT_WAN_METADATA_TIMEOUT)
-        .build();
+        .membershipConfig(
+            opts ->
+                opts.suspicionMult(MembershipConfig.DEFAULT_WAN_SUSPICION_MULT)
+                    .syncInterval(MembershipConfig.DEFAULT_WAN_SYNC_INTERVAL))
+        .transportConfig(opts -> opts.connectTimeout(TransportConfig.DEFAULT_WAN_CONNECT_TIMEOUT))
+        .metadataTimeout(DEFAULT_WAN_METADATA_TIMEOUT);
   }
 
   /**
@@ -76,35 +79,187 @@ public final class ClusterConfig {
    */
   public static ClusterConfig defaultLocalConfig() {
     return defaultConfig()
-        .suspicionMult(DEFAULT_LOCAL_SUSPICION_MULT)
-        .syncInterval(DEFAULT_LOCAL_SYNC_INTERVAL)
-        .connectTimeout(DEFAULT_LOCAL_CONNECT_TIMEOUT)
-        .connectTimeout(DEFAULT_LOCAL_METADATA_TIMEOUT)
-        .build();
+        .membershipConfig(
+            opts ->
+                opts.suspicionMult(MembershipConfig.DEFAULT_LOCAL_SUSPICION_MULT)
+                    .syncInterval(MembershipConfig.DEFAULT_LOCAL_SYNC_INTERVAL))
+        .transportConfig(opts -> opts.connectTimeout(TransportConfig.DEFAULT_LOCAL_CONNECT_TIMEOUT))
+        .metadataTimeout(DEFAULT_LOCAL_METADATA_TIMEOUT);
   }
 
-  public Object metadata() {
-    return metadata;
+  public <T> T metadata() {
+    //noinspection unchecked
+    return (T) metadata;
+  }
+
+  /**
+   * Sets a metadata.
+   *
+   * @param metadata metadata
+   * @return new {@code ClusterConfig} instance
+   */
+  public ClusterConfig metadata(Object metadata) {
+    ClusterConfig c = clone();
+    c.metadata = metadata;
+    return c;
   }
 
   public int metadataTimeout() {
     return metadataTimeout;
   }
 
+  /**
+   * Sets a metadataTimeout.
+   *
+   * @param metadataTimeout metadata timeout
+   * @return new {@code ClusterConfig} instance
+   */
+  public ClusterConfig metadataTimeout(int metadataTimeout) {
+    ClusterConfig c = clone();
+    c.metadataTimeout = metadataTimeout;
+    return c;
+  }
+
   public MetadataEncoder metadataEncoder() {
     return metadataEncoder;
+  }
+
+  /**
+   * Sets a metadataEncoder.
+   *
+   * @param metadataEncoder metadata encoder
+   * @return new {@code ClusterConfig} instance
+   */
+  public ClusterConfig metadataEncoder(MetadataEncoder metadataEncoder) {
+    ClusterConfig c = clone();
+    c.metadataEncoder = metadataEncoder;
+    return c;
   }
 
   public MetadataDecoder metadataDecoder() {
     return metadataDecoder;
   }
 
+  /**
+   * Sets a metadataDecoder.
+   *
+   * @param metadataDecoder metadata decoder
+   * @return new {@code ClusterConfig} instance
+   */
+  public ClusterConfig metadataDecoder(MetadataDecoder metadataDecoder) {
+    ClusterConfig c = clone();
+    c.metadataDecoder = metadataDecoder;
+    return c;
+  }
+
   public String memberHost() {
     return memberHost;
   }
 
+  /**
+   * Sets a memberHost.
+   *
+   * @param memberHost member host
+   * @return new {@code ClusterConfig} instance@return
+   */
+  public ClusterConfig memberHost(String memberHost) {
+    ClusterConfig c = clone();
+    c.memberHost = memberHost;
+    return c;
+  }
+
   public Integer memberPort() {
     return memberPort;
+  }
+
+  /**
+   * Sets a memberPort.
+   *
+   * @param memberPort member port
+   * @return new {@code ClusterConfig} instance
+   */
+  public ClusterConfig memberPort(Integer memberPort) {
+    ClusterConfig c = clone();
+    c.memberPort = memberPort;
+    return c;
+  }
+
+  /**
+   * Applies {@link TransportConfig} settings.
+   *
+   * @param op operator to apply {@link TransportConfig} settings
+   * @return new {@code ClusterConfig} instance
+   */
+  public ClusterConfig transportConfig(UnaryOperator<TransportConfig> op) {
+    ClusterConfig c = clone();
+    c.transportConfig = op.apply(transportConfig);
+    return c;
+  }
+
+  public TransportConfig transportConfig() {
+    return transportConfig;
+  }
+
+  /**
+   * Applies {@link FailureDetectorConfig} settings.
+   *
+   * @param op operator to apply {@link FailureDetectorConfig} settings
+   * @return new {@code ClusterConfig} instance
+   */
+  public ClusterConfig failureDetectorConfig(UnaryOperator<FailureDetectorConfig> op) {
+    ClusterConfig c = clone();
+    c.failureDetectorConfig = op.apply(failureDetectorConfig);
+    return c;
+  }
+
+  public FailureDetectorConfig failureDetectorConfig() {
+    return failureDetectorConfig;
+  }
+
+  /**
+   * Applies {@link GossipConfig} settings.
+   *
+   * @param op operator to apply {@link GossipConfig} settings
+   * @return new {@code ClusterConfig} instance
+   */
+  public ClusterConfig gossipConfig(UnaryOperator<GossipConfig> op) {
+    ClusterConfig c = clone();
+    c.gossipConfig = op.apply(gossipConfig);
+    return c;
+  }
+
+  public GossipConfig gossipConfig() {
+    return gossipConfig;
+  }
+
+  /**
+   * Applies {@link MembershipConfig} settings.
+   *
+   * @param op operator to apply {@link MembershipConfig} settings
+   * @return new {@code ClusterConfig} instance
+   */
+  public ClusterConfig membershipConfig(UnaryOperator<MembershipConfig> op) {
+    ClusterConfig c = clone();
+    c.membershipConfig = op.apply(membershipConfig);
+    return c;
+  }
+
+  public MembershipConfig membershipConfig() {
+    return membershipConfig;
+  }
+
+  @Override
+  public ClusterConfig clone() {
+    try {
+      ClusterConfig config = (ClusterConfig) super.clone();
+      config.transportConfig = config.transportConfig.clone();
+      config.failureDetectorConfig = config.failureDetectorConfig.clone();
+      config.gossipConfig = config.gossipConfig.clone();
+      config.membershipConfig = config.membershipConfig.clone();
+      return config;
+    } catch (CloneNotSupportedException e) {
+      throw Exceptions.propagate(e);
+    }
   }
 
   @Override

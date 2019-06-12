@@ -94,7 +94,7 @@ public final class ClusterImpl implements Cluster {
   }
 
   private ClusterImpl(ClusterImpl that) {
-    this.config = ClusterConfig.builderFrom(that.config).build();
+    this.config = that.config.clone();
     this.handler = that.handler;
     initLifecycle();
   }
@@ -121,12 +121,12 @@ public final class ClusterImpl implements Cluster {
    * Returns a new cluster's instance which will apply the given options.
    *
    * @param options cluster config options
-   * @return new cluster's instance
+   * @return new {@code ClusterImpl} instance
    */
-  public ClusterImpl config(UnaryOperator<ClusterConfig.Builder> options) {
+  public ClusterImpl config(UnaryOperator<ClusterConfig> options) {
     Objects.requireNonNull(options);
     ClusterImpl cluster = new ClusterImpl(this);
-    cluster.config = options.apply(ClusterConfig.builderFrom(cluster.config)).build();
+    cluster.config = options.apply(config);
     return cluster;
   }
 
@@ -134,7 +134,7 @@ public final class ClusterImpl implements Cluster {
    * Returns a new cluster's instance with given handler. The previous handler will be replaced.
    *
    * @param handler message handler supplier by the cluster
-   * @return new cluster's instance
+   * @return new {@code ClusterImpl} instance
    */
   public ClusterImpl handler(Function<Cluster, ClusterMessageHandler> handler) {
     Objects.requireNonNull(handler);
@@ -161,7 +161,7 @@ public final class ClusterImpl implements Cluster {
   }
 
   private Mono<Cluster> doStart() {
-    return TransportImpl.bind(config.getTransportConfig())
+    return TransportImpl.bind(config.transportConfig())
         .flatMap(
             transport1 -> {
               localMember = createLocalMember(transport1.address().port());
@@ -175,7 +175,7 @@ public final class ClusterImpl implements Cluster {
                       localMember,
                       transport,
                       membershipEvents.onBackpressureBuffer(),
-                      config,
+                      config.failureDetectorConfig(),
                       scheduler,
                       cidGenerator);
 
@@ -184,17 +184,12 @@ public final class ClusterImpl implements Cluster {
                       localMember,
                       transport,
                       membershipEvents.onBackpressureBuffer(),
-                      config,
+                      config.gossipConfig(),
                       scheduler);
 
               metadataStore =
                   new MetadataStoreImpl(
-                      localMember,
-                      transport,
-                      config.getMetadata(),
-                      config,
-                      scheduler,
-                      cidGenerator);
+                      localMember, transport, config.metadata(), config, scheduler, cidGenerator);
 
               membership =
                   new MembershipProtocolImpl(
@@ -203,7 +198,7 @@ public final class ClusterImpl implements Cluster {
                       failureDetector,
                       gossip,
                       metadataStore,
-                      config,
+                      config.membershipConfig(),
                       scheduler,
                       cidGenerator);
 
@@ -259,11 +254,11 @@ public final class ClusterImpl implements Cluster {
    */
   private Member createLocalMember(int listenPort) {
     String localAddress = Address.getLocalIpAddress().getHostAddress();
-    Integer port = Optional.ofNullable(config.getMemberPort()).orElse(listenPort);
+    Integer port = Optional.ofNullable(config.memberPort()).orElse(listenPort);
 
     // calculate local member cluster address
     Address memberAddress =
-        Optional.ofNullable(config.getMemberHost())
+        Optional.ofNullable(config.memberHost())
             .map(memberHost -> Address.create(memberHost, port))
             .orElseGet(() -> Address.create(localAddress, listenPort));
     return new Member(IdGenerator.generateId(), memberAddress);
@@ -321,7 +316,7 @@ public final class ClusterImpl implements Cluster {
     }
     return metadataStore
         .metadata(member)
-        .map(byteBuffer -> config.getMetadataDecoder().decode(byteBuffer));
+        .map(byteBuffer -> config.metadataDecoder().decode(byteBuffer));
   }
 
   @Override
