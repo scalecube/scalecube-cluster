@@ -198,7 +198,7 @@ public final class ClusterImpl implements Cluster {
                       failureDetector,
                       gossip,
                       metadataStore,
-                      config.membershipConfig(),
+                      config,
                       scheduler,
                       cidGenerator);
 

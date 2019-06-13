@@ -1,10 +1,11 @@
 package io.scalecube.examples;
 
 import io.scalecube.cluster.Cluster;
-import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterImpl;
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.ClusterMessageHandler;
+import io.scalecube.cluster.fdetector.FailureDetectorConfig;
+import io.scalecube.cluster.membership.MembershipConfig;
 import io.scalecube.cluster.membership.MembershipEvent;
 import java.text.SimpleDateFormat;
 import java.util.Collections;
@@ -42,9 +43,9 @@ public class MembershipEventsExample {
     Cluster bob =
         new ClusterImpl()
             .config(
-                options ->
-                    options
-                        .seedMembers(alice.address())
+                config ->
+                    config
+                        .membership(opts -> opts.seedMembers(alice.address()))
                         .metadata(Collections.singletonMap("name", "Bob")))
             .handler(
                 cluster -> {
@@ -62,9 +63,9 @@ public class MembershipEventsExample {
     Cluster carol =
         new ClusterImpl()
             .config(
-                options ->
-                    options
-                        .seedMembers(alice.address(), bob.address())
+                config ->
+                    config
+                        .membership(opts -> opts.seedMembers(alice.address(), bob.address()))
                         .metadata(Collections.singletonMap("name", "Carol")))
             .handler(
                 cluster -> {
@@ -82,9 +83,9 @@ public class MembershipEventsExample {
     bob.shutdown().block();
 
     // Avoid exit main thread immediately ]:->
-    long pingInterval = ClusterConfig.DEFAULT_PING_INTERVAL;
+    long pingInterval = FailureDetectorConfig.DEFAULT_PING_INTERVAL;
     long suspicionTimeout =
-        ClusterMath.suspicionTimeout(ClusterConfig.DEFAULT_SUSPICION_MULT, 4, pingInterval);
+        ClusterMath.suspicionTimeout(MembershipConfig.DEFAULT_SUSPICION_MULT, 4, pingInterval);
     long maxRemoveTimeout = suspicionTimeout + 3 * pingInterval;
     Thread.sleep(maxRemoveTimeout);
   }

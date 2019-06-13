@@ -64,11 +64,11 @@ public final class ClusterConfig {
    */
   public static ClusterConfig defaultWanConfig() {
     return defaultConfig()
-        .membershipConfig(
+        .membership(
             opts ->
                 opts.suspicionMult(MembershipConfig.DEFAULT_WAN_SUSPICION_MULT)
                     .syncInterval(MembershipConfig.DEFAULT_WAN_SYNC_INTERVAL))
-        .transportConfig(opts -> opts.connectTimeout(TransportConfig.DEFAULT_WAN_CONNECT_TIMEOUT))
+        .transport(opts -> opts.connectTimeout(TransportConfig.DEFAULT_WAN_CONNECT_TIMEOUT))
         .metadataTimeout(DEFAULT_WAN_METADATA_TIMEOUT);
   }
 
@@ -79,11 +79,11 @@ public final class ClusterConfig {
    */
   public static ClusterConfig defaultLocalConfig() {
     return defaultConfig()
-        .membershipConfig(
+        .membership(
             opts ->
                 opts.suspicionMult(MembershipConfig.DEFAULT_LOCAL_SUSPICION_MULT)
                     .syncInterval(MembershipConfig.DEFAULT_LOCAL_SYNC_INTERVAL))
-        .transportConfig(opts -> opts.connectTimeout(TransportConfig.DEFAULT_LOCAL_CONNECT_TIMEOUT))
+        .transport(opts -> opts.connectTimeout(TransportConfig.DEFAULT_LOCAL_CONNECT_TIMEOUT))
         .metadataTimeout(DEFAULT_LOCAL_METADATA_TIMEOUT);
   }
 
@@ -190,7 +190,7 @@ public final class ClusterConfig {
    * @param op operator to apply {@link TransportConfig} settings
    * @return new {@code ClusterConfig} instance
    */
-  public ClusterConfig transportConfig(UnaryOperator<TransportConfig> op) {
+  public ClusterConfig transport(UnaryOperator<TransportConfig> op) {
     ClusterConfig c = clone();
     c.transportConfig = op.apply(transportConfig);
     return c;
@@ -206,7 +206,7 @@ public final class ClusterConfig {
    * @param op operator to apply {@link FailureDetectorConfig} settings
    * @return new {@code ClusterConfig} instance
    */
-  public ClusterConfig failureDetectorConfig(UnaryOperator<FailureDetectorConfig> op) {
+  public ClusterConfig failureDetector(UnaryOperator<FailureDetectorConfig> op) {
     ClusterConfig c = clone();
     c.failureDetectorConfig = op.apply(failureDetectorConfig);
     return c;
@@ -222,7 +222,7 @@ public final class ClusterConfig {
    * @param op operator to apply {@link GossipConfig} settings
    * @return new {@code ClusterConfig} instance
    */
-  public ClusterConfig gossipConfig(UnaryOperator<GossipConfig> op) {
+  public ClusterConfig gossip(UnaryOperator<GossipConfig> op) {
     ClusterConfig c = clone();
     c.gossipConfig = op.apply(gossipConfig);
     return c;
@@ -238,7 +238,7 @@ public final class ClusterConfig {
    * @param op operator to apply {@link MembershipConfig} settings
    * @return new {@code ClusterConfig} instance
    */
-  public ClusterConfig membershipConfig(UnaryOperator<MembershipConfig> op) {
+  public ClusterConfig membership(UnaryOperator<MembershipConfig> op) {
     ClusterConfig c = clone();
     c.membershipConfig = op.apply(membershipConfig);
     return c;

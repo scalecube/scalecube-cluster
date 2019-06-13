@@ -9,7 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.scalecube.cluster.BaseTest;
-import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.membership.MembershipEvent;
@@ -69,9 +68,9 @@ class GossipProtocolTest extends BaseTest {
   private static final boolean awaitFullCompletion = true;
 
   // Allow to configure gossip settings other than defaults
-  private static final long gossipInterval /* ms */ = ClusterConfig.DEFAULT_GOSSIP_INTERVAL;
-  private static final int gossipFanout = ClusterConfig.DEFAULT_GOSSIP_FANOUT;
-  private static final int gossipRepeatMultiplier = ClusterConfig.DEFAULT_GOSSIP_REPEAT_MULT;
+  private static final long gossipInterval /* ms */ = GossipConfig.DEFAULT_GOSSIP_INTERVAL;
+  private static final int gossipFanout = GossipConfig.DEFAULT_GOSSIP_FANOUT;
+  private static final int gossipRepeatMultiplier = GossipConfig.DEFAULT_GOSSIP_REPEAT_MULT;
 
   // Uncomment and modify params to run single experiment repeatedly
   // static {
@@ -251,11 +250,10 @@ class GossipProtocolTest extends BaseTest {
 
   private GossipProtocolImpl initGossipProtocol(Transport transport, List<Address> members) {
     GossipConfig gossipConfig =
-        ClusterConfig.builder()
+        new GossipConfig()
             .gossipFanout(gossipFanout)
             .gossipInterval(gossipInterval)
-            .gossipRepeatMult(gossipRepeatMultiplier)
-            .build();
+            .gossipRepeatMult(gossipRepeatMultiplier);
 
     Member localMember = new Member("member-" + transport.address().port(), transport.address());
 

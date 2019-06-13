@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.scalecube.cluster.BaseTest;
-import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.CorrelationIdGenerator;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.membership.MemberStatus;
@@ -157,9 +156,9 @@ public class FailureDetectorTest extends BaseTest {
     // Create failure detectors
     FailureDetectorImpl fdA = createFd(a, members);
     FailureDetectorConfig fdBConfig =
-        ClusterConfig.builder().pingTimeout(500).pingInterval(1000).build();
+        new FailureDetectorConfig().pingTimeout(500).pingInterval(1000);
     FailureDetectorImpl fdB = createFd(b, members, fdBConfig);
-    FailureDetectorImpl fdC = createFd(c, members, ClusterConfig.defaultConfig());
+    FailureDetectorImpl fdC = createFd(c, members, FailureDetectorConfig.defaultConfig());
     List<FailureDetectorImpl> fdetectors = Arrays.asList(fdA, fdB, fdC);
 
     try {
@@ -375,12 +374,7 @@ public class FailureDetectorTest extends BaseTest {
       TimeUnit.SECONDS.sleep(2);
 
       // restart node X as XX
-      xx =
-          createTransport(
-              TransportConfig //
-                  .builder()
-                  .port(x.address().port())
-                  .build());
+      xx = createTransport(new TransportConfig().port(x.address().port()));
       assertEquals(x.address(), xx.address());
       fdetectors = Arrays.asList(fdA, fdB, fdXx = createFd(xx, members));
 
@@ -405,12 +399,10 @@ public class FailureDetectorTest extends BaseTest {
 
   private FailureDetectorImpl createFd(Transport transport, List<Address> members) {
     FailureDetectorConfig failureDetectorConfig =
-        ClusterConfig.builder() // faster config for local testing
+        FailureDetectorConfig.defaultLocalConfig() // faster config for local testing
             .pingTimeout(100)
             .pingInterval(200)
-            .pingReqMembers(2)
-            .metadataTimeout(100)
-            .build();
+            .pingReqMembers(2);
     return createFd(transport, members, failureDetectorConfig);
   }
 

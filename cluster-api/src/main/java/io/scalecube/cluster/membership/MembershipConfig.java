@@ -2,6 +2,7 @@ package io.scalecube.cluster.membership;
 
 import io.scalecube.net.Address;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import reactor.core.Exceptions;
@@ -67,6 +68,16 @@ public final class MembershipConfig implements Cloneable {
 
   public List<Address> seedMembers() {
     return seedMembers;
+  }
+
+  /**
+   * Sets a seedMembers.
+   *
+   * @param seedMembers seed members
+   * @return new {@code MembershipConfig} instance
+   */
+  public MembershipConfig seedMembers(Address... seedMembers) {
+    return seedMembers(Arrays.asList(seedMembers));
   }
 
   /**

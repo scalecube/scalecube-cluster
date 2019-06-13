@@ -3,10 +3,12 @@ package io.scalecube.cluster.membership;
 import static io.scalecube.cluster.membership.MemberStatus.ALIVE;
 import static io.scalecube.cluster.membership.MemberStatus.DEAD;
 
+import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.CorrelationIdGenerator;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.fdetector.FailureDetector;
+import io.scalecube.cluster.fdetector.FailureDetectorConfig;
 import io.scalecube.cluster.fdetector.FailureDetectorEvent;
 import io.scalecube.cluster.gossip.GossipProtocol;
 import io.scalecube.cluster.metadata.MetadataStore;
@@ -72,7 +74,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   // Injected
 
   private final Transport transport;
-  private final MembershipConfig config;
+  private final MembershipConfig membershipConfig;
+  private final FailureDetectorConfig failureDetectorConfig;
   private final List<Address> seedMembers;
   private final FailureDetector failureDetector;
   private final GossipProtocol gossipProtocol;
@@ -105,7 +108,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
    * @param failureDetector failure detector
    * @param gossipProtocol gossip protocol
    * @param metadataStore metadata store
-   * @param config membership config parameters
+   * @param config cluster config parameters
    * @param scheduler scheduler
    * @param cidGenerator correlation id generator
    */
@@ -115,21 +118,22 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       FailureDetector failureDetector,
       GossipProtocol gossipProtocol,
       MetadataStore metadataStore,
-      MembershipConfig config,
+      ClusterConfig config,
       Scheduler scheduler,
       CorrelationIdGenerator cidGenerator) {
 
     this.transport = Objects.requireNonNull(transport);
-    this.config = Objects.requireNonNull(config);
     this.failureDetector = Objects.requireNonNull(failureDetector);
     this.gossipProtocol = Objects.requireNonNull(gossipProtocol);
     this.metadataStore = Objects.requireNonNull(metadataStore);
     this.localMember = Objects.requireNonNull(localMember);
     this.scheduler = Objects.requireNonNull(scheduler);
     this.cidGenerator = Objects.requireNonNull(cidGenerator);
+    this.membershipConfig = Objects.requireNonNull(config).membershipConfig();
+    this.failureDetectorConfig = Objects.requireNonNull(config).failureDetectorConfig();
 
     // Prepare seeds
-    seedMembers = cleanUpSeedMembers(config.seedMembers());
+    seedMembers = cleanUpSeedMembers(membershipConfig.seedMembers());
 
     // Init membership table with local member record
     membershipTable.put(localMember.id(), new MembershipRecord(localMember, ALIVE, 0));
@@ -240,7 +244,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     // Process initial SyncAck
     Flux.mergeDelayError(syncs.length, syncs)
         .take(1)
-        .timeout(Duration.ofMillis(config.syncTimeout()), scheduler)
+        .timeout(Duration.ofMillis(membershipConfig.syncTimeout()), scheduler)
         .publishOn(scheduler)
         .flatMap(message -> onSyncAck(message, true))
         .doFinally(
@@ -438,13 +442,13 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private boolean checkSyncGroup(Message message) {
     if (message.data() instanceof SyncData) {
       SyncData syncData = message.data();
-      return config.syncGroup().equals(syncData.getSyncGroup());
+      return membershipConfig.syncGroup().equals(syncData.getSyncGroup());
     }
     return false;
   }
 
   private void schedulePeriodicSync() {
-    int syncInterval = config.syncInterval();
+    int syncInterval = membershipConfig.syncInterval();
     actionsDisposables.add(
         scheduler.schedulePeriodically(
             this::doSync, syncInterval, syncInterval, TimeUnit.MILLISECONDS));
@@ -452,7 +456,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   private Message prepareSyncDataMsg(String qualifier, String cid) {
     List<MembershipRecord> membershipRecords = new ArrayList<>(membershipTable.values());
-    SyncData syncData = new SyncData(membershipRecords, config.syncGroup());
+    SyncData syncData = new SyncData(membershipRecords, membershipConfig.syncGroup());
     return Message.withData(syncData).qualifier(qualifier).correlationId(cid).build();
   }
 
@@ -616,7 +620,10 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private void scheduleSuspicionTimeoutTask(MembershipRecord record) {
     long suspicionTimeout =
         ClusterMath.suspicionTimeout(
-            config.suspicionMult(), membershipTable.size(), config.pingInterval());
+            membershipConfig.suspicionMult(),
+            membershipTable.size(),
+            failureDetectorConfig.pingInterval());
+
     suspicionTimeoutTasks.computeIfAbsent(
         record.id(),
         id -> {
