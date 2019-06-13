@@ -18,7 +18,7 @@ import reactor.core.Exceptions;
  * @see GossipConfig
  * @see TransportConfig
  */
-public final class ClusterConfig {
+public final class ClusterConfig implements Cloneable {
 
   // LAN cluster
   public static final int DEFAULT_METADATA_TIMEOUT = 3_000;
