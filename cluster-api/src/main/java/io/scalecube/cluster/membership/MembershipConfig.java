@@ -88,7 +88,7 @@ public final class MembershipConfig implements Cloneable {
    */
   public MembershipConfig seedMembers(List<Address> seedMembers) {
     MembershipConfig m = clone();
-    m.seedMembers = new ArrayList<>(seedMembers);
+    m.seedMembers = Collections.unmodifiableList(new ArrayList<>(seedMembers));
     return m;
   }
 

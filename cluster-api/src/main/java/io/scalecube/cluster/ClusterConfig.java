@@ -251,12 +251,12 @@ public final class ClusterConfig implements Cloneable {
   @Override
   public ClusterConfig clone() {
     try {
-      ClusterConfig config = (ClusterConfig) super.clone();
-      config.transportConfig = config.transportConfig.clone();
-      config.failureDetectorConfig = config.failureDetectorConfig.clone();
-      config.gossipConfig = config.gossipConfig.clone();
-      config.membershipConfig = config.membershipConfig.clone();
-      return config;
+      ClusterConfig c = (ClusterConfig) super.clone();
+      c.transportConfig = transportConfig.clone();
+      c.failureDetectorConfig = failureDetectorConfig.clone();
+      c.gossipConfig = gossipConfig.clone();
+      c.membershipConfig = membershipConfig.clone();
+      return c;
     } catch (CloneNotSupportedException e) {
       throw Exceptions.propagate(e);
     }

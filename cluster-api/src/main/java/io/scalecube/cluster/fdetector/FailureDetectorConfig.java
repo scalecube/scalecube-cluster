@@ -102,7 +102,7 @@ public final class FailureDetectorConfig implements Cloneable {
    */
   public FailureDetectorConfig pingReqMembers(int pingReqMembers) {
     FailureDetectorConfig f = clone();
-    this.pingReqMembers = pingReqMembers;
+    f.pingReqMembers = pingReqMembers;
     return f;
   }
 
