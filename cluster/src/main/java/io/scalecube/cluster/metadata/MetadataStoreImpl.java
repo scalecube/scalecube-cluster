@@ -165,7 +165,7 @@ public class MetadataStoreImpl implements MetadataStore {
 
           transport
               .requestResponse(targetAddress, request)
-              .timeout(Duration.ofMillis(config.getMetadataTimeout()), scheduler)
+              .timeout(Duration.ofMillis(config.metadataTimeout()), scheduler)
               .publishOn(scheduler)
               .subscribe(
                   response -> {
@@ -184,7 +184,7 @@ public class MetadataStoreImpl implements MetadataStore {
                             + "from {} within {} ms [at {}], cause : {}",
                         cid,
                         targetAddress,
-                        config.getMetadataTimeout(),
+                        config.metadataTimeout(),
                         localMember,
                         th.toString());
                     sink.error(th);
@@ -223,7 +223,7 @@ public class MetadataStoreImpl implements MetadataStore {
     }
 
     // Prepare repopnse
-    ByteBuffer byteBuffer = config.getMetadataEncoder().encode(localMetadata);
+    ByteBuffer byteBuffer = config.metadataEncoder().encode(localMetadata);
     GetMetadataResponse respData = new GetMetadataResponse(localMember, byteBuffer);
 
     Message response =

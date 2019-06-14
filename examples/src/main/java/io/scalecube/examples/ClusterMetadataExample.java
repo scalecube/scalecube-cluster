@@ -30,9 +30,9 @@ public class ClusterMetadataExample {
     Cluster joe =
         new ClusterImpl()
             .config(
-                options ->
-                    options
-                        .seedMembers(alice.address())
+                config ->
+                    config
+                        .membership(opts -> opts.seedMembers(alice.address()))
                         .metadata(Collections.singletonMap("name", "Joe")))
             .handler(
                 cluster -> {

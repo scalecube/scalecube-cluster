@@ -88,7 +88,7 @@ public final class TransportImpl implements Transport {
     this.channelInitializer = new TransportChannelInitializer();
     this.stop = MonoProcessor.create();
     this.onStop = MonoProcessor.create();
-    this.messageCodec = config.getMessageCodec();
+    this.messageCodec = config.messageCodec();
     this.address = null;
     this.server = null;
   }
@@ -180,7 +180,7 @@ public final class TransportImpl implements Transport {
             ex ->
                 LOGGER.error(
                     "Failed to bind cluster transport on port={}, cause: {}",
-                    config.getPort(),
+                    config.port(),
                     ex.toString()))
         .map(this::onBind);
   }
@@ -363,7 +363,7 @@ public final class TransportImpl implements Transport {
         .option(ChannelOption.TCP_NODELAY, true)
         .option(ChannelOption.SO_KEEPALIVE, true)
         .option(ChannelOption.SO_REUSEADDR, true)
-        .addressSupplier(() -> new InetSocketAddress(config.getPort()))
+        .addressSupplier(() -> new InetSocketAddress(config.port()))
         .bootstrap(b -> BootstrapHandlers.updateConfiguration(b, "inbound", channelInitializer));
   }
 
@@ -381,7 +381,7 @@ public final class TransportImpl implements Transport {
         .option(ChannelOption.TCP_NODELAY, true)
         .option(ChannelOption.SO_KEEPALIVE, true)
         .option(ChannelOption.SO_REUSEADDR, true)
-        .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.getConnectTimeout())
+        .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.connectTimeout())
         .bootstrap(b -> BootstrapHandlers.updateConfiguration(b, "outbound", channelInitializer));
   }
 
@@ -396,7 +396,7 @@ public final class TransportImpl implements Transport {
       pipeline.addLast(new LengthFieldPrepender(LENGTH_FIELD_LENGTH));
       pipeline.addLast(
           new LengthFieldBasedFrameDecoder(
-              config.getMaxFrameLength(), 0, LENGTH_FIELD_LENGTH, 0, LENGTH_FIELD_LENGTH));
+              config.maxFrameLength(), 0, LENGTH_FIELD_LENGTH, 0, LENGTH_FIELD_LENGTH));
       pipeline.addLast(exceptionHandler);
     }
   }
