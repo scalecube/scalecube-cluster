@@ -354,8 +354,9 @@ public final class ClusterImpl implements Cluster {
     return Mono.defer(
         () -> {
           LOGGER.info("Cluster member {} is shutting down", localMember);
-          return Flux.concatDelayError(leaveCluster(localMember), stop(), transport.stop())
+          return Flux.concatDelayError(leaveCluster(localMember), dispose(), transport.stop())
               .then()
+              .doFinally(s -> scheduler.dispose())
               .doOnSuccess(
                   avoid -> LOGGER.info("Cluster member {} has been shut down", localMember))
               .doOnError(
@@ -383,7 +384,7 @@ public final class ClusterImpl implements Cluster {
         .then();
   }
 
-  private Mono<Void> stop() {
+  private Mono<Void> dispose() {
     return Mono.fromRunnable(
         () -> {
           // Stop accepting requests
@@ -394,9 +395,6 @@ public final class ClusterImpl implements Cluster {
           membership.stop();
           gossip.stop();
           failureDetector.stop();
-
-          // stop scheduler
-          scheduler.dispose();
         });
   }
 

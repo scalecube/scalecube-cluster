@@ -283,8 +283,8 @@ class GossipProtocolTest extends BaseTest {
 
     try {
       Mono.when(futures).block(Duration.ofSeconds(30));
-    } catch (Exception ignore) {
-      LOGGER.warn("Failed to await transport termination");
+    } catch (Exception ex) {
+      LOGGER.warn("Failed to await transport termination: " + ex);
     }
 
     // Await a bit
