@@ -56,8 +56,8 @@ public class BaseTest {
     if (transport != null && !transport.isStopped()) {
       try {
         transport.stop().block(Duration.ofSeconds(1));
-      } catch (Exception ignore) {
-        LOGGER.warn("Failed to await transport termination");
+      } catch (Exception ex) {
+        LOGGER.warn("Failed to await transport termination: " + ex);
       }
     }
   }
