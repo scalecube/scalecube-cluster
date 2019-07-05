@@ -370,7 +370,13 @@ public final class FailureDetectorImpl implements FailureDetector {
   private MemberStatus computeMemberStatus(Message message, long period) {
     MemberStatus memberStatus;
     PingData data = message.data();
-    switch (data.getAckType()) {
+    AckType ackType = data.getAckType();
+
+    if (ackType == null) {
+      // support of older cluster versions
+      return MemberStatus.ALIVE;
+    }
+    switch (ackType) {
       case DEST_OK:
         memberStatus = MemberStatus.ALIVE;
         break;
@@ -378,7 +384,7 @@ public final class FailureDetectorImpl implements FailureDetector {
         memberStatus = MemberStatus.DEAD;
         break;
       default:
-        LOGGER.warn("Unknown PingData.AckType received '{}' at [{}]", data.getAckType(), period);
+        LOGGER.warn("Unknown PingData.AckType received '{}' at [{}]", ackType, period);
         memberStatus = MemberStatus.SUSPECT;
     }
     return memberStatus;
