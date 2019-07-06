@@ -132,15 +132,20 @@ public interface Cluster {
   /**
    * Member notifies other members of the cluster about leaving and gracefully shutdown and free
    * occupied resources.
-   *
-   * @return Listenable future which is completed once graceful shutdown is finished.
    */
-  Mono<Void> shutdown();
+  void shutdown();
+
+  /**
+   * Returns promise which is completed when cluster instance has been shut down.
+   *
+   * @return promise which is completed once graceful shutdown is finished.
+   */
+  Mono<Void> onShutdown();
 
   /**
    * Check if cluster instance has been shut down.
    *
-   * @return Returns true if cluster instance has been shut down; false otherwise.
+   * @return returns true if cluster instance has been shut down; false otherwise.
    */
   boolean isShutdown();
 }

@@ -342,12 +342,8 @@ public final class ClusterImpl implements Cluster {
   }
 
   @Override
-  public Mono<Void> shutdown() {
-    return Mono.defer(
-        () -> {
-          shutdown.onComplete();
-          return onShutdown;
-        });
+  public void shutdown() {
+    shutdown.onComplete();
   }
 
   private Mono<Void> doShutdown() {
@@ -396,6 +392,11 @@ public final class ClusterImpl implements Cluster {
           gossip.stop();
           failureDetector.stop();
         });
+  }
+
+  @Override
+  public Mono<Void> onShutdown() {
+    return onShutdown;
   }
 
   @Override
