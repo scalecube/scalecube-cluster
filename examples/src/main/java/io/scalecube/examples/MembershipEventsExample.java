@@ -80,7 +80,8 @@ public class MembershipEventsExample {
     System.out.println(now() + " Carol join members: " + carol.members());
 
     // Bob leave cluster
-    bob.shutdown().block();
+    bob.shutdown();
+    bob.onShutdown().block();
 
     // Avoid exit main thread immediately ]:->
     long pingInterval = FailureDetectorConfig.DEFAULT_PING_INTERVAL;

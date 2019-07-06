@@ -389,7 +389,8 @@ public class ClusterTest extends BaseTest {
             .handler(cluster -> listener)
             .startAwait();
 
-    node2.shutdown().block(TIMEOUT);
+    node2.shutdown();
+    node2.onShutdown().block(TIMEOUT);
 
     assertTrue(latch.await(TIMEOUT.getSeconds(), TimeUnit.SECONDS));
     assertTrue(node2.isShutdown());
@@ -460,7 +461,8 @@ public class ClusterTest extends BaseTest {
               latch.countDown();
             });
 
-    node1.shutdown().subscribe();
+    node1.shutdown();
+    node1.onShutdown().block(TIMEOUT);
 
     assertTrue(latch.await(TIMEOUT.getSeconds(), TimeUnit.SECONDS));
     assertEquals(removedMetadata.get(), node1Metadata);
@@ -486,9 +488,10 @@ public class ClusterTest extends BaseTest {
 
   private void shutdown(List<Cluster> nodes) {
     try {
-      Mono.when(
-              nodes.stream() //
-                  .map(Cluster::shutdown)
+      Mono.whenDelayError(
+              nodes.stream()
+                  .peek(Cluster::shutdown)
+                  .map(Cluster::onShutdown)
                   .collect(Collectors.toList()))
           .block(TIMEOUT);
     } catch (Exception ex) {
