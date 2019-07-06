@@ -13,9 +13,8 @@ public final class SimpleMapMetadataCodec implements MetadataEncoder, MetadataDe
 
   private static final TypeReference TYPE = new TypeReference<Map<String, String>>() {};
 
-  @SuppressWarnings("unchecked")
   @Override
-  public Map<String, String> decode(ByteBuffer buffer) {
+  public Object decode(ByteBuffer buffer) {
     try {
       if (buffer.remaining() == 0) {
         return Collections.emptyMap();

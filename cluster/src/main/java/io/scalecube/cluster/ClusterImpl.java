@@ -316,7 +316,11 @@ public final class ClusterImpl implements Cluster {
     }
     return metadataStore
         .metadata(member)
-        .map(byteBuffer -> config.metadataDecoder().decode(byteBuffer));
+        .map(
+            byteBuffer -> {
+              //noinspection unchecked
+              return (T) config.metadataDecoder().decode(byteBuffer);
+            });
   }
 
   @Override

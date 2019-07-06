@@ -16,10 +16,10 @@ public class SimpleMapMetadataCodec implements MetadataEncoder, MetadataDecoder 
   private static final TypeReference TYPE = new TypeReference<Map<String, String>>() {};
 
   @Override
-  public <T> T decode(ByteBuffer buffer) {
+  public Object decode(ByteBuffer buffer) {
     try {
       if (buffer.remaining() == 0) {
-        return (T) Collections.emptyMap();
+        return Collections.emptyMap();
       }
       return mapper.readValue(buffer.array(), TYPE);
     } catch (Exception e) {

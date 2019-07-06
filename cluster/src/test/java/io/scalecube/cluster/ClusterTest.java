@@ -457,7 +457,9 @@ public class ClusterTest extends BaseTest {
         .filter(MembershipEvent::isRemoved)
         .subscribe(
             event -> {
-              removedMetadata.set(SimpleMapMetadataCodec.INSTANCE.decode(event.oldMetadata()));
+              Object metadata = SimpleMapMetadataCodec.INSTANCE.decode(event.oldMetadata());
+              //noinspection unchecked
+              removedMetadata.set((Map<String, String>) metadata);
               latch.countDown();
             });
 
