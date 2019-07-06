@@ -8,5 +8,5 @@ public interface MetadataDecoder {
 
   MetadataDecoder INSTANCE = ServiceLoaderUtil.findFirst(MetadataDecoder.class).orElse(null);
 
-  <T> T decode(ByteBuffer buffer);
+  Object decode(ByteBuffer buffer);
 }
