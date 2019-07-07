@@ -70,7 +70,7 @@ public class MetadataStoreImpl implements MetadataStore {
     this.config = Objects.requireNonNull(config);
     this.scheduler = Objects.requireNonNull(scheduler);
     this.cidGenerator = Objects.requireNonNull(cidGenerator);
-    this.localMetadata = localMetadata;
+    this.localMetadata = Objects.requireNonNull(localMetadata);
   }
 
   @Override
@@ -93,9 +93,8 @@ public class MetadataStoreImpl implements MetadataStore {
   }
 
   @Override
-  public <T> Optional<T> metadata() {
-    //noinspection unchecked
-    return Optional.ofNullable((T) localMetadata);
+  public Object metadata() {
+    return localMetadata;
   }
 
   @Override
@@ -105,6 +104,7 @@ public class MetadataStoreImpl implements MetadataStore {
 
   @Override
   public void updateMetadata(Object metadata) {
+    Objects.requireNonNull(metadata, "updateMetadata(): metadata must be not null");
     localMetadata = metadata;
   }
 
