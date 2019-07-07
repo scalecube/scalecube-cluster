@@ -3,6 +3,8 @@ package io.scalecube.issues.i187;
 import io.scalecube.cluster.Cluster;
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterImpl;
+import java.util.Collections;
+import java.util.Map;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,16 +24,15 @@ public class SeedRunner {
   public static void main(String[] args) throws Exception {
     int port = getPort(args).orElse(DEFALT_PORT);
 
+    Map<String, String> metadata =
+        Collections.singletonMap("seed", Integer.toHexString(new Object().hashCode()));
+
     ClusterConfig config =
-        ClusterConfig.builder()
-            .syncGroup("issue187")
-            .addMetadata("seed", Integer.toHexString(new Object().hashCode()))
-            .syncInterval(1000)
-            .syncTimeout(1000)
-            .metadataTimeout(1000)
-            .connectTimeout(1000)
-            .port(port)
-            .build();
+        new ClusterConfig()
+            .membership(opts -> opts.syncGroup("issue187").syncInterval(1000).syncTimeout(1000))
+            .transport(opts -> opts.connectTimeout(1000).port(port))
+            .metadata(metadata)
+            .metadataTimeout(1000);
 
     logger.debug("Starting Seed with config {}", config);
     Cluster cluster = new ClusterImpl(config).startAwait();

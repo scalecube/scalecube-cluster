@@ -9,7 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.scalecube.cluster.BaseTest;
-import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.membership.MembershipEvent;
@@ -20,7 +19,6 @@ import io.scalecube.net.Address;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.LongSummaryStatistics;
 import java.util.Map;
@@ -70,9 +68,9 @@ class GossipProtocolTest extends BaseTest {
   private static final boolean awaitFullCompletion = true;
 
   // Allow to configure gossip settings other than defaults
-  private static final long gossipInterval /* ms */ = ClusterConfig.DEFAULT_GOSSIP_INTERVAL;
-  private static final int gossipFanout = ClusterConfig.DEFAULT_GOSSIP_FANOUT;
-  private static final int gossipRepeatMultiplier = ClusterConfig.DEFAULT_GOSSIP_REPEAT_MULT;
+  private static final long gossipInterval /* ms */ = GossipConfig.DEFAULT_GOSSIP_INTERVAL;
+  private static final int gossipFanout = GossipConfig.DEFAULT_GOSSIP_FANOUT;
+  private static final int gossipRepeatMultiplier = GossipConfig.DEFAULT_GOSSIP_REPEAT_MULT;
 
   // Uncomment and modify params to run single experiment repeatedly
   // static {
@@ -252,11 +250,10 @@ class GossipProtocolTest extends BaseTest {
 
   private GossipProtocolImpl initGossipProtocol(Transport transport, List<Address> members) {
     GossipConfig gossipConfig =
-        ClusterConfig.builder()
+        new GossipConfig()
             .gossipFanout(gossipFanout)
             .gossipInterval(gossipInterval)
-            .gossipRepeatMult(gossipRepeatMultiplier)
-            .build();
+            .gossipRepeatMult(gossipRepeatMultiplier);
 
     Member localMember = new Member("member-" + transport.address().port(), transport.address());
 
@@ -264,7 +261,7 @@ class GossipProtocolTest extends BaseTest {
         Flux.fromIterable(members)
             .filter(address -> !transport.address().equals(address))
             .map(address -> new Member("member-" + address.port(), address))
-            .map(member -> MembershipEvent.createAdded(member, Collections.emptyMap()));
+            .map(member -> MembershipEvent.createAdded(member, null));
 
     GossipProtocolImpl gossipProtocol =
         new GossipProtocolImpl(localMember, transport, membershipFlux, gossipConfig, scheduler);
@@ -286,8 +283,8 @@ class GossipProtocolTest extends BaseTest {
 
     try {
       Mono.when(futures).block(Duration.ofSeconds(30));
-    } catch (Exception ignore) {
-      LOGGER.warn("Failed to await transport termination");
+    } catch (Exception ex) {
+      LOGGER.warn("Failed to await transport termination: " + ex);
     }
 
     // Await a bit

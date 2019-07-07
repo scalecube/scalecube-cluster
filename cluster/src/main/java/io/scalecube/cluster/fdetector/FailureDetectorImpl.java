@@ -102,10 +102,7 @@ public final class FailureDetectorImpl implements FailureDetector {
   public void start() {
     actionsDisposables.add(
         scheduler.schedulePeriodically(
-            this::doPing,
-            config.getPingInterval(),
-            config.getPingInterval(),
-            TimeUnit.MILLISECONDS));
+            this::doPing, config.pingInterval(), config.pingInterval(), TimeUnit.MILLISECONDS));
   }
 
   @Override
@@ -145,7 +142,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     Address address = pingMember.address();
     transport
         .requestResponse(address, pingMsg)
-        .timeout(Duration.ofMillis(config.getPingTimeout()), scheduler)
+        .timeout(Duration.ofMillis(config.pingTimeout()), scheduler)
         .publishOn(scheduler)
         .subscribe(
             message -> {
@@ -157,10 +154,10 @@ public final class FailureDetectorImpl implements FailureDetector {
                   "Failed to get PingAck[{}] from {} within {} ms [at {}]",
                   period,
                   pingMember,
-                  config.getPingTimeout(),
+                  config.pingTimeout(),
                   localMember);
 
-              final int timeLeft = config.getPingInterval() - config.getPingTimeout();
+              final int timeLeft = config.pingInterval() - config.pingTimeout();
               final List<Member> pingReqMembers = selectPingReqMembers(pingMember);
 
               if (timeLeft <= 0 || pingReqMembers.isEmpty()) {
@@ -182,7 +179,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     LOGGER.trace(
         "Send PingReq[{}] to {} for {} [at {}]", period, pingReqMembers, pingMember, localMember);
 
-    Duration timeout = Duration.ofMillis(config.getPingInterval() - config.getPingTimeout());
+    Duration timeout = Duration.ofMillis(config.pingInterval() - config.pingTimeout());
     pingReqMembers.forEach(
         member ->
             transport
@@ -352,7 +349,7 @@ public final class FailureDetectorImpl implements FailureDetector {
   }
 
   private List<Member> selectPingReqMembers(Member pingMember) {
-    if (config.getPingReqMembers() <= 0) {
+    if (config.pingReqMembers() <= 0) {
       return Collections.emptyList();
     }
     List<Member> candidates = new ArrayList<>(pingMembers);
@@ -361,8 +358,8 @@ public final class FailureDetectorImpl implements FailureDetector {
       return Collections.emptyList();
     }
     Collections.shuffle(candidates);
-    boolean selectAll = candidates.size() < config.getPingReqMembers();
-    return selectAll ? candidates : candidates.subList(0, config.getPingReqMembers());
+    boolean selectAll = candidates.size() < config.pingReqMembers();
+    return selectAll ? candidates : candidates.subList(0, config.pingReqMembers());
   }
 
   private void publishPingResult(long period, Member member, MemberStatus status) {
@@ -373,7 +370,13 @@ public final class FailureDetectorImpl implements FailureDetector {
   private MemberStatus computeMemberStatus(Message message, long period) {
     MemberStatus memberStatus;
     PingData data = message.data();
-    switch (data.getAckType()) {
+    AckType ackType = data.getAckType();
+
+    if (ackType == null) {
+      // support of older cluster versions
+      return MemberStatus.ALIVE;
+    }
+    switch (ackType) {
       case DEST_OK:
         memberStatus = MemberStatus.ALIVE;
         break;
@@ -381,7 +384,7 @@ public final class FailureDetectorImpl implements FailureDetector {
         memberStatus = MemberStatus.DEAD;
         break;
       default:
-        LOGGER.warn("Unknown PingData.AckType received '{}' at [{}]", data.getAckType(), period);
+        LOGGER.warn("Unknown PingData.AckType received '{}' at [{}]", ackType, period);
         memberStatus = MemberStatus.SUSPECT;
     }
     return memberStatus;

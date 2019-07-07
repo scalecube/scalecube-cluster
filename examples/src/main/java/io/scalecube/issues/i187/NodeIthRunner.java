@@ -4,6 +4,8 @@ import io.scalecube.cluster.Cluster;
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterImpl;
 import io.scalecube.net.Address;
+import java.util.Collections;
+import java.util.Map;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,16 +26,20 @@ public class NodeIthRunner {
     Address address =
         getSeedAddress(args).orElseGet(() -> Address.create("localhost", DEFAULT_SEED_PORT));
 
+    Map<String, String> metadata =
+        Collections.singletonMap("node-i-th", Integer.toHexString(new Object().hashCode()));
+
     ClusterConfig config =
-        ClusterConfig.builder()
-            .syncGroup("issue187")
-            .seedMembers(address)
-            .addMetadata("node-i-th", Integer.toHexString(new Object().hashCode()))
-            .syncInterval(1000)
-            .syncTimeout(1000)
-            .metadataTimeout(1000)
-            .connectTimeout(1000)
-            .build();
+        new ClusterConfig()
+            .membership(
+                opts ->
+                    opts.syncGroup("issue187")
+                        .seedMembers(address)
+                        .syncInterval(1000)
+                        .syncTimeout(1000))
+            .transport(opts -> opts.connectTimeout(1000))
+            .metadata(metadata)
+            .metadataTimeout(1000);
 
     logger.debug("Starting Node-i-th with config {}", config);
     Cluster cluster = new ClusterImpl(config).startAwait();

@@ -19,7 +19,6 @@ import io.scalecube.net.Address;
 import java.net.InetSocketAddress;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 import org.slf4j.Logger;
@@ -34,7 +33,6 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoProcessor;
 import reactor.netty.Connection;
 import reactor.netty.ConnectionObserver;
-import reactor.netty.DisposableChannel;
 import reactor.netty.DisposableServer;
 import reactor.netty.NettyInbound;
 import reactor.netty.NettyOutbound;
@@ -88,7 +86,7 @@ public final class TransportImpl implements Transport {
     this.channelInitializer = new TransportChannelInitializer();
     this.stop = MonoProcessor.create();
     this.onStop = MonoProcessor.create();
-    this.messageCodec = config.getMessageCodec();
+    this.messageCodec = config.messageCodec();
     this.address = null;
     this.server = null;
   }
@@ -180,7 +178,7 @@ public final class TransportImpl implements Transport {
             ex ->
                 LOGGER.error(
                     "Failed to bind cluster transport on port={}, cause: {}",
-                    config.getPort(),
+                    config.port(),
                     ex.toString()))
         .map(this::onBind);
   }
@@ -210,9 +208,9 @@ public final class TransportImpl implements Transport {
           LOGGER.debug("Transport is shutting down on {}", address);
           // Complete incoming messages observable
           messageSink.complete();
-          return Flux.concatDelayError(closeServer(), closeConnections())
-              .doOnTerminate(loopResources::dispose)
+          return Flux.concatDelayError(closeServer(), shutdownLoopResources())
               .then()
+              .doFinally(s -> connections.clear())
               .doOnSuccess(avoid -> LOGGER.debug("Transport has been shut down on {}", address));
         });
   }
@@ -326,30 +324,21 @@ public final class TransportImpl implements Transport {
 
   private Mono<Void> closeServer() {
     return Mono.defer(
-        () ->
-            Optional.ofNullable(server)
-                .map(
-                    server -> {
-                      server.dispose();
-                      return server
-                          .onDispose()
-                          .doOnError(e -> LOGGER.warn("Failed to close server: " + e));
-                    })
-                .orElse(Mono.empty()));
+        () -> {
+          if (server == null) {
+            return Mono.empty();
+          }
+          server.dispose();
+          return server.onDispose().doOnError(e -> LOGGER.warn("Failed to close server: " + e));
+        });
   }
 
-  private Mono<Void> closeConnections() {
-    return Mono.fromRunnable(
-        () ->
-            connections
-                .values()
-                .forEach(
-                    connectionMono ->
-                        connectionMono
-                            .doOnNext(DisposableChannel::dispose)
-                            .flatMap(DisposableChannel::onDispose)
-                            .subscribe(
-                                null, e -> LOGGER.warn("Failed to close connection: " + e))));
+  private Mono<Void> shutdownLoopResources() {
+    return Mono.defer(
+        () -> {
+          loopResources.dispose();
+          return loopResources.disposeLater();
+        });
   }
 
   /**
@@ -363,7 +352,7 @@ public final class TransportImpl implements Transport {
         .option(ChannelOption.TCP_NODELAY, true)
         .option(ChannelOption.SO_KEEPALIVE, true)
         .option(ChannelOption.SO_REUSEADDR, true)
-        .addressSupplier(() -> new InetSocketAddress(config.getPort()))
+        .addressSupplier(() -> new InetSocketAddress(config.port()))
         .bootstrap(b -> BootstrapHandlers.updateConfiguration(b, "inbound", channelInitializer));
   }
 
@@ -381,7 +370,7 @@ public final class TransportImpl implements Transport {
         .option(ChannelOption.TCP_NODELAY, true)
         .option(ChannelOption.SO_KEEPALIVE, true)
         .option(ChannelOption.SO_REUSEADDR, true)
-        .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.getConnectTimeout())
+        .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.connectTimeout())
         .bootstrap(b -> BootstrapHandlers.updateConfiguration(b, "outbound", channelInitializer));
   }
 
@@ -396,7 +385,7 @@ public final class TransportImpl implements Transport {
       pipeline.addLast(new LengthFieldPrepender(LENGTH_FIELD_LENGTH));
       pipeline.addLast(
           new LengthFieldBasedFrameDecoder(
-              config.getMaxFrameLength(), 0, LENGTH_FIELD_LENGTH, 0, LENGTH_FIELD_LENGTH));
+              config.maxFrameLength(), 0, LENGTH_FIELD_LENGTH, 0, LENGTH_FIELD_LENGTH));
       pipeline.addLast(exceptionHandler);
     }
   }

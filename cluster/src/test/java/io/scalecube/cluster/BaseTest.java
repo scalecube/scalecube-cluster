@@ -1,7 +1,6 @@
 package io.scalecube.cluster;
 
-import static io.scalecube.cluster.ClusterConfig.DEFAULT_SUSPICION_MULT;
-
+import io.scalecube.cluster.membership.MembershipConfig;
 import io.scalecube.cluster.membership.MembershipProtocolTest;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.transport.api.TransportConfig;
@@ -40,8 +39,7 @@ public class BaseTest {
   }
 
   protected void awaitSuspicion(int clusterSize) {
-    //noinspection UnnecessaryLocalVariable
-    int defaultSuspicionMult = DEFAULT_SUSPICION_MULT;
+    int defaultSuspicionMult = MembershipConfig.DEFAULT_SUSPICION_MULT;
     int pingInterval = MembershipProtocolTest.PING_INTERVAL;
     long suspicionTimeoutSec =
         ClusterMath.suspicionTimeout(defaultSuspicionMult, clusterSize, pingInterval) / 1000;

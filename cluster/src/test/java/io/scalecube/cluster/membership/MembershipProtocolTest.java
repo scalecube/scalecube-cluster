@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
@@ -38,6 +39,7 @@ import reactor.core.scheduler.Schedulers;
 public class MembershipProtocolTest extends BaseTest {
 
   public static final Duration TIMEOUT = Duration.ofSeconds(10);
+  public static final Map<String, String> METADATA = Collections.singletonMap("meta", "data");
 
   public static final int TEST_SYNC_INTERVAL = 500;
   public static final int PING_INTERVAL = 200;
@@ -470,8 +472,8 @@ public class MembershipProtocolTest extends BaseTest {
       assertSuspected(cmB, cmC.member(), cmD.member());
 
       // Restart C and D on same ports
-      c_Restarted = createTransport(TransportConfig.builder().port(c.address().port()).build());
-      d_Restarted = createTransport(TransportConfig.builder().port(d.address().port()).build());
+      c_Restarted = createTransport(new TransportConfig().port(c.address().port()));
+      d_Restarted = createTransport(new TransportConfig().port(d.address().port()));
       cmC_Restarted = createMembership(c_Restarted, addresses);
       cmD_Restarted = createMembership(d_Restarted, addresses);
 
@@ -541,19 +543,19 @@ public class MembershipProtocolTest extends BaseTest {
     NetworkEmulatorTransport e = createTransport();
 
     MembershipProtocolImpl cmA =
-        createMembership(a, testConfig(Collections.emptyList()).memberHost(localAddress).build());
+        createMembership(a, testConfig(Collections.emptyList()).memberHost(localAddress));
     MembershipProtocolImpl cmB =
         createMembership(
-            b, testConfig(Collections.singletonList(a.address())).memberHost(localAddress).build());
+            b, testConfig(Collections.singletonList(a.address())).memberHost(localAddress));
     MembershipProtocolImpl cmC =
         createMembership(
-            c, testConfig(Collections.singletonList(a.address())).memberHost(localAddress).build());
+            c, testConfig(Collections.singletonList(a.address())).memberHost(localAddress));
     MembershipProtocolImpl cmD =
         createMembership(
-            d, testConfig(Collections.singletonList(b.address())).memberHost(localAddress).build());
+            d, testConfig(Collections.singletonList(b.address())).memberHost(localAddress));
     MembershipProtocolImpl cmE =
         createMembership(
-            e, testConfig(Collections.singletonList(b.address())).memberHost(localAddress).build());
+            e, testConfig(Collections.singletonList(b.address())).memberHost(localAddress));
 
     try {
       awaitSeconds(3);
@@ -896,20 +898,19 @@ public class MembershipProtocolTest extends BaseTest {
     }
   }
 
-  private ClusterConfig.Builder testConfig(List<Address> seedAddresses) {
+  private ClusterConfig testConfig(List<Address> seedAddresses) {
     // Create faster config for local testing
-    return ClusterConfig.builder()
-        .seedMembers(seedAddresses)
-        .syncInterval(TEST_SYNC_INTERVAL)
-        .syncTimeout(100)
-        .pingInterval(PING_INTERVAL)
-        .pingTimeout(100)
+    return new ClusterConfig()
+        .membership(
+            opts ->
+                opts.seedMembers(seedAddresses).syncInterval(TEST_SYNC_INTERVAL).syncTimeout(100))
+        .failureDetector(opts -> opts.pingInterval(PING_INTERVAL).pingTimeout(100))
         .metadataTimeout(100);
   }
 
   private MembershipProtocolImpl createMembership(
       Transport transport, List<Address> seedAddresses) {
-    return createMembership(transport, testConfig(seedAddresses).build());
+    return createMembership(transport, testConfig(seedAddresses));
   }
 
   private MembershipProtocolImpl createMembership(Transport transport, ClusterConfig config) {
@@ -922,14 +923,19 @@ public class MembershipProtocolTest extends BaseTest {
 
     FailureDetectorImpl failureDetector =
         new FailureDetectorImpl(
-            localMember, transport, membershipProcessor, config, scheduler, cidGenerator);
+            localMember,
+            transport,
+            membershipProcessor,
+            config.failureDetectorConfig(),
+            scheduler,
+            cidGenerator);
 
     GossipProtocolImpl gossipProtocol =
-        new GossipProtocolImpl(localMember, transport, membershipProcessor, config, scheduler);
+        new GossipProtocolImpl(
+            localMember, transport, membershipProcessor, config.gossipConfig(), scheduler);
 
     MetadataStoreImpl metadataStore =
-        new MetadataStoreImpl(
-            localMember, transport, Collections.emptyMap(), config, scheduler, cidGenerator);
+        new MetadataStoreImpl(localMember, transport, METADATA, config, scheduler, cidGenerator);
 
     MembershipProtocolImpl membership =
         new MembershipProtocolImpl(
