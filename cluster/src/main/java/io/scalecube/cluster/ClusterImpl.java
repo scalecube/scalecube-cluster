@@ -161,6 +161,14 @@ public final class ClusterImpl implements Cluster {
   }
 
   private Mono<Cluster> doStart() {
+    return Mono.defer(
+        () -> {
+          validateConfiguration();
+          return doStart0();
+        });
+  }
+
+  private Mono<Cluster> doStart0() {
     return TransportImpl.bind(config.transportConfig())
         .flatMap(
             transport1 -> {
@@ -217,6 +225,22 @@ public final class ClusterImpl implements Cluster {
                   .then(Mono.fromCallable(() -> JmxMonitorMBean.start(this)));
             })
         .thenReturn(this);
+  }
+
+  private void validateConfiguration() {
+    Objects.requireNonNull(config.metadata(), "Invalid cluster config: metadata must be specified");
+    Objects.requireNonNull(
+        config.metadataDecoder(), "Invalid cluster config: metadataDecoder must be specified");
+    Objects.requireNonNull(
+        config.metadataEncoder(), "Invalid cluster config: metadataEncoder must be specified");
+
+    Objects.requireNonNull(
+        config.transportConfig().messageCodec(),
+        "Invalid cluster config: transport.messageCodec must be specified");
+
+    Objects.requireNonNull(
+        config.membershipConfig().syncGroup(),
+        "Invalid cluster config: membership.syncGroup must be specified");
   }
 
   private void startHandler() {
@@ -305,14 +329,15 @@ public final class ClusterImpl implements Cluster {
   }
 
   @Override
-  public <T> Optional<T> metadata() {
-    return metadataStore.metadata();
+  public <T> T metadata() {
+    //noinspection unchecked
+    return (T) metadataStore.metadata();
   }
 
   @Override
   public <T> Optional<T> metadata(Member member) {
     if (member().equals(member)) {
-      return metadata();
+      return Optional.of(metadata());
     }
     return metadataStore
         .metadata(member)
@@ -440,8 +465,7 @@ public final class ClusterImpl implements Cluster {
 
     @Override
     public Collection<String> getMetadata() {
-      return Collections.singletonList(
-          Optional.ofNullable(cluster.metadataStore.metadata()).map(Object::toString).orElse(null));
+      return Collections.singletonList(cluster.metadataStore.metadata().toString());
     }
   }
 
