@@ -31,7 +31,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import reactor.core.Exceptions;
 import reactor.core.publisher.DirectProcessor;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
+import reactor.core.publisher.Mono;
 import reactor.core.publisher.ReplayProcessor;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
@@ -44,17 +46,24 @@ public class MembershipProtocolTest extends BaseTest {
   public static final int TEST_SYNC_INTERVAL = 500;
   public static final int PING_INTERVAL = 200;
 
+  private List<MembershipProtocolImpl> stopables;
   private Scheduler scheduler;
 
   @BeforeEach
   void setUp(TestInfo testInfo) {
     scheduler = Schedulers.newSingle(testInfo.getDisplayName().replaceAll(" ", "_"), true);
+    stopables = new ArrayList<>();
   }
 
   @AfterEach
   void tearDown() {
     if (scheduler != null) {
       scheduler.dispose();
+    }
+    if (stopables != null) {
+      for (MembershipProtocolImpl membership : stopables) {
+        stop(membership);
+      }
     }
   }
 
@@ -378,57 +387,69 @@ public class MembershipProtocolTest extends BaseTest {
 
     Transport c_Restarted;
     Transport d_Restarted;
-    MembershipProtocolImpl cmC_Restarted = null;
-    MembershipProtocolImpl cmD_Restarted = null;
 
-    try {
-      awaitSeconds(1);
+    Flux.merge(
+            awaitUntil(() -> assertTrusted(cmA, cmB.member(), cmC.member(), cmD.member())),
+            awaitUntil(() -> assertTrusted(cmB, cmA.member(), cmC.member(), cmD.member())),
+            awaitUntil(() -> assertTrusted(cmC, cmB.member(), cmA.member(), cmD.member())),
+            awaitUntil(() -> assertTrusted(cmD, cmB.member(), cmC.member(), cmA.member())))
+        .then()
+        .block(TIMEOUT);
 
-      assertTrusted(cmA, cmB.member(), cmC.member(), cmD.member());
-      assertTrusted(cmB, cmA.member(), cmC.member(), cmD.member());
-      assertTrusted(cmC, cmB.member(), cmA.member(), cmD.member());
-      assertTrusted(cmD, cmB.member(), cmC.member(), cmA.member());
+    ReplayProcessor<MembershipEvent> cmA_RemovedHistory = startRecordingRemoved(cmA);
+    ReplayProcessor<MembershipEvent> cmB_RemovedHistory = startRecordingRemoved(cmB);
 
-      ReplayProcessor<MembershipEvent> cmA_RemovedHistory = startRecordingRemoved(cmA);
-      ReplayProcessor<MembershipEvent> cmB_RemovedHistory = startRecordingRemoved(cmB);
+    stop(cmC);
+    stop(cmD);
 
-      stop(cmC);
-      stop(cmD);
+    Flux.merge(
+            awaitUntil(() -> assertTrusted(cmA, cmB.member())),
+            awaitUntil(() -> assertSuspected(cmA, cmC.member(), cmD.member())),
+            awaitUntil(() -> assertTrusted(cmB, cmA.member())),
+            awaitUntil(() -> assertSuspected(cmB, cmC.member(), cmD.member())))
+        .then()
+        .block(TIMEOUT);
 
-      awaitSeconds(1);
+    awaitSuspicion(addresses.size());
 
-      assertTrusted(cmA, cmB.member());
-      assertSuspected(cmA, cmC.member(), cmD.member());
-      assertTrusted(cmB, cmA.member());
-      assertSuspected(cmB, cmC.member(), cmD.member());
+    Flux.merge(
+            awaitUntil(() -> assertTrusted(cmA, cmB.member())),
+            awaitUntil(() -> assertNoSuspected(cmA)),
+            awaitUntil(() -> assertRemoved(cmA_RemovedHistory, cmC.member(), cmD.member())),
+            awaitUntil(() -> assertTrusted(cmB, cmA.member())),
+            awaitUntil(() -> assertNoSuspected(cmB)),
+            awaitUntil(() -> assertRemoved(cmB_RemovedHistory, cmC.member(), cmD.member())))
+        .then()
+        .block(TIMEOUT);
 
-      awaitSuspicion(addresses.size());
+    c_Restarted = createTransport();
+    d_Restarted = createTransport();
+    MembershipProtocolImpl cmC_Restarted = createMembership(c_Restarted, addresses);
+    MembershipProtocolImpl cmD_Restarted = createMembership(d_Restarted, addresses);
 
-      assertTrusted(cmA, cmB.member());
-      assertNoSuspected(cmA);
-      assertRemoved(cmA_RemovedHistory, cmC.member(), cmD.member());
-      assertTrusted(cmB, cmA.member());
-      assertNoSuspected(cmB);
-      assertRemoved(cmB_RemovedHistory, cmC.member(), cmD.member());
-
-      c_Restarted = createTransport();
-      d_Restarted = createTransport();
-      cmC_Restarted = createMembership(c_Restarted, addresses);
-      cmD_Restarted = createMembership(d_Restarted, addresses);
-
-      awaitSeconds(1);
-
-      assertTrusted(cmC_Restarted, cmA.member(), cmB.member(), cmD_Restarted.member());
-      assertNoSuspected(cmC_Restarted);
-      assertTrusted(cmD_Restarted, cmA.member(), cmB.member(), cmC_Restarted.member());
-      assertNoSuspected(cmD_Restarted);
-      assertTrusted(cmA, cmB.member(), cmC_Restarted.member(), cmD_Restarted.member());
-      assertNoSuspected(cmA);
-      assertTrusted(cmB, cmA.member(), cmC_Restarted.member(), cmD_Restarted.member());
-      assertNoSuspected(cmB);
-    } finally {
-      stopAll(cmA, cmB, cmC_Restarted, cmD_Restarted);
-    }
+    Flux.merge(
+            awaitUntil(
+                () ->
+                    assertTrusted(
+                        cmC_Restarted, cmA.member(), cmB.member(), cmD_Restarted.member())),
+            awaitUntil(() -> assertNoSuspected(cmC_Restarted)),
+            awaitUntil(
+                () ->
+                    assertTrusted(
+                        cmD_Restarted, cmA.member(), cmB.member(), cmC_Restarted.member())),
+            awaitUntil(() -> assertNoSuspected(cmD_Restarted)),
+            awaitUntil(
+                () ->
+                    assertTrusted(
+                        cmA, cmB.member(), cmC_Restarted.member(), cmD_Restarted.member())),
+            awaitUntil(() -> assertNoSuspected(cmA)),
+            awaitUntil(
+                () ->
+                    assertTrusted(
+                        cmB, cmA.member(), cmC_Restarted.member(), cmD_Restarted.member())),
+            awaitUntil(() -> assertNoSuspected(cmB)))
+        .then()
+        .block(TIMEOUT);
   }
 
   @Test
@@ -959,6 +980,7 @@ public class MembershipProtocolTest extends BaseTest {
       throw Exceptions.propagate(ex);
     }
 
+    stopables.add(membership);
     return membership;
   }
 
@@ -981,6 +1003,11 @@ public class MembershipProtocolTest extends BaseTest {
     } catch (Exception ignore) {
       // ignore
     }
+  }
+
+  private Mono<Void> awaitUntil(Runnable assertAction) {
+    return Mono.<Void>fromRunnable(assertAction)
+        .retryBackoff(Long.MAX_VALUE, Duration.ofMillis(100), Duration.ofSeconds(1));
   }
 
   private void assertTrusted(MembershipProtocolImpl membership, Member... expected) {
