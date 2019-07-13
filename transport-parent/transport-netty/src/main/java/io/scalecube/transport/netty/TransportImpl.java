@@ -16,7 +16,6 @@ import io.scalecube.cluster.transport.api.MessageCodec;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.net.Address;
-import java.net.InetSocketAddress;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -347,17 +346,20 @@ public final class TransportImpl implements Transport {
    * @return tcp server
    */
   private TcpServer newTcpServer() {
-    return TcpServer.create()
-        .runOn(loopResources)
-        .option(ChannelOption.TCP_NODELAY, true)
-        .option(ChannelOption.SO_KEEPALIVE, true)
-        .option(ChannelOption.SO_REUSEADDR, true)
-        .addressSupplier(
-            () ->
-                config.host() == null
-                    ? new InetSocketAddress(config.port())
-                    : new InetSocketAddress(config.host(), config.port()))
-        .bootstrap(b -> BootstrapHandlers.updateConfiguration(b, "inbound", channelInitializer));
+    TcpServer tcpServer =
+        TcpServer.create()
+            .runOn(loopResources)
+            .option(ChannelOption.TCP_NODELAY, true)
+            .option(ChannelOption.SO_KEEPALIVE, true)
+            .option(ChannelOption.SO_REUSEADDR, true)
+            .port(config.port());
+
+    if (config.host() != null) {
+      tcpServer = tcpServer.host(config.host());
+    }
+
+    return tcpServer.bootstrap(
+        b -> BootstrapHandlers.updateConfiguration(b, "inbound", channelInitializer));
   }
 
   /**

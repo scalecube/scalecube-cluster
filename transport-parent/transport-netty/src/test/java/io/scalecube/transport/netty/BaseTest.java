@@ -2,7 +2,6 @@ package io.scalecube.transport.netty;
 
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
-import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.cluster.utils.NetworkEmulatorTransport;
 import io.scalecube.net.Address;
 import java.time.Duration;
@@ -69,7 +68,6 @@ public class BaseTest {
    * @return tramsprot
    */
   protected NetworkEmulatorTransport createTransport() {
-    return new NetworkEmulatorTransport(
-        TransportImpl.bindAwait(TransportConfig.defaultLocalConfig()));
+    return new NetworkEmulatorTransport(TransportImpl.bindAwait());
   }
 }
