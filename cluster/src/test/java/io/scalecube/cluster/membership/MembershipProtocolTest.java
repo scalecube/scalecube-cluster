@@ -994,15 +994,11 @@ public class MembershipProtocolTest extends BaseTest {
     if (membership == null) {
       return;
     }
-    membership.stop();
     membership.getMetadataStore().stop();
+    membership.stop();
     membership.getGossipProtocol().stop();
     membership.getFailureDetector().stop();
-    try {
-      membership.getTransport().stop().block(Duration.ofSeconds(1));
-    } catch (Exception ignore) {
-      // ignore
-    }
+    membership.getTransport().stop().block();
   }
 
   private Mono<Void> awaitUntil(Runnable assertAction) {
