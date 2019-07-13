@@ -47,11 +47,12 @@ public class BaseTest {
   }
 
   protected NetworkEmulatorTransport createTransport() {
-    return new NetworkEmulatorTransport(TransportImpl.bindAwait());
+    return new NetworkEmulatorTransport(
+        TransportImpl.bindAwait(TransportConfig.defaultLocalConfig()));
   }
 
   protected NetworkEmulatorTransport createTransport(TransportConfig transportConfig) {
-    return new NetworkEmulatorTransport(TransportImpl.bindAwait(transportConfig));
+    return new NetworkEmulatorTransport(TransportImpl.bindAwait(transportConfig.host("localhost")));
   }
 
   protected void destroyTransport(Transport transport) {

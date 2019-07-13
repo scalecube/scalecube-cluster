@@ -352,7 +352,11 @@ public final class TransportImpl implements Transport {
         .option(ChannelOption.TCP_NODELAY, true)
         .option(ChannelOption.SO_KEEPALIVE, true)
         .option(ChannelOption.SO_REUSEADDR, true)
-        .addressSupplier(() -> new InetSocketAddress(config.port()))
+        .addressSupplier(
+            () ->
+                config.host() == null
+                    ? new InetSocketAddress(config.port())
+                    : new InetSocketAddress(config.host(), config.port()))
         .bootstrap(b -> BootstrapHandlers.updateConfiguration(b, "inbound", channelInitializer));
   }
 
