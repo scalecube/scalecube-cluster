@@ -2,7 +2,6 @@ package io.scalecube.cluster;
 
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
-import io.scalecube.cluster.membership.IdGenerator;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipProtocolImpl;
 import io.scalecube.cluster.metadata.MetadataStore;
@@ -285,7 +284,8 @@ public final class ClusterImpl implements Cluster {
         Optional.ofNullable(config.memberHost())
             .map(memberHost -> Address.create(memberHost, port))
             .orElseGet(() -> Address.create(localAddress, listenPort));
-    return new Member(IdGenerator.generateId(), memberAddress);
+
+    return new Member(memberAddress);
   }
 
   @Override
