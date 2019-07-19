@@ -22,7 +22,7 @@ public interface MetadataStore {
    *
    * @return local member metadata
    */
-  Object metadata();
+  <T> Optional<T> metadata();
 
   /**
    * Returns cluster member metadata from local store.
