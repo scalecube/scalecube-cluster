@@ -64,11 +64,10 @@ public final class ClusterConfig implements Cloneable {
    */
   public static ClusterConfig defaultWanConfig() {
     return defaultConfig()
-        .membership(
-            opts ->
-                opts.suspicionMult(MembershipConfig.DEFAULT_WAN_SUSPICION_MULT)
-                    .syncInterval(MembershipConfig.DEFAULT_WAN_SYNC_INTERVAL))
-        .transport(opts -> opts.connectTimeout(TransportConfig.DEFAULT_WAN_CONNECT_TIMEOUT))
+        .failureDetector(opts -> FailureDetectorConfig.defaultWanConfig())
+        .gossip(opts -> GossipConfig.defaultWanConfig())
+        .membership(opts -> MembershipConfig.defaultWanConfig())
+        .transport(opts -> TransportConfig.defaultWanConfig())
         .metadataTimeout(DEFAULT_WAN_METADATA_TIMEOUT);
   }
 
@@ -79,11 +78,10 @@ public final class ClusterConfig implements Cloneable {
    */
   public static ClusterConfig defaultLocalConfig() {
     return defaultConfig()
-        .membership(
-            opts ->
-                opts.suspicionMult(MembershipConfig.DEFAULT_LOCAL_SUSPICION_MULT)
-                    .syncInterval(MembershipConfig.DEFAULT_LOCAL_SYNC_INTERVAL))
-        .transport(opts -> opts.connectTimeout(TransportConfig.DEFAULT_LOCAL_CONNECT_TIMEOUT))
+        .failureDetector(opts -> FailureDetectorConfig.defaultLocalConfig())
+        .gossip(opts -> GossipConfig.defaultLocalConfig())
+        .membership(opts -> MembershipConfig.defaultLocalConfig())
+        .transport(opts -> TransportConfig.defaultLocalConfig())
         .metadataTimeout(DEFAULT_LOCAL_METADATA_TIMEOUT);
   }
 
