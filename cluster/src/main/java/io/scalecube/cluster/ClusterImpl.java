@@ -227,7 +227,6 @@ public final class ClusterImpl implements Cluster {
   }
 
   private void validateConfiguration() {
-    Objects.requireNonNull(config.metadata(), "Invalid cluster config: metadata must be specified");
     Objects.requireNonNull(
         config.metadataDecoder(), "Invalid cluster config: metadataDecoder must be specified");
     Objects.requireNonNull(
@@ -329,15 +328,14 @@ public final class ClusterImpl implements Cluster {
   }
 
   @Override
-  public <T> T metadata() {
-    //noinspection unchecked
-    return (T) metadataStore.metadata();
+  public <T> Optional<T> metadata() {
+    return metadataStore.metadata();
   }
 
   @Override
   public <T> Optional<T> metadata(Member member) {
     if (member().equals(member)) {
-      return Optional.of(metadata());
+      return metadata();
     }
     return metadataStore
         .metadata(member)
@@ -465,7 +463,8 @@ public final class ClusterImpl implements Cluster {
 
     @Override
     public Collection<String> getMetadata() {
-      return Collections.singletonList(cluster.metadataStore.metadata().toString());
+      return Collections.singletonList(
+          cluster.metadataStore.metadata().map(Object::toString).orElse(null));
     }
   }
 
