@@ -53,7 +53,7 @@ public class MetadataStoreImpl implements MetadataStore {
    *
    * @param localMember local member
    * @param transport transport
-   * @param localMetadata local metadata (nullable)
+   * @param localMetadata local metadata (optional)
    * @param config config
    * @param scheduler scheduler
    * @param cidGenerator correlationId generator
@@ -70,7 +70,7 @@ public class MetadataStoreImpl implements MetadataStore {
     this.config = Objects.requireNonNull(config);
     this.scheduler = Objects.requireNonNull(scheduler);
     this.cidGenerator = Objects.requireNonNull(cidGenerator);
-    this.localMetadata = Objects.requireNonNull(localMetadata);
+    this.localMetadata = localMetadata; // optional
   }
 
   @Override
@@ -93,8 +93,9 @@ public class MetadataStoreImpl implements MetadataStore {
   }
 
   @Override
-  public Object metadata() {
-    return localMetadata;
+  public <T> Optional<T> metadata() {
+    //noinspection unchecked
+    return Optional.ofNullable((T) localMetadata);
   }
 
   @Override
@@ -104,7 +105,6 @@ public class MetadataStoreImpl implements MetadataStore {
 
   @Override
   public void updateMetadata(Object metadata) {
-    Objects.requireNonNull(metadata, "updateMetadata(): metadata must be not null");
     localMetadata = metadata;
   }
 

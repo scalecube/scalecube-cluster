@@ -2,7 +2,6 @@ package io.scalecube.cluster;
 
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
-import io.scalecube.cluster.membership.IdGenerator;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipProtocolImpl;
 import io.scalecube.cluster.metadata.MetadataStore;
@@ -228,7 +227,6 @@ public final class ClusterImpl implements Cluster {
   }
 
   private void validateConfiguration() {
-    Objects.requireNonNull(config.metadata(), "Invalid cluster config: metadata must be specified");
     Objects.requireNonNull(
         config.metadataDecoder(), "Invalid cluster config: metadataDecoder must be specified");
     Objects.requireNonNull(
@@ -285,7 +283,8 @@ public final class ClusterImpl implements Cluster {
         Optional.ofNullable(config.memberHost())
             .map(memberHost -> Address.create(memberHost, port))
             .orElseGet(() -> Address.create(localAddress, listenPort));
-    return new Member(IdGenerator.generateId(), memberAddress);
+
+    return new Member(memberAddress);
   }
 
   @Override
@@ -329,15 +328,14 @@ public final class ClusterImpl implements Cluster {
   }
 
   @Override
-  public <T> T metadata() {
-    //noinspection unchecked
-    return (T) metadataStore.metadata();
+  public <T> Optional<T> metadata() {
+    return metadataStore.metadata();
   }
 
   @Override
   public <T> Optional<T> metadata(Member member) {
     if (member().equals(member)) {
-      return Optional.of(metadata());
+      return metadata();
     }
     return metadataStore
         .metadata(member)
@@ -437,7 +435,11 @@ public final class ClusterImpl implements Cluster {
 
     Collection<String> getMember();
 
+    String getMemberAsString();
+
     Collection<String> getMetadata();
+
+    String getMetadataAsString();
   }
 
   public static class JmxMonitorMBean implements MonitorMBean {
@@ -464,8 +466,19 @@ public final class ClusterImpl implements Cluster {
     }
 
     @Override
+    public String getMemberAsString() {
+      return getMember().iterator().next();
+    }
+
+    @Override
     public Collection<String> getMetadata() {
-      return Collections.singletonList(cluster.metadataStore.metadata().toString());
+      return Collections.singletonList(
+          String.valueOf(cluster.metadataStore.metadata().map(Object::toString).orElse(null)));
+    }
+
+    @Override
+    public String getMetadataAsString() {
+      return getMetadata().iterator().next();
     }
   }
 

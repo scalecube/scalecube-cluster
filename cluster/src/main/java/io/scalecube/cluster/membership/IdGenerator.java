@@ -5,6 +5,8 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 
+/** Deprecated as of 2.4.2. */
+@Deprecated
 public final class IdGenerator {
 
   private static final int DEFAULT_SIZE = 10;

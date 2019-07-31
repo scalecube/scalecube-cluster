@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
@@ -41,7 +40,6 @@ import reactor.core.scheduler.Schedulers;
 public class MembershipProtocolTest extends BaseTest {
 
   public static final Duration TIMEOUT = Duration.ofSeconds(10);
-  public static final Map<String, String> METADATA = Collections.singletonMap("meta", "data");
 
   public static final int TEST_SYNC_INTERVAL = 500;
   public static final int PING_INTERVAL = 200;
@@ -935,7 +933,7 @@ public class MembershipProtocolTest extends BaseTest {
   }
 
   private MembershipProtocolImpl createMembership(Transport transport, ClusterConfig config) {
-    Member localMember = new Member(IdGenerator.generateId(), transport.address());
+    Member localMember = new Member(transport.address());
 
     DirectProcessor<MembershipEvent> membershipProcessor = DirectProcessor.create();
     FluxSink<MembershipEvent> membershipSink = membershipProcessor.sink();
@@ -956,7 +954,7 @@ public class MembershipProtocolTest extends BaseTest {
             localMember, transport, membershipProcessor, config.gossipConfig(), scheduler);
 
     MetadataStoreImpl metadataStore =
-        new MetadataStoreImpl(localMember, transport, METADATA, config, scheduler, cidGenerator);
+        new MetadataStoreImpl(localMember, transport, null, config, scheduler, cidGenerator);
 
     MembershipProtocolImpl membership =
         new MembershipProtocolImpl(
@@ -994,15 +992,11 @@ public class MembershipProtocolTest extends BaseTest {
     if (membership == null) {
       return;
     }
-    membership.stop();
     membership.getMetadataStore().stop();
+    membership.stop();
     membership.getGossipProtocol().stop();
     membership.getFailureDetector().stop();
-    try {
-      membership.getTransport().stop().block(Duration.ofSeconds(1));
-    } catch (Exception ignore) {
-      // ignore
-    }
+    membership.getTransport().stop().block();
   }
 
   private Mono<Void> awaitUntil(Runnable assertAction) {
