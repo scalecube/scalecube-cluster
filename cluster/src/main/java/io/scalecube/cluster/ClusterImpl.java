@@ -435,7 +435,11 @@ public final class ClusterImpl implements Cluster {
 
     Collection<String> getMember();
 
+    String getMemberAsString();
+
     Collection<String> getMetadata();
+
+    String getMetadataAsString();
   }
 
   public static class JmxMonitorMBean implements MonitorMBean {
@@ -462,9 +466,19 @@ public final class ClusterImpl implements Cluster {
     }
 
     @Override
+    public String getMemberAsString() {
+      return getMember().iterator().next();
+    }
+
+    @Override
     public Collection<String> getMetadata() {
       return Collections.singletonList(
-          cluster.metadataStore.metadata().map(Object::toString).orElse(null));
+          String.valueOf(cluster.metadataStore.metadata().map(Object::toString).orElse(null)));
+    }
+
+    @Override
+    public String getMetadataAsString() {
+      return getMetadata().iterator().next();
     }
   }
 
