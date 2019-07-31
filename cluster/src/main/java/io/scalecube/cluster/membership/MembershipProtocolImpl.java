@@ -724,9 +724,15 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
     List<String> getAliveMembers();
 
+    String getAliveMembersAsString();
+
     List<String> getSuspectedMembers();
 
+    String getSuspectedMembersAsString();
+
     List<String> getDeadMembers();
+
+    String getDeadMembersAsString();
   }
 
   public static class JmxMonitorMBean implements MonitorMBean {
@@ -770,8 +776,18 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     }
 
     @Override
+    public String getAliveMembersAsString() {
+      return getAliveMembers().stream().collect(Collectors.joining(",", "[", "]"));
+    }
+
+    @Override
     public List<String> getSuspectedMembers() {
       return findRecordsByCondition(MembershipRecord::isSuspect);
+    }
+
+    @Override
+    public String getSuspectedMembersAsString() {
+      return getSuspectedMembers().stream().collect(Collectors.joining(",", "[", "]"));
     }
 
     @Override
@@ -779,6 +795,11 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       List<String> deadMembers = new ArrayList<>();
       removedMembersHistory.map(MembershipEvent::toString).subscribe(deadMembers::add);
       return deadMembers;
+    }
+
+    @Override
+    public String getDeadMembersAsString() {
+      return getDeadMembers().stream().collect(Collectors.joining(",", "[", "]"));
     }
 
     private List<String> findRecordsByCondition(Predicate<MembershipRecord> condition) {
