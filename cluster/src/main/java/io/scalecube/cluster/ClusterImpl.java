@@ -1,13 +1,17 @@
 package io.scalecube.cluster;
 
+import io.scalecube.cluster.fdetector.FailureDetectorConfig;
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
+import io.scalecube.cluster.gossip.GossipConfig;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
+import io.scalecube.cluster.membership.MembershipConfig;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipProtocolImpl;
 import io.scalecube.cluster.metadata.MetadataStore;
 import io.scalecube.cluster.metadata.MetadataStoreImpl;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
+import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.net.Address;
 import io.scalecube.transport.netty.TransportImpl;
 import java.lang.management.ManagementFactory;
@@ -126,6 +130,58 @@ public final class ClusterImpl implements Cluster {
     Objects.requireNonNull(options);
     ClusterImpl cluster = new ClusterImpl(this);
     cluster.config = options.apply(config);
+    return cluster;
+  }
+
+  /**
+   * Returns a new cluster's instance which will apply the given options.
+   *
+   * @param options transport config options
+   * @return new {@code ClusterImpl} instance
+   */
+  public ClusterImpl transport(UnaryOperator<TransportConfig> options) {
+    Objects.requireNonNull(options);
+    ClusterImpl cluster = new ClusterImpl(this);
+    cluster.config = config.transport(options);
+    return cluster;
+  }
+
+  /**
+   * Returns a new cluster's instance which will apply the given options.
+   *
+   * @param options failureDetector config options
+   * @return new {@code ClusterImpl} instance
+   */
+  public ClusterImpl failureDetector(UnaryOperator<FailureDetectorConfig> options) {
+    Objects.requireNonNull(options);
+    ClusterImpl cluster = new ClusterImpl(this);
+    cluster.config = config.failureDetector(options);
+    return cluster;
+  }
+
+  /**
+   * Returns a new cluster's instance which will apply the given options.
+   *
+   * @param options gossip config options
+   * @return new {@code ClusterImpl} instance
+   */
+  public ClusterImpl gossip(UnaryOperator<GossipConfig> options) {
+    Objects.requireNonNull(options);
+    ClusterImpl cluster = new ClusterImpl(this);
+    cluster.config = config.gossip(options);
+    return cluster;
+  }
+
+  /**
+   * Returns a new cluster's instance which will apply the given options.
+   *
+   * @param options membership config options
+   * @return new {@code ClusterImpl} instance
+   */
+  public ClusterImpl membership(UnaryOperator<MembershipConfig> options) {
+    Objects.requireNonNull(options);
+    ClusterImpl cluster = new ClusterImpl(this);
+    cluster.config = config.membership(options);
     return cluster;
   }
 

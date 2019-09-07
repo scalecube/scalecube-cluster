@@ -14,7 +14,7 @@ public class ClusterCustomMetadataEncodingExample {
     // Start seed cluster member Alice
     Cluster alice =
         new ClusterImpl()
-            .config(config -> config.metadataDecoder(new LongMetadataDecoder()))
+            .config(opts -> opts.metadataDecoder(new LongMetadataDecoder()))
             .startAwait();
     System.out.println(
         "[" + alice.member().id() + "] Alice's metadata: " + alice.metadata().orElse(null));
@@ -22,12 +22,11 @@ public class ClusterCustomMetadataEncodingExample {
     Cluster joe =
         new ClusterImpl()
             .config(
-                config ->
-                    config
-                        .membership(opts -> opts.seedMembers(alice.address()))
-                        .metadataDecoder(new LongMetadataDecoder())
+                opts ->
+                    opts.metadataDecoder(new LongMetadataDecoder())
                         .metadataEncoder(new LongMetadataEncoder())
                         .metadata(123L))
+            .membership(opts -> opts.seedMembers(alice.address()))
             .startAwait();
     System.out.println(
         "[" + joe.member().id() + "] Joe's metadata: " + joe.metadata().orElse(null));
@@ -35,12 +34,11 @@ public class ClusterCustomMetadataEncodingExample {
     Cluster bob =
         new ClusterImpl()
             .config(
-                config ->
-                    config
-                        .membership(opts -> opts.seedMembers(alice.address()))
-                        .metadataDecoder(new LongMetadataDecoder())
+                opts ->
+                    opts.metadataDecoder(new LongMetadataDecoder())
                         .metadataEncoder(new LongMetadataEncoder())
                         .metadata(456L))
+            .membership(opts -> opts.seedMembers(alice.address()))
             .startAwait();
     System.out.println(
         "[" + bob.member().id() + "] Bob's metadata: " + bob.metadata().orElse(null));
