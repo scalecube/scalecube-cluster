@@ -17,23 +17,20 @@ import java.util.Map;
 public class ClusterJoinExamples {
 
   /** Main method. */
-  public static void main(String[] args) throws Exception {
+  public static void main(String[] args) {
     // Start seed member Alice
     Cluster alice = new ClusterImpl().startAwait();
 
     // Join Bob to cluster with Alice
     Cluster bob =
-        new ClusterImpl()
-            .config(config -> config.membership(opts -> opts.seedMembers(alice.address())))
-            .startAwait();
+        new ClusterImpl().membership(opts -> opts.seedMembers(alice.address())).startAwait();
 
     // Join Carol to cluster with metadata
     Map<String, String> metadata = Collections.singletonMap("name", "Carol");
     Cluster carol =
         new ClusterImpl()
-            .config(
-                config ->
-                    config.membership(opts -> opts.seedMembers(alice.address())).metadata(metadata))
+            .config(opts -> opts.metadata(metadata))
+            .membership(opts -> opts.seedMembers(alice.address()))
             .startAwait();
 
     // Start Dan on port 3000
