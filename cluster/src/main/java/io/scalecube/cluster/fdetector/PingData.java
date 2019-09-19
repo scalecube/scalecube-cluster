@@ -1,6 +1,7 @@
 package io.scalecube.cluster.fdetector;
 
 import io.scalecube.cluster.Member;
+import java.util.StringJoiner;
 
 /** DTO class. Supports FailureDetector messages (Ping, Ack, PingReq). */
 final class PingData {
@@ -79,15 +80,11 @@ final class PingData {
 
   @Override
   public String toString() {
-    return "PingData{"
-        + "from="
-        + from
-        + ", to="
-        + to
-        + ", originalIssuer="
-        + originalIssuer
-        + ", ackType="
-        + ackType
-        + '}';
+    return new StringJoiner(", ", PingData.class.getSimpleName() + "[", "]")
+        .add("from=" + from)
+        .add("to=" + to)
+        .add("originalIssuer=" + originalIssuer)
+        .add("ackType=" + ackType)
+        .toString();
   }
 }

@@ -3,6 +3,7 @@ package io.scalecube.cluster.gossip;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
+import java.util.StringJoiner;
 
 /** Data related to gossip, maintained locally on each node. */
 final class GossipState {
@@ -39,12 +40,10 @@ final class GossipState {
 
   @Override
   public String toString() {
-    return "GossipState{gossip="
-        + gossip
-        + ", infectionPeriod="
-        + infectionPeriod
-        + ", infected="
-        + infected
-        + '}';
+    return new StringJoiner(", ", GossipState.class.getSimpleName() + "[", "]")
+        .add("gossip=" + gossip)
+        .add("infectionPeriod=" + infectionPeriod)
+        .add("infected=" + infected)
+        .toString();
   }
 }

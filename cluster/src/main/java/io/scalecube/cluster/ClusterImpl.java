@@ -340,7 +340,11 @@ public final class ClusterImpl implements Cluster {
             .map(memberHost -> Address.create(memberHost, port))
             .orElseGet(() -> Address.create(localAddress, listenPort));
 
-    return new Member(memberAddress);
+    if (config.memberId() != null) {
+      return new Member(config.memberId(), memberAddress);
+    } else {
+      return new Member(memberAddress);
+    }
   }
 
   @Override

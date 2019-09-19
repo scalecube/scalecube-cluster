@@ -7,6 +7,7 @@ import io.scalecube.cluster.metadata.MetadataDecoder;
 import io.scalecube.cluster.metadata.MetadataEncoder;
 import io.scalecube.cluster.transport.api.TransportConfig;
 import java.util.Optional;
+import java.util.StringJoiner;
 import java.util.function.UnaryOperator;
 import reactor.core.Exceptions;
 
@@ -34,6 +35,7 @@ public final class ClusterConfig implements Cloneable {
   private MetadataEncoder metadataEncoder = MetadataEncoder.INSTANCE;
   private MetadataDecoder metadataDecoder = MetadataDecoder.INSTANCE;
 
+  private String memberId;
   private String memberHost;
   private Integer memberPort;
 
@@ -158,11 +160,27 @@ public final class ClusterConfig implements Cloneable {
    * Sets a memberHost.
    *
    * @param memberHost member host
-   * @return new {@code ClusterConfig} instance@return
+   * @return new {@code ClusterConfig} instance
    */
   public ClusterConfig memberHost(String memberHost) {
     ClusterConfig c = clone();
     c.memberHost = memberHost;
+    return c;
+  }
+
+  public String memberId() {
+    return memberId;
+  }
+
+  /**
+   * Sets a memberId.
+   *
+   * @param memberId member id
+   * @return new {@code ClusterConfig} instance
+   */
+  public ClusterConfig memberId(String memberId) {
+    ClusterConfig c = clone();
+    c.memberId = memberId;
     return c;
   }
 
@@ -262,29 +280,19 @@ public final class ClusterConfig implements Cloneable {
 
   @Override
   public String toString() {
-    return "ClusterConfig{"
-        + "metadata="
-        + metadataAsString()
-        + ", metadataTimeout="
-        + metadataTimeout
-        + ", metadataEncoder="
-        + metadataEncoder
-        + ", metadataDecoder="
-        + metadataDecoder
-        + ", memberHost='"
-        + memberHost
-        + '\''
-        + ", memberPort="
-        + memberPort
-        + ", transportConfig="
-        + transportConfig
-        + ", failureDetectorConfig="
-        + failureDetectorConfig
-        + ", gossipConfig="
-        + gossipConfig
-        + ", membershipConfig="
-        + membershipConfig
-        + '}';
+    return new StringJoiner(", ", ClusterConfig.class.getSimpleName() + "[", "]")
+        .add("metadata=" + metadataAsString())
+        .add("metadataTimeout=" + metadataTimeout)
+        .add("metadataEncoder=" + metadataEncoder)
+        .add("metadataDecoder=" + metadataDecoder)
+        .add("memberId='" + memberId + "'")
+        .add("memberHost='" + memberHost + "'")
+        .add("memberPort=" + memberPort)
+        .add("transportConfig=" + transportConfig)
+        .add("failureDetectorConfig=" + failureDetectorConfig)
+        .add("gossipConfig=" + gossipConfig)
+        .add("membershipConfig=" + membershipConfig)
+        .toString();
   }
 
   private String metadataAsString() {

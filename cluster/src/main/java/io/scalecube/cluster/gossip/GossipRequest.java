@@ -3,6 +3,7 @@ package io.scalecube.cluster.gossip;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.StringJoiner;
 
 /** Gossip request which be transmitted through the network, contains list of gossips. */
 final class GossipRequest {
@@ -32,6 +33,9 @@ final class GossipRequest {
 
   @Override
   public String toString() {
-    return "GossipRequest{gossips=" + gossips + ", from=" + from + '}';
+    return new StringJoiner(", ", GossipRequest.class.getSimpleName() + "[", "]")
+        .add("gossips=" + gossips)
+        .add("from='" + from + "'")
+        .toString();
   }
 }

@@ -1,5 +1,6 @@
 package io.scalecube.cluster.gossip;
 
+import java.util.StringJoiner;
 import reactor.core.Exceptions;
 
 public final class GossipConfig implements Cloneable {
@@ -115,13 +116,10 @@ public final class GossipConfig implements Cloneable {
 
   @Override
   public String toString() {
-    return "GossipConfig{"
-        + "gossipFanout="
-        + gossipFanout
-        + ", gossipInterval="
-        + gossipInterval
-        + ", gossipRepeatMult="
-        + gossipRepeatMult
-        + '}';
+    return new StringJoiner(", ", GossipConfig.class.getSimpleName() + "[", "]")
+        .add("gossipFanout=" + gossipFanout)
+        .add("gossipInterval=" + gossipInterval)
+        .add("gossipRepeatMult=" + gossipRepeatMult)
+        .toString();
   }
 }

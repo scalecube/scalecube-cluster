@@ -2,6 +2,7 @@ package io.scalecube.cluster.metadata;
 
 import io.scalecube.cluster.Member;
 import java.nio.ByteBuffer;
+import java.util.StringJoiner;
 
 /**
  * DTO class. Stands for response for preceding remote request on getting metadata in remote
@@ -33,6 +34,9 @@ final class GetMetadataResponse {
 
   @Override
   public String toString() {
-    return "GetMetadataResponse{" + "member=" + member + ", metadata=" + metadata.remaining() + '}';
+    return new StringJoiner(", ", GetMetadataResponse.class.getSimpleName() + "[", "]")
+        .add("member=" + member)
+        .add("metadata=" + metadata.remaining())
+        .toString();
   }
 }
