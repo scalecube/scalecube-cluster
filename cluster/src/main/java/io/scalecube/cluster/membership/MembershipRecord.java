@@ -5,7 +5,6 @@ import static io.scalecube.cluster.membership.MemberStatus.DEAD;
 import static io.scalecube.cluster.membership.MemberStatus.SUSPECT;
 
 import io.scalecube.cluster.Member;
-import io.scalecube.net.Address;
 import java.util.Objects;
 
 /** Cluster membership record which represents member, status, and incarnation. */
@@ -27,14 +26,6 @@ final class MembershipRecord {
 
   public Member member() {
     return member;
-  }
-
-  public String id() {
-    return member.id();
-  }
-
-  public Address address() {
-    return member.address();
   }
 
   public MemberStatus status() {

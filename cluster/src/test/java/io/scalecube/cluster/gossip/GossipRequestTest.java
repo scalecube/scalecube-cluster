@@ -38,7 +38,7 @@ public class GossipRequestTest extends BaseTest {
   @Test
   public void testSerializationAndDeserialization() throws Exception {
 
-    Member from = new Member("0", Address.from("localhost:1234"));
+    Member from = new Member("0", null, Address.from("localhost:1234"));
     List<Gossip> gossips = getGossips();
     Message message =
         Message.withData(new GossipRequest(gossips, from.id())).correlationId("CORR_ID").build();
