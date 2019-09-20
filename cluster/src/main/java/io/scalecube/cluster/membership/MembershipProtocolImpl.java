@@ -3,6 +3,7 @@ package io.scalecube.cluster.membership;
 import static io.scalecube.cluster.membership.MemberStatus.ALIVE;
 import static io.scalecube.cluster.membership.MemberStatus.DEAD;
 
+import io.scalecube.cluster.AbstractMonitorMBean;
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.CorrelationIdGenerator;
@@ -15,7 +16,6 @@ import io.scalecube.cluster.metadata.MetadataStore;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.net.Address;
-import java.lang.management.ManagementFactory;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -33,9 +33,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import javax.management.MBeanServer;
-import javax.management.ObjectName;
-import javax.management.StandardMBean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
@@ -214,9 +211,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   @Override
   public Mono<Void> start() {
     // Make initial sync with all seed members
-    return Mono.create(this::start0)
-        .then(Mono.fromCallable(() -> JmxMonitorMBean.start(this)))
-        .then();
+    return Mono.create(this::start0).then(startJmxMonitor());
   }
 
   private void start0(MonoSink<Object> sink) {
@@ -254,6 +249,10 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
             })
         .subscribe(
             null, ex -> LOGGER.debug("Exception on initial SyncAck, cause: {}", ex.toString()));
+  }
+
+  private Mono<Void> startJmxMonitor() {
+    return Mono.fromCallable(() -> AbstractMonitorMBean.register(new JmxMonitorMBean(this))).then();
   }
 
   @Override
@@ -735,7 +734,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     String getDeadMembersAsString();
   }
 
-  public static class JmxMonitorMBean implements MonitorMBean {
+  public static class JmxMonitorMBean extends AbstractMonitorMBean implements MonitorMBean {
 
     public static final int REMOVED_MEMBERS_HISTORY_SIZE = 42;
 
@@ -749,18 +748,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           .listen()
           .filter(MembershipEvent::isRemoved)
           .subscribe(removedMembersHistory);
-    }
-
-    private static JmxMonitorMBean start(MembershipProtocolImpl membershipProtocol)
-        throws Exception {
-      JmxMonitorMBean monitorMBean = new JmxMonitorMBean(membershipProtocol);
-      MBeanServer server = ManagementFactory.getPlatformMBeanServer();
-      ObjectName objectName =
-          new ObjectName(
-              "io.scalecube.cluster:name=Membership@" + membershipProtocol.localMember.id());
-      StandardMBean standardMBean = new StandardMBean(monitorMBean, MonitorMBean.class);
-      server.registerMBean(standardMBean, objectName);
-      return monitorMBean;
     }
 
     @Override
@@ -808,6 +795,16 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           .map(record -> new Member(record.id(), record.address()))
           .map(Member::toString)
           .collect(Collectors.toList());
+    }
+
+    @Override
+    protected Class getBeanType() {
+      return MonitorMBean.class;
+    }
+
+    @Override
+    protected String getObjectName() {
+      return "io.scalecube.cluster:name=Membership@" + membershipProtocol.localMember.id();
     }
   }
 }
