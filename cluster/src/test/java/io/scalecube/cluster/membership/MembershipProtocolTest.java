@@ -933,7 +933,7 @@ public class MembershipProtocolTest extends BaseTest {
   }
 
   private MembershipProtocolImpl createMembership(Transport transport, ClusterConfig config) {
-    Member localMember = new Member(transport.address());
+    Member localMember = new Member(Member.generateId(), null, transport.address());
 
     DirectProcessor<MembershipEvent> membershipProcessor = DirectProcessor.create();
     FluxSink<MembershipEvent> membershipSink = membershipProcessor.sink();

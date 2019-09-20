@@ -340,11 +340,7 @@ public final class ClusterImpl implements Cluster {
             .map(memberHost -> Address.create(memberHost, port))
             .orElseGet(() -> Address.create(localAddress, listenPort));
 
-    if (config.memberId() != null) {
-      return new Member(config.memberId(), memberAddress);
-    } else {
-      return new Member(memberAddress);
-    }
+    return new Member(Member.generateId(), config.memberAlias(), memberAddress);
   }
 
   @Override
@@ -492,6 +488,10 @@ public final class ClusterImpl implements Cluster {
 
     String getIdAsString();
 
+    Collection<String> getAlias();
+
+    String getAliasAsString();
+
     Collection<String> getAddress();
 
     String getAddressAsString();
@@ -511,33 +511,42 @@ public final class ClusterImpl implements Cluster {
 
     @Override
     public Collection<String> getId() {
-      return Collections.singleton(cluster.member().id());
+      return Collections.singleton(getIdAsString());
     }
 
     @Override
     public String getIdAsString() {
-      return getId().iterator().next();
+      return cluster.member().id();
+    }
+
+    @Override
+    public Collection<String> getAlias() {
+      return Collections.singleton(getAliasAsString());
+    }
+
+    @Override
+    public String getAliasAsString() {
+      return cluster.member().alias();
     }
 
     @Override
     public Collection<String> getAddress() {
-      return Collections.singleton(String.valueOf(cluster.member().address()));
+      return Collections.singleton(getAddressAsString());
     }
 
     @Override
     public String getAddressAsString() {
-      return getAddress().iterator().next();
+      return String.valueOf(cluster.member().address());
     }
 
     @Override
     public Collection<String> getMetadata() {
-      return Collections.singletonList(
-          String.valueOf(cluster.metadataStore.metadata().map(Object::toString).orElse(null)));
+      return Collections.singletonList(getMetadataAsString());
     }
 
     @Override
     public String getMetadataAsString() {
-      return getMetadata().iterator().next();
+      return String.valueOf(cluster.metadataStore.metadata().map(Object::toString).orElse(null));
     }
 
     @Override

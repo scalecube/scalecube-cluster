@@ -12,8 +12,8 @@ public abstract class AbstractMonitorMBean {
    * Registers monitor mbean.
    *
    * @param other monitor mbean instance
-   * @throws Exception in case of error
    * @return object instance
+   * @throws Exception in case of error
    */
   public static ObjectInstance register(AbstractMonitorMBean other) throws Exception {
     Object bean = other.getBeanType().cast(other);

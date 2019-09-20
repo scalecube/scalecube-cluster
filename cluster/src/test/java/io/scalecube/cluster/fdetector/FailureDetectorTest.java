@@ -409,12 +409,13 @@ public class FailureDetectorTest extends BaseTest {
   private FailureDetectorImpl createFd(
       Transport transport, List<Address> addresses, FailureDetectorConfig config) {
 
-    Member localMember = new Member("member-" + transport.address().port(), transport.address());
+    Member localMember =
+        new Member("member-" + transport.address().port(), null, transport.address());
 
     Flux<MembershipEvent> membershipFlux =
         Flux.fromIterable(addresses)
             .filter(address -> !transport.address().equals(address))
-            .map(address -> new Member("member-" + address.port(), address))
+            .map(address -> new Member("member-" + address.port(), null, address))
             .map(member -> MembershipEvent.createAdded(member, null));
 
     CorrelationIdGenerator cidGenerator = new CorrelationIdGenerator(localMember.id());
