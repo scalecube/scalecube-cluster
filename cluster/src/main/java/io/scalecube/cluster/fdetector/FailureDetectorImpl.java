@@ -28,7 +28,7 @@ import reactor.core.scheduler.Scheduler;
 
 public final class FailureDetectorImpl implements FailureDetector {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(FailureDetectorImpl.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(FailureDetector.class);
 
   // Qualifiers
 

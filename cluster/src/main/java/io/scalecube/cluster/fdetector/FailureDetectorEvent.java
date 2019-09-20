@@ -2,6 +2,7 @@ package io.scalecube.cluster.fdetector;
 
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.membership.MemberStatus;
+import java.util.StringJoiner;
 
 /** CLass contains result of ping check. */
 public final class FailureDetectorEvent {
@@ -24,6 +25,9 @@ public final class FailureDetectorEvent {
 
   @Override
   public String toString() {
-    return "FailureDetectorEvent{member=" + member + ", status=" + status + '}';
+    return new StringJoiner(", ", FailureDetectorEvent.class.getSimpleName() + "[", "]")
+        .add("member=" + member)
+        .add("status=" + status)
+        .toString();
   }
 }

@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.StringJoiner;
 
 /**
  * The Class Message introduces generic protocol used for point to point communication by transport.
@@ -184,7 +185,11 @@ public final class Message {
 
   @Override
   public String toString() {
-    return "Message {headers: " + headers + ", sender: " + sender + ", data: " + data + '}';
+    return new StringJoiner(", ", Message.class.getSimpleName() + "[", "]")
+        .add("sender=" + sender)
+        .add("headers=" + headers)
+        .add("data=" + data)
+        .toString();
   }
 
   public static class Builder {

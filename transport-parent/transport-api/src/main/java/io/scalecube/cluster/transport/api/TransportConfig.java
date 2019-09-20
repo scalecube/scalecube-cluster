@@ -1,5 +1,6 @@
 package io.scalecube.cluster.transport.api;
 
+import java.util.StringJoiner;
 import reactor.core.Exceptions;
 
 public final class TransportConfig implements Cloneable {
@@ -143,17 +144,12 @@ public final class TransportConfig implements Cloneable {
 
   @Override
   public String toString() {
-    return "TransportConfig{"
-        + "host="
-        + host
-        + ", port="
-        + port
-        + ", connectTimeout="
-        + connectTimeout
-        + ", messageCodec="
-        + messageCodec
-        + ", maxFrameLength="
-        + maxFrameLength
-        + '}';
+    return new StringJoiner(", ", TransportConfig.class.getSimpleName() + "[", "]")
+        .add("host='" + host + "'")
+        .add("port=" + port)
+        .add("connectTimeout=" + connectTimeout)
+        .add("messageCodec=" + messageCodec)
+        .add("maxFrameLength=" + maxFrameLength)
+        .toString();
   }
 }

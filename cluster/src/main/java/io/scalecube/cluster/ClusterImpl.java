@@ -1,13 +1,17 @@
 package io.scalecube.cluster;
 
+import io.scalecube.cluster.fdetector.FailureDetectorConfig;
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
+import io.scalecube.cluster.gossip.GossipConfig;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
+import io.scalecube.cluster.membership.MembershipConfig;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipProtocolImpl;
 import io.scalecube.cluster.metadata.MetadataStore;
 import io.scalecube.cluster.metadata.MetadataStoreImpl;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
+import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.net.Address;
 import io.scalecube.transport.netty.TransportImpl;
 import java.lang.management.ManagementFactory;
@@ -38,7 +42,7 @@ import reactor.core.scheduler.Schedulers;
 /** Cluster implementation. */
 public final class ClusterImpl implements Cluster {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(ClusterImpl.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(Cluster.class);
 
   private static final Set<String> SYSTEM_MESSAGES =
       Collections.unmodifiableSet(
@@ -126,6 +130,58 @@ public final class ClusterImpl implements Cluster {
     Objects.requireNonNull(options);
     ClusterImpl cluster = new ClusterImpl(this);
     cluster.config = options.apply(config);
+    return cluster;
+  }
+
+  /**
+   * Returns a new cluster's instance which will apply the given options.
+   *
+   * @param options transport config options
+   * @return new {@code ClusterImpl} instance
+   */
+  public ClusterImpl transport(UnaryOperator<TransportConfig> options) {
+    Objects.requireNonNull(options);
+    ClusterImpl cluster = new ClusterImpl(this);
+    cluster.config = config.transport(options);
+    return cluster;
+  }
+
+  /**
+   * Returns a new cluster's instance which will apply the given options.
+   *
+   * @param options failureDetector config options
+   * @return new {@code ClusterImpl} instance
+   */
+  public ClusterImpl failureDetector(UnaryOperator<FailureDetectorConfig> options) {
+    Objects.requireNonNull(options);
+    ClusterImpl cluster = new ClusterImpl(this);
+    cluster.config = config.failureDetector(options);
+    return cluster;
+  }
+
+  /**
+   * Returns a new cluster's instance which will apply the given options.
+   *
+   * @param options gossip config options
+   * @return new {@code ClusterImpl} instance
+   */
+  public ClusterImpl gossip(UnaryOperator<GossipConfig> options) {
+    Objects.requireNonNull(options);
+    ClusterImpl cluster = new ClusterImpl(this);
+    cluster.config = config.gossip(options);
+    return cluster;
+  }
+
+  /**
+   * Returns a new cluster's instance which will apply the given options.
+   *
+   * @param options membership config options
+   * @return new {@code ClusterImpl} instance
+   */
+  public ClusterImpl membership(UnaryOperator<MembershipConfig> options) {
+    Objects.requireNonNull(options);
+    ClusterImpl cluster = new ClusterImpl(this);
+    cluster.config = config.membership(options);
     return cluster;
   }
 
@@ -284,7 +340,11 @@ public final class ClusterImpl implements Cluster {
             .map(memberHost -> Address.create(memberHost, port))
             .orElseGet(() -> Address.create(localAddress, listenPort));
 
-    return new Member(memberAddress);
+    if (config.memberId() != null) {
+      return new Member(config.memberId(), memberAddress);
+    } else {
+      return new Member(memberAddress);
+    }
   }
 
   @Override
@@ -377,7 +437,7 @@ public final class ClusterImpl implements Cluster {
     return Mono.defer(
         () -> {
           LOGGER.info("Cluster member {} is shutting down", localMember);
-          return Flux.concatDelayError(leaveCluster(localMember), dispose(), transport.stop())
+          return Flux.concatDelayError(leaveCluster(), dispose(), transport.stop())
               .then()
               .doFinally(s -> scheduler.dispose())
               .doOnSuccess(
@@ -389,21 +449,15 @@ public final class ClusterImpl implements Cluster {
         });
   }
 
-  private Mono<Void> leaveCluster(Member member) {
+  private Mono<Void> leaveCluster() {
     return membership
         .leaveCluster()
         .subscribeOn(scheduler)
-        .doOnSuccess(
-            s ->
-                LOGGER.debug(
-                    "Cluster member {} notified about his leaving and shutting down", member))
+        .doOnSuccess(s -> LOGGER.debug("Cluster member {} has left a cluster", localMember))
         .doOnError(
             ex ->
                 LOGGER.info(
-                    "Cluster member {} failed to spread leave notification "
-                        + "to other cluster members: {}",
-                    member,
-                    ex.toString()))
+                    "Cluster member {} failed on leaveCluster: {}", localMember, ex.toString()))
         .then();
   }
 
@@ -433,9 +487,9 @@ public final class ClusterImpl implements Cluster {
 
   public interface MonitorMBean {
 
-    Collection<String> getMember();
+    Collection<String> getMemberId();
 
-    String getMemberAsString();
+    String getMemberIdAsString();
 
     Collection<String> getMetadata();
 
@@ -461,13 +515,13 @@ public final class ClusterImpl implements Cluster {
     }
 
     @Override
-    public Collection<String> getMember() {
+    public Collection<String> getMemberId() {
       return Collections.singleton(cluster.member().id());
     }
 
     @Override
-    public String getMemberAsString() {
-      return getMember().iterator().next();
+    public String getMemberIdAsString() {
+      return getMemberId().iterator().next();
     }
 
     @Override
