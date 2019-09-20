@@ -51,7 +51,7 @@ import reactor.core.scheduler.Scheduler;
 
 public final class MembershipProtocolImpl implements MembershipProtocol {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(MembershipProtocolImpl.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(MembershipProtocol.class);
   private static final Logger LOGGER_MEMBERSHIP =
       LoggerFactory.getLogger("io.scalecube.cluster.Membership");
 

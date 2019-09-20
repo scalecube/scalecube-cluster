@@ -3,6 +3,7 @@ package io.scalecube.cluster.membership;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.StringJoiner;
 
 /**
  * A class containing full membership table from specific member and used full synchronization
@@ -36,6 +37,9 @@ final class SyncData {
 
   @Override
   public String toString() {
-    return "SyncData{membership=" + membership + ", syncGroup=" + syncGroup + '}';
+    return new StringJoiner(", ", SyncData.class.getSimpleName() + "[", "]")
+        .add("membership=" + membership)
+        .add("syncGroup='" + syncGroup + "'")
+        .toString();
   }
 }

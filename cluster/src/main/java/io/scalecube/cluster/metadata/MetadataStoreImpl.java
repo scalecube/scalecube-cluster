@@ -21,7 +21,7 @@ import reactor.core.scheduler.Scheduler;
 
 public class MetadataStoreImpl implements MetadataStore {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(MetadataStoreImpl.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(MetadataStore.class);
 
   // Qualifiers
 

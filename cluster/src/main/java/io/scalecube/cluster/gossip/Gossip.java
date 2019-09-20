@@ -2,6 +2,7 @@ package io.scalecube.cluster.gossip;
 
 import io.scalecube.cluster.transport.api.Message;
 import java.util.Objects;
+import java.util.StringJoiner;
 
 /** Data model for gossip, include gossip id, qualifier and object need to disseminate. */
 final class Gossip {
@@ -44,6 +45,9 @@ final class Gossip {
 
   @Override
   public String toString() {
-    return "Gossip{gossipId=" + gossipId + ", message=" + message + '}';
+    return new StringJoiner(", ", Gossip.class.getSimpleName() + "[", "]")
+        .add("gossipId='" + gossipId + "'")
+        .add("message=" + message)
+        .toString();
   }
 }

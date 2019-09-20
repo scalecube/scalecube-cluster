@@ -1,6 +1,7 @@
 package io.scalecube.cluster.membership;
 
 import io.scalecube.cluster.Member;
+import java.util.StringJoiner;
 
 final class MembershipPingData {
   /** Message's destination address. */
@@ -19,9 +20,8 @@ final class MembershipPingData {
 
   @Override
   public String toString() {
-    final StringBuilder sb = new StringBuilder("MembershipPingData{");
-    sb.append("target=").append(target);
-    sb.append('}');
-    return sb.toString();
+    return new StringJoiner(", ", MembershipPingData.class.getSimpleName() + "[", "]")
+        .add("target=" + target)
+        .toString();
   }
 }

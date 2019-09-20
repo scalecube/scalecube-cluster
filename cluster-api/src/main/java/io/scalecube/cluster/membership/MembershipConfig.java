@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.StringJoiner;
 import reactor.core.Exceptions;
 
 public final class MembershipConfig implements Cloneable {
@@ -167,18 +168,12 @@ public final class MembershipConfig implements Cloneable {
 
   @Override
   public String toString() {
-    return "MembershipConfig{"
-        + "seedMembers="
-        + seedMembers
-        + ", syncInterval="
-        + syncInterval
-        + ", syncTimeout="
-        + syncTimeout
-        + ", suspicionMult="
-        + suspicionMult
-        + ", syncGroup='"
-        + syncGroup
-        + '\''
-        + '}';
+    return new StringJoiner(", ", MembershipConfig.class.getSimpleName() + "[", "]")
+        .add("seedMembers=" + seedMembers)
+        .add("syncInterval=" + syncInterval)
+        .add("syncTimeout=" + syncTimeout)
+        .add("suspicionMult=" + suspicionMult)
+        .add("syncGroup='" + syncGroup + "'")
+        .toString();
   }
 }

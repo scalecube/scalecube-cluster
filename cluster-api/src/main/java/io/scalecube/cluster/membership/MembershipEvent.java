@@ -3,6 +3,7 @@ package io.scalecube.cluster.membership;
 import io.scalecube.cluster.Member;
 import java.nio.ByteBuffer;
 import java.util.Objects;
+import java.util.StringJoiner;
 
 /**
  * Event which is emitted on cluster membership changes when new member added, updated in the
@@ -97,15 +98,12 @@ public final class MembershipEvent {
 
   @Override
   public String toString() {
-    return "MembershipEvent{type="
-        + type
-        + ", member="
-        + member
-        + ", newMetadata="
-        + metadataAsString(newMetadata)
-        + ", oldMetadata="
-        + metadataAsString(oldMetadata)
-        + '}';
+    return new StringJoiner(", ", MembershipEvent.class.getSimpleName() + "[", "]")
+        .add("type=" + type)
+        .add("member=" + member)
+        .add("oldMetadata=" + metadataAsString(oldMetadata))
+        .add("newMetadata=" + metadataAsString(newMetadata))
+        .toString();
   }
 
   private String metadataAsString(ByteBuffer metadata) {

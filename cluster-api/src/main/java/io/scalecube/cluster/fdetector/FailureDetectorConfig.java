@@ -1,5 +1,6 @@
 package io.scalecube.cluster.fdetector;
 
+import java.util.StringJoiner;
 import reactor.core.Exceptions;
 
 public final class FailureDetectorConfig implements Cloneable {
@@ -121,13 +122,10 @@ public final class FailureDetectorConfig implements Cloneable {
 
   @Override
   public String toString() {
-    return "FailureDetectorConfig{"
-        + "pingInterval="
-        + pingInterval
-        + ", pingTimeout="
-        + pingTimeout
-        + ", pingReqMembers="
-        + pingReqMembers
-        + '}';
+    return new StringJoiner(", ", FailureDetectorConfig.class.getSimpleName() + "[", "]")
+        .add("pingInterval=" + pingInterval)
+        .add("pingTimeout=" + pingTimeout)
+        .add("pingReqMembers=" + pingReqMembers)
+        .toString();
   }
 }

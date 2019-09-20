@@ -44,7 +44,7 @@ import reactor.netty.tcp.TcpServer;
 
 public final class TransportImpl implements Transport {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(TransportImpl.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(Transport.class);
 
   private final TransportConfig config;
   private final LoopResources loopResources;

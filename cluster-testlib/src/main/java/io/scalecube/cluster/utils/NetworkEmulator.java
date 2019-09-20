@@ -6,6 +6,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
+import java.util.StringJoiner;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
@@ -369,7 +370,10 @@ public final class NetworkEmulator {
 
     @Override
     public String toString() {
-      return "OutboundSettings{loss=" + lossPercent + ", delay=" + meanDelay + '}';
+      return new StringJoiner(", ", OutboundSettings.class.getSimpleName() + "[", "]")
+          .add("lossPercent=" + lossPercent)
+          .add("meanDelay=" + meanDelay)
+          .toString();
     }
   }
 
@@ -405,7 +409,9 @@ public final class NetworkEmulator {
 
     @Override
     public String toString() {
-      return "InboundSettings{shallPass=" + shallPass + '}';
+      return new StringJoiner(", ", InboundSettings.class.getSimpleName() + "[", "]")
+          .add("shallPass=" + shallPass)
+          .toString();
     }
   }
 }

@@ -68,6 +68,6 @@ public final class Member {
 
   @Override
   public String toString() {
-    return id + "@" + address;
+    return id + ":" + address.port();
   }
 }
