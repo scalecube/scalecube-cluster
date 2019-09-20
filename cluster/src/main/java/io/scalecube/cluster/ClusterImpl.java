@@ -14,7 +14,6 @@ import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.net.Address;
 import io.scalecube.transport.netty.TransportImpl;
-import java.lang.management.ManagementFactory;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
@@ -24,9 +23,6 @@ import java.util.function.Function;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import javax.management.MBeanServer;
-import javax.management.ObjectName;
-import javax.management.StandardMBean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
@@ -277,7 +273,7 @@ public final class ClusterImpl implements Cluster {
                   .then(Mono.fromRunnable(() -> metadataStore.start()))
                   .then(Mono.fromRunnable(this::startHandler))
                   .then((membership.start()))
-                  .then(Mono.fromCallable(() -> JmxMonitorMBean.start(this)));
+                  .then(startJmxMonitor());
             })
         .thenReturn(this);
   }
@@ -302,6 +298,10 @@ public final class ClusterImpl implements Cluster {
     actionsDisposables.add(listenMessage().subscribe(handler::onMessage, this::onError));
     actionsDisposables.add(listenMembership().subscribe(handler::onMembershipEvent, this::onError));
     actionsDisposables.add(listenGossip().subscribe(handler::onGossip, this::onError));
+  }
+
+  private Mono<Void> startJmxMonitor() {
+    return Mono.fromCallable(() -> AbstractMonitorMBean.register(new JmxMonitorMBean(this))).then();
   }
 
   private void onError(Throwable th) {
@@ -340,11 +340,7 @@ public final class ClusterImpl implements Cluster {
             .map(memberHost -> Address.create(memberHost, port))
             .orElseGet(() -> Address.create(localAddress, listenPort));
 
-    if (config.memberId() != null) {
-      return new Member(config.memberId(), memberAddress);
-    } else {
-      return new Member(memberAddress);
-    }
+    return new Member(Member.generateId(), config.memberAlias(), memberAddress);
   }
 
   @Override
@@ -485,18 +481,27 @@ public final class ClusterImpl implements Cluster {
     return onShutdown.isDisposed();
   }
 
+  @SuppressWarnings("unused")
   public interface MonitorMBean {
 
-    Collection<String> getMemberId();
+    Collection<String> getId();
 
-    String getMemberIdAsString();
+    String getIdAsString();
+
+    Collection<String> getAlias();
+
+    String getAliasAsString();
+
+    Collection<String> getAddress();
+
+    String getAddressAsString();
 
     Collection<String> getMetadata();
 
     String getMetadataAsString();
   }
 
-  public static class JmxMonitorMBean implements MonitorMBean {
+  public static class JmxMonitorMBean extends AbstractMonitorMBean implements MonitorMBean {
 
     private final ClusterImpl cluster;
 
@@ -504,35 +509,54 @@ public final class ClusterImpl implements Cluster {
       this.cluster = cluster;
     }
 
-    private static JmxMonitorMBean start(ClusterImpl cluster) throws Exception {
-      JmxMonitorMBean monitorMBean = new JmxMonitorMBean(cluster);
-      MBeanServer server = ManagementFactory.getPlatformMBeanServer();
-      StandardMBean standardMBean = new StandardMBean(monitorMBean, MonitorMBean.class);
-      ObjectName objectName =
-          new ObjectName("io.scalecube.cluster:name=Cluster@" + cluster.member().id());
-      server.registerMBean(standardMBean, objectName);
-      return monitorMBean;
+    @Override
+    public Collection<String> getId() {
+      return Collections.singleton(getIdAsString());
     }
 
     @Override
-    public Collection<String> getMemberId() {
-      return Collections.singleton(cluster.member().id());
+    public String getIdAsString() {
+      return cluster.member().id();
     }
 
     @Override
-    public String getMemberIdAsString() {
-      return getMemberId().iterator().next();
+    public Collection<String> getAlias() {
+      return Collections.singleton(getAliasAsString());
+    }
+
+    @Override
+    public String getAliasAsString() {
+      return cluster.member().alias();
+    }
+
+    @Override
+    public Collection<String> getAddress() {
+      return Collections.singleton(getAddressAsString());
+    }
+
+    @Override
+    public String getAddressAsString() {
+      return String.valueOf(cluster.member().address());
     }
 
     @Override
     public Collection<String> getMetadata() {
-      return Collections.singletonList(
-          String.valueOf(cluster.metadataStore.metadata().map(Object::toString).orElse(null)));
+      return Collections.singletonList(getMetadataAsString());
     }
 
     @Override
     public String getMetadataAsString() {
-      return getMetadata().iterator().next();
+      return String.valueOf(cluster.metadataStore.metadata().map(Object::toString).orElse(null));
+    }
+
+    @Override
+    protected Class getBeanType() {
+      return MonitorMBean.class;
+    }
+
+    @Override
+    protected String getObjectName() {
+      return "io.scalecube.cluster:name=Cluster@" + cluster.member().id();
     }
   }
 

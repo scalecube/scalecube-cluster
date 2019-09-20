@@ -255,12 +255,13 @@ class GossipProtocolTest extends BaseTest {
             .gossipInterval(gossipInterval)
             .gossipRepeatMult(gossipRepeatMultiplier);
 
-    Member localMember = new Member("member-" + transport.address().port(), transport.address());
+    Member localMember =
+        new Member("member-" + transport.address().port(), null, transport.address());
 
     Flux<MembershipEvent> membershipFlux =
         Flux.fromIterable(members)
             .filter(address -> !transport.address().equals(address))
-            .map(address -> new Member("member-" + address.port(), address))
+            .map(address -> new Member("member-" + address.port(), null, address))
             .map(member -> MembershipEvent.createAdded(member, null));
 
     GossipProtocolImpl gossipProtocol =

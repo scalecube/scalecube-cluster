@@ -35,7 +35,7 @@ public final class ClusterConfig implements Cloneable {
   private MetadataEncoder metadataEncoder = MetadataEncoder.INSTANCE;
   private MetadataDecoder metadataDecoder = MetadataDecoder.INSTANCE;
 
-  private String memberId;
+  private String memberAlias;
   private String memberHost;
   private Integer memberPort;
 
@@ -168,19 +168,19 @@ public final class ClusterConfig implements Cloneable {
     return c;
   }
 
-  public String memberId() {
-    return memberId;
+  public String memberAlias() {
+    return memberAlias;
   }
 
   /**
-   * Sets a memberId.
+   * Sets a memberAlias.
    *
-   * @param memberId member id
+   * @param memberAlias member alias
    * @return new {@code ClusterConfig} instance
    */
-  public ClusterConfig memberId(String memberId) {
+  public ClusterConfig memberAlias(String memberAlias) {
     ClusterConfig c = clone();
-    c.memberId = memberId;
+    c.memberAlias = memberAlias;
     return c;
   }
 
@@ -285,7 +285,7 @@ public final class ClusterConfig implements Cloneable {
         .add("metadataTimeout=" + metadataTimeout)
         .add("metadataEncoder=" + metadataEncoder)
         .add("metadataDecoder=" + metadataDecoder)
-        .add("memberId='" + memberId + "'")
+        .add("memberAlias='" + memberAlias + "'")
         .add("memberHost='" + memberHost + "'")
         .add("memberPort=" + memberPort)
         .add("transportConfig=" + transportConfig)

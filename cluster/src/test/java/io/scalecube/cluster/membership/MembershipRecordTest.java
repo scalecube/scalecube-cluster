@@ -14,8 +14,8 @@ import org.junit.jupiter.api.Test;
 
 public class MembershipRecordTest extends BaseTest {
 
-  private final Member member = new Member("0", Address.from("localhost:1234"));
-  private final Member anotherMember = new Member("1", Address.from("localhost:4567"));
+  private final Member member = new Member("0", null, Address.from("localhost:1234"));
+  private final Member anotherMember = new Member("1", null, Address.from("localhost:4567"));
 
   private final MembershipRecord r0Null = null;
 

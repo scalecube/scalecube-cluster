@@ -3,6 +3,7 @@ package io.scalecube.cluster.membership;
 import static io.scalecube.cluster.membership.MemberStatus.ALIVE;
 import static io.scalecube.cluster.membership.MemberStatus.DEAD;
 
+import io.scalecube.cluster.AbstractMonitorMBean;
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.CorrelationIdGenerator;
@@ -15,7 +16,6 @@ import io.scalecube.cluster.metadata.MetadataStore;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.net.Address;
-import java.lang.management.ManagementFactory;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -33,9 +33,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import javax.management.MBeanServer;
-import javax.management.ObjectName;
-import javax.management.StandardMBean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
@@ -214,9 +211,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   @Override
   public Mono<Void> start() {
     // Make initial sync with all seed members
-    return Mono.create(this::start0)
-        .then(Mono.fromCallable(() -> JmxMonitorMBean.start(this)))
-        .then();
+    return Mono.create(this::start0).then(startJmxMonitor());
   }
 
   private void start0(MonoSink<Object> sink) {
@@ -254,6 +249,10 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
             })
         .subscribe(
             null, ex -> LOGGER.debug("Exception on initial SyncAck, cause: {}", ex.toString()));
+  }
+
+  private Mono<Void> startJmxMonitor() {
+    return Mono.fromCallable(() -> AbstractMonitorMBean.register(new JmxMonitorMBean(this))).then();
   }
 
   @Override
@@ -483,7 +482,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
         () -> {
           Objects.requireNonNull(r1, "Membership record can't be null");
           // Get current record
-          MembershipRecord r0 = membershipTable.get(r1.id());
+          MembershipRecord r0 = membershipTable.get(r1.member().id());
 
           // Check if new record r1 overrides existing membership record r0
           if (r1.equals(r0) || !r1.isOverrides(r0)) {
@@ -510,7 +509,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
           if (r1.isSuspect()) {
             // Update membership and schedule/cancel suspicion timeout task
-            membershipTable.put(r1.id(), r1);
+            membershipTable.put(r1.member().id(), r1);
             scheduleSuspicionTimeoutTask(r1);
             spreadMembershipGossipUnlessGossiped(r1, reason);
           }
@@ -531,7 +530,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                   .doOnSuccess(
                       metadata1 -> {
                         // If metadata was received then member is Alive
-                        cancelSuspicionTimeoutTask(r1.id());
+                        cancelSuspicionTimeoutTask(r1.member().id());
                         spreadMembershipGossipUnlessGossiped(r1, reason);
                         // Update membership
                         ByteBuffer metadata0 = metadataStore.updateMetadata(r1.member(), metadata1);
@@ -568,28 +567,32 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
         });
   }
 
-  private Mono<Void> onDeadMemberDetected(MembershipRecord r1) {
+  private Mono<Void> onDeadMemberDetected(MembershipRecord r) {
     return Mono.fromRunnable(
         () -> {
-          cancelSuspicionTimeoutTask(r1.id());
-          if (!members.containsKey(r1.id())) {
+          final Member member = r.member();
+
+          cancelSuspicionTimeoutTask(member.id());
+
+          if (!members.containsKey(member.id())) {
             return;
           }
+
           // Update membership
-          members.remove(r1.id());
-          membershipTable.remove(r1.id());
+          members.remove(member.id());
+          membershipTable.remove(member.id());
           // removed
-          ByteBuffer metadata0 = metadataStore.removeMetadata(r1.member());
-          MembershipEvent event = MembershipEvent.createRemoved(r1.member(), metadata0);
+          ByteBuffer metadata0 = metadataStore.removeMetadata(member);
+          MembershipEvent event = MembershipEvent.createRemoved(member, metadata0);
           LOGGER_MEMBERSHIP.debug("Emitting membership event {}", event);
           sink.next(event);
         });
   }
 
   private void onAliveMemberDetected(
-      MembershipRecord r1, ByteBuffer metadata0, ByteBuffer metadata1) {
+      MembershipRecord r, ByteBuffer metadata0, ByteBuffer metadata1) {
 
-    final Member member = r1.member();
+    final Member member = r.member();
 
     boolean memberExists = members.containsKey(member.id());
 
@@ -601,7 +604,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     }
 
     members.put(member.id(), member);
-    membershipTable.put(member.id(), r1);
+    membershipTable.put(member.id(), r);
 
     if (event != null) {
       LOGGER_MEMBERSHIP.debug("Emitting membership event {}", event);
@@ -617,7 +620,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     }
   }
 
-  private void scheduleSuspicionTimeoutTask(MembershipRecord record) {
+  private void scheduleSuspicionTimeoutTask(MembershipRecord r) {
     long suspicionTimeout =
         ClusterMath.suspicionTimeout(
             membershipConfig.suspicionMult(),
@@ -625,7 +628,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
             failureDetectorConfig.pingInterval());
 
     suspicionTimeoutTasks.computeIfAbsent(
-        record.id(),
+        r.member().id(),
         id -> {
           LOGGER.debug(
               "Scheduled SuspicionTimeoutTask for {}, suspicionTimeout {}", id, suspicionTimeout);
@@ -636,29 +639,28 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   private void onSuspicionTimeout(String memberId) {
     suspicionTimeoutTasks.remove(memberId);
-    MembershipRecord record = membershipTable.get(memberId);
-    if (record != null) {
-      LOGGER.debug("Declare SUSPECTED member {} as DEAD by timeout", record);
-      MembershipRecord deadRecord =
-          new MembershipRecord(record.member(), DEAD, record.incarnation());
+    MembershipRecord r = membershipTable.get(memberId);
+    if (r != null) {
+      LOGGER.debug("Declare SUSPECTED member {} as DEAD by timeout", r);
+      MembershipRecord deadRecord = new MembershipRecord(r.member(), DEAD, r.incarnation());
       updateMembership(deadRecord, MembershipUpdateReason.SUSPICION_TIMEOUT)
           .subscribe(null, this::onError);
     }
   }
 
   private void spreadMembershipGossipUnlessGossiped(
-      MembershipRecord r1, MembershipUpdateReason reason) {
+      MembershipRecord r, MembershipUpdateReason reason) {
     // Spread gossip (unless already gossiped)
     if (reason != MembershipUpdateReason.MEMBERSHIP_GOSSIP
         && reason != MembershipUpdateReason.INITIAL_SYNC) {
-      spreadMembershipGossip(r1).doOnError(this::onErrorIgnore).subscribe();
+      spreadMembershipGossip(r).doOnError(this::onErrorIgnore).subscribe();
     }
   }
 
-  private Mono<Void> spreadMembershipGossip(MembershipRecord record) {
+  private Mono<Void> spreadMembershipGossip(MembershipRecord r) {
     return Mono.defer(
         () -> {
-          Message msg = Message.withData(record).qualifier(MEMBERSHIP_GOSSIP).build();
+          Message msg = Message.withData(r).qualifier(MEMBERSHIP_GOSSIP).build();
           LOGGER.debug("Spead membreship: {} with gossip", msg);
           return gossipProtocol
               .spread(msg)
@@ -735,7 +737,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     String getDeadMembersAsString();
   }
 
-  public static class JmxMonitorMBean implements MonitorMBean {
+  public static class JmxMonitorMBean extends AbstractMonitorMBean implements MonitorMBean {
 
     public static final int REMOVED_MEMBERS_HISTORY_SIZE = 42;
 
@@ -749,18 +751,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           .listen()
           .filter(MembershipEvent::isRemoved)
           .subscribe(removedMembersHistory);
-    }
-
-    private static JmxMonitorMBean start(MembershipProtocolImpl membershipProtocol)
-        throws Exception {
-      JmxMonitorMBean monitorMBean = new JmxMonitorMBean(membershipProtocol);
-      MBeanServer server = ManagementFactory.getPlatformMBeanServer();
-      ObjectName objectName =
-          new ObjectName(
-              "io.scalecube.cluster:name=Membership@" + membershipProtocol.localMember.id());
-      StandardMBean standardMBean = new StandardMBean(monitorMBean, MonitorMBean.class);
-      server.registerMBean(standardMBean, objectName);
-      return monitorMBean;
     }
 
     @Override
@@ -805,9 +795,19 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     private List<String> findRecordsByCondition(Predicate<MembershipRecord> condition) {
       return membershipProtocol.getMembershipRecords().stream()
           .filter(condition)
-          .map(record -> new Member(record.id(), record.address()))
+          .map(MembershipRecord::member)
           .map(Member::toString)
           .collect(Collectors.toList());
+    }
+
+    @Override
+    protected Class getBeanType() {
+      return MonitorMBean.class;
+    }
+
+    @Override
+    protected String getObjectName() {
+      return "io.scalecube.cluster:name=Membership@" + membershipProtocol.localMember.id();
     }
   }
 }
