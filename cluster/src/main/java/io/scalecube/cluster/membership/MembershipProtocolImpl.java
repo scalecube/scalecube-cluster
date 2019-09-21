@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
@@ -43,7 +44,6 @@ import reactor.core.publisher.FluxProcessor;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
-import reactor.core.publisher.ReplayProcessor;
 import reactor.core.scheduler.Scheduler;
 
 public final class MembershipProtocolImpl implements MembershipProtocol {
@@ -742,15 +742,22 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     public static final int REMOVED_MEMBERS_HISTORY_SIZE = 42;
 
     private final MembershipProtocolImpl membershipProtocol;
-    private final ReplayProcessor<MembershipEvent> removedMembersHistory;
+    private final List<MembershipEvent> removedMembersHistory;
 
     private JmxMonitorMBean(MembershipProtocolImpl membershipProtocol) {
       this.membershipProtocol = membershipProtocol;
-      this.removedMembersHistory = ReplayProcessor.create(REMOVED_MEMBERS_HISTORY_SIZE);
+      this.removedMembersHistory = new CopyOnWriteArrayList<>();
+
       membershipProtocol
           .listen()
           .filter(MembershipEvent::isRemoved)
-          .subscribe(removedMembersHistory);
+          .subscribe(
+              event -> {
+                removedMembersHistory.add(event);
+                if (removedMembersHistory.size() > REMOVED_MEMBERS_HISTORY_SIZE) {
+                  removedMembersHistory.remove(0);
+                }
+              });
     }
 
     @Override
@@ -782,9 +789,9 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
     @Override
     public List<String> getDeadMembers() {
-      List<String> deadMembers = new ArrayList<>();
-      removedMembersHistory.map(MembershipEvent::toString).subscribe(deadMembers::add);
-      return deadMembers;
+      return removedMembersHistory.stream()
+          .map(MembershipEvent::toString)
+          .collect(Collectors.toList());
     }
 
     @Override
