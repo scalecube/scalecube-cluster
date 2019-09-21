@@ -416,7 +416,7 @@ public class FailureDetectorTest extends BaseTest {
         Flux.fromIterable(addresses)
             .filter(address -> !transport.address().equals(address))
             .map(address -> new Member("member-" + address.port(), null, address))
-            .map(member -> MembershipEvent.createAdded(member, null));
+            .map(member -> MembershipEvent.createAdded(member, null, 0));
 
     CorrelationIdGenerator cidGenerator = new CorrelationIdGenerator(localMember.id());
 
