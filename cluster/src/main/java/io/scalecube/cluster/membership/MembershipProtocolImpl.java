@@ -583,7 +583,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           membershipTable.remove(member.id());
           // removed
           ByteBuffer metadata0 = metadataStore.removeMetadata(member);
-          MembershipEvent event = MembershipEvent.createRemoved(member, metadata0);
+          MembershipEvent event =
+              MembershipEvent.createRemoved(member, metadata0, System.currentTimeMillis());
           LOGGER_MEMBERSHIP.debug("Emitting membership event {}", event);
           sink.next(event);
         });
@@ -597,10 +598,11 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     boolean memberExists = members.containsKey(member.id());
 
     MembershipEvent event = null;
+    long timestamp = System.currentTimeMillis();
     if (!memberExists) {
-      event = MembershipEvent.createAdded(member, metadata1);
+      event = MembershipEvent.createAdded(member, metadata1, timestamp);
     } else if (!metadata1.equals(metadata0)) {
-      event = MembershipEvent.createUpdated(member, metadata0, metadata1);
+      event = MembershipEvent.createUpdated(member, metadata0, metadata1, timestamp);
     }
 
     members.put(member.id(), member);
