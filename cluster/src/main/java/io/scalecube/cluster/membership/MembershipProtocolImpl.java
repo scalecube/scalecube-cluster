@@ -726,17 +726,11 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
     int getIncarnation();
 
-    List<String> getAliveMembers();
+    String getAliveMembers();
 
-    String getAliveMembersAsString();
+    String getSuspectedMembers();
 
-    List<String> getSuspectedMembers();
-
-    String getSuspectedMembersAsString();
-
-    List<String> getDeadMembers();
-
-    String getDeadMembersAsString();
+    String getRemovedMembers();
   }
 
   public static class JmxMonitorMBean extends AbstractMonitorMBean implements MonitorMBean {
@@ -770,35 +764,22 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     }
 
     @Override
-    public List<String> getAliveMembers() {
-      return findRecordsByCondition(MembershipRecord::isAlive);
+    public String getAliveMembers() {
+      return findRecordsByCondition(MembershipRecord::isAlive).stream()
+          .collect(Collectors.joining(",", "[", "]"));
     }
 
     @Override
-    public String getAliveMembersAsString() {
-      return getAliveMembers().stream().collect(Collectors.joining(",", "[", "]"));
+    public String getSuspectedMembers() {
+      return findRecordsByCondition(MembershipRecord::isSuspect).stream()
+          .collect(Collectors.joining(",", "[", "]"));
     }
 
     @Override
-    public List<String> getSuspectedMembers() {
-      return findRecordsByCondition(MembershipRecord::isSuspect);
-    }
-
-    @Override
-    public String getSuspectedMembersAsString() {
-      return getSuspectedMembers().stream().collect(Collectors.joining(",", "[", "]"));
-    }
-
-    @Override
-    public List<String> getDeadMembers() {
+    public String getRemovedMembers() {
       return removedMembersHistory.stream()
           .map(MembershipEvent::toString)
-          .collect(Collectors.toList());
-    }
-
-    @Override
-    public String getDeadMembersAsString() {
-      return getDeadMembers().stream().collect(Collectors.joining(",", "[", "]"));
+          .collect(Collectors.joining(",", "[", "]"));
     }
 
     private List<String> findRecordsByCondition(Predicate<MembershipRecord> condition) {

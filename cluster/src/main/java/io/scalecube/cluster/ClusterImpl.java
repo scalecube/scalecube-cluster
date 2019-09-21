@@ -484,21 +484,11 @@ public final class ClusterImpl implements Cluster {
   @SuppressWarnings("unused")
   public interface MonitorMBean {
 
-    Collection<String> getId();
+    int getClusterSize();
 
-    String getIdAsString();
+    String getMember();
 
-    Collection<String> getAlias();
-
-    String getAliasAsString();
-
-    Collection<String> getAddress();
-
-    String getAddressAsString();
-
-    Collection<String> getMetadata();
-
-    String getMetadataAsString();
+    String getMetadata();
   }
 
   public static class JmxMonitorMBean extends AbstractMonitorMBean implements MonitorMBean {
@@ -510,42 +500,17 @@ public final class ClusterImpl implements Cluster {
     }
 
     @Override
-    public Collection<String> getId() {
-      return Collections.singleton(getIdAsString());
+    public int getClusterSize() {
+      return cluster.otherMembers().size() + 1;
     }
 
     @Override
-    public String getIdAsString() {
-      return cluster.member().id();
+    public String getMember() {
+      return cluster.member().toString();
     }
 
     @Override
-    public Collection<String> getAlias() {
-      return Collections.singleton(getAliasAsString());
-    }
-
-    @Override
-    public String getAliasAsString() {
-      return cluster.member().alias();
-    }
-
-    @Override
-    public Collection<String> getAddress() {
-      return Collections.singleton(getAddressAsString());
-    }
-
-    @Override
-    public String getAddressAsString() {
-      return String.valueOf(cluster.member().address());
-    }
-
-    @Override
-    public Collection<String> getMetadata() {
-      return Collections.singletonList(getMetadataAsString());
-    }
-
-    @Override
-    public String getMetadataAsString() {
+    public String getMetadata() {
       return String.valueOf(cluster.metadataStore.metadata().map(Object::toString).orElse(null));
     }
 
