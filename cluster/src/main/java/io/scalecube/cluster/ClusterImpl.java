@@ -9,11 +9,15 @@ import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipProtocolImpl;
 import io.scalecube.cluster.metadata.MetadataStore;
 import io.scalecube.cluster.metadata.MetadataStoreImpl;
+import io.scalecube.cluster.monitor.ClusterMonitorMBean;
+import io.scalecube.cluster.monitor.ClusterMonitorModel;
+import io.scalecube.cluster.monitor.JmxClusterMonitorMBean;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.net.Address;
 import io.scalecube.transport.netty.TransportImpl;
+import java.lang.management.ManagementFactory;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
@@ -23,6 +27,10 @@ import java.util.function.Function;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.management.MBeanServer;
+import javax.management.ObjectInstance;
+import javax.management.ObjectName;
+import javax.management.StandardMBean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
@@ -82,6 +90,7 @@ public final class ClusterImpl implements Cluster {
   private MetadataStore metadataStore;
   private Scheduler scheduler;
   private CorrelationIdGenerator cidGenerator;
+  private ClusterMonitorModel.Builder monitorModelBuilder;
 
   public ClusterImpl() {
     this(ClusterConfig.defaultConfig());
@@ -228,6 +237,7 @@ public final class ClusterImpl implements Cluster {
 
               cidGenerator = new CorrelationIdGenerator(localMember.id());
               scheduler = Schedulers.newSingle("sc-cluster-" + localMember.address().port(), true);
+              monitorModelBuilder = new ClusterMonitorModel.Builder();
 
               failureDetector =
                   new FailureDetectorImpl(
@@ -259,14 +269,16 @@ public final class ClusterImpl implements Cluster {
                       metadataStore,
                       config,
                       scheduler,
-                      cidGenerator);
+                      cidGenerator,
+                      monitorModelBuilder);
 
               actionsDisposables.add(
+                  // Retransmit inner membership events to public api layer
                   membership
                       .listen()
                       /*.publishOn(scheduler)*/
-                      // dont uncomment, already beign executed inside sc-cluster thread
-                      .subscribe(membershipSink::next, this::onError));
+                      // Dont uncomment, already beign executed inside sc-cluster thread
+                      .subscribe(membershipSink::next, this::onError, membershipSink::complete));
 
               return Mono.fromRunnable(() -> failureDetector.start())
                   .then(Mono.fromRunnable(() -> gossip.start()))
@@ -301,7 +313,18 @@ public final class ClusterImpl implements Cluster {
   }
 
   private Mono<Void> startJmxMonitor() {
-    return Mono.fromCallable(() -> AbstractMonitorMBean.register(new JmxMonitorMBean(this))).then();
+    return Mono.fromCallable(this::startJmxMonitor0).then();
+  }
+
+  private ObjectInstance startJmxMonitor0() throws Exception {
+    ClusterMonitorModel monitorModel = monitorModelBuilder.config(config).cluster(this).build();
+
+    JmxClusterMonitorMBean bean = new JmxClusterMonitorMBean(monitorModel);
+    StandardMBean standardMBean = new StandardMBean(bean, ClusterMonitorMBean.class);
+    MBeanServer server = ManagementFactory.getPlatformMBeanServer();
+    ObjectName objectName = new ObjectName("io.scalecube.cluster:name=Cluster@" + member().id());
+
+    return server.registerMBean(standardMBean, objectName);
   }
 
   private void onError(Throwable th) {
@@ -479,50 +502,6 @@ public final class ClusterImpl implements Cluster {
   @Override
   public boolean isShutdown() {
     return onShutdown.isDisposed();
-  }
-
-  @SuppressWarnings("unused")
-  public interface MonitorMBean {
-
-    int getClusterSize();
-
-    String getMember();
-
-    String getMetadata();
-  }
-
-  public static class JmxMonitorMBean extends AbstractMonitorMBean implements MonitorMBean {
-
-    private final ClusterImpl cluster;
-
-    private JmxMonitorMBean(ClusterImpl cluster) {
-      this.cluster = cluster;
-    }
-
-    @Override
-    public int getClusterSize() {
-      return cluster.otherMembers().size() + 1;
-    }
-
-    @Override
-    public String getMember() {
-      return cluster.member().toString();
-    }
-
-    @Override
-    public String getMetadata() {
-      return String.valueOf(cluster.metadataStore.metadata().map(Object::toString).orElse(null));
-    }
-
-    @Override
-    protected Class getBeanType() {
-      return MonitorMBean.class;
-    }
-
-    @Override
-    protected String getObjectName() {
-      return "io.scalecube.cluster:name=Cluster@" + cluster.member().id();
-    }
   }
 
   private static class SenderAwareTransport implements Transport {

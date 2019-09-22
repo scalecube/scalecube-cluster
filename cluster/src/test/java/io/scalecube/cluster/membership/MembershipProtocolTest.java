@@ -10,6 +10,7 @@ import io.scalecube.cluster.Member;
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
 import io.scalecube.cluster.metadata.MetadataStoreImpl;
+import io.scalecube.cluster.monitor.ClusterMonitorModel;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.cluster.utils.NetworkEmulator;
@@ -965,7 +966,8 @@ public class MembershipProtocolTest extends BaseTest {
             metadataStore,
             config,
             scheduler,
-            cidGenerator);
+            cidGenerator,
+            new ClusterMonitorModel.Builder());
 
     membership.listen().subscribe(membershipSink::next);
 

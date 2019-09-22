@@ -3,7 +3,6 @@ package io.scalecube.cluster.membership;
 import static io.scalecube.cluster.membership.MemberStatus.ALIVE;
 import static io.scalecube.cluster.membership.MemberStatus.DEAD;
 
-import io.scalecube.cluster.AbstractMonitorMBean;
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.CorrelationIdGenerator;
@@ -13,6 +12,7 @@ import io.scalecube.cluster.fdetector.FailureDetectorConfig;
 import io.scalecube.cluster.fdetector.FailureDetectorEvent;
 import io.scalecube.cluster.gossip.GossipProtocol;
 import io.scalecube.cluster.metadata.MetadataStore;
+import io.scalecube.cluster.monitor.ClusterMonitorModel;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.net.Address;
@@ -78,11 +78,13 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private final GossipProtocol gossipProtocol;
   private final MetadataStore metadataStore;
   private final CorrelationIdGenerator cidGenerator;
+  private final ClusterMonitorModel.Builder monitorModelBuilder;
 
   // State
 
   private final Map<String, MembershipRecord> membershipTable = new HashMap<>();
   private final Map<String, Member> members = new HashMap<>();
+  private final List<MembershipEvent> removedMembersHistory = new CopyOnWriteArrayList<>();
 
   // Subject
 
@@ -108,6 +110,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
    * @param config cluster config parameters
    * @param scheduler scheduler
    * @param cidGenerator correlation id generator
+   * @param monitorModelBuilder monitor model builder
    */
   public MembershipProtocolImpl(
       Member localMember,
@@ -117,7 +120,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       MetadataStore metadataStore,
       ClusterConfig config,
       Scheduler scheduler,
-      CorrelationIdGenerator cidGenerator) {
+      CorrelationIdGenerator cidGenerator,
+      ClusterMonitorModel.Builder monitorModelBuilder) {
 
     this.transport = Objects.requireNonNull(transport);
     this.failureDetector = Objects.requireNonNull(failureDetector);
@@ -126,6 +130,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     this.localMember = Objects.requireNonNull(localMember);
     this.scheduler = Objects.requireNonNull(scheduler);
     this.cidGenerator = Objects.requireNonNull(cidGenerator);
+    this.monitorModelBuilder = Objects.requireNonNull(monitorModelBuilder);
     this.membershipConfig = Objects.requireNonNull(config).membershipConfig();
     this.failureDetectorConfig = Objects.requireNonNull(config).failureDetectorConfig();
 
@@ -140,23 +145,21 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
     actionsDisposables.addAll(
         Arrays.asList(
-            // Listen to incoming SYNC and SYNC ACK requests from other members
             transport
-                .listen() //
+                .listen() // Listen to incoming SYNC and SYNC ACK requests from other members
                 .publishOn(scheduler)
                 .subscribe(this::onMessage, this::onError),
-
-            // Listen to events from failure detector
             failureDetector
-                .listen()
+                .listen() // Listen to events from failure detector
                 .publishOn(scheduler)
                 .subscribe(this::onFailureDetectorEvent, this::onError),
-
-            // Listen to membership gossips
             gossipProtocol
-                .listen()
+                .listen() // Listen to membership gossips
                 .publishOn(scheduler)
-                .subscribe(this::onMembershipGossip, this::onError)));
+                .subscribe(this::onMembershipGossip, this::onError),
+            listen() // Listen removed members for monitoring
+                .filter(MembershipEvent::isRemoved)
+                .subscribe(this::onMemberRemoved)));
   }
 
   // Remove duplicates and local address
@@ -211,10 +214,18 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   @Override
   public Mono<Void> start() {
     // Make initial sync with all seed members
-    return Mono.create(this::start0).then(startJmxMonitor());
+    return Mono.create(this::start0).then();
   }
 
   private void start0(MonoSink<Object> sink) {
+    // Prepare monitor model
+    monitorModelBuilder
+        .seedMembers(seedMembers)
+        .incarnationSupplier(this::getIncarnation)
+        .aliveMembersSupplier(this::getAliveMembers)
+        .suspectedMembersSupplier(this::getSuspectedMembers)
+        .removedMembersSupplier(this::getRemovedMembers);
+
     // In case no members at the moment just schedule periodic sync
     if (seedMembers.isEmpty()) {
       schedulePeriodicSync();
@@ -249,10 +260,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
             })
         .subscribe(
             null, ex -> LOGGER.debug("Exception on initial SyncAck, cause: {}", ex.toString()));
-  }
-
-  private Mono<Void> startJmxMonitor() {
-    return Mono.fromCallable(() -> AbstractMonitorMBean.register(new JmxMonitorMBean(this))).then();
   }
 
   @Override
@@ -721,83 +728,44 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     return Collections.unmodifiableList(new ArrayList<>(membershipTable.values()));
   }
 
-  @SuppressWarnings("unused")
-  public interface MonitorMBean {
+  // ===============================================================
+  // ============== Helper Methods for Monitoring ==================
+  // ===============================================================
 
-    int getIncarnation();
-
-    String getAliveMembers();
-
-    String getSuspectedMembers();
-
-    String getRemovedMembers();
+  private int getIncarnation() {
+    return membershipTable.get(localMember.id()).incarnation();
   }
 
-  public static class JmxMonitorMBean extends AbstractMonitorMBean implements MonitorMBean {
+  private List<Member> getAliveMembers() {
+    return findRecordsByCondition(MembershipRecord::isAlive);
+  }
 
-    public static final int REMOVED_MEMBERS_HISTORY_SIZE = 42;
+  private List<Member> getSuspectedMembers() {
+    return findRecordsByCondition(MembershipRecord::isSuspect);
+  }
 
-    private final MembershipProtocolImpl membershipProtocol;
-    private final List<MembershipEvent> removedMembersHistory;
+  private List<Member> getRemovedMembers() {
+    return removedMembersHistory //
+        .stream()
+        .map(MembershipEvent::member)
+        .collect(Collectors.toList());
+  }
 
-    private JmxMonitorMBean(MembershipProtocolImpl membershipProtocol) {
-      this.membershipProtocol = membershipProtocol;
-      this.removedMembersHistory = new CopyOnWriteArrayList<>();
+  private List<Member> findRecordsByCondition(Predicate<MembershipRecord> condition) {
+    return getMembershipRecords().stream()
+        .filter(condition)
+        .map(MembershipRecord::member)
+        .collect(Collectors.toList());
+  }
 
-      membershipProtocol
-          .listen()
-          .filter(MembershipEvent::isRemoved)
-          .subscribe(
-              event -> {
-                removedMembersHistory.add(event);
-                if (removedMembersHistory.size() > REMOVED_MEMBERS_HISTORY_SIZE) {
-                  removedMembersHistory.remove(0);
-                }
-              });
+  private void onMemberRemoved(MembershipEvent event) {
+    int s = membershipConfig.removedMembersHistorySize();
+    if (s <= 0) {
+      return;
     }
-
-    @Override
-    public int getIncarnation() {
-      Map<String, MembershipRecord> membershipTable = membershipProtocol.membershipTable;
-      String localMemberId = membershipProtocol.localMember.id();
-      return membershipTable.get(localMemberId).incarnation();
-    }
-
-    @Override
-    public String getAliveMembers() {
-      return findRecordsByCondition(MembershipRecord::isAlive).stream()
-          .collect(Collectors.joining(",", "[", "]"));
-    }
-
-    @Override
-    public String getSuspectedMembers() {
-      return findRecordsByCondition(MembershipRecord::isSuspect).stream()
-          .collect(Collectors.joining(",", "[", "]"));
-    }
-
-    @Override
-    public String getRemovedMembers() {
-      return removedMembersHistory.stream()
-          .map(MembershipEvent::toString)
-          .collect(Collectors.joining(",", "[", "]"));
-    }
-
-    private List<String> findRecordsByCondition(Predicate<MembershipRecord> condition) {
-      return membershipProtocol.getMembershipRecords().stream()
-          .filter(condition)
-          .map(MembershipRecord::member)
-          .map(Member::toString)
-          .collect(Collectors.toList());
-    }
-
-    @Override
-    protected Class getBeanType() {
-      return MonitorMBean.class;
-    }
-
-    @Override
-    protected String getObjectName() {
-      return "io.scalecube.cluster:name=Membership@" + membershipProtocol.localMember.id();
+    removedMembersHistory.add(event);
+    if (removedMembersHistory.size() > s) {
+      removedMembersHistory.remove(0);
     }
   }
 }

@@ -89,11 +89,11 @@ public final class FailureDetectorImpl implements FailureDetector {
     // Subscribe
     actionsDisposables.addAll(
         Arrays.asList(
-            membershipProcessor //
+            membershipProcessor // Listen membership events to update remoteMembers
                 .publishOn(scheduler)
                 .subscribe(this::onMemberEvent, this::onError),
             transport
-                .listen() //
+                .listen() // Listen failure detector requests
                 .publishOn(scheduler)
                 .subscribe(this::onMessage, this::onError)));
   }
