@@ -91,11 +91,11 @@ public final class GossipProtocolImpl implements GossipProtocol {
     // Subscribe
     actionsDisposables.addAll(
         Arrays.asList(
-            membershipProcessor //
+            membershipProcessor // Listen membership events to update remoteMembers
                 .publishOn(scheduler)
                 .subscribe(this::onMemberEvent, this::onError),
             transport
-                .listen()
+                .listen() // Listen gossip requests
                 .publishOn(scheduler)
                 .filter(this::isGossipReq)
                 .subscribe(this::onGossipReq, this::onError)));
