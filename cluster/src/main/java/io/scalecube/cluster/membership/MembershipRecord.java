@@ -73,7 +73,7 @@ final class MembershipRecord {
       return true;
     }
     if (incarnation == r0.incarnation) {
-      return status != r0.status && isSuspect();
+      return isSuspect() && (r0.isAlive() || r0.isLeaving());
     } else {
       return incarnation > r0.incarnation;
     }
