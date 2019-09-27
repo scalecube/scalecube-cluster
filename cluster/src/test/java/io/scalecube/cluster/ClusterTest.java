@@ -353,10 +353,8 @@ public class ClusterTest extends BaseTest {
               leavingLatch.countDown();
             }
 
-            if (event.isRemoved()) {
-              if (leavingMembers.contains(event.member())) {
-                removeAfterLeavingLatch.countDown();
-              }
+            if (event.isRemoved() && leavingMembers.contains(event.member())) {
+              removeAfterLeavingLatch.countDown();
             }
           }
         };

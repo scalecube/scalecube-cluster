@@ -496,16 +496,14 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           MembershipRecord r0 = membershipTable.get(r1.member().id());
 
           // if current record is LEAVING then we want to process other event too
-          if (r0 == null || !r0.isLeaving()) {
-            // Check if new record r1 overrides existing membership record r0
-            if (r1.equals(r0) || !r1.isOverrides(r0)) {
-              LOGGER_MEMBERSHIP.debug(
-                  "(update reason: {}) skipping update, can't override r0: {} with received r1: {}",
-                  reason,
-                  r0,
-                  r1);
-              return Mono.empty();
-            }
+          // Check if new record r1 overrides existing membership record r0
+          if ((r0 == null || !r0.isLeaving()) && (r1.equals(r0) || !r1.isOverrides(r0))) {
+            LOGGER_MEMBERSHIP.debug(
+                "(update reason: {}) skipping update, can't override r0: {} with received r1: {}",
+                reason,
+                r0,
+                r1);
+            return Mono.empty();
           }
 
           // If received updated for local member then increase incarnation and spread Alive gossip
@@ -700,7 +698,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     }
 
     members.put(member.id(), member);
-    final MembershipRecord r0 = membershipTable.put(member.id(), r1);
+    membershipTable.put(member.id(), r1);
 
     if (event != null) {
 
