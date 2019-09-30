@@ -66,6 +66,9 @@ final class MembershipRecord {
     if (!Objects.equals(member.id(), r0.member.id())) {
       throw new IllegalArgumentException("Can't compare records for different members");
     }
+    if (this.equals(r0)) {
+      return false;
+    }
     if (r0.isDead()) {
       return false;
     }
