@@ -110,7 +110,8 @@ public class MembershipProtocolTest extends BaseTest {
   public void testLeaveClusterCameBeforeAlive() {
     final NetworkEmulatorTransport a = createTransport();
     final NetworkEmulatorTransport b = createTransport();
-    final Member anotherMember = new Member("leavingNodeId-1", "", Address.from("localhost:9236"));
+    final Member anotherMember =
+        new Member("leavingNodeId-1", null, Address.from("localhost:9236"));
     final List<Address> addresses = Arrays.asList(a.address(), b.address());
 
     final MembershipProtocolImpl cmA = createMembership(a, addresses);
@@ -155,7 +156,8 @@ public class MembershipProtocolTest extends BaseTest {
   public void testLeaveClusterOnSuspectedNode() {
     final NetworkEmulatorTransport a = createTransport();
     final NetworkEmulatorTransport b = createTransport();
-    final Member anotherMember = new Member("leavingNodeId-1", "", Address.from("localhost:9236"));
+    final Member anotherMember =
+        new Member("leavingNodeId-1", null, Address.from("localhost:9236"));
     final List<Address> addresses = Arrays.asList(a.address(), b.address());
 
     final MembershipProtocolImpl cmA = createMembership(a, addresses);
