@@ -9,6 +9,7 @@ import io.scalecube.cluster.CorrelationIdGenerator;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
+import io.scalecube.cluster.membership.MembershipEvent.Type;
 import io.scalecube.cluster.metadata.MetadataStoreImpl;
 import io.scalecube.cluster.monitor.ClusterMonitorModel;
 import io.scalecube.cluster.transport.api.Message;
@@ -57,13 +58,13 @@ public class MembershipProtocolTest extends BaseTest {
 
   @AfterEach
   void tearDown() {
-    if (scheduler != null) {
-      scheduler.dispose();
-    }
     if (stopables != null) {
       for (MembershipProtocolImpl membership : stopables) {
         stop(membership);
       }
+    }
+    if (scheduler != null) {
+      scheduler.dispose();
     }
   }
 
@@ -95,15 +96,10 @@ public class MembershipProtocolTest extends BaseTest {
     awaitSeconds(2);
     awaitSuspicion(3);
 
-    assertTrue(cmAEvents.get(0).isLeaving());
-    assertEquals(cmB.member(), cmAEvents.get(0).member());
-    assertTrue(cmAEvents.get(1).isRemoved());
-    assertEquals(cmB.member(), cmAEvents.get(1).member());
-
-    assertTrue(cmCEvents.get(0).isLeaving());
-    assertEquals(cmB.member(), cmCEvents.get(0).member());
-    assertTrue(cmCEvents.get(1).isRemoved());
-    assertEquals(cmB.member(), cmCEvents.get(1).member());
+    assertMemberAndType(cmAEvents.get(0), cmB.member().id(), Type.LEAVING);
+    assertMemberAndType(cmAEvents.get(1), cmB.member().id(), Type.REMOVED);
+    assertMemberAndType(cmCEvents.get(0), cmB.member().id(), Type.LEAVING);
+    assertMemberAndType(cmCEvents.get(1), cmB.member().id(), Type.REMOVED);
   }
 
   @Test
@@ -131,7 +127,6 @@ public class MembershipProtocolTest extends BaseTest {
             .build();
 
     cmB.getGossipProtocol().spread(leavingMessage).block(TIMEOUT);
-    awaitSeconds(3);
 
     final MembershipRecord addedRecord = new MembershipRecord(anotherMember, MemberStatus.ALIVE, 4);
     final Message addedMessage =
@@ -141,16 +136,49 @@ public class MembershipProtocolTest extends BaseTest {
             .build();
 
     cmB.getGossipProtocol().spread(addedMessage).block(TIMEOUT);
-    awaitSeconds(2);
+
+    awaitSeconds(1);
     awaitSuspicion(3);
 
-    assertTrue(cmAEvents.get(0).isAdded());
-    assertEquals(anotherMember, cmAEvents.get(0).member());
-    assertTrue(cmAEvents.get(1).isLeaving());
-    assertEquals(anotherMember, cmAEvents.get(1).member());
-    assertTrue(cmAEvents.get(2).isRemoved());
-    assertEquals(anotherMember, cmAEvents.get(2).member());
+    assertMemberAndType(cmAEvents.get(0), anotherMember.id(), Type.ADDED);
+    assertMemberAndType(cmAEvents.get(1), anotherMember.id(), Type.LEAVING);
+    assertMemberAndType(cmAEvents.get(2), anotherMember.id(), Type.REMOVED);
   }
+
+  @Test
+  public void testLeaveClusterOnly() {
+    final NetworkEmulatorTransport a = createTransport();
+    final NetworkEmulatorTransport b = createTransport();
+    final Member anotherMember =
+        new Member("leavingNodeId-1", null, Address.from("localhost:9236"));
+    final List<Address> addresses = Arrays.asList(a.address(), b.address());
+
+    final MembershipProtocolImpl cmA = createMembership(a, addresses);
+    final MembershipProtocolImpl cmB = createMembership(b, addresses);
+
+    awaitSeconds(2);
+
+    final List<MembershipEvent> cmAEvents = Collections.synchronizedList(new ArrayList<>());
+    cmA.listen().subscribe(cmAEvents::add);
+
+    final MembershipRecord leavingRecord =
+        new MembershipRecord(anotherMember, MemberStatus.LEAVING, 5);
+    final Message leavingMessage =
+        Message.builder()
+            .qualifier(MembershipProtocolImpl.MEMBERSHIP_GOSSIP)
+            .data(leavingRecord)
+            .build();
+
+    cmB.getGossipProtocol().spread(leavingMessage).block(TIMEOUT);
+
+    awaitSeconds(1);
+    awaitSuspicion(3);
+
+    assertMemberAndType(cmAEvents.get(0), anotherMember.id(), Type.ADDED);
+    assertMemberAndType(cmAEvents.get(1), anotherMember.id(), Type.LEAVING);
+    assertMemberAndType(cmAEvents.get(2), anotherMember.id(), Type.REMOVED);
+  }
+
 
   @Test
   public void testLeaveClusterOnSuspectedNode() {
@@ -166,7 +194,7 @@ public class MembershipProtocolTest extends BaseTest {
     awaitSeconds(2);
 
     final List<MembershipEvent> cmAEvents = Collections.synchronizedList(new ArrayList<>());
-    cmA.listen().filter(event -> !event.isAdded()).subscribe(cmAEvents::add);
+    cmA.listen().subscribe(cmAEvents::add);
 
     final MembershipRecord suspectedNode =
         new MembershipRecord(anotherMember, MemberStatus.SUSPECT, 5);
@@ -191,7 +219,9 @@ public class MembershipProtocolTest extends BaseTest {
     awaitSeconds(2);
     awaitSuspicion(3);
 
-    assertTrue(cmAEvents.isEmpty());
+    assertMemberAndType(cmAEvents.get(0), anotherMember.id(), Type.ADDED);
+    assertMemberAndType(cmAEvents.get(1), anotherMember.id(), Type.LEAVING);
+    assertMemberAndType(cmAEvents.get(2), anotherMember.id(), Type.REMOVED);
   }
 
   @Test
@@ -225,10 +255,8 @@ public class MembershipProtocolTest extends BaseTest {
     awaitSeconds(3);
     awaitSuspicion(3);
 
-    assertTrue(cmAEvents.get(0).isLeaving());
-    assertEquals(cmB.member(), cmAEvents.get(0).member());
-    assertTrue(cmAEvents.get(1).isRemoved());
-    assertEquals(cmB.member(), cmAEvents.get(1).member());
+    assertMemberAndType(cmAEvents.get(0), cmB.member().id(), Type.LEAVING);
+    assertMemberAndType(cmAEvents.get(1), cmB.member().id(), Type.REMOVED);
   }
 
   @Test
@@ -1231,6 +1259,13 @@ public class MembershipProtocolTest extends BaseTest {
 
   private void assertNoRemoved(ReplayProcessor<MembershipEvent> recording) {
     assertRemoved(recording);
+  }
+
+  private void assertMemberAndType(
+      MembershipEvent membershipEvent, String expectedMemberId, MembershipEvent.Type expectedType) {
+
+    assertEquals(expectedMemberId, membershipEvent.member().id());
+    assertEquals(expectedType, membershipEvent.type());
   }
 
   private void assertNoSuspected(MembershipProtocolImpl membership) {

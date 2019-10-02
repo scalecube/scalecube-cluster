@@ -573,13 +573,12 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     final String memberId = member.id();
 
     // Emit events if needed and ignore alive
-    if (!aliveEmittedSet.contains(memberId)) {
+    if (aliveEmittedSet.add(memberId)) {
       final long timestamp = System.currentTimeMillis();
 
       // There is no metadata in this case
       // We could'n fetch metadata because node already wanted to leave
       publishEvent(MembershipEvent.createAdded(member, null, timestamp));
-      aliveEmittedSet.add(memberId);
       publishEvent(MembershipEvent.createLeaving(member, null, timestamp));
     }
 
@@ -629,6 +628,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           }
 
           if (r0 == null || !r0.isLeaving()) {
+            scheduleSuspicionTimeoutTask(r1);
             return spreadMembershipGossip(r1);
           } else {
             return Mono.empty();
@@ -658,13 +658,11 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
             return;
           }
 
-          // Update membership
+          // Removed membership
           members.remove(member.id());
-          aliveEmittedSet.remove(member.id());
-
-          // removed
           final MembershipRecord r0 = membershipTable.remove(member.id());
           final ByteBuffer metadata = metadataStore.removeMetadata(member);
+          final boolean aliveEmittedBefore = aliveEmittedSet.remove(member.id());
 
           // Log that member leaved gracefully or without notification
           if (r0.isLeaving()) {
@@ -673,7 +671,18 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
             LOGGER_MEMBERSHIP.warn("Member leaved without notification: {}", member);
           }
 
-          publishEvent(MembershipEvent.createRemoved(member, metadata, System.currentTimeMillis()));
+          // if we received LEAVING for some member but never ALIVE
+          // could happen when current node received LEAVING and immediately lost network
+          final long timestamp = System.currentTimeMillis();
+          if (!aliveEmittedBefore) {
+            // emit events for consisted behavior between all nodes which saw events
+            // in common order(ALIVE, LEAVING, ...)
+            // and any other order(LEAVING, ALIVE, ...), (LEAVING, *lost_network*), ...
+            publishEvent(MembershipEvent.createAdded(member, metadata, timestamp));
+            publishEvent(MembershipEvent.createLeaving(member, metadata, timestamp));
+          }
+
+          publishEvent(MembershipEvent.createRemoved(member, metadata, timestamp));
         });
   }
 
