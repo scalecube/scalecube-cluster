@@ -51,7 +51,7 @@ public final class MembershipEvent {
    * Creates ADDED membership event with cluster member and its metadata.
    *
    * @param member cluster memeber; not null
-   * @param metadata member metadata; not null
+   * @param metadata member metadata; optional
    * @param timestamp event timestamp
    * @return membership event
    */
@@ -64,7 +64,7 @@ public final class MembershipEvent {
    * Creates LEAVING membership event.
    *
    * @param member cluster member; not null
-   * @param metadata member metadata; not null
+   * @param metadata member metadata; optional
    * @param timestamp event timestamp
    * @return membership event
    */
@@ -77,8 +77,8 @@ public final class MembershipEvent {
    * Creates UPDATED membership event.
    *
    * @param member cluster member; not null
-   * @param oldMetadata previous metadata; not null
-   * @param newMetadata new metadata; not null
+   * @param oldMetadata previous metadata; optional
+   * @param newMetadata new metadata; optional
    * @param timestamp event timestamp
    * @return membership event
    */

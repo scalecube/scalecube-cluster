@@ -66,6 +66,9 @@ final class MembershipRecord {
     if (!Objects.equals(member.id(), r0.member.id())) {
       throw new IllegalArgumentException("Can't compare records for different members");
     }
+    if (this.equals(r0)) {
+      return false;
+    }
     if (r0.isDead()) {
       return false;
     }
@@ -73,7 +76,7 @@ final class MembershipRecord {
       return true;
     }
     if (incarnation == r0.incarnation) {
-      return status != r0.status && isSuspect();
+      return isSuspect() && (r0.isAlive() || r0.isLeaving());
     } else {
       return incarnation > r0.incarnation;
     }

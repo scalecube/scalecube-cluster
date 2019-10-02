@@ -497,7 +497,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
           // if current record is LEAVING then we want to process other event too
           // Check if new record r1 overrides existing membership record r0
-          if ((r0 == null || !r0.isLeaving()) && (r1.equals(r0) || !r1.isOverrides(r0))) {
+          if ((r0 == null || !r0.isLeaving()) && !r1.isOverrides(r0)) {
             LOGGER_MEMBERSHIP.debug(
                 "(update reason: {}) skipping update, can't override r0: {} with received r1: {}",
                 reason,
@@ -619,12 +619,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           MembershipEvent event = null;
           if (r0 == null) {
             members.put(memberId, member);
-          } else if (r0.isSuspect()) {
-            if (aliveEmittedSet.contains(memberId)) {
-              final ByteBuffer metadata = metadataOrThrow(member);
-              event = MembershipEvent.createLeaving(member, metadata, System.currentTimeMillis());
-            }
-          } else if (r0.isAlive()) {
+          } else if (r0.isAlive() || (r0.isSuspect() && aliveEmittedSet.contains(memberId))) {
             final ByteBuffer metadata = metadataOrThrow(member);
             event = MembershipEvent.createLeaving(member, metadata, System.currentTimeMillis());
           }

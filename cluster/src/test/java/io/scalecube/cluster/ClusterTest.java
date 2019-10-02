@@ -13,11 +13,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -339,22 +337,18 @@ public class ClusterTest extends BaseTest {
 
   @Test
   public void testShutdownCluster() throws Exception {
-    CountDownLatch removeAfterLeavingLatch = new CountDownLatch(3);
-    CountDownLatch leavingLatch = new CountDownLatch(2);
+    CountDownLatch leavingLatch = new CountDownLatch(3);
+    CountDownLatch removedLatch = new CountDownLatch(3);
 
     ClusterMessageHandler listener =
         new ClusterMessageHandler() {
-          private final Set<Member> leavingMembers = new HashSet<>();
-
           @Override
           public void onMembershipEvent(MembershipEvent event) {
             if (event.isLeaving()) {
-              leavingMembers.add(event.member());
               leavingLatch.countDown();
             }
-
-            if (event.isRemoved() && leavingMembers.contains(event.member())) {
-              removeAfterLeavingLatch.countDown();
+            if (event.isRemoved()) {
+              removedLatch.countDown();
             }
           }
         };
@@ -381,10 +375,10 @@ public class ClusterTest extends BaseTest {
 
     node2.shutdown();
     node2.onShutdown().block(TIMEOUT);
+    assertTrue(node2.isShutdown());
 
     assertTrue(leavingLatch.await(TIMEOUT.getSeconds(), TimeUnit.SECONDS));
-    assertTrue(removeAfterLeavingLatch.await(TIMEOUT.getSeconds(), TimeUnit.SECONDS));
-    assertTrue(node2.isShutdown());
+    assertTrue(removedLatch.await(TIMEOUT.getSeconds(), TimeUnit.SECONDS));
 
     shutdown(Stream.of(seedNode, node1, node3).collect(Collectors.toList()));
   }
