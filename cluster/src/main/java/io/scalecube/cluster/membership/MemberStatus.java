@@ -8,6 +8,9 @@ public enum MemberStatus {
   /** Member can't be reached and marked as suspected to be failed. */
   SUSPECT,
 
+  /** Member want to leave cluster gracefully. */
+  LEAVING,
+
   /**
    * Member declared as dead after being {@link #SUSPECT} for configured time or when node has been
    * gracefully shutdown and left cluster.

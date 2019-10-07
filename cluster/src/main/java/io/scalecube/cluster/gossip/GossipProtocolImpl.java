@@ -12,6 +12,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -31,7 +32,6 @@ import reactor.core.scheduler.Scheduler;
 public final class GossipProtocolImpl implements GossipProtocol {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GossipProtocol.class);
-  private static final int SEQUENCE_SEGMENTATION_THRESHOLD = 50;
 
   // Qualifiers
 
@@ -139,6 +139,8 @@ public final class GossipProtocolImpl implements GossipProtocol {
   // ================================================
 
   private void doSpreadGossip() {
+    checkMissedGossips();
+
     // Increment period
     long period = currentPeriod++;
 
@@ -195,12 +197,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
     final long period = this.currentPeriod;
     final GossipRequest gossipRequest = message.data();
     for (Gossip gossip : gossipRequest.gossips()) {
-      final SequenceIdCollector sequenceIdCollector = ensureSequence(gossip.gossiperId());
-      final boolean notExistBefore = sequenceIdCollector.add(gossip.sequenceId());
-
-      healthCheck(gossip.gossiperId(), gossip.message().sender(), sequenceIdCollector);
-
-      if (notExistBefore) {
+      if (ensureSequence(gossip.gossiperId()).add(gossip.sequenceId())) {
         GossipState gossipState = gossips.get(gossip.gossipId());
         if (gossipState == null) { // new gossip
           gossipState = new GossipState(gossip, period);
@@ -212,20 +209,22 @@ public final class GossipProtocolImpl implements GossipProtocol {
     }
   }
 
-  private void healthCheck(
-      String gossiper, Address sender, SequenceIdCollector sequenceIdCollector) {
+  private void checkMissedGossips() {
+    final int intervalsThreshold = config.gossipIntervalsThreshold();
+    for (Entry<String, SequenceIdCollector> entry : sequenceIdCollectors.entrySet()) {
+      // Size of sequenceIdCollector could grow only if we never received some messages.
+      // Which is possible only if current node wasn't available(suspected) for some time
+      // or network issue
+      final SequenceIdCollector sequenceIdCollector = entry.getValue();
+      if (sequenceIdCollector.size() > intervalsThreshold) {
+        LOGGER.warn(
+            "Too many missed gossip messages from original gossiper: '{}', "
+                + "current node({}) was SUSPECTED much for a long time or connection problem",
+            entry.getKey(),
+            localMember);
 
-    // Size of sequenceIdCollector could grow only if we never received some messages.
-    // Which is possible only if current node wasn't available(suspected) for some time
-    // or network issue
-    if (sequenceIdCollector.size() > SEQUENCE_SEGMENTATION_THRESHOLD) {
-      LOGGER.warn(
-          "Too many missed gossip messages from original gossiper: '{}', sender: {}."
-              + " Maybe current node was SUSPECTED much for a long time or connection problem.",
-          gossiper,
-          sender);
-
-      sequenceIdCollector.clear();
+        sequenceIdCollector.clear();
+      }
     }
   }
 

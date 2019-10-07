@@ -15,6 +15,7 @@ public final class MembershipEvent {
   public enum Type {
     ADDED,
     REMOVED,
+    LEAVING,
     UPDATED
   }
 
@@ -50,7 +51,7 @@ public final class MembershipEvent {
    * Creates ADDED membership event with cluster member and its metadata.
    *
    * @param member cluster memeber; not null
-   * @param metadata member metadata; not null
+   * @param metadata member metadata; optional
    * @param timestamp event timestamp
    * @return membership event
    */
@@ -60,11 +61,24 @@ public final class MembershipEvent {
   }
 
   /**
+   * Creates LEAVING membership event.
+   *
+   * @param member cluster member; not null
+   * @param metadata member metadata; optional
+   * @param timestamp event timestamp
+   * @return membership event
+   */
+  public static MembershipEvent createLeaving(Member member, ByteBuffer metadata, long timestamp) {
+    Objects.requireNonNull(member, "member must be not null");
+    return new MembershipEvent(Type.LEAVING, member, null, metadata, timestamp);
+  }
+
+  /**
    * Creates UPDATED membership event.
    *
    * @param member cluster member; not null
-   * @param oldMetadata previous metadata; not null
-   * @param newMetadata new metadata; not null
+   * @param oldMetadata previous metadata; optional
+   * @param newMetadata new metadata; optional
    * @param timestamp event timestamp
    * @return membership event
    */
@@ -84,6 +98,10 @@ public final class MembershipEvent {
 
   public boolean isRemoved() {
     return type == Type.REMOVED;
+  }
+
+  public boolean isLeaving() {
+    return type == Type.LEAVING;
   }
 
   public boolean isUpdated() {

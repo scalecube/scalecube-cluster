@@ -2,6 +2,7 @@ package io.scalecube.cluster.membership;
 
 import static io.scalecube.cluster.membership.MemberStatus.ALIVE;
 import static io.scalecube.cluster.membership.MemberStatus.DEAD;
+import static io.scalecube.cluster.membership.MemberStatus.LEAVING;
 
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterMath;
@@ -23,11 +24,13 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -85,6 +88,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private final Map<String, MembershipRecord> membershipTable = new HashMap<>();
   private final Map<String, Member> members = new HashMap<>();
   private final List<MembershipEvent> removedMembersHistory = new CopyOnWriteArrayList<>();
+  private final Set<String> aliveEmittedSet = new HashSet<>();
 
   // Subject
 
@@ -205,7 +209,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
         () -> {
           MembershipRecord curRecord = membershipTable.get(localMember.id());
           MembershipRecord newRecord =
-              new MembershipRecord(localMember, DEAD, curRecord.incarnation() + 1);
+              new MembershipRecord(localMember, LEAVING, curRecord.incarnation() + 1);
           membershipTable.put(localMember.id(), newRecord);
           return spreadMembershipGossip(newRecord);
         });
@@ -491,8 +495,9 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           // Get current record
           MembershipRecord r0 = membershipTable.get(r1.member().id());
 
+          // if current record is LEAVING then we want to process other event too
           // Check if new record r1 overrides existing membership record r0
-          if (r1.equals(r0) || !r1.isOverrides(r0)) {
+          if ((r0 == null || !r0.isLeaving()) && !r1.isOverrides(r0)) {
             LOGGER_MEMBERSHIP.debug(
                 "(update reason: {}) skipping update, can't override r0: {} with received r1: {}",
                 reason,
@@ -510,18 +515,28 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
             }
           }
 
+          if (r1.isLeaving()) {
+            return onLeavingDetected(r0, r1);
+          }
+
           if (r1.isDead()) {
             return onDeadMemberDetected(r1);
           }
 
           if (r1.isSuspect()) {
             // Update membership and schedule/cancel suspicion timeout task
-            membershipTable.put(r1.member().id(), r1);
+            if (r0 == null || !r0.isLeaving()) {
+              membershipTable.put(r1.member().id(), r1);
+            }
             scheduleSuspicionTimeoutTask(r1);
             spreadMembershipGossipUnlessGossiped(r1, reason);
           }
 
           if (r1.isAlive()) {
+            if (r0 != null && r0.isLeaving()) {
+              return onAliveAfterLeaving(r1);
+            }
+
             // New alive or updated alive
             if (r0 == null || r0.incarnation() < r1.incarnation()) {
               return metadataStore
@@ -552,6 +567,26 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
         });
   }
 
+  private Mono<Void> onAliveAfterLeaving(MembershipRecord r1) {
+    // r1 is outdated "ALIVE" event because we already have "LEAVING"
+    final Member member = r1.member();
+    final String memberId = member.id();
+
+    members.put(memberId, member);
+
+    // Emit events if needed and ignore alive
+    if (aliveEmittedSet.add(memberId)) {
+      final long timestamp = System.currentTimeMillis();
+
+      // There is no metadata in this case
+      // We could'n fetch metadata because node already wanted to leave
+      publishEvent(MembershipEvent.createAdded(member, null, timestamp));
+      publishEvent(MembershipEvent.createLeaving(member, null, timestamp));
+    }
+
+    return Mono.empty();
+  }
+
   private Mono<Void> onSelfMemberDetected(
       MembershipRecord r0, MembershipRecord r1, MembershipUpdateReason reason) {
     return Mono.fromRunnable(
@@ -574,10 +609,46 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
         });
   }
 
-  private Mono<Void> onDeadMemberDetected(MembershipRecord r) {
+  private Mono<Void> onLeavingDetected(MembershipRecord r0, MembershipRecord r1) {
+    return Mono.defer(
+        () -> {
+          final Member member = r1.member();
+          final String memberId = member.id();
+
+          membershipTable.put(memberId, r1);
+
+          if (r0 != null
+              && (r0.isAlive() || (r0.isSuspect() && aliveEmittedSet.contains(memberId)))) {
+
+            final ByteBuffer metadata = metadataOrThrow(member);
+            final long timestamp = System.currentTimeMillis();
+            publishEvent(MembershipEvent.createLeaving(member, metadata, timestamp));
+          }
+
+          if (r0 == null || !r0.isLeaving()) {
+            scheduleSuspicionTimeoutTask(r1);
+            return spreadMembershipGossip(r1);
+          } else {
+            return Mono.empty();
+          }
+        });
+  }
+
+  private ByteBuffer metadataOrThrow(Member member) {
+    return metadataStore
+        .metadata(member)
+        .orElseThrow(() -> new IllegalStateException("No metadata present for member: " + member));
+  }
+
+  private void publishEvent(MembershipEvent event) {
+    LOGGER_MEMBERSHIP.debug("Emitting membership event {}", event);
+    sink.next(event);
+  }
+
+  private Mono<Void> onDeadMemberDetected(MembershipRecord r1) {
     return Mono.fromRunnable(
         () -> {
-          final Member member = r.member();
+          final Member member = r1.member();
 
           cancelSuspicionTimeoutTask(member.id());
 
@@ -585,27 +656,33 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
             return;
           }
 
-          // Update membership
+          // Removed membership
           members.remove(member.id());
-          membershipTable.remove(member.id());
-          // removed
-          ByteBuffer metadata0 = metadataStore.removeMetadata(member);
-          MembershipEvent event =
-              MembershipEvent.createRemoved(member, metadata0, System.currentTimeMillis());
-          LOGGER_MEMBERSHIP.debug("Emitting membership event {}", event);
-          sink.next(event);
+          final MembershipRecord r0 = membershipTable.remove(member.id());
+          final ByteBuffer metadata = metadataStore.removeMetadata(member);
+          aliveEmittedSet.remove(member.id());
+
+          // Log that member leaved gracefully or without notification
+          if (r0.isLeaving()) {
+            LOGGER_MEMBERSHIP.debug("Member leaved gracefully: {}", member);
+          } else {
+            LOGGER_MEMBERSHIP.warn("Member leaved without notification: {}", member);
+          }
+
+          final long timestamp = System.currentTimeMillis();
+          publishEvent(MembershipEvent.createRemoved(member, metadata, timestamp));
         });
   }
 
   private void onAliveMemberDetected(
-      MembershipRecord r, ByteBuffer metadata0, ByteBuffer metadata1) {
+      MembershipRecord r1, ByteBuffer metadata0, ByteBuffer metadata1) {
 
-    final Member member = r.member();
+    final Member member = r1.member();
 
-    boolean memberExists = members.containsKey(member.id());
+    final boolean memberExists = members.containsKey(member.id());
 
+    final long timestamp = System.currentTimeMillis();
     MembershipEvent event = null;
-    long timestamp = System.currentTimeMillis();
     if (!memberExists) {
       event = MembershipEvent.createAdded(member, metadata1, timestamp);
     } else if (!metadata1.equals(metadata0)) {
@@ -613,11 +690,15 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     }
 
     members.put(member.id(), member);
-    membershipTable.put(member.id(), r);
+    membershipTable.put(member.id(), r1);
 
     if (event != null) {
-      LOGGER_MEMBERSHIP.debug("Emitting membership event {}", event);
-      sink.next(event);
+
+      publishEvent(event);
+
+      if (event.isAdded()) {
+        aliveEmittedSet.add(member.id());
+      }
     }
   }
 
