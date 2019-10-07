@@ -337,14 +337,18 @@ public class ClusterTest extends BaseTest {
 
   @Test
   public void testShutdownCluster() throws Exception {
-    CountDownLatch latch = new CountDownLatch(3);
+    CountDownLatch leavingLatch = new CountDownLatch(3);
+    CountDownLatch removedLatch = new CountDownLatch(3);
 
     ClusterMessageHandler listener =
         new ClusterMessageHandler() {
           @Override
           public void onMembershipEvent(MembershipEvent event) {
+            if (event.isLeaving()) {
+              leavingLatch.countDown();
+            }
             if (event.isRemoved()) {
-              latch.countDown();
+              removedLatch.countDown();
             }
           }
         };
@@ -371,9 +375,10 @@ public class ClusterTest extends BaseTest {
 
     node2.shutdown();
     node2.onShutdown().block(TIMEOUT);
-
-    assertTrue(latch.await(TIMEOUT.getSeconds(), TimeUnit.SECONDS));
     assertTrue(node2.isShutdown());
+
+    assertTrue(leavingLatch.await(TIMEOUT.getSeconds(), TimeUnit.SECONDS));
+    assertTrue(removedLatch.await(TIMEOUT.getSeconds(), TimeUnit.SECONDS));
 
     shutdown(Stream.of(seedNode, node1, node3).collect(Collectors.toList()));
   }

@@ -63,7 +63,7 @@ public class MembershipEventsExample {
         new ClusterImpl()
             .config(opts -> opts.memberAlias("Carol"))
             .config(opts -> opts.metadata(Collections.singletonMap("name", "Carol")))
-            .membership(opts -> opts.seedMembers(alice.address(), bob.address()))
+            .membership(opts -> opts.seedMembers(bob.address()))
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {

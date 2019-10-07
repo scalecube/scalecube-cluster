@@ -2,6 +2,7 @@ package io.scalecube.cluster.membership;
 
 import static io.scalecube.cluster.membership.MemberStatus.ALIVE;
 import static io.scalecube.cluster.membership.MemberStatus.DEAD;
+import static io.scalecube.cluster.membership.MemberStatus.LEAVING;
 import static io.scalecube.cluster.membership.MemberStatus.SUSPECT;
 
 import io.scalecube.cluster.Member;
@@ -40,6 +41,10 @@ final class MembershipRecord {
     return status == SUSPECT;
   }
 
+  public boolean isLeaving() {
+    return status == LEAVING;
+  }
+
   public boolean isDead() {
     return status == DEAD;
   }
@@ -56,10 +61,13 @@ final class MembershipRecord {
    */
   public boolean isOverrides(MembershipRecord r0) {
     if (r0 == null) {
-      return isAlive();
+      return isAlive() || isLeaving();
     }
     if (!Objects.equals(member.id(), r0.member.id())) {
       throw new IllegalArgumentException("Can't compare records for different members");
+    }
+    if (this.equals(r0)) {
+      return false;
     }
     if (r0.isDead()) {
       return false;
@@ -68,7 +76,7 @@ final class MembershipRecord {
       return true;
     }
     if (incarnation == r0.incarnation) {
-      return status != r0.status && isSuspect();
+      return isSuspect() && (r0.isAlive() || r0.isLeaving());
     } else {
       return incarnation > r0.incarnation;
     }
