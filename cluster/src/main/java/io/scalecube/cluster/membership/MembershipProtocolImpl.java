@@ -660,7 +660,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           members.remove(member.id());
           final MembershipRecord r0 = membershipTable.remove(member.id());
           final ByteBuffer metadata = metadataStore.removeMetadata(member);
-          final boolean aliveEmittedBefore = aliveEmittedSet.remove(member.id());
+          aliveEmittedSet.remove(member.id());
 
           // Log that member leaved gracefully or without notification
           if (r0.isLeaving()) {
