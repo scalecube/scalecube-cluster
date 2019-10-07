@@ -572,6 +572,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     final Member member = r1.member();
     final String memberId = member.id();
 
+    members.put(memberId, member);
+
     // Emit events if needed and ignore alive
     if (aliveEmittedSet.add(memberId)) {
       final long timestamp = System.currentTimeMillis();
@@ -615,16 +617,12 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
           membershipTable.put(memberId, r1);
 
-          MembershipEvent event = null;
-          if (r0 == null) {
-            members.put(memberId, member);
-          } else if (r0.isAlive() || (r0.isSuspect() && aliveEmittedSet.contains(memberId))) {
-            final ByteBuffer metadata = metadataOrThrow(member);
-            event = MembershipEvent.createLeaving(member, metadata, System.currentTimeMillis());
-          }
+          if (r0 != null
+              && (r0.isAlive() || (r0.isSuspect() && aliveEmittedSet.contains(memberId)))) {
 
-          if (event != null) {
-            publishEvent(event);
+            final ByteBuffer metadata = metadataOrThrow(member);
+            final long timestamp = System.currentTimeMillis();
+            publishEvent(MembershipEvent.createLeaving(member, metadata, timestamp));
           }
 
           if (r0 == null || !r0.isLeaving()) {
@@ -671,17 +669,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
             LOGGER_MEMBERSHIP.warn("Member leaved without notification: {}", member);
           }
 
-          // if we received LEAVING for some member but never ALIVE
-          // could happen when current node received LEAVING and immediately lost network
           final long timestamp = System.currentTimeMillis();
-          if (!aliveEmittedBefore) {
-            // emit events for consisted behavior between all nodes which saw events
-            // in common order(ALIVE, LEAVING, ...)
-            // and any other order(LEAVING, ALIVE, ...), (LEAVING, *lost_network*), ...
-            publishEvent(MembershipEvent.createAdded(member, metadata, timestamp));
-            publishEvent(MembershipEvent.createLeaving(member, metadata, timestamp));
-          }
-
           publishEvent(MembershipEvent.createRemoved(member, metadata, timestamp));
         });
   }

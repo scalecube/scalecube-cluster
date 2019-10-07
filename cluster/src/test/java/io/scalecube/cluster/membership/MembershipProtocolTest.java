@@ -174,9 +174,7 @@ public class MembershipProtocolTest extends BaseTest {
     awaitSeconds(1);
     awaitSuspicion(3);
 
-    assertMemberAndType(cmAEvents.get(0), anotherMember.id(), Type.ADDED);
-    assertMemberAndType(cmAEvents.get(1), anotherMember.id(), Type.LEAVING);
-    assertMemberAndType(cmAEvents.get(2), anotherMember.id(), Type.REMOVED);
+    assertTrue(cmAEvents.isEmpty());
   }
 
 
@@ -219,9 +217,7 @@ public class MembershipProtocolTest extends BaseTest {
     awaitSeconds(2);
     awaitSuspicion(3);
 
-    assertMemberAndType(cmAEvents.get(0), anotherMember.id(), Type.ADDED);
-    assertMemberAndType(cmAEvents.get(1), anotherMember.id(), Type.LEAVING);
-    assertMemberAndType(cmAEvents.get(2), anotherMember.id(), Type.REMOVED);
+    assertTrue(cmAEvents.isEmpty());
   }
 
   @Test
