@@ -30,7 +30,7 @@ public class SequenceIdCollector {
    * @return <tt>true</tt> if this set contains the specified element
    */
   public boolean contains(long sequenceId) {
-    // floor: returns the entry for the greatest key less than the specified key
+    // floor: returns the entry for the greatest key less than or equal to the specified key
     return isInClosedRange(processedInterval.floorEntry(sequenceId), sequenceId);
   }
 
@@ -41,14 +41,14 @@ public class SequenceIdCollector {
    * @return <tt>true</tt> if this holder did not already contain the specified element
    */
   public boolean add(long sequenceId) {
-    // floor: returns the entry for the greatest key less than the specified key
+    // floor: returns the entry for the greatest key less than or equal to the specified key
     final Entry<Long, Long> floorEntry = processedInterval.floorEntry(sequenceId);
 
     if (isInClosedRange(floorEntry, sequenceId)) {
       return false;
     }
 
-    // ceiling: returns the entry for the least key greater than the specified key
+    // ceiling: returns the entry for the least key greater than or equal to the specified key
     final Entry<Long, Long> ceilingEntry = processedInterval.ceilingEntry(sequenceId);
 
     final boolean nextToFloor = isNextToClosedRange(floorEntry, sequenceId);

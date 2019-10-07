@@ -3,6 +3,7 @@ package io.scalecube.cluster.gossip;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import io.scalecube.cluster.BaseTest;
+import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.transport.api.Message;
@@ -11,6 +12,7 @@ import io.scalecube.cluster.utils.NetworkEmulatorTransport;
 import io.scalecube.net.Address;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
@@ -26,7 +28,7 @@ public class GossipDelayTest extends BaseTest {
   private Scheduler scheduler = Schedulers.newSingle("scheduler", true);
 
   @Test
-  public void testMessageDelayMoreThanGossipSweepTime() {
+  public void testMessageDelayMoreThanGossipSweepTime() throws InterruptedException {
     final NetworkEmulatorTransport transport1 = getNetworkEmulatorTransport(0, 3000);
     final NetworkEmulatorTransport transport2 = getNetworkEmulatorTransport(0, 3000);
     final NetworkEmulatorTransport transport3 = getNetworkEmulatorTransport(0, 100);
@@ -56,7 +58,8 @@ public class GossipDelayTest extends BaseTest {
       gossipProtocol1.spread(Message.fromData("message: " + i)).subscribe();
     }
 
-    awaitSeconds(30);
+    TimeUnit.MILLISECONDS.sleep(
+        2 * (ClusterMath.gossipTimeoutToSweep(gossipRepeatMultiplier, 3, gossipInterval) + 6000));
 
     assertEquals(0, protocol1GossipCounter.get());
     assertEquals(3, protocol2GossipCounter.get());
