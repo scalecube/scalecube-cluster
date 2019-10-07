@@ -139,7 +139,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
   // ================================================
 
   private void doSpreadGossip() {
-    checkMissedGossips();
+    checkGossipSegmentation();
 
     // Increment period
     long period = currentPeriod++;
@@ -209,8 +209,8 @@ public final class GossipProtocolImpl implements GossipProtocol {
     }
   }
 
-  private void checkMissedGossips() {
-    final int intervalsThreshold = config.gossipIntervalsThreshold();
+  private void checkGossipSegmentation() {
+    final int intervalsThreshold = config.gossipSegmentationThreshold();
     for (Entry<String, SequenceIdCollector> entry : sequenceIdCollectors.entrySet()) {
       // Size of sequenceIdCollector could grow only if we never received some messages.
       // Which is possible only if current node wasn't available(suspected) for some time

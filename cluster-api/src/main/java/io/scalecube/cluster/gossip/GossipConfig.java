@@ -9,7 +9,7 @@ public final class GossipConfig implements Cloneable {
   public static final long DEFAULT_GOSSIP_INTERVAL = 200;
   public static final int DEFAULT_GOSSIP_FANOUT = 3;
   public static final int DEFAULT_GOSSIP_REPEAT_MULT = 3;
-  public static final int SEQUENCE_SEGMENTATION_THRESHOLD = 300;
+  public static final int GOSSIP_SEGMENTATION_THRESHOLD = 1000;
 
   // Default settings for WAN cluster (overrides default/LAN settings)
   public static final int DEFAULT_WAN_GOSSIP_FANOUT = 4;
@@ -22,7 +22,7 @@ public final class GossipConfig implements Cloneable {
   private int gossipFanout = DEFAULT_GOSSIP_FANOUT;
   private long gossipInterval = DEFAULT_GOSSIP_INTERVAL;
   private int gossipRepeatMult = DEFAULT_GOSSIP_REPEAT_MULT;
-  private int gossipIntervalsThreshold = SEQUENCE_SEGMENTATION_THRESHOLD;
+  private int gossipSegmentationThreshold = GOSSIP_SEGMENTATION_THRESHOLD;
 
   public GossipConfig() {}
 
@@ -108,15 +108,15 @@ public final class GossipConfig implements Cloneable {
   }
 
   /**
-   * Sets gossipIntervalsThreshold.
+   * Sets gossipSegmentationThreshold.
    *
-   * @param gossipIntervalsThreshold gossip intervals threshold
+   * @param gossipSegmentationThreshold gossip segmentation threshold
    * @return new {@code GossipConfig}
-   * @see #gossipIntervalsThreshold()
+   * @see #gossipSegmentationThreshold()
    */
-  public GossipConfig gossipIntervalsThreshold(int gossipIntervalsThreshold) {
+  public GossipConfig gossipSegmentationThreshold(int gossipSegmentationThreshold) {
     GossipConfig g = clone();
-    g.gossipIntervalsThreshold = gossipIntervalsThreshold;
+    g.gossipSegmentationThreshold = gossipSegmentationThreshold;
     return g;
   }
 
@@ -129,8 +129,8 @@ public final class GossipConfig implements Cloneable {
    *
    * @return gossip segmentation threshold
    */
-  public int gossipIntervalsThreshold() {
-    return gossipIntervalsThreshold;
+  public int gossipSegmentationThreshold() {
+    return gossipSegmentationThreshold;
   }
 
   @Override
@@ -148,7 +148,7 @@ public final class GossipConfig implements Cloneable {
         .add("gossipFanout=" + gossipFanout)
         .add("gossipInterval=" + gossipInterval)
         .add("gossipRepeatMult=" + gossipRepeatMult)
-        .add("gossipIntervalsThreshold=" + gossipIntervalsThreshold)
+        .add("gossipSegmentationThreshold=" + gossipSegmentationThreshold)
         .toString();
   }
 }
