@@ -2,6 +2,7 @@ package io.scalecube.cluster.membership;
 
 import io.scalecube.cluster.Member;
 import java.nio.ByteBuffer;
+import java.time.Instant;
 import java.util.Objects;
 import java.util.StringJoiner;
 
@@ -14,6 +15,7 @@ public final class MembershipEvent {
   public enum Type {
     ADDED,
     REMOVED,
+    LEAVING,
     UPDATED
   }
 
@@ -21,13 +23,15 @@ public final class MembershipEvent {
   private final Member member;
   private final ByteBuffer oldMetadata;
   private final ByteBuffer newMetadata;
+  private final long timestamp;
 
   private MembershipEvent(
-      Type type, Member member, ByteBuffer oldMetadata, ByteBuffer newMetadata) {
+      Type type, Member member, ByteBuffer oldMetadata, ByteBuffer newMetadata, long timestamp) {
     this.type = type;
     this.member = member;
     this.oldMetadata = oldMetadata;
     this.newMetadata = newMetadata;
+    this.timestamp = timestamp;
   }
 
   /**
@@ -35,37 +39,53 @@ public final class MembershipEvent {
    *
    * @param member cluster member; not null
    * @param metadata member metadata; optional
+   * @param timestamp event timestamp
    * @return membership event
    */
-  public static MembershipEvent createRemoved(Member member, ByteBuffer metadata) {
+  public static MembershipEvent createRemoved(Member member, ByteBuffer metadata, long timestamp) {
     Objects.requireNonNull(member, "member must be not null");
-    return new MembershipEvent(Type.REMOVED, member, metadata, null);
+    return new MembershipEvent(Type.REMOVED, member, metadata, null, timestamp);
   }
 
   /**
    * Creates ADDED membership event with cluster member and its metadata.
    *
    * @param member cluster memeber; not null
-   * @param metadata member metadata; not null
+   * @param metadata member metadata; optional
+   * @param timestamp event timestamp
    * @return membership event
    */
-  public static MembershipEvent createAdded(Member member, ByteBuffer metadata) {
+  public static MembershipEvent createAdded(Member member, ByteBuffer metadata, long timestamp) {
     Objects.requireNonNull(member, "member must be not null");
-    return new MembershipEvent(Type.ADDED, member, null, metadata);
+    return new MembershipEvent(Type.ADDED, member, null, metadata, timestamp);
+  }
+
+  /**
+   * Creates LEAVING membership event.
+   *
+   * @param member cluster member; not null
+   * @param metadata member metadata; optional
+   * @param timestamp event timestamp
+   * @return membership event
+   */
+  public static MembershipEvent createLeaving(Member member, ByteBuffer metadata, long timestamp) {
+    Objects.requireNonNull(member, "member must be not null");
+    return new MembershipEvent(Type.LEAVING, member, null, metadata, timestamp);
   }
 
   /**
    * Creates UPDATED membership event.
    *
    * @param member cluster member; not null
-   * @param oldMetadata previous metadata; not null
-   * @param newMetadata new metadata; not null
+   * @param oldMetadata previous metadata; optional
+   * @param newMetadata new metadata; optional
+   * @param timestamp event timestamp
    * @return membership event
    */
   public static MembershipEvent createUpdated(
-      Member member, ByteBuffer oldMetadata, ByteBuffer newMetadata) {
+      Member member, ByteBuffer oldMetadata, ByteBuffer newMetadata, long timestamp) {
     Objects.requireNonNull(member, "member must be not null");
-    return new MembershipEvent(Type.UPDATED, member, oldMetadata, newMetadata);
+    return new MembershipEvent(Type.UPDATED, member, oldMetadata, newMetadata, timestamp);
   }
 
   public Type type() {
@@ -78,6 +98,10 @@ public final class MembershipEvent {
 
   public boolean isRemoved() {
     return type == Type.REMOVED;
+  }
+
+  public boolean isLeaving() {
+    return type == Type.LEAVING;
   }
 
   public boolean isUpdated() {
@@ -96,6 +120,10 @@ public final class MembershipEvent {
     return newMetadata;
   }
 
+  public long timestamp() {
+    return timestamp;
+  }
+
   @Override
   public String toString() {
     return new StringJoiner(", ", MembershipEvent.class.getSimpleName() + "[", "]")
@@ -103,7 +131,12 @@ public final class MembershipEvent {
         .add("member=" + member)
         .add("oldMetadata=" + metadataAsString(oldMetadata))
         .add("newMetadata=" + metadataAsString(newMetadata))
+        .add("timestamp=" + timestampAsString(timestamp))
         .toString();
+  }
+
+  private String timestampAsString(long timestamp) {
+    return Instant.ofEpochMilli(timestamp).toString();
   }
 
   private String metadataAsString(ByteBuffer metadata) {

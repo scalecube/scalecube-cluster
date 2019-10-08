@@ -68,9 +68,9 @@ public class GossipRequestTest extends BaseTest {
 
   private List<Gossip> getGossips() {
     Gossip request =
-        new Gossip("idGossip", Message.withData(testData).qualifier(testDataQualifier).build());
+        new Gossip("idGossip", Message.withData(testData).qualifier(testDataQualifier).build(), 0);
     Gossip request2 =
-        new Gossip("idGossip2", Message.withData(testData).qualifier(testDataQualifier).build());
+        new Gossip("idGossip2", Message.withData(testData).qualifier(testDataQualifier).build(), 1);
     List<Gossip> gossips = new ArrayList<>(2);
     gossips.add(request);
     gossips.add(request2);

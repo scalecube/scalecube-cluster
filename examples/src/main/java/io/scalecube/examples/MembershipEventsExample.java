@@ -26,6 +26,7 @@ public class MembershipEventsExample {
     // Alice init cluster
     Cluster alice =
         new ClusterImpl()
+            .config(opts -> opts.memberAlias("Alice"))
             .config(opts -> opts.metadata(Collections.singletonMap("name", "Alice")))
             .handler(
                 cluster -> {
@@ -42,6 +43,7 @@ public class MembershipEventsExample {
     // Bob join cluster
     Cluster bob =
         new ClusterImpl()
+            .config(opts -> opts.memberAlias("Bob"))
             .config(opts -> opts.metadata(Collections.singletonMap("name", "Bob")))
             .membership(opts -> opts.seedMembers(alice.address()))
             .handler(
@@ -59,8 +61,9 @@ public class MembershipEventsExample {
     // Carol join cluster
     Cluster carol =
         new ClusterImpl()
+            .config(opts -> opts.memberAlias("Carol"))
             .config(opts -> opts.metadata(Collections.singletonMap("name", "Carol")))
-            .membership(opts -> opts.seedMembers(alice.address(), bob.address()))
+            .membership(opts -> opts.seedMembers(bob.address()))
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {
