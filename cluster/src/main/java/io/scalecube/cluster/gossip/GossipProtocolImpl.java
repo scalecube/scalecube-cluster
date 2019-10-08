@@ -139,10 +139,11 @@ public final class GossipProtocolImpl implements GossipProtocol {
   // ================================================
 
   private void doSpreadGossip() {
-    checkGossipSegmentation();
-
     // Increment period
     long period = currentPeriod++;
+
+    // Check segments
+    checkGossipSegmentation();
 
     // Check any gossips exists
     if (gossips.isEmpty()) {
