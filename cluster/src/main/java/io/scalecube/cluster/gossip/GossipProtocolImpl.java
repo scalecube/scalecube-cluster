@@ -12,6 +12,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -46,10 +47,11 @@ public final class GossipProtocolImpl implements GossipProtocol {
 
   private long currentPeriod = 0;
   private long gossipCounter = 0;
-  private Map<String, GossipState> gossips = new HashMap<>();
-  private Map<String, MonoSink<String>> futures = new HashMap<>();
+  private final Map<String, SequenceIdCollector> sequenceIdCollectors = new HashMap<>();
+  private final Map<String, GossipState> gossips = new HashMap<>();
+  private final Map<String, MonoSink<String>> futures = new HashMap<>();
 
-  private List<Member> remoteMembers = new ArrayList<>();
+  private final List<Member> remoteMembers = new ArrayList<>();
   private int remoteMembersIndex = -1;
 
   // Disposables
@@ -140,6 +142,9 @@ public final class GossipProtocolImpl implements GossipProtocol {
     // Increment period
     long period = currentPeriod++;
 
+    // Check segments
+    checkGossipSegmentation();
+
     // Check any gossips exists
     if (gossips.isEmpty()) {
       return; // nothing to spread
@@ -179,24 +184,48 @@ public final class GossipProtocolImpl implements GossipProtocol {
   // ================================================
 
   private String createAndPutGossip(Message message) {
-    long period = this.currentPeriod;
-    Gossip gossip = new Gossip(generateGossipId(), message);
-    GossipState gossipState = new GossipState(gossip, period);
+    final long period = this.currentPeriod;
+    final Gossip gossip = createGossip(message);
+    final GossipState gossipState = new GossipState(gossip, period);
+
     gossips.put(gossip.gossipId(), gossipState);
+    ensureSequence(localMember.id()).add(gossip.sequenceId());
+
     return gossip.gossipId();
   }
 
   private void onGossipReq(Message message) {
-    long period = this.currentPeriod;
-    GossipRequest gossipRequest = message.data();
+    final long period = this.currentPeriod;
+    final GossipRequest gossipRequest = message.data();
     for (Gossip gossip : gossipRequest.gossips()) {
-      GossipState gossipState = gossips.get(gossip.gossipId());
-      if (gossipState == null) { // new gossip
-        gossipState = new GossipState(gossip, period);
-        gossips.put(gossip.gossipId(), gossipState);
-        sink.next(gossip.message());
+      if (ensureSequence(gossip.gossiperId()).add(gossip.sequenceId())) {
+        GossipState gossipState = gossips.get(gossip.gossipId());
+        if (gossipState == null) { // new gossip
+          gossipState = new GossipState(gossip, period);
+          gossips.put(gossip.gossipId(), gossipState);
+          sink.next(gossip.message());
+        }
+        gossipState.addToInfected(gossipRequest.from());
       }
-      gossipState.addToInfected(gossipRequest.from());
+    }
+  }
+
+  private void checkGossipSegmentation() {
+    final int intervalsThreshold = config.gossipSegmentationThreshold();
+    for (Entry<String, SequenceIdCollector> entry : sequenceIdCollectors.entrySet()) {
+      // Size of sequenceIdCollector could grow only if we never received some messages.
+      // Which is possible only if current node wasn't available(suspected) for some time
+      // or network issue
+      final SequenceIdCollector sequenceIdCollector = entry.getValue();
+      if (sequenceIdCollector.size() > intervalsThreshold) {
+        LOGGER.warn(
+            "Too many missed gossip messages from original gossiper: '{}', "
+                + "current node({}) was SUSPECTED much for a long time or connection problem",
+            entry.getKey(),
+            localMember);
+
+        sequenceIdCollector.clear();
+      }
     }
   }
 
@@ -204,6 +233,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
     Member member = event.member();
     if (event.isRemoved()) {
       boolean removed = remoteMembers.remove(member);
+      sequenceIdCollectors.remove(member.id());
       if (removed) {
         LOGGER.debug("Removed {} from remoteMembers list (size={})", member, remoteMembers.size());
       }
@@ -226,8 +256,12 @@ public final class GossipProtocolImpl implements GossipProtocol {
     return GOSSIP_REQ.equals(message.qualifier());
   }
 
-  private String generateGossipId() {
-    return localMember.id() + "-" + gossipCounter++;
+  private Gossip createGossip(Message message) {
+    return new Gossip(localMember.id(), message, gossipCounter++);
+  }
+
+  private SequenceIdCollector ensureSequence(String key) {
+    return sequenceIdCollectors.computeIfAbsent(key, s -> new SequenceIdCollector());
   }
 
   private void spreadGossipsTo(long period, Member member) {
