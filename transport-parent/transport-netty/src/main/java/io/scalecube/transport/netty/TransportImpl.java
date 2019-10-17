@@ -16,6 +16,7 @@ import io.scalecube.cluster.transport.api.MessageCodec;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.net.Address;
+import java.net.InetAddress;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -98,7 +99,7 @@ public final class TransportImpl implements Transport {
    */
   private TransportImpl(DisposableServer server, TransportImpl other) {
     this.server = server;
-    this.address = Address.create(server.address().getHostString(), server.address().getPort());
+    this.address = prepareAddress(server);
     this.config = other.config;
     this.loopResources = other.loopResources;
     this.messagesSubject = other.messagesSubject;
@@ -114,6 +115,16 @@ public final class TransportImpl implements Transport {
     stop.then(doStop())
         .doFinally(s -> onStop.onComplete())
         .subscribe(null, ex -> LOGGER.warn("Exception occurred on transport stop: " + ex));
+  }
+
+  private static Address prepareAddress(DisposableServer server) {
+    InetAddress address = server.address().getAddress();
+    int port = server.address().getPort();
+    if (address.isAnyLocalAddress()) {
+      return Address.create(Address.getLocalIpAddress().getHostAddress(), port);
+    } else {
+      return Address.create(address.getHostAddress(), port);
+    }
   }
 
   /**
@@ -171,15 +182,22 @@ public final class TransportImpl implements Transport {
         .handle(this::onMessage)
         .bind()
         .doOnSuccess(
-            server ->
-                LOGGER.debug("Bound cluster transport on {}:{}", server.host(), server.port()))
+            server -> {
+              InetAddress address = server.address().getAddress();
+              if (address.isAnyLocalAddress()) {
+                LOGGER.debug("Bound cluster transport on *:{}", server.port());
+              } else {
+                LOGGER.debug(
+                    "Bound cluster transport on {}:{}", address.getHostAddress(), server.port());
+              }
+            })
         .doOnError(
             ex ->
                 LOGGER.error(
                     "Failed to bind cluster transport on port={}, cause: {}",
                     config.port(),
                     ex.toString()))
-        .map(this::onBind);
+        .map(server -> new TransportImpl(server, this));
   }
 
   @Override
@@ -268,10 +286,6 @@ public final class TransportImpl implements Transport {
           "Message codec exception occurred at converting bytes to message: " + e.toString());
       throw new DecoderException(e);
     }
-  }
-
-  private TransportImpl onBind(DisposableServer server) {
-    return new TransportImpl(server, this);
   }
 
   private Mono<? extends Void> send0(Connection conn, Message message) {
