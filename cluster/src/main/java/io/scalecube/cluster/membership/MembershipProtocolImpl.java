@@ -17,6 +17,7 @@ import io.scalecube.cluster.monitor.ClusterMonitorModel;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.net.Address;
+import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -166,13 +167,38 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                 .subscribe(this::onMemberRemoved)));
   }
 
-  // Remove duplicates and local address
+  // Remove duplicates and local address(es)
   private List<Address> cleanUpSeedMembers(Collection<Address> seedMembers) {
+    InetAddress localIpAddress = Address.getLocalIpAddress();
+
+    String hostAddress = localIpAddress.getHostAddress();
+    String hostName = localIpAddress.getHostName();
+
+    Address memberAddr = localMember.address();
+    Address transportAddr = transport.address();
+    Address memberAddrByHostAddress = Address.create(hostAddress, memberAddr.port());
+    Address transportAddrByHostAddress = Address.create(hostAddress, transportAddr.port());
+    Address memberAddByHostName = Address.create(hostName, memberAddr.port());
+    Address transportAddrByHostName = Address.create(hostName, transportAddr.port());
+
     return new LinkedHashSet<>(seedMembers)
         .stream()
-            .filter(address -> !address.equals(localMember.address()))
-            .filter(address -> !address.equals(transport.address()))
+            .filter(addr -> checkAddressesNotEqual(addr, memberAddr))
+            .filter(addr -> checkAddressesNotEqual(addr, transportAddr))
+            .filter(addr -> checkAddressesNotEqual(addr, memberAddrByHostAddress))
+            .filter(addr -> checkAddressesNotEqual(addr, transportAddrByHostAddress))
+            .filter(addr -> checkAddressesNotEqual(addr, memberAddByHostName))
+            .filter(addr -> checkAddressesNotEqual(addr, transportAddrByHostName))
             .collect(Collectors.toList());
+  }
+
+  private boolean checkAddressesNotEqual(Address address0, Address address1) {
+    if (!address0.equals(address1)) {
+      return true;
+    } else {
+      LOGGER.warn("Filtering out seed address: {}", address0);
+      return false;
+    }
   }
 
   @Override

@@ -232,7 +232,7 @@ public final class ClusterImpl implements Cluster {
     return TransportImpl.bind(config.transportConfig())
         .flatMap(
             transport1 -> {
-              localMember = createLocalMember(transport1.address().port());
+              localMember = createLocalMember(transport1.address());
               transport = new SenderAwareTransport(transport1, localMember.address());
 
               cidGenerator = new CorrelationIdGenerator(localMember.id());
@@ -350,18 +350,17 @@ public final class ClusterImpl implements Cluster {
    * Creates and prepares local cluster member. An address of member that's being constructed may be
    * overriden from config variables.
    *
-   * @param listenPort transport listen port
+   * @param address transport address
    * @return local cluster member with cluster address and cluster member id
    */
-  private Member createLocalMember(int listenPort) {
-    String localAddress = Address.getLocalIpAddress().getHostAddress();
-    Integer port = Optional.ofNullable(config.memberPort()).orElse(listenPort);
+  private Member createLocalMember(Address address) {
+    int port = Optional.ofNullable(config.memberPort()).orElse(address.port());
 
     // calculate local member cluster address
     Address memberAddress =
         Optional.ofNullable(config.memberHost())
-            .map(memberHost -> Address.create(memberHost, port))
-            .orElseGet(() -> Address.create(localAddress, listenPort));
+            .map(host -> Address.create(host, port))
+            .orElseGet(() -> Address.create(address.host(), port));
 
     return new Member(Member.generateId(), config.memberAlias(), memberAddress);
   }
@@ -507,11 +506,11 @@ public final class ClusterImpl implements Cluster {
   private static class SenderAwareTransport implements Transport {
 
     private final Transport transport;
-    private final Address sender;
+    private final Address address;
 
-    private SenderAwareTransport(Transport transport, Address sender) {
+    private SenderAwareTransport(Transport transport, Address address) {
       this.transport = Objects.requireNonNull(transport);
-      this.sender = Objects.requireNonNull(sender);
+      this.address = Objects.requireNonNull(address);
     }
 
     @Override
@@ -545,7 +544,7 @@ public final class ClusterImpl implements Cluster {
     }
 
     private Message enhanceWithSender(Message message) {
-      return Message.with(message).sender(sender).build();
+      return Message.with(message).sender(address).build();
     }
   }
 }
