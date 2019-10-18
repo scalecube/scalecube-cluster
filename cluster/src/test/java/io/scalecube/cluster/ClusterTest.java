@@ -8,6 +8,7 @@ import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipEvent.Type;
 import io.scalecube.cluster.metadata.SimpleMapMetadataCodec;
 import io.scalecube.net.Address;
+import java.net.InetAddress;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -29,6 +30,7 @@ import reactor.core.publisher.ReplayProcessor;
 public class ClusterTest extends BaseTest {
 
   public static final Duration TIMEOUT = Duration.ofSeconds(30);
+  public static final int CONNECT_TIMEOUT = 3000;
 
   @Test
   public void testMembersAccessFromScheduler() {
@@ -50,28 +52,52 @@ public class ClusterTest extends BaseTest {
   }
 
   @Test
-  public void testJoinLocalhostIgnored() {
-    Address[] addresses = {Address.from("localhost:4801"), Address.from("127.0.0.1:4801")};
+  public void testJoinLocalhostIgnored() throws InterruptedException {
+    InetAddress localIpAddress = Address.getLocalIpAddress();
+    Address localAddressByHostname = Address.create(localIpAddress.getHostName(), 4801);
+    Address localAddressByIp = Address.create(localIpAddress.getHostAddress(), 4801);
+    Address[] addresses = {
+      Address.from("localhost:4801"),
+      Address.from("127.0.0.1:4801"),
+      Address.from("127.0.1.1:4801"),
+      localAddressByHostname,
+      localAddressByIp
+    };
 
     // Start seed node
     Cluster seedNode =
         new ClusterImpl()
-            .transport(opts -> opts.port(4801).connectTimeout(500))
+            .transport(opts -> opts.port(4801).connectTimeout(CONNECT_TIMEOUT))
             .membership(opts -> opts.seedMembers(addresses))
             .startAwait();
+
+    Thread.sleep(CONNECT_TIMEOUT);
 
     Collection<Member> otherMembers = seedNode.otherMembers();
     assertEquals(0, otherMembers.size(), "otherMembers: " + otherMembers);
   }
 
   @Test
-  public void testJoinLocalhostIgnoredWithOverride() {
+  public void testJoinLocalhostIgnoredWithOverride() throws InterruptedException {
+    InetAddress localIpAddress = Address.getLocalIpAddress();
+    Address localAddressByHostname = Address.create(localIpAddress.getHostName(), 7878);
+    Address localAddressByIp = Address.create(localIpAddress.getHostAddress(), 7878);
+    Address[] addresses = {
+      Address.from("localhost:7878"),
+      Address.from("127.0.0.1:7878"),
+      Address.from("127.0.1.1:7878"),
+      localAddressByHostname,
+      localAddressByIp
+    };
+
     // Start seed node
     Cluster seedNode =
         new ClusterImpl(new ClusterConfig().memberHost("localhost").memberPort(7878))
-            .transport(opts -> opts.port(7878).connectTimeout(500))
-            .membership(opts -> opts.seedMembers(Address.from("localhost:7878")))
+            .transport(opts -> opts.port(7878).connectTimeout(CONNECT_TIMEOUT))
+            .membership(opts -> opts.seedMembers(addresses))
             .startAwait();
+
+    Thread.sleep(CONNECT_TIMEOUT);
 
     Collection<Member> otherMembers = seedNode.otherMembers();
     assertEquals(0, otherMembers.size(), "otherMembers: " + otherMembers);
