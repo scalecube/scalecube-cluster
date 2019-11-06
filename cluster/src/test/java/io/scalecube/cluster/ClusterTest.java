@@ -39,9 +39,9 @@ public class ClusterTest extends BaseTest {
     // Start seed node
     Cluster seedNode =
         new ClusterImpl()
-            .gossip(opts -> opts.gossipInterval(1))
-            .failureDetector(opts -> opts.pingInterval(1))
-            .membership(opts -> opts.syncInterval(1))
+            .gossip(opts -> opts.gossipInterval(100))
+            .failureDetector(opts -> opts.pingInterval(100))
+            .membership(opts -> opts.syncInterval(100))
             .transport(opts -> opts.host(address.host()).port(address.port()))
             .transport(opts -> opts.connectTimeout(CONNECT_TIMEOUT))
             .startAwait();
@@ -49,22 +49,26 @@ public class ClusterTest extends BaseTest {
     Cluster otherNode =
         new ClusterImpl()
             .membership(opts -> opts.seedMembers(address))
-            .gossip(opts -> opts.gossipInterval(1))
-            .failureDetector(opts -> opts.pingInterval(1))
-            .membership(opts -> opts.syncInterval(1))
+            .gossip(opts -> opts.gossipInterval(100))
+            .failureDetector(opts -> opts.pingInterval(100))
+            .membership(opts -> opts.syncInterval(100))
             .transport(opts -> opts.connectTimeout(CONNECT_TIMEOUT))
             .startAwait();
 
     assertEquals(2, seedNode.members().size());
     assertEquals(2, otherNode.members().size());
 
-    for (int i = 0; i < 15; i++) {
+    for (int i = 0; i < 10; i++) {
       seedNode.shutdown();
       seedNode.onShutdown().then(Mono.delay(Duration.ofMillis(100))).block();
 
       seedNode =
           new ClusterImpl()
+              .gossip(opts -> opts.gossipInterval(100))
+              .failureDetector(opts -> opts.pingInterval(100))
+              .membership(opts -> opts.syncInterval(100))
               .transport(opts -> opts.host(address.host()).port(address.port()))
+              .transport(opts -> opts.connectTimeout(CONNECT_TIMEOUT))
               .startAwait();
 
       TimeUnit.SECONDS.sleep(1);
