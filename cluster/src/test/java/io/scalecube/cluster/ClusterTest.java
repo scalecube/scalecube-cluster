@@ -33,6 +33,48 @@ public class ClusterTest extends BaseTest {
   public static final int CONNECT_TIMEOUT = 3000;
 
   @Test
+  public void testStartStopRepeatedly() throws Exception {
+    Address address = Address.from("localhost:4848");
+
+    // Start seed node
+    Cluster seedNode =
+        new ClusterImpl()
+            .gossip(opts -> opts.gossipInterval(1))
+            .failureDetector(opts -> opts.pingInterval(1))
+            .membership(opts -> opts.syncInterval(1))
+            .transport(opts -> opts.host(address.host()).port(address.port()))
+            .transport(opts -> opts.connectTimeout(CONNECT_TIMEOUT))
+            .startAwait();
+
+    Cluster otherNode =
+        new ClusterImpl()
+            .membership(opts -> opts.seedMembers(address))
+            .gossip(opts -> opts.gossipInterval(1))
+            .failureDetector(opts -> opts.pingInterval(1))
+            .membership(opts -> opts.syncInterval(1))
+            .transport(opts -> opts.connectTimeout(CONNECT_TIMEOUT))
+            .startAwait();
+
+    assertEquals(2, seedNode.members().size());
+    assertEquals(2, otherNode.members().size());
+
+    for (int i = 0; i < 15; i++) {
+      seedNode.shutdown();
+      seedNode.onShutdown().then(Mono.delay(Duration.ofMillis(100))).block();
+
+      seedNode =
+          new ClusterImpl()
+              .transport(opts -> opts.host(address.host()).port(address.port()))
+              .startAwait();
+
+      TimeUnit.SECONDS.sleep(1);
+
+      assertEquals(2, seedNode.members().size());
+      assertEquals(2, otherNode.members().size());
+    }
+  }
+
+  @Test
   public void testMembersAccessFromScheduler() {
     // Start seed node
     Cluster seedNode = new ClusterImpl().startAwait();
