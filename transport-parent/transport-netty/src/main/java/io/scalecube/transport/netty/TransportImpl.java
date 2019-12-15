@@ -36,7 +36,6 @@ import reactor.netty.ConnectionObserver;
 import reactor.netty.DisposableServer;
 import reactor.netty.NettyInbound;
 import reactor.netty.NettyOutbound;
-import reactor.netty.NettyPipeline.SendOptions;
 import reactor.netty.channel.BootstrapHandlers;
 import reactor.netty.resources.ConnectionProvider;
 import reactor.netty.resources.LoopResources;
@@ -291,7 +290,6 @@ public final class TransportImpl implements Transport {
   private Mono<? extends Void> send0(Connection conn, Message message) {
     // do send
     return conn.outbound()
-        .options(SendOptions::flushOnEach)
         .send(Mono.just(message).map(this::toByteBuf))
         .then();
   }
