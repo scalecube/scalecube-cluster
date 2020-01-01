@@ -1,13 +1,32 @@
-package io.scalecube.cluster.transport;
+package io.scalecube.cluster.codec.jackson;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.MessageCodec;
-import io.scalecube.cluster.utils.DefaultObjectMapper;
+
 import java.io.InputStream;
 import java.io.OutputStream;
 
 /** Contains methods for message serializing/deserializing logic. */
-public final class JacksonMessageCodec implements MessageCodec {
+public class JacksonMessageCodec implements MessageCodec {
+
+  private final ObjectMapper delegate;
+
+  /**
+   * Create instance with external {@link ObjectMapper}.
+   *
+   * @param delegate jackson object mapper
+   */
+  public JacksonMessageCodec(ObjectMapper delegate) {
+    this.delegate = delegate;
+  }
+
+  /**
+   * Create instance with default {@link ObjectMapper}.
+   */
+  public JacksonMessageCodec() {
+    this.delegate = DefaultObjectMapper.OBJECT_MAPPER;
+  }
 
   /**
    * Deserializes message from given input stream.
@@ -17,7 +36,7 @@ public final class JacksonMessageCodec implements MessageCodec {
    */
   @Override
   public Message deserialize(InputStream stream) throws Exception {
-    return DefaultObjectMapper.OBJECT_MAPPER.readValue(stream, Message.class);
+    return this.delegate.readValue(stream, Message.class);
   }
 
   /**
@@ -28,6 +47,6 @@ public final class JacksonMessageCodec implements MessageCodec {
    */
   @Override
   public void serialize(Message message, OutputStream stream) throws Exception {
-    DefaultObjectMapper.OBJECT_MAPPER.writeValue(stream, message);
+    this.delegate.writeValue(stream, message);
   }
 }

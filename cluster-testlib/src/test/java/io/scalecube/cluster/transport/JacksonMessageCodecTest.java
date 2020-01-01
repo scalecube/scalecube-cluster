@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
 
 class JacksonMessageCodecTest {
 
-  private static final MessageCodec messageCodec = new JacksonMessageCodec();
+  private static final MessageCodec messageCodec = MessageCodec.INSTANCE;
   private static final Random random = new Random();
 
   @Test
