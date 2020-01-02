@@ -36,8 +36,8 @@ public final class ClusterConfig implements Cloneable {
   private MetadataDecoder metadataDecoder = MetadataDecoder.INSTANCE;
 
   private String memberAlias;
-  private String mappedHost;
-  private Integer mappedPort;
+  private String containerHost;
+  private Integer containerPort;
 
   private TransportConfig transportConfig = TransportConfig.defaultConfig();
   private FailureDetectorConfig failureDetectorConfig = FailureDetectorConfig.defaultConfig();
@@ -153,17 +153,17 @@ public final class ClusterConfig implements Cloneable {
   }
 
   /**
-   * Deprecated since {@code 2.4.10} in favor of {@link #mappedHost()}.
+   * Deprecated since {@code 2.4.10} in favor of {@link #containerHost()}.
    *
    * @return member host
    */
   @Deprecated
   public String memberHost() {
-    return mappedHost;
+    return containerHost;
   }
 
   /**
-   * Deprecated since {@code 2.4.10} in favor of {@link #mappedHost(String)}.
+   * Deprecated since {@code 2.4.10} in favor of {@link #containerHost(String)}.
    *
    * @param memberHost member host
    * @return new {@code ClusterConfig} instance
@@ -171,7 +171,7 @@ public final class ClusterConfig implements Cloneable {
   @Deprecated
   public ClusterConfig memberHost(String memberHost) {
     ClusterConfig c = clone();
-    c.mappedHost = memberHost;
+    c.containerHost = memberHost;
     return c;
   }
 
@@ -182,8 +182,8 @@ public final class ClusterConfig implements Cloneable {
    *
    * @return mapped host
    */
-  public String mappedHost() {
-    return mappedHost;
+  public String containerHost() {
+    return containerHost;
   }
 
   /**
@@ -194,9 +194,9 @@ public final class ClusterConfig implements Cloneable {
    * @param mappedHost mapped host
    * @return new {@code ClusterConfig} instance
    */
-  public ClusterConfig mappedHost(String mappedHost) {
+  public ClusterConfig containerHost(String mappedHost) {
     ClusterConfig c = clone();
-    c.mappedHost = mappedHost;
+    c.containerHost = mappedHost;
     return c;
   }
 
@@ -230,8 +230,8 @@ public final class ClusterConfig implements Cloneable {
    *
    * @return mapped port
    */
-  public Integer mappedPort() {
-    return mappedPort;
+  public Integer containerPort() {
+    return containerPort;
   }
 
   /**
@@ -242,24 +242,24 @@ public final class ClusterConfig implements Cloneable {
    * @param mappedPort mapped port
    * @return new {@code ClusterConfig} instance
    */
-  public ClusterConfig mappedPort(Integer mappedPort) {
+  public ClusterConfig containerPort(Integer mappedPort) {
     ClusterConfig c = clone();
-    c.mappedPort = mappedPort;
+    c.containerPort = mappedPort;
     return c;
   }
 
   /**
-   * Deprecated since {@code 2.4.10} in favor of {@link #mappedPort()}.
+   * Deprecated since {@code 2.4.10} in favor of {@link #containerPort()}.
    *
    * @return member port
    */
   @Deprecated
   public Integer memberPort() {
-    return mappedPort;
+    return containerPort;
   }
 
   /**
-   * Deprecated since {@code 2.4.10} in favor of {@link #mappedPort(Integer)}.
+   * Deprecated since {@code 2.4.10} in favor of {@link #containerPort(Integer)}.
    *
    * @param memberPort member port
    * @return new {@code ClusterConfig} instance
@@ -267,7 +267,7 @@ public final class ClusterConfig implements Cloneable {
   @Deprecated
   public ClusterConfig memberPort(Integer memberPort) {
     ClusterConfig c = clone();
-    c.mappedPort = memberPort;
+    c.containerPort = memberPort;
     return c;
   }
 
@@ -357,8 +357,8 @@ public final class ClusterConfig implements Cloneable {
         .add("metadataEncoder=" + metadataEncoder)
         .add("metadataDecoder=" + metadataDecoder)
         .add("memberAlias='" + memberAlias + "'")
-        .add("mappedHost='" + mappedHost + "'")
-        .add("mappedPort=" + mappedPort)
+        .add("containerHost='" + containerHost + "'")
+        .add("containerPort=" + containerPort)
         .add("transportConfig=" + transportConfig)
         .add("failureDetectorConfig=" + failureDetectorConfig)
         .add("gossipConfig=" + gossipConfig)
