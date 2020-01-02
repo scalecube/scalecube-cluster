@@ -1,23 +1,21 @@
 package io.scalecube.cluster.gossip;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import io.scalecube.cluster.BaseTest;
 import io.scalecube.cluster.Member;
-import io.scalecube.cluster.transport.JacksonMessageCodec;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.MessageCodec;
 import io.scalecube.net.Address;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 public class GossipRequestTest extends BaseTest {
 
@@ -32,7 +30,7 @@ public class GossipRequestTest extends BaseTest {
     properties.put("key", "123");
     testData = new TestData();
     testData.setProperties(properties);
-    messageCodec = new JacksonMessageCodec();
+    messageCodec = MessageCodec.INSTANCE;
   }
 
   @Test

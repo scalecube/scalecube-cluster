@@ -1,4 +1,4 @@
-package io.scalecube.cluster.transport;
+package io.scalecube.cluster.codec.jackson;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;

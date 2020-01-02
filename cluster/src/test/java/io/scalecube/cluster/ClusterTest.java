@@ -6,7 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipEvent.Type;
-import io.scalecube.cluster.metadata.SimpleMapMetadataCodec;
+import io.scalecube.cluster.metadata.MetadataDecoder;
+import io.scalecube.cluster.transport.api.MessageCodec;
 import io.scalecube.net.Address;
 import java.net.InetAddress;
 import java.time.Duration;
@@ -511,7 +512,7 @@ public class ClusterTest extends BaseTest {
         .filter(MembershipEvent::isRemoved)
         .subscribe(
             event -> {
-              Object metadata = SimpleMapMetadataCodec.INSTANCE.decode(event.oldMetadata());
+              Object metadata = MetadataDecoder.INSTANCE.decode(event.oldMetadata());
               //noinspection unchecked
               removedMetadata.set((Map<String, String>) metadata);
               latch.countDown();
