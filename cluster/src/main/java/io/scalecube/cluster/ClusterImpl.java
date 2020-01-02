@@ -354,11 +354,11 @@ public final class ClusterImpl implements Cluster {
    * @return local cluster member with cluster address and cluster member id
    */
   private Member createLocalMember(Address address) {
-    int port = Optional.ofNullable(config.memberPort()).orElse(address.port());
+    int port = Optional.ofNullable(config.mappedPort()).orElse(address.port());
 
     // calculate local member cluster address
     Address memberAddress =
-        Optional.ofNullable(config.memberHost())
+        Optional.ofNullable(config.mappedHost())
             .map(host -> Address.create(host, port))
             .orElseGet(() -> Address.create(address.host(), port));
 

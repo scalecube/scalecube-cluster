@@ -177,7 +177,6 @@ public class MembershipProtocolTest extends BaseTest {
     assertTrue(cmAEvents.isEmpty());
   }
 
-
   @Test
   public void testLeaveClusterOnSuspectedNode() {
     final NetworkEmulatorTransport a = createTransport();
@@ -752,19 +751,19 @@ public class MembershipProtocolTest extends BaseTest {
     NetworkEmulatorTransport e = createTransport();
 
     MembershipProtocolImpl cmA =
-        createMembership(a, testConfig(Collections.emptyList()).memberHost(localAddress));
+        createMembership(a, testConfig(Collections.emptyList()).mappedHost(localAddress));
     MembershipProtocolImpl cmB =
         createMembership(
-            b, testConfig(Collections.singletonList(a.address())).memberHost(localAddress));
+            b, testConfig(Collections.singletonList(a.address())).mappedHost(localAddress));
     MembershipProtocolImpl cmC =
         createMembership(
-            c, testConfig(Collections.singletonList(a.address())).memberHost(localAddress));
+            c, testConfig(Collections.singletonList(a.address())).mappedHost(localAddress));
     MembershipProtocolImpl cmD =
         createMembership(
-            d, testConfig(Collections.singletonList(b.address())).memberHost(localAddress));
+            d, testConfig(Collections.singletonList(b.address())).mappedHost(localAddress));
     MembershipProtocolImpl cmE =
         createMembership(
-            e, testConfig(Collections.singletonList(b.address())).memberHost(localAddress));
+            e, testConfig(Collections.singletonList(b.address())).mappedHost(localAddress));
 
     try {
       awaitSeconds(3);

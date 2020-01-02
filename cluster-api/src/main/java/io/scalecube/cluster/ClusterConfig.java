@@ -36,8 +36,8 @@ public final class ClusterConfig implements Cloneable {
   private MetadataDecoder metadataDecoder = MetadataDecoder.INSTANCE;
 
   private String memberAlias;
-  private String memberHost;
-  private Integer memberPort;
+  private String mappedHost;
+  private Integer mappedPort;
 
   private TransportConfig transportConfig = TransportConfig.defaultConfig();
   private FailureDetectorConfig failureDetectorConfig = FailureDetectorConfig.defaultConfig();
@@ -152,28 +152,67 @@ public final class ClusterConfig implements Cloneable {
     return c;
   }
 
+  /**
+   * Deprecated since {@code 2.4.10} in favor of {@link #mappedHost()}.
+   *
+   * @return member host
+   */
+  @Deprecated
   public String memberHost() {
-    return memberHost;
+    return mappedHost;
   }
 
   /**
-   * Sets a memberHost.
+   * Returns mappedHost. {@code mappedHost} is a config property for container environments, it's
+   * being set for advertising to scalecube cluster some connectable hostname which maps to
+   * scalecube transport's hostname on which scalecube transport is listening.
+   *
+   * @return mapped host
+   */
+  public String mappedHost() {
+    return mappedHost;
+  }
+
+  /**
+   * Deprecated since {@code 2.4.10} in favor of {@link #mappedHost(String)}.
    *
    * @param memberHost member host
    * @return new {@code ClusterConfig} instance
    */
+  @Deprecated
   public ClusterConfig memberHost(String memberHost) {
     ClusterConfig c = clone();
-    c.memberHost = memberHost;
+    c.mappedHost = memberHost;
     return c;
   }
 
+  /**
+   * Setter for mappedHost. {@code mappedHost} is a config property for container environments, it's
+   * being set for advertising to scalecube cluster some connectable hostname which maps to
+   * scalecube transport's hostname on which scalecube transport is listening.
+   *
+   * @param mappedHost mapped host
+   * @return new {@code ClusterConfig} instance
+   */
+  public ClusterConfig mappedHost(String mappedHost) {
+    ClusterConfig c = clone();
+    c.mappedHost = mappedHost;
+    return c;
+  }
+
+  /**
+   * Returns memberAlias. {@code memberAlias} is a config property which facilitates {@link
+   * io.scalecube.cluster.Member#toString()}.
+   *
+   * @return member alias.
+   */
   public String memberAlias() {
     return memberAlias;
   }
 
   /**
-   * Sets a memberAlias.
+   * Setter for memberAlias. {@code memberAlias} is a config property which facilitates {@link
+   * io.scalecube.cluster.Member#toString()}.
    *
    * @param memberAlias member alias
    * @return new {@code ClusterConfig} instance
@@ -184,19 +223,51 @@ public final class ClusterConfig implements Cloneable {
     return c;
   }
 
+  /**
+   * Deprecated since {@code 2.4.10} in favor of {@link #mappedPort()}.
+   *
+   * @return member port
+   */
+  @Deprecated
   public Integer memberPort() {
-    return memberPort;
+    return mappedPort;
   }
 
   /**
-   * Sets a memberPort.
+   * Returns mappedPort. {@code mappedPort} is a config property for container environments, it's
+   * being set for advertising to scalecube cluster a port which mapped to scalecube transport's
+   * listening port.
+   *
+   * @return mapped port
+   */
+  public Integer mappedPort() {
+    return mappedPort;
+  }
+
+  /**
+   * Deprecated since {@code 2.4.10} in favor of {@link #mappedPort(Integer)}.
    *
    * @param memberPort member port
    * @return new {@code ClusterConfig} instance
    */
+  @Deprecated
   public ClusterConfig memberPort(Integer memberPort) {
     ClusterConfig c = clone();
-    c.memberPort = memberPort;
+    c.mappedPort = memberPort;
+    return c;
+  }
+
+  /**
+   * Setter for mappedPort. {@code mappedPort} is a config property for container environments, it's
+   * being set for advertising to scalecube cluster a port which mapped to scalecube transport's
+   * listening port.
+   *
+   * @param mappedPort mapped port
+   * @return new {@code ClusterConfig} instance
+   */
+  public ClusterConfig mappedPort(Integer mappedPort) {
+    ClusterConfig c = clone();
+    c.mappedPort = mappedPort;
     return c;
   }
 
@@ -286,8 +357,8 @@ public final class ClusterConfig implements Cloneable {
         .add("metadataEncoder=" + metadataEncoder)
         .add("metadataDecoder=" + metadataDecoder)
         .add("memberAlias='" + memberAlias + "'")
-        .add("memberHost='" + memberHost + "'")
-        .add("memberPort=" + memberPort)
+        .add("mappedHost='" + mappedHost + "'")
+        .add("mappedPort=" + mappedPort)
         .add("transportConfig=" + transportConfig)
         .add("failureDetectorConfig=" + failureDetectorConfig)
         .add("gossipConfig=" + gossipConfig)
