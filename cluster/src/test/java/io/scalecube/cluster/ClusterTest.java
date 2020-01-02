@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipEvent.Type;
 import io.scalecube.cluster.metadata.MetadataDecoder;
-import io.scalecube.cluster.transport.api.MessageCodec;
 import io.scalecube.net.Address;
 import java.net.InetAddress;
 import java.time.Duration;
