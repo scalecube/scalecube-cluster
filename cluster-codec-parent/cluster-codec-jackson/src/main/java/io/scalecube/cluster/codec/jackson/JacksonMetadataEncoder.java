@@ -16,21 +16,18 @@ import reactor.core.Exceptions;
  */
 public class JacksonMetadataEncoder implements MetadataEncoder, MetadataDecoder {
 
-  private static final TypeReference<Map<String, String>> DEFAULT_TYPE =
+  private static final TypeReference<Map<String, String>> TYPE =
       new TypeReference<Map<String, String>>() {};
 
   private final ObjectMapper delegate;
-  private final TypeReference<?> type;
 
   /**
    * Create instance with external {@link ObjectMapper}.
    *
    * @param delegate jackson object mapper
-   * @param type type of metadata
    */
-  public JacksonMetadataEncoder(ObjectMapper delegate, TypeReference<?> type) {
+  public JacksonMetadataEncoder(ObjectMapper delegate) {
     this.delegate = delegate;
-    this.type = type;
   }
 
   /**
@@ -38,7 +35,6 @@ public class JacksonMetadataEncoder implements MetadataEncoder, MetadataDecoder 
    */
   public JacksonMetadataEncoder() {
     this.delegate = DefaultObjectMapper.OBJECT_MAPPER;
-    this.type = DEFAULT_TYPE;
   }
 
   /**
@@ -53,7 +49,7 @@ public class JacksonMetadataEncoder implements MetadataEncoder, MetadataDecoder 
       if (buffer.remaining() == 0) {
         return Collections.emptyMap();
       }
-      return this.delegate.readValue(buffer.array(), this.type);
+      return this.delegate.readValue(buffer.array(), TYPE);
     } catch (Exception e) {
       throw Exceptions.propagate(e);
     }
@@ -68,7 +64,7 @@ public class JacksonMetadataEncoder implements MetadataEncoder, MetadataDecoder 
   @Override
   public ByteBuffer encode(Object metadata) {
     try {
-      return ByteBuffer.wrap(this.delegate.writerFor(this.type).writeValueAsBytes(metadata));
+      return ByteBuffer.wrap(this.delegate.writeValueAsBytes(metadata));
     } catch (Exception e) {
       throw Exceptions.propagate(e);
     }
