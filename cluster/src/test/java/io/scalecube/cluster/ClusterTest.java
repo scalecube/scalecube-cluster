@@ -138,7 +138,7 @@ public class ClusterTest extends BaseTest {
 
     // Start seed node
     Cluster seedNode =
-        new ClusterImpl(new ClusterConfig().memberHost("localhost").memberPort(7878))
+        new ClusterImpl(new ClusterConfig().containerHost("localhost").containerPort(7878))
             .transport(opts -> opts.port(7878).connectTimeout(CONNECT_TIMEOUT))
             .membership(opts -> opts.seedMembers(addresses))
             .startAwait();
