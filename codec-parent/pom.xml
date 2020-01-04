@@ -14,7 +14,7 @@
   <name>ScaleCube/ClusterCodec</name>
 
   <modules>
-    <module>cluster-codec-jackson</module>
+    <module>codec-jackson</module>
   </modules>
 
   <dependencies>
