@@ -3,6 +3,7 @@ package io.scalecube.cluster.metadata;
 import io.scalecube.utils.ServiceLoaderUtil;
 import java.nio.ByteBuffer;
 
+@Deprecated
 @FunctionalInterface
 public interface MetadataDecoder {
 

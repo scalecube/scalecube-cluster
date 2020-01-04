@@ -4,6 +4,7 @@ import io.scalecube.utils.ServiceLoaderUtil;
 import java.nio.ByteBuffer;
 import reactor.util.annotation.Nullable;
 
+@Deprecated
 @FunctionalInterface
 public interface MetadataEncoder {
 
