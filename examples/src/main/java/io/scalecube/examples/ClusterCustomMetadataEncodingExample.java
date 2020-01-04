@@ -2,9 +2,10 @@ package io.scalecube.examples;
 
 import io.scalecube.cluster.Cluster;
 import io.scalecube.cluster.ClusterImpl;
-import io.scalecube.cluster.metadata.MetadataDecoder;
-import io.scalecube.cluster.metadata.MetadataEncoder;
+import io.scalecube.cluster.metadata.MetadataCodec;
+import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public class ClusterCustomMetadataEncodingExample {
@@ -13,19 +14,13 @@ public class ClusterCustomMetadataEncodingExample {
   public static void main(String[] args) throws Exception {
     // Start seed cluster member Alice
     Cluster alice =
-        new ClusterImpl()
-            .config(opts -> opts.metadataDecoder(new LongMetadataDecoder()))
-            .startAwait();
+        new ClusterImpl().config(opts -> opts.metadataCodec(new LongMetadataCodec())).startAwait();
     System.out.println(
         "[" + alice.member().id() + "] Alice's metadata: " + alice.metadata().orElse(null));
 
     Cluster joe =
         new ClusterImpl()
-            .config(
-                opts ->
-                    opts.metadataDecoder(new LongMetadataDecoder())
-                        .metadataEncoder(new LongMetadataEncoder())
-                        .metadata(123L))
+            .config(opts -> opts.metadataCodec(new LongMetadataCodec()).metadata(123L))
             .membership(opts -> opts.seedMembers(alice.address()))
             .startAwait();
     System.out.println(
@@ -33,11 +28,7 @@ public class ClusterCustomMetadataEncodingExample {
 
     Cluster bob =
         new ClusterImpl()
-            .config(
-                opts ->
-                    opts.metadataDecoder(new LongMetadataDecoder())
-                        .metadataEncoder(new LongMetadataEncoder())
-                        .metadata(456L))
+            .config(opts -> opts.metadataCodec(new LongMetadataCodec()).metadata(456L))
             .membership(opts -> opts.seedMembers(alice.address()))
             .startAwait();
     System.out.println(
@@ -49,7 +40,7 @@ public class ClusterCustomMetadataEncodingExample {
         .otherMembers()
         .forEach(
             member -> {
-              Long metadata = (Long) alice.metadata(member).orElse(null);
+              Long metadata = (Long) alice.metadata(member, Map.class).orElse(null);
               System.out.println(
                   "Alice knows [" + member.id() + "] has `" + metadata + "` as a metadata");
             });
@@ -57,7 +48,7 @@ public class ClusterCustomMetadataEncodingExample {
     joe.otherMembers()
         .forEach(
             member -> {
-              Long metadata = (Long) alice.metadata(member).orElse(null);
+              Long metadata = (Long) alice.metadata(member, Map.class).orElse(null);
               System.out.println(
                   "Joe knows [" + member.id() + "] has `" + metadata + "` as a metadata");
             });
@@ -65,7 +56,7 @@ public class ClusterCustomMetadataEncodingExample {
     bob.otherMembers()
         .forEach(
             member -> {
-              Long metadata = (Long) alice.metadata(member).orElse(null);
+              Long metadata = (Long) alice.metadata(member, Map.class).orElse(null);
               System.out.println(
                   "Bob knows [" + member.id() + "] has `" + metadata + "` as a metadata");
             });
@@ -73,20 +64,18 @@ public class ClusterCustomMetadataEncodingExample {
     TimeUnit.SECONDS.sleep(3);
   }
 
-  static class LongMetadataDecoder implements MetadataDecoder {
-    @Override
-    public Object decode(ByteBuffer buffer) {
-      return buffer.getLong();
-    }
-  }
+  static class LongMetadataCodec implements MetadataCodec {
 
-  static class LongMetadataEncoder implements MetadataEncoder {
     @Override
-    public ByteBuffer encode(Object metadata) {
+    public Object deserialize(ByteBuffer buffer, Type type) {
+      return buffer.remaining() == 0 ? null : buffer.getLong();
+    }
+
+    @Override
+    public ByteBuffer serialize(Object metadata) {
       if (metadata == null) {
         return null;
       }
-
       ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
       buffer.putLong((Long) metadata);
       buffer.flip();

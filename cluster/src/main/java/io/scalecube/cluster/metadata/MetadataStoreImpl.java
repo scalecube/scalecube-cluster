@@ -8,10 +8,10 @@ import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.net.Address;
 import java.nio.ByteBuffer;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
@@ -28,6 +28,8 @@ public class MetadataStoreImpl implements MetadataStore {
   public static final String GET_METADATA_REQ = "sc/metadata/req";
   public static final String GET_METADATA_RESP = "sc/metadata/resp";
 
+  public static final ByteBuffer EMPTY_BUFFER = ByteBuffer.allocate(0);
+
   // Injected
 
   private Object localMetadata;
@@ -38,7 +40,7 @@ public class MetadataStoreImpl implements MetadataStore {
 
   // State
 
-  private final Map<Member, ByteBuffer> membersMetadata = new ConcurrentHashMap<>();
+  private final Map<Member, ByteBuffer> membersMetadata = new HashMap<>();
 
   // Scheduler
 
@@ -112,11 +114,6 @@ public class MetadataStoreImpl implements MetadataStore {
   public ByteBuffer updateMetadata(Member member, ByteBuffer metadata) {
     if (localMember.equals(member)) {
       throw new IllegalArgumentException("removeMetadata must not accept local member");
-    }
-
-    // If metadata is null then 'update' turns into 'remove'
-    if (metadata == null) {
-      return removeMetadata(member);
     }
 
     ByteBuffer value = metadata.slice();
@@ -222,9 +219,8 @@ public class MetadataStoreImpl implements MetadataStore {
       return;
     }
 
-    // Prepare repopnse
-    ByteBuffer byteBuffer = config.metadataEncoder().encode(localMetadata);
-    GetMetadataResponse respData = new GetMetadataResponse(localMember, byteBuffer);
+    // Prepare response
+    GetMetadataResponse respData = new GetMetadataResponse(localMember, encodeMetadata());
 
     Message response =
         Message.builder()
@@ -246,5 +242,15 @@ public class MetadataStoreImpl implements MetadataStore {
                     responseAddress,
                     localMember,
                     ex.toString()));
+  }
+
+  private ByteBuffer encodeMetadata() {
+    ByteBuffer result;
+    if (config.metadataEncoder() != null) {
+      result = config.metadataEncoder().encode(localMetadata);
+    } else {
+      result = config.metadataCodec().serialize(localMetadata);
+    }
+    return Optional.ofNullable(result).orElse(EMPTY_BUFFER);
   }
 }

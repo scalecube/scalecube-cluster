@@ -3,11 +3,10 @@ package io.scalecube.cluster.codec.jackson;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.MessageCodec;
-
 import java.io.InputStream;
 import java.io.OutputStream;
 
-/** Contains methods for message serializing/deserializing logic. */
+/** Jackson-based message codec. */
 public class JacksonMessageCodec implements MessageCodec {
 
   private final ObjectMapper delegate;
@@ -21,9 +20,6 @@ public class JacksonMessageCodec implements MessageCodec {
     this.delegate = delegate;
   }
 
-  /**
-   * Create instance with default {@link ObjectMapper}.
-   */
   public JacksonMessageCodec() {
     this.delegate = DefaultObjectMapper.OBJECT_MAPPER;
   }

@@ -646,7 +646,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           if (r0 != null
               && (r0.isAlive() || (r0.isSuspect() && aliveEmittedSet.contains(memberId)))) {
 
-            final ByteBuffer metadata = metadataOrThrow(member);
+            final ByteBuffer metadata = metadataStore.metadata(member).orElse(null);
             final long timestamp = System.currentTimeMillis();
             publishEvent(MembershipEvent.createLeaving(member, metadata, timestamp));
           }
@@ -658,12 +658,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
             return Mono.empty();
           }
         });
-  }
-
-  private ByteBuffer metadataOrThrow(Member member) {
-    return metadataStore
-        .metadata(member)
-        .orElseThrow(() -> new IllegalStateException("No metadata present for member: " + member));
   }
 
   private void publishEvent(MembershipEvent event) {
