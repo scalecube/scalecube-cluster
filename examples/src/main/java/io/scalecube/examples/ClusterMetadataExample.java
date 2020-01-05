@@ -33,6 +33,7 @@ public class ClusterMetadataExample {
             .membership(opts -> opts.seedMembers(alice.address()))
             .handler(
                 cluster -> {
+                  //noinspection CodeBlock2Expr
                   return new ClusterMessageHandler() {
                     @Override
                     public void onMessage(Message message) {
@@ -47,7 +48,7 @@ public class ClusterMetadataExample {
         alice.otherMembers().stream()
             .filter(
                 member -> {
-                  //noinspection unchecked
+                  //noinspection unchecked,OptionalGetWithoutIsPresent
                   Map<String, String> metadata = (Map<String, String>) alice.metadata(member).get();
                   return "Joe".equals(metadata.get("name"));
                 })

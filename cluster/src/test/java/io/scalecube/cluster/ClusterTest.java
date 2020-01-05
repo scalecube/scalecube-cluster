@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipEvent.Type;
-import io.scalecube.cluster.metadata.MetadataDecoder;
+import io.scalecube.cluster.metadata.MetadataCodec;
 import io.scalecube.net.Address;
 import java.net.InetAddress;
 import java.time.Duration;
@@ -138,7 +138,7 @@ public class ClusterTest extends BaseTest {
 
     // Start seed node
     Cluster seedNode =
-        new ClusterImpl(new ClusterConfig().memberHost("localhost").memberPort(7878))
+        new ClusterImpl(new ClusterConfig().containerHost("localhost").containerPort(7878))
             .transport(opts -> opts.port(7878).connectTimeout(CONNECT_TIMEOUT))
             .membership(opts -> opts.seedMembers(addresses))
             .startAwait();
@@ -312,7 +312,7 @@ public class ClusterTest extends BaseTest {
         Optional<Member> memberOptional = node.member(metadataNode.member().id());
         assertTrue(memberOptional.isPresent());
         Member member = memberOptional.get();
-        //noinspection unchecked
+        //noinspection unchecked,OptionalGetWithoutIsPresent
         Map<String, String> actualMetadata = (Map<String, String>) node.metadata(member).get();
         assertEquals(2, actualMetadata.size());
         assertEquals("value1", actualMetadata.get("key1"));
@@ -391,7 +391,7 @@ public class ClusterTest extends BaseTest {
         Optional<Member> memberOptional = node.member(metadataNode.member().id());
         assertTrue(memberOptional.isPresent());
         Member member = memberOptional.get();
-        //noinspection unchecked
+        //noinspection unchecked,OptionalGetWithoutIsPresent
         Map<String, String> actualMetadata = (Map<String, String>) node.metadata(member).get();
         assertEquals(1, actualMetadata.size());
         assertEquals("value1", actualMetadata.get("key1"));
@@ -511,7 +511,7 @@ public class ClusterTest extends BaseTest {
         .filter(MembershipEvent::isRemoved)
         .subscribe(
             event -> {
-              Object metadata = MetadataDecoder.INSTANCE.decode(event.oldMetadata());
+              Object metadata = MetadataCodec.INSTANCE.deserialize(event.oldMetadata());
               //noinspection unchecked
               removedMetadata.set((Map<String, String>) metadata);
               latch.countDown();

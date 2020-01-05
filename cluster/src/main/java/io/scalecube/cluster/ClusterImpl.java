@@ -7,6 +7,9 @@ import io.scalecube.cluster.gossip.GossipProtocolImpl;
 import io.scalecube.cluster.membership.MembershipConfig;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipProtocolImpl;
+import io.scalecube.cluster.metadata.MetadataCodec;
+import io.scalecube.cluster.metadata.MetadataDecoder;
+import io.scalecube.cluster.metadata.MetadataEncoder;
 import io.scalecube.cluster.metadata.MetadataStore;
 import io.scalecube.cluster.metadata.MetadataStoreImpl;
 import io.scalecube.cluster.monitor.ClusterMonitorMBean;
@@ -18,6 +21,7 @@ import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.net.Address;
 import io.scalecube.transport.netty.TransportImpl;
 import java.lang.management.ManagementFactory;
+import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
@@ -291,10 +295,29 @@ public final class ClusterImpl implements Cluster {
   }
 
   private void validateConfiguration() {
-    Objects.requireNonNull(
-        config.metadataDecoder(), "Invalid cluster config: metadataDecoder must be specified");
-    Objects.requireNonNull(
-        config.metadataEncoder(), "Invalid cluster config: metadataEncoder must be specified");
+    MetadataDecoder metadataDecoder = config.metadataDecoder();
+    MetadataEncoder metadataEncoder = config.metadataEncoder();
+    MetadataCodec metadataCodec = config.metadataCodec();
+
+    if (metadataDecoder == null && metadataEncoder == null && metadataCodec == null) {
+      throw new IllegalArgumentException("Invalid cluster config");
+    }
+
+    if (metadataDecoder != null && metadataEncoder != null && metadataCodec != null) {
+      throw new IllegalArgumentException("Invalid cluster config");
+    }
+
+    if (metadataCodec == null) {
+      Objects.requireNonNull(
+          metadataDecoder, "Invalid cluster config: metadataDecoder must be specified");
+      Objects.requireNonNull(
+          metadataEncoder, "Invalid cluster config: metadataEncoder must be specified");
+    }
+
+    if (metadataDecoder == null && metadataEncoder == null) {
+      Objects.requireNonNull(
+          metadataCodec, "Invalid cluster config: metadataCodec must be specified");
+    }
 
     Objects.requireNonNull(
         config.transportConfig().messageCodec(),
@@ -354,11 +377,11 @@ public final class ClusterImpl implements Cluster {
    * @return local cluster member with cluster address and cluster member id
    */
   private Member createLocalMember(Address address) {
-    int port = Optional.ofNullable(config.memberPort()).orElse(address.port());
+    int port = Optional.ofNullable(config.containerPort()).orElse(address.port());
 
     // calculate local member cluster address
     Address memberAddress =
-        Optional.ofNullable(config.memberHost())
+        Optional.ofNullable(config.containerHost())
             .map(host -> Address.create(host, port))
             .orElseGet(() -> Address.create(address.host(), port));
 
@@ -415,13 +438,16 @@ public final class ClusterImpl implements Cluster {
     if (member().equals(member)) {
       return metadata();
     }
-    return metadataStore
-        .metadata(member)
-        .map(
-            byteBuffer -> {
-              //noinspection unchecked
-              return (T) config.metadataDecoder().decode(byteBuffer);
-            });
+    return metadataStore.metadata(member).map(this::toMetadata);
+  }
+
+  @SuppressWarnings("unchecked")
+  private <T> T toMetadata(ByteBuffer buffer) {
+    if (config.metadataDecoder() != null) {
+      return (T) config.metadataDecoder().decode(buffer);
+    } else {
+      return (T) config.metadataCodec().deserialize(buffer);
+    }
   }
 
   @Override
