@@ -3,7 +3,6 @@ package io.scalecube.cluster.codec.jackson;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.scalecube.cluster.metadata.MetadataCodec;
 import java.io.IOException;
-import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
 import reactor.core.Exceptions;
 
@@ -25,13 +24,14 @@ public class JacksonMetadataCodec implements MetadataCodec {
   }
 
   @Override
-  public Object deserialize(ByteBuffer buffer, Type type) {
+  public Object deserialize(ByteBuffer buffer) {
     if (buffer.remaining() == 0) {
       return null;
     }
     try {
-      return this.delegate.readValue(
-          buffer.array(), this.delegate.getTypeFactory().constructType(type));
+      final MetadataWrapper metadataWrapper =
+          this.delegate.readValue(buffer.array(), MetadataWrapper.class);
+      return metadataWrapper.getMetadata();
     } catch (IOException e) {
       throw Exceptions.propagate(e);
     }
@@ -43,9 +43,29 @@ public class JacksonMetadataCodec implements MetadataCodec {
       return null;
     }
     try {
-      return ByteBuffer.wrap(this.delegate.writeValueAsBytes(metadata));
+      final MetadataWrapper metadataWrapper = new MetadataWrapper(metadata);
+      return ByteBuffer.wrap(this.delegate.writeValueAsBytes(metadataWrapper));
     } catch (IOException e) {
       throw Exceptions.propagate(e);
+    }
+  }
+
+  public static class MetadataWrapper {
+
+    private Object metadata;
+
+    public MetadataWrapper() {}
+
+    public MetadataWrapper(Object metadata) {
+      this.metadata = metadata;
+    }
+
+    public Object getMetadata() {
+      return metadata;
+    }
+
+    public void setMetadata(Object metadata) {
+      this.metadata = metadata;
     }
   }
 }

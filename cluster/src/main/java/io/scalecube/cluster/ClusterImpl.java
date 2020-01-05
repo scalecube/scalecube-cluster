@@ -21,7 +21,7 @@ import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.net.Address;
 import io.scalecube.transport.netty.TransportImpl;
 import java.lang.management.ManagementFactory;
-import java.lang.reflect.Type;
+import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
@@ -438,27 +438,16 @@ public final class ClusterImpl implements Cluster {
     if (member().equals(member)) {
       return metadata();
     }
-    return metadataStore
-        .metadata(member)
-        .map(
-            buffer -> {
-              //noinspection unchecked
-              return (T) config.metadataDecoder().decode(buffer);
-            });
+    return metadataStore.metadata(member).map(this::toMetadata);
   }
 
-  @Override
-  public <T> Optional<T> metadata(Member member, Type type) {
-    if (member().equals(member)) {
-      return metadata();
+  @SuppressWarnings("unchecked")
+  private <T> T toMetadata(ByteBuffer buffer) {
+    if (config.metadataDecoder() != null) {
+      return (T) config.metadataDecoder().decode(buffer);
+    } else {
+      return (T) config.metadataCodec().deserialize(buffer);
     }
-    return metadataStore
-        .metadata(member)
-        .map(
-            buffer -> {
-              //noinspection unchecked
-              return (T) config.metadataCodec().deserialize(buffer, type);
-            });
   }
 
   @Override

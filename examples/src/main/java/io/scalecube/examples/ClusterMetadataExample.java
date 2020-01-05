@@ -49,8 +49,7 @@ public class ClusterMetadataExample {
             .filter(
                 member -> {
                   //noinspection unchecked,OptionalGetWithoutIsPresent
-                  Map<String, String> metadata =
-                      (Map<String, String>) alice.metadata(member, Map.class).get();
+                  Map<String, String> metadata = (Map<String, String>) alice.metadata(member).get();
                   return "Joe".equals(metadata.get("name"));
                 })
             .findAny();

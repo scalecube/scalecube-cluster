@@ -30,7 +30,7 @@ public class DefaultObjectMapper {
     mapper.enableDefaultTyping(
         LaissezFaireSubTypeValidator.instance,
         DefaultTyping.JAVA_LANG_OBJECT,
-        JsonTypeInfo.As.PROPERTY);
+        JsonTypeInfo.As.WRAPPER_OBJECT);
     return mapper;
   }
 }
