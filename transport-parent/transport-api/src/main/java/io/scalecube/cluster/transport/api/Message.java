@@ -1,9 +1,16 @@
 package io.scalecube.cluster.transport.api;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import io.scalecube.net.Address;
+import java.io.Externalizable;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.StringJoiner;
@@ -11,7 +18,9 @@ import java.util.StringJoiner;
 /**
  * The Class Message introduces generic protocol used for point to point communication by transport.
  */
-public final class Message {
+public final class Message implements Externalizable {
+
+  private static final long serialVersionUID = 1L;
 
   /**
    * This header is supposed to be used by application in case if same data type can be reused for
@@ -34,8 +43,7 @@ public final class Message {
   private Map<String, String> headers = Collections.emptyMap();
   private Object data;
 
-  /** Instantiates empty message for deserialization purpose. */
-  Message() {}
+  public Message() {}
 
   private Message(Builder builder) {
     this.data = builder.data;
@@ -194,6 +202,42 @@ public final class Message {
         .add("headers=" + headers)
         .add("data=" + data)
         .toString();
+  }
+
+  @Override
+  public void writeExternal(ObjectOutput out) throws IOException {
+    // Headers
+    out.writeInt(headers.size());
+    for (Entry<String, String> header : headers.entrySet()) {
+      byte[] nameBytes = header.getKey().getBytes(UTF_8);
+      out.writeInt(nameBytes.length);
+      out.write(nameBytes);
+      byte[] valueBytes = header.getValue().getBytes(UTF_8);
+      out.writeInt(valueBytes.length);
+      out.write(valueBytes);
+    }
+    // Data
+    out.writeObject(data);
+  }
+
+  @Override
+  public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+    // Headers
+    int size = in.readInt();
+    headers = new HashMap<>(size);
+    for (int i = 0; i < size; i++) {
+      int nameLength = in.readInt();
+      byte[] nameBytes = new byte[nameLength];
+      in.read(nameBytes);
+      String name = new String(nameBytes, UTF_8);
+      int valueLength = in.readInt();
+      byte[] valueBytes = new byte[valueLength];
+      in.read(valueBytes);
+      String value = new String(valueBytes, UTF_8);
+      headers.put(name, value);
+    }
+    // Data
+    data = in.readObject();
   }
 
   public static class Builder {

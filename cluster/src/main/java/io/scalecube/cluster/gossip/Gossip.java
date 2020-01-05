@@ -1,19 +1,24 @@
 package io.scalecube.cluster.gossip;
 
 import io.scalecube.cluster.transport.api.Message;
+import java.io.Externalizable;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
 import java.util.Objects;
 import java.util.StringJoiner;
 
 /** Data model for gossip, include gossip id, qualifier and object need to disseminate. */
-final class Gossip {
+final class Gossip implements Externalizable {
+
+  private static final long serialVersionUID = 1L;
 
   private String gossiperId;
   private Message message;
   // incremented counter
   private long sequenceId;
 
-  /** Instantiates empty gossip for deserialization purpose. */
-  Gossip() {}
+  public Gossip() {}
 
   public Gossip(String gossiperId, Message message, long sequenceId) {
     this.gossiperId = Objects.requireNonNull(gossiperId);
@@ -54,6 +59,16 @@ final class Gossip {
   @Override
   public int hashCode() {
     return Objects.hash(gossiperId, message, sequenceId);
+  }
+
+  @Override
+  public void writeExternal(ObjectOutput out) throws IOException {
+    // todo
+  }
+
+  @Override
+  public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+    // todo
   }
 
   @Override

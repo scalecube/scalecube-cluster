@@ -6,17 +6,22 @@ import static io.scalecube.cluster.membership.MemberStatus.LEAVING;
 import static io.scalecube.cluster.membership.MemberStatus.SUSPECT;
 
 import io.scalecube.cluster.Member;
+import java.io.Externalizable;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
 import java.util.Objects;
 
 /** Cluster membership record which represents member, status, and incarnation. */
-final class MembershipRecord {
+final class MembershipRecord implements Externalizable {
+
+  private static final long serialVersionUID = 1L;
 
   private Member member;
   private MemberStatus status;
   private int incarnation;
 
-  /** Instantiates empty membership record for deserialization purpose. */
-  MembershipRecord() {}
+  public MembershipRecord() {}
 
   /** Instantiates new instance of membership record with given member, status and incarnation. */
   public MembershipRecord(Member member, MemberStatus status, int incarnation) {
@@ -99,6 +104,16 @@ final class MembershipRecord {
   @Override
   public int hashCode() {
     return Objects.hash(member, status, incarnation);
+  }
+
+  @Override
+  public void writeExternal(ObjectOutput out) throws IOException {
+    // todo
+  }
+
+  @Override
+  public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+    // todo
   }
 
   @Override
