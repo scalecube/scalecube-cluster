@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.StringJoiner;
 
 /**
@@ -24,9 +25,14 @@ public final class Message {
    */
   public static final String HEADER_CORRELATION_ID = "cid";
 
+  /**
+   * This header represents sender address of type {@link Address}. It's an address of message
+   * originator. This header is optional.
+   */
+  public static final String HEADER_SENDER = "sender";
+
   private Map<String, String> headers = Collections.emptyMap();
   private Object data;
-  private Address sender;
 
   /** Instantiates empty message for deserialization purpose. */
   Message() {}
@@ -34,7 +40,6 @@ public final class Message {
   private Message(Builder builder) {
     this.data = builder.data;
     this.headers = Collections.unmodifiableMap(Objects.requireNonNull(builder.headers));
-    this.sender = builder.sender;
   }
 
   /**
@@ -114,7 +119,7 @@ public final class Message {
    * @return a builder with initial data and headers from the message
    */
   public static Builder with(Message message) {
-    return withData(message.data).headers(message.headers).sender(message.sender);
+    return withData(message.data).headers(message.headers);
   }
 
   /**
@@ -180,13 +185,12 @@ public final class Message {
    * @return address
    */
   public Address sender() {
-    return sender;
+    return Optional.ofNullable(header(HEADER_SENDER)).map(Address::from).orElse(null);
   }
 
   @Override
   public String toString() {
     return new StringJoiner(", ", Message.class.getSimpleName() + "[", "]")
-        .add("sender=" + sender)
         .add("headers=" + headers)
         .add("data=" + data)
         .toString();
@@ -196,7 +200,6 @@ public final class Message {
 
     private Map<String, String> headers = new HashMap<>();
     private Object data;
-    private Address sender;
 
     private Builder() {}
 
@@ -236,8 +239,7 @@ public final class Message {
     }
 
     public Builder sender(Address sender) {
-      this.sender = sender;
-      return this;
+      return header(HEADER_SENDER, sender.toString());
     }
 
     public Message build() {
