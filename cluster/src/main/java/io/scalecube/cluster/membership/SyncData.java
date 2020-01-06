@@ -63,7 +63,7 @@ final class SyncData implements Externalizable {
       membership.add((MembershipRecord) in.readObject());
     }
     // syncGroup
-    syncGroup = (String) in.readObject();
+    syncGroup = in.readUTF();
   }
 
   @Override

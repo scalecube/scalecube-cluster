@@ -134,7 +134,7 @@ public final class Message implements Externalizable {
    * @return new builder
    */
   public static Builder builder() {
-    return Builder.getInstance();
+    return new Builder();
   }
 
   /**
@@ -235,10 +235,6 @@ public final class Message implements Externalizable {
 
     private Builder() {}
 
-    static Builder getInstance() {
-      return new Builder();
-    }
-
     private Object data() {
       return this.data;
     }
@@ -253,11 +249,13 @@ public final class Message implements Externalizable {
     }
 
     public Builder headers(Map<String, String> headers) {
-      this.headers.putAll(headers);
+      headers.forEach(this::header);
       return this;
     }
 
     public Builder header(String key, String value) {
+      Objects.requireNonNull(key);
+      Objects.requireNonNull(value);
       headers.put(key, value);
       return this;
     }
