@@ -1,14 +1,12 @@
-package io.scalecube.cluster.codec.jdk;
+package io.scalecube.cluster.transport.api;
 
-import io.scalecube.cluster.transport.api.Message;
-import io.scalecube.cluster.transport.api.MessageCodec;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 
-public class JdkMessageCodec implements MessageCodec {
+public class DefaultMessageCodec implements MessageCodec {
 
   @Override
   public Message deserialize(InputStream is) throws IOException, ClassNotFoundException {

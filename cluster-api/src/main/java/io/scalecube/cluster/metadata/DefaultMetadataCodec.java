@@ -1,6 +1,5 @@
-package io.scalecube.cluster.codec.jdk;
+package io.scalecube.cluster.metadata;
 
-import io.scalecube.cluster.metadata.MetadataCodec;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
@@ -8,7 +7,7 @@ import java.io.ObjectOutputStream;
 import java.nio.ByteBuffer;
 import reactor.core.Exceptions;
 
-public class JdkMetadataCodec implements MetadataCodec {
+public class DefaultMetadataCodec implements MetadataCodec {
 
   @Override
   public Object deserialize(ByteBuffer buffer) {

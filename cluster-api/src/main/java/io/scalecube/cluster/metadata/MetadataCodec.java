@@ -1,6 +1,5 @@
 package io.scalecube.cluster.metadata;
 
-import io.scalecube.cluster.codec.jdk.JdkMetadataCodec;
 import io.scalecube.utils.ServiceLoaderUtil;
 import java.nio.ByteBuffer;
 
@@ -8,7 +7,7 @@ import java.nio.ByteBuffer;
 public interface MetadataCodec {
 
   MetadataCodec INSTANCE =
-      ServiceLoaderUtil.findFirst(MetadataCodec.class).orElseGet(JdkMetadataCodec::new);
+      ServiceLoaderUtil.findFirst(MetadataCodec.class).orElseGet(DefaultMetadataCodec::new);
 
   /**
    * Deserializes metadata from buffer.

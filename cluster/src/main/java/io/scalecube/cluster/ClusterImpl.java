@@ -227,7 +227,7 @@ public final class ClusterImpl implements Cluster {
   }
 
   private Mono<Cluster> doStart() {
-    return Mono.fromRunnable(this::validateConfiguration).then(Mono.fromRunnable(this::doStart0));
+    return Mono.fromRunnable(this::validateConfiguration).then(Mono.defer(this::doStart0));
   }
 
   private Mono<Cluster> doStart0() {
