@@ -6,7 +6,8 @@ import java.nio.ByteBuffer;
 /** Contains methods for metadata serializing/deserializing logic. */
 public interface MetadataCodec {
 
-  MetadataCodec INSTANCE = ServiceLoaderUtil.findFirst(MetadataCodec.class).orElse(null);
+  MetadataCodec INSTANCE =
+      ServiceLoaderUtil.findFirst(MetadataCodec.class).orElseGet(DefaultMetadataCodec::new);
 
   /**
    * Deserializes metadata from buffer.

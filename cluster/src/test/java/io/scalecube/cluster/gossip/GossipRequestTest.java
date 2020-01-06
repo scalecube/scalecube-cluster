@@ -11,6 +11,7 @@ import io.scalecube.cluster.transport.api.MessageCodec;
 import io.scalecube.net.Address;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -76,11 +77,13 @@ public class GossipRequestTest extends BaseTest {
     return gossips;
   }
 
-  private static class TestData {
+  private static class TestData implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private Map<String, String> properties;
 
-    TestData() {}
+    public TestData() {}
 
     public Map<String, String> getProperties() {
       return properties;

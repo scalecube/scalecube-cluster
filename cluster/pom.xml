@@ -51,12 +51,6 @@
       <version>${log4j.version}</version>
       <scope>test</scope>
     </dependency>
-    <dependency>
-      <groupId>io.scalecube</groupId>
-      <artifactId>scalecube-codec-jackson</artifactId>
-      <version>${project.version}</version>
-      <scope>test</scope>
-    </dependency>
   </dependencies>
 
 </project>

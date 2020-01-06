@@ -1,6 +1,10 @@
 package io.scalecube.cluster;
 
 import io.scalecube.net.Address;
+import java.io.Externalizable;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -8,14 +12,15 @@ import java.util.UUID;
  * Cluster member which represents node in the cluster and contains its id and address. This class
  * is essentially immutable.
  */
-public final class Member {
+public final class Member implements Externalizable {
+
+  private static final long serialVersionUID = 1L;
 
   private String id;
   private String alias;
   private Address address;
 
-  /** Instantiates empty member for deserialization purpose. */
-  Member() {}
+  public Member() {}
 
   /**
    * Constructor.
@@ -61,6 +66,33 @@ public final class Member {
   @Override
   public int hashCode() {
     return Objects.hash(id, address);
+  }
+
+  @Override
+  public void writeExternal(ObjectOutput out) throws IOException {
+    // id
+    out.writeUTF(id);
+    // alias
+    boolean aliasNotNull = alias != null;
+    out.writeBoolean(aliasNotNull);
+    if (aliasNotNull) {
+      out.writeUTF(alias);
+    }
+    // address
+    out.writeUTF(address.toString());
+  }
+
+  @Override
+  public void readExternal(ObjectInput in) throws IOException {
+    // id
+    id = in.readUTF();
+    // alias
+    boolean aliasNotNull = in.readBoolean();
+    if (aliasNotNull) {
+      alias = in.readUTF();
+    }
+    // address
+    address = Address.from(in.readUTF());
   }
 
   @Override
