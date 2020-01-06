@@ -248,11 +248,24 @@ public final class Message implements Externalizable {
       return this.headers;
     }
 
+    /**
+     * Bulk setter for headers. Delegates to {@link #header(String, String)}.
+     *
+     * @param headers headers
+     * @return builder
+     */
     public Builder headers(Map<String, String> headers) {
       headers.forEach(this::header);
       return this;
     }
 
+    /**
+     * Setter for header.
+     *
+     * @param key key; required parameter.
+     * @param value value; required parameter.
+     * @return builder
+     */
     public Builder header(String key, String value) {
       Objects.requireNonNull(key);
       Objects.requireNonNull(value);
