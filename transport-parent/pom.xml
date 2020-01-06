@@ -19,6 +19,12 @@
 
   <dependencies>
     <dependency>
+      <groupId>io.scalecube</groupId>
+      <artifactId>scalecube-codec-jdk</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
       <groupId>io.projectreactor</groupId>
       <artifactId>reactor-core</artifactId>
     </dependency>

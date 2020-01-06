@@ -63,12 +63,22 @@ final class Gossip implements Externalizable {
 
   @Override
   public void writeExternal(ObjectOutput out) throws IOException {
-    // todo
+    // gossiperId
+    out.writeUTF(gossiperId);
+    // message
+    out.writeObject(message);
+    // sequenceId
+    out.writeLong(sequenceId);
   }
 
   @Override
   public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-    // todo
+    // gossiperId
+    gossiperId = in.readUTF();
+    // message
+    message = (Message) in.readObject();
+    // sequenceId
+    sequenceId = in.readLong();
   }
 
   @Override

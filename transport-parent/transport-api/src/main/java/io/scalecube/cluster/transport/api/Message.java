@@ -1,7 +1,5 @@
 package io.scalecube.cluster.transport.api;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 import io.scalecube.net.Address;
 import java.io.Externalizable;
 import java.io.IOException;
@@ -206,37 +204,27 @@ public final class Message implements Externalizable {
 
   @Override
   public void writeExternal(ObjectOutput out) throws IOException {
-    // Headers
+    // headers
     out.writeInt(headers.size());
     for (Entry<String, String> header : headers.entrySet()) {
-      byte[] nameBytes = header.getKey().getBytes(UTF_8);
-      out.writeInt(nameBytes.length);
-      out.write(nameBytes);
-      byte[] valueBytes = header.getValue().getBytes(UTF_8);
-      out.writeInt(valueBytes.length);
-      out.write(valueBytes);
+      out.writeUTF(header.getKey());
+      out.writeUTF(header.getValue());
     }
-    // Data
+    // data
     out.writeObject(data);
   }
 
   @Override
   public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-    // Headers
+    // headers
     int size = in.readInt();
     headers = new HashMap<>(size);
     for (int i = 0; i < size; i++) {
-      int nameLength = in.readInt();
-      byte[] nameBytes = new byte[nameLength];
-      in.read(nameBytes);
-      String name = new String(nameBytes, UTF_8);
-      int valueLength = in.readInt();
-      byte[] valueBytes = new byte[valueLength];
-      in.read(valueBytes);
-      String value = new String(valueBytes, UTF_8);
+      String name = in.readUTF();
+      String value = in.readUTF();
       headers.put(name, value);
     }
-    // Data
+    // data
     data = in.readObject();
   }
 

@@ -108,12 +108,22 @@ final class MembershipRecord implements Externalizable {
 
   @Override
   public void writeExternal(ObjectOutput out) throws IOException {
-    // todo
+    // member
+    out.writeObject(member);
+    // status
+    out.writeObject(status);
+    // incarnation
+    out.writeInt(incarnation);
   }
 
   @Override
   public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-    // todo
+    // member
+    member = (Member) in.readObject();
+    // status
+    status = (MemberStatus) in.readObject();
+    // incarnation
+    incarnation = in.readInt();
   }
 
   @Override

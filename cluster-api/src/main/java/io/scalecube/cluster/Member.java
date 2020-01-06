@@ -70,12 +70,29 @@ public final class Member implements Externalizable {
 
   @Override
   public void writeExternal(ObjectOutput out) throws IOException {
-    // todo
+    // id
+    out.writeUTF(id);
+    // alias
+    boolean aliasNotNull = alias != null;
+    out.writeBoolean(aliasNotNull);
+    if (aliasNotNull) {
+      out.writeUTF(alias);
+    }
+    // address
+    out.writeUTF(address.toString());
   }
 
   @Override
-  public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-    // todo
+  public void readExternal(ObjectInput in) throws IOException {
+    // id
+    id = in.readUTF();
+    // alias
+    boolean aliasNotNull = in.readBoolean();
+    if (aliasNotNull) {
+      alias = in.readUTF();
+    }
+    // address
+    address = Address.from(in.readUTF());
   }
 
   @Override

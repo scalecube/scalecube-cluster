@@ -10,6 +10,7 @@
     <version>2.4.10-SNAPSHOT</version>
   </parent>
 
-  <artifactId>codec-jdk</artifactId>
+  <artifactId>scalecube-codec-jdk</artifactId>
+  <name>ScaleCube/ClusterCodecJdk</name>
 
 </project>

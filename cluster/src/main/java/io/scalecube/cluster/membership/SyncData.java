@@ -7,6 +7,7 @@ import java.io.ObjectOutput;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.StringJoiner;
 
 /**
@@ -28,6 +29,8 @@ final class SyncData implements Externalizable {
   public SyncData() {}
 
   public SyncData(Collection<MembershipRecord> membership, String syncGroup) {
+    Objects.requireNonNull(membership);
+    Objects.requireNonNull(syncGroup);
     this.membership = new ArrayList<>(membership);
     this.syncGroup = syncGroup;
   }
@@ -42,12 +45,25 @@ final class SyncData implements Externalizable {
 
   @Override
   public void writeExternal(ObjectOutput out) throws IOException {
-    // todo
+    // membership
+    out.writeInt(membership.size());
+    for (MembershipRecord record : membership) {
+      out.writeObject(record);
+    }
+    // syncGroup
+    out.writeUTF(syncGroup);
   }
 
   @Override
   public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-    // todo
+    // membership
+    int size = in.readInt();
+    membership = new ArrayList<>(size);
+    for (int i = 0; i < size; i++) {
+      membership.add((MembershipRecord) in.readObject());
+    }
+    // syncGroup
+    syncGroup = (String) in.readObject();
   }
 
   @Override

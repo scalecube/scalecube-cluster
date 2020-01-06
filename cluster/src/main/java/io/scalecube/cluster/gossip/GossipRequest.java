@@ -7,6 +7,7 @@ import java.io.ObjectOutput;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.StringJoiner;
 
 /** Gossip request which be transmitted through the network, contains list of gossips. */
@@ -24,6 +25,8 @@ final class GossipRequest implements Externalizable {
   }
 
   public GossipRequest(List<Gossip> gossips, String from) {
+    Objects.requireNonNull(gossips);
+    Objects.requireNonNull(from);
     this.gossips = new ArrayList<>(gossips);
     this.from = from;
   }
@@ -38,12 +41,25 @@ final class GossipRequest implements Externalizable {
 
   @Override
   public void writeExternal(ObjectOutput out) throws IOException {
-    // todo
+    // gossips
+    out.writeInt(gossips.size());
+    for (Gossip gossip : gossips) {
+      out.writeObject(gossip);
+    }
+    // from
+    out.writeUTF(from);
   }
 
   @Override
   public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-    // todo
+    // gossips
+    int size = in.readInt();
+    gossips = new ArrayList<>(size);
+    for (int i = 0; i < size; i++) {
+      gossips.add((Gossip) in.readObject());
+    }
+    // from
+    from = in.readUTF();
   }
 
   @Override

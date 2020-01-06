@@ -1,5 +1,6 @@
 package io.scalecube.cluster.transport.api;
 
+import io.scalecube.cluster.codec.jdk.JdkMessageCodec;
 import io.scalecube.utils.ServiceLoaderUtil;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -7,7 +8,8 @@ import java.io.OutputStream;
 /** Contains methods for message serializing/deserializing logic. */
 public interface MessageCodec {
 
-  MessageCodec INSTANCE = ServiceLoaderUtil.findFirst(MessageCodec.class).orElse(null);
+  MessageCodec INSTANCE =
+      ServiceLoaderUtil.findFirst(MessageCodec.class).orElseGet(JdkMessageCodec::new);
 
   /**
    * Deserializes message from given input stream.

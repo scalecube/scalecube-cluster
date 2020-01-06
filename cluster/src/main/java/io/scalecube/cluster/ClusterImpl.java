@@ -20,6 +20,8 @@ import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.net.Address;
 import io.scalecube.transport.netty.TransportImpl;
+import io.scalecube.utils.ServiceLoaderUtil;
+import java.io.Serializable;
 import java.lang.management.ManagementFactory;
 import java.nio.ByteBuffer;
 import java.util.Collection;
@@ -225,11 +227,7 @@ public final class ClusterImpl implements Cluster {
   }
 
   private Mono<Cluster> doStart() {
-    return Mono.defer(
-        () -> {
-          validateConfiguration();
-          return doStart0();
-        });
+    return Mono.fromRunnable(this::validateConfiguration).then(Mono.fromRunnable(this::doStart0));
   }
 
   private Mono<Cluster> doStart0() {
@@ -295,28 +293,31 @@ public final class ClusterImpl implements Cluster {
   }
 
   private void validateConfiguration() {
-    MetadataDecoder metadataDecoder = config.metadataDecoder();
-    MetadataEncoder metadataEncoder = config.metadataEncoder();
-    MetadataCodec metadataCodec = config.metadataCodec();
-
-    if (metadataDecoder == null && metadataEncoder == null && metadataCodec == null) {
-      throw new IllegalArgumentException("Invalid cluster config");
-    }
+    final MetadataDecoder metadataDecoder = config.metadataDecoder();
+    final MetadataEncoder metadataEncoder = config.metadataEncoder();
+    final MetadataCodec metadataCodec =
+        ServiceLoaderUtil.findFirst(MetadataCodec.class).orElse(null);
 
     if (metadataDecoder != null && metadataEncoder != null && metadataCodec != null) {
-      throw new IllegalArgumentException("Invalid cluster config");
+      throw new IllegalArgumentException(
+          "Invalid cluster config: either pair of [metadataDecoder, metadataEncoder] "
+              + "or metadataCodec must be specified, not both");
     }
 
-    if (metadataCodec == null) {
-      Objects.requireNonNull(
-          metadataDecoder, "Invalid cluster config: metadataDecoder must be specified");
-      Objects.requireNonNull(
-          metadataEncoder, "Invalid cluster config: metadataEncoder must be specified");
+    if ((metadataDecoder == null && metadataEncoder != null)
+        || (metadataDecoder != null && metadataEncoder == null)) {
+      throw new IllegalArgumentException(
+          "Invalid cluster config: both of [metadataDecoder, metadataEncoder]  must be specified");
     }
 
     if (metadataDecoder == null && metadataEncoder == null) {
-      Objects.requireNonNull(
-          metadataCodec, "Invalid cluster config: metadataCodec must be specified");
+      if (metadataCodec == null) {
+        Object metadata = config.metadata();
+        if (metadata != null && !(metadata instanceof Serializable)) {
+          throw new IllegalArgumentException(
+              "Invalid cluster config: metadata must be Serializable");
+        }
+      }
     }
 
     Objects.requireNonNull(

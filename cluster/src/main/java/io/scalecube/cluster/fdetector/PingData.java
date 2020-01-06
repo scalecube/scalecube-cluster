@@ -85,12 +85,26 @@ final class PingData implements Externalizable {
 
   @Override
   public void writeExternal(ObjectOutput out) throws IOException {
-    // todo
+    // from
+    out.writeObject(from);
+    // to
+    out.writeObject(to);
+    // originalIssuer
+    out.writeObject(originalIssuer);
+    // ackType
+    out.writeObject(ackType);
   }
 
   @Override
   public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-    // todo
+    // from
+    from = (Member) in.readObject();
+    // to
+    to = (Member) in.readObject();
+    // originalIssuer
+    originalIssuer = (Member) in.readObject();
+    // ackType
+    ackType = (AckType) in.readObject();
   }
 
   @Override
