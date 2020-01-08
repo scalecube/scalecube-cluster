@@ -7,7 +7,7 @@ import java.nio.ByteBuffer;
 public interface MetadataCodec {
 
   MetadataCodec INSTANCE =
-      ServiceLoaderUtil.findFirst(MetadataCodec.class).orElseGet(DefaultMetadataCodec::new);
+      ServiceLoaderUtil.findFirst(MetadataCodec.class).orElseGet(JdkMetadataCodec::new);
 
   /**
    * Deserializes metadata from buffer.

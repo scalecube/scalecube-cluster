@@ -7,7 +7,7 @@ import java.io.ObjectOutputStream;
 import java.nio.ByteBuffer;
 import reactor.core.Exceptions;
 
-public class DefaultMetadataCodec implements MetadataCodec {
+public class JdkMetadataCodec implements MetadataCodec {
 
   @Override
   public Object deserialize(ByteBuffer buffer) {

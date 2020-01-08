@@ -6,7 +6,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 
-public class DefaultMessageCodec implements MessageCodec {
+public class JdkMessageCodec implements MessageCodec {
 
   @Override
   public Message deserialize(InputStream is) throws IOException, ClassNotFoundException {
