@@ -6,7 +6,6 @@ import io.scalecube.cluster.ClusterMessageHandler;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.transport.api.Message;
 import java.util.Collections;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -33,6 +32,7 @@ public class ClusterMetadataExample {
             .membership(opts -> opts.seedMembers(alice.address()))
             .handler(
                 cluster -> {
+                  //noinspection CodeBlock2Expr
                   return new ClusterMessageHandler() {
                     @Override
                     public void onMessage(Message message) {
@@ -43,17 +43,10 @@ public class ClusterMetadataExample {
             .startAwait();
 
     // Scan the list of members in the cluster and find Joe there
-    Optional<Member> joeMemberOptional =
-        alice.otherMembers().stream()
-            .filter(
-                member -> {
-                  //noinspection unchecked
-                  Map<String, String> metadata = (Map<String, String>) alice.metadata(member).get();
-                  return "Joe".equals(metadata.get("name"));
-                })
-            .findAny();
+    Optional<Member> joeMemberOptional = alice.otherMembers().stream().findAny();
 
     System.err.println("### joeMemberOptional: " + joeMemberOptional);
+    System.err.println("### joeMetadata: " + alice.metadata(joeMemberOptional.get()));
 
     // Send hello to Joe
     joeMemberOptional.ifPresent(

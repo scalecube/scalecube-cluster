@@ -1,16 +1,24 @@
 package io.scalecube.cluster.transport.api;
 
 import io.scalecube.net.Address;
+import java.io.Externalizable;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.StringJoiner;
 
 /**
  * The Class Message introduces generic protocol used for point to point communication by transport.
  */
-public final class Message {
+public final class Message implements Externalizable {
+
+  private static final long serialVersionUID = 1L;
 
   /**
    * This header is supposed to be used by application in case if same data type can be reused for
@@ -24,17 +32,20 @@ public final class Message {
    */
   public static final String HEADER_CORRELATION_ID = "cid";
 
+  /**
+   * This header represents sender address of type {@link Address}. It's an address of message
+   * originator. This header is optional.
+   */
+  public static final String HEADER_SENDER = "sender";
+
   private Map<String, String> headers = Collections.emptyMap();
   private Object data;
-  private Address sender;
 
-  /** Instantiates empty message for deserialization purpose. */
-  Message() {}
+  public Message() {}
 
   private Message(Builder builder) {
     this.data = builder.data;
     this.headers = Collections.unmodifiableMap(Objects.requireNonNull(builder.headers));
-    this.sender = builder.sender;
   }
 
   /**
@@ -114,7 +125,7 @@ public final class Message {
    * @return a builder with initial data and headers from the message
    */
   public static Builder with(Message message) {
-    return withData(message.data).headers(message.headers).sender(message.sender);
+    return withData(message.data).headers(message.headers);
   }
 
   /**
@@ -123,7 +134,7 @@ public final class Message {
    * @return new builder
    */
   public static Builder builder() {
-    return Builder.getInstance();
+    return new Builder();
   }
 
   /**
@@ -180,29 +191,49 @@ public final class Message {
    * @return address
    */
   public Address sender() {
-    return sender;
+    return Optional.ofNullable(header(HEADER_SENDER)).map(Address::from).orElse(null);
   }
 
   @Override
   public String toString() {
     return new StringJoiner(", ", Message.class.getSimpleName() + "[", "]")
-        .add("sender=" + sender)
         .add("headers=" + headers)
         .add("data=" + data)
         .toString();
+  }
+
+  @Override
+  public void writeExternal(ObjectOutput out) throws IOException {
+    // headers
+    out.writeInt(headers.size());
+    for (Entry<String, String> header : headers.entrySet()) {
+      out.writeUTF(header.getKey());
+      out.writeUTF(header.getValue());
+    }
+    // data
+    out.writeObject(data);
+  }
+
+  @Override
+  public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+    // headers
+    int size = in.readInt();
+    headers = new HashMap<>(size);
+    for (int i = 0; i < size; i++) {
+      String name = in.readUTF();
+      String value = in.readUTF();
+      headers.put(name, value);
+    }
+    // data
+    data = in.readObject();
   }
 
   public static class Builder {
 
     private Map<String, String> headers = new HashMap<>();
     private Object data;
-    private Address sender;
 
     private Builder() {}
-
-    static Builder getInstance() {
-      return new Builder();
-    }
 
     private Object data() {
       return this.data;
@@ -217,12 +248,27 @@ public final class Message {
       return this.headers;
     }
 
+    /**
+     * Bulk setter for headers. Delegates to {@link #header(String, String)}.
+     *
+     * @param headers headers
+     * @return builder
+     */
     public Builder headers(Map<String, String> headers) {
-      this.headers.putAll(headers);
+      headers.forEach(this::header);
       return this;
     }
 
+    /**
+     * Setter for header.
+     *
+     * @param key key; required parameter.
+     * @param value value; required parameter.
+     * @return builder
+     */
     public Builder header(String key, String value) {
+      Objects.requireNonNull(key);
+      Objects.requireNonNull(value);
       headers.put(key, value);
       return this;
     }
@@ -236,8 +282,7 @@ public final class Message {
     }
 
     public Builder sender(Address sender) {
-      this.sender = sender;
-      return this;
+      return header(HEADER_SENDER, sender.toString());
     }
 
     public Message build() {

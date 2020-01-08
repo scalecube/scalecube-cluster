@@ -6,12 +6,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.scalecube.cluster.BaseTest;
 import io.scalecube.cluster.Member;
-import io.scalecube.cluster.transport.JacksonMessageCodec;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.MessageCodec;
 import io.scalecube.net.Address;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -32,7 +32,7 @@ public class GossipRequestTest extends BaseTest {
     properties.put("key", "123");
     testData = new TestData();
     testData.setProperties(properties);
-    messageCodec = new JacksonMessageCodec();
+    messageCodec = MessageCodec.INSTANCE;
   }
 
   @Test
@@ -77,11 +77,13 @@ public class GossipRequestTest extends BaseTest {
     return gossips;
   }
 
-  private static class TestData {
+  private static class TestData implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private Map<String, String> properties;
 
-    TestData() {}
+    public TestData() {}
 
     public Map<String, String> getProperties() {
       return properties;
