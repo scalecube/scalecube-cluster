@@ -217,13 +217,14 @@ public final class Message implements Externalizable {
   @Override
   public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
     // headers
-    int size = in.readInt();
-    headers = new HashMap<>(size);
-    for (int i = 0; i < size; i++) {
+    int headersSize = in.readInt();
+    Map<String, String> headers = new HashMap<>(headersSize);
+    for (int i = 0; i < headersSize; i++) {
       String name = in.readUTF();
       String value = in.readUTF();
       headers.put(name, value);
     }
+    this.headers = Collections.unmodifiableMap(headers);
     // data
     data = in.readObject();
   }
