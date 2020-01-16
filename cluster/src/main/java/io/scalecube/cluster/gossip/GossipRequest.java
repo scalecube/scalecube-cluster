@@ -27,7 +27,7 @@ final class GossipRequest implements Externalizable {
   public GossipRequest(List<Gossip> gossips, String from) {
     Objects.requireNonNull(gossips);
     Objects.requireNonNull(from);
-    this.gossips = new ArrayList<>(gossips);
+    this.gossips = Collections.unmodifiableList(new ArrayList<>(gossips));
     this.from = from;
   }
 
@@ -53,11 +53,12 @@ final class GossipRequest implements Externalizable {
   @Override
   public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
     // gossips
-    int size = in.readInt();
-    gossips = new ArrayList<>(size);
-    for (int i = 0; i < size; i++) {
+    int gossipsSize = in.readInt();
+    List<Gossip> gossips = new ArrayList<>(gossipsSize);
+    for (int i = 0; i < gossipsSize; i++) {
       gossips.add((Gossip) in.readObject());
     }
+    this.gossips = Collections.unmodifiableList(gossips);
     // from
     from = in.readUTF();
   }
