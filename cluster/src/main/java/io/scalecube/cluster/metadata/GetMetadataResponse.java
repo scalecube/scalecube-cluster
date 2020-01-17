@@ -42,9 +42,9 @@ final class GetMetadataResponse implements Externalizable {
     // member
     out.writeObject(member);
     // metadata
-    byte[] bytes = metadata.array();
-    out.writeInt(bytes.length);
-    out.write(bytes);
+    byte[] metadataBytes = metadata.array();
+    out.writeInt(metadataBytes.length);
+    out.write(metadataBytes);
   }
 
   @Override
@@ -52,17 +52,17 @@ final class GetMetadataResponse implements Externalizable {
     // member
     member = (Member) in.readObject();
     // metadata
-    int size = in.readInt();
-    byte[] bytes = new byte[size];
-    in.read(bytes);
-    metadata = ByteBuffer.wrap(bytes);
+    int metadataSize = in.readInt();
+    byte[] metadataBytes = new byte[metadataSize];
+    in.readFully(metadataBytes);
+    metadata = ByteBuffer.wrap(metadataBytes);
   }
 
   @Override
   public String toString() {
     return new StringJoiner(", ", GetMetadataResponse.class.getSimpleName() + "[", "]")
         .add("member=" + member)
-        .add("metadata=" + metadata.remaining())
+        .add("metadata(b=" + metadata.remaining() + ")")
         .toString();
   }
 }

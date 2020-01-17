@@ -11,17 +11,17 @@ public class JdkMessageCodec implements MessageCodec {
   @Override
   public Message deserialize(InputStream is) throws IOException, ClassNotFoundException {
     Message message = new Message();
-    try (ObjectInputStream inputStream = new ObjectInputStream(is)) {
-      message.readExternal(inputStream);
-      return message;
+    try (ObjectInputStream ois = new ObjectInputStream(is)) {
+      message.readExternal(ois);
     }
+    return message;
   }
 
   @Override
   public void serialize(Message message, OutputStream os) throws IOException {
-    try (ObjectOutputStream outputStream = new ObjectOutputStream(os)) {
-      message.writeExternal(outputStream);
-      outputStream.flush();
+    try (ObjectOutputStream oos = new ObjectOutputStream(os)) {
+      message.writeExternal(oos);
+      oos.flush();
     }
   }
 }
