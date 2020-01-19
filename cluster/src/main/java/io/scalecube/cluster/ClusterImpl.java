@@ -118,17 +118,15 @@ public final class ClusterImpl implements Cluster {
         .then(doStart())
         .doOnSuccess(avoid -> onStart.onComplete())
         .doOnError(onStart::onError)
-        .subscribe(
-            null,
-            th -> {
-              LOGGER.error("Cluster member {} failed on start: ", localMember, th);
-              shutdown.onComplete();
-            });
+        .subscribe(null, th -> LOGGER.error("[{}][doStart] Exception occurred:", localMember, th));
 
-    shutdown //
+    shutdown
         .then(doShutdown())
         .doFinally(s -> onShutdown.onComplete())
-        .subscribe();
+        .subscribe(
+            null,
+            th ->
+                LOGGER.warn("[{}][doShutdown] Exception occurred: {}", localMember, th.toString()));
   }
 
   /**
@@ -352,7 +350,7 @@ public final class ClusterImpl implements Cluster {
   }
 
   private void onError(Throwable th) {
-    LOGGER.error("Received unexpected error: ", th);
+    LOGGER.error("[{}] Received unexpected error:", localMember, th);
   }
 
   private Flux<Message> listenMessage() {
@@ -481,16 +479,12 @@ public final class ClusterImpl implements Cluster {
   private Mono<Void> doShutdown() {
     return Mono.defer(
         () -> {
-          LOGGER.info("Cluster member {} is shutting down", localMember);
+          LOGGER.debug("[{}] Cluster member is shutting down", localMember);
           return Flux.concatDelayError(leaveCluster(), dispose(), transport.stop())
               .then()
               .doFinally(s -> scheduler.dispose())
               .doOnSuccess(
-                  avoid -> LOGGER.info("Cluster member {} has been shut down", localMember))
-              .doOnError(
-                  th ->
-                      LOGGER.warn(
-                          "Cluster member {} failed on shutdown: {}", localMember, th.toString()));
+                  avoid -> LOGGER.debug("[{}] Cluster member has been shutdown", localMember));
         });
   }
 
@@ -498,11 +492,12 @@ public final class ClusterImpl implements Cluster {
     return membership
         .leaveCluster()
         .subscribeOn(scheduler)
-        .doOnSuccess(s -> LOGGER.debug("Cluster member {} has left a cluster", localMember))
+        .doOnSubscribe(s -> LOGGER.debug("[{}] Cluster member is leaving a cluster", localMember))
+        .doOnSuccess(s -> LOGGER.debug("[{}] Cluster member has left a cluster", localMember))
         .doOnError(
             ex ->
-                LOGGER.info(
-                    "Cluster member {} failed on leaveCluster: {}", localMember, ex.toString()))
+                LOGGER.warn(
+                    "[{}][leaveCluster] Exception occurred: {}", localMember, ex.toString()))
         .then();
   }
 

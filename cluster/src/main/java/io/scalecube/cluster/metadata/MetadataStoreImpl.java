@@ -80,17 +80,12 @@ public class MetadataStoreImpl implements MetadataStore {
     // Subscribe
     actionsDisposables.add(
         // Listen to incoming get_metadata requests from other members
-        transport
-            .listen() //
-            .publishOn(scheduler)
-            .subscribe(this::onMessage, this::onError));
+        transport.listen().publishOn(scheduler).subscribe(this::onMessage, this::onError));
   }
 
   @Override
   public void stop() {
-    // Stop accepting requests
     actionsDisposables.dispose();
-    // Clear metadata hash map
     membersMetadata.clear();
   }
 
@@ -119,13 +114,12 @@ public class MetadataStoreImpl implements MetadataStore {
     ByteBuffer value = metadata.slice();
     ByteBuffer result = membersMetadata.put(member, value);
 
-    // updated
     if (result == null) {
       LOGGER.debug(
-          "Added metadata: {} for member {} [at {}]", value.remaining(), member, localMember);
+          "[{}] Added metadata(size={}) for member {}", localMember, value.remaining(), member);
     } else {
       LOGGER.debug(
-          "Updated metadata: {} for member {} [at {}]", value.remaining(), member, localMember);
+          "[{}] Updated metadata(size={}) for member {}", localMember, value.remaining(), member);
     }
     return result;
   }
@@ -138,7 +132,11 @@ public class MetadataStoreImpl implements MetadataStore {
     // remove
     ByteBuffer metadata = membersMetadata.remove(member);
     if (metadata != null) {
-      LOGGER.debug("Removed metadata for member {} [at {}]", member, localMember);
+      LOGGER.debug(
+          "[{}] Removed metadata(size={}) for member {}",
+          localMember,
+          metadata.remaining(),
+          member);
       return metadata;
     }
     return null;
@@ -146,13 +144,13 @@ public class MetadataStoreImpl implements MetadataStore {
 
   @Override
   public Mono<ByteBuffer> fetchMetadata(Member member) {
-    return Mono.create(
-        sink -> {
-          LOGGER.debug("Getting metadata for member {} [at {}]", member, localMember);
-
-          // Increment counter
+    return Mono.defer(
+        () -> {
           final String cid = cidGenerator.nextCid();
           final Address targetAddress = member.address();
+
+          LOGGER.debug("[{}][{}] Getting metadata for member {}", localMember, cid, member);
+
           Message request =
               Message.builder()
                   .qualifier(GET_METADATA_REQ)
@@ -160,32 +158,29 @@ public class MetadataStoreImpl implements MetadataStore {
                   .data(new GetMetadataRequest(member))
                   .build();
 
-          transport
+          return transport
               .requestResponse(targetAddress, request)
               .timeout(Duration.ofMillis(config.metadataTimeout()), scheduler)
               .publishOn(scheduler)
-              .subscribe(
-                  response -> {
-                    LOGGER.debug(
-                        "Received GetMetadataResp[{}] from {} [at {}]",
-                        cid,
-                        targetAddress,
-                        localMember);
-                    GetMetadataResponse respData = response.data();
-                    ByteBuffer metadata = respData.getMetadata();
-                    sink.success(metadata);
-                  },
-                  th -> {
-                    LOGGER.warn(
-                        "Failed getting GetMetadataResp[{}] "
-                            + "from {} within {} ms [at {}], cause : {}",
-                        cid,
-                        targetAddress,
-                        config.metadataTimeout(),
-                        localMember,
-                        th.toString());
-                    sink.error(th);
-                  });
+              .doOnSuccess(
+                  s ->
+                      LOGGER.debug(
+                          "[{}][{}] Received GetMetadataResp from {}",
+                          localMember,
+                          cid,
+                          targetAddress))
+              .map(Message::<GetMetadataResponse>data)
+              .map(GetMetadataResponse::getMetadata)
+              .doOnError(
+                  th ->
+                      LOGGER.warn(
+                          "[{}][{}] Timeout getting GetMetadataResp "
+                              + "from {} within {} ms, cause: {}",
+                          localMember,
+                          cid,
+                          targetAddress,
+                          config.metadataTimeout(),
+                          th.toString()));
         });
   }
 
@@ -200,11 +195,12 @@ public class MetadataStoreImpl implements MetadataStore {
   }
 
   private void onError(Throwable throwable) {
-    LOGGER.error("Received unexpected error: ", throwable);
+    LOGGER.error("[{}] Received unexpected error:", localMember, throwable);
   }
 
   private void onMetadataRequest(Message message) {
-    LOGGER.debug("Received GetMetadataReq: {} [at {}]", message, localMember);
+    final Address sender = message.sender();
+    LOGGER.debug("[{}] Received GetMetadataReq from {}", localMember, sender);
 
     GetMetadataRequest reqData = message.data();
     Member targetMember = reqData.getMember();
@@ -212,8 +208,9 @@ public class MetadataStoreImpl implements MetadataStore {
     // Validate target member
     if (!targetMember.id().equals(localMember.id())) {
       LOGGER.warn(
-          "Received GetMetadataReq: {} to {}, but local member is {}",
-          message,
+          "[{}] Received GetMetadataReq from {} to {}, but local member is {}",
+          localMember,
+          sender,
           targetMember,
           localMember);
       return;
@@ -229,18 +226,16 @@ public class MetadataStoreImpl implements MetadataStore {
             .data(respData)
             .build();
 
-    Address responseAddress = message.sender();
-    LOGGER.debug("Send GetMetadataResp: {} to {} [at {}]", response, responseAddress, localMember);
+    LOGGER.debug("[{}] Send GetMetadataResp to {}", localMember, sender);
     transport
-        .send(responseAddress, response)
+        .send(sender, response)
         .subscribe(
             null,
             ex ->
                 LOGGER.debug(
-                    "Failed to send GetMetadataResp: {} to {} [at {}], cause: {}",
-                    response,
-                    responseAddress,
+                    "[{}] Failed to send GetMetadataResp to {}, cause: {}",
                     localMember,
+                    sender,
                     ex.toString()));
   }
 
