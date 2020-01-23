@@ -34,13 +34,13 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.management.MBeanServer;
-import javax.management.ObjectInstance;
 import javax.management.ObjectName;
 import javax.management.StandardMBean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
+import reactor.core.Exceptions;
 import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
@@ -284,8 +284,9 @@ public final class ClusterImpl implements Cluster {
                   .then(Mono.fromRunnable(() -> gossip.start()))
                   .then(Mono.fromRunnable(() -> metadataStore.start()))
                   .then(Mono.fromRunnable(this::startHandler))
-                  .then((membership.start()))
-                  .then(startJmxMonitor());
+                  .then(membership.start())
+                  .then(Mono.fromRunnable(this::startJmxMonitor))
+                  .then();
             })
         .thenReturn(this);
   }
@@ -334,19 +335,27 @@ public final class ClusterImpl implements Cluster {
     actionsDisposables.add(listenGossip().subscribe(handler::onGossip, this::onError));
   }
 
-  private Mono<Void> startJmxMonitor() {
-    return Mono.fromCallable(this::startJmxMonitor0).then();
+  private void startJmxMonitor() {
+    ClusterMonitorModel monitorModel = monitorModelBuilder.config(config).cluster(this).build();
+    JmxClusterMonitorMBean monitorMBean = new JmxClusterMonitorMBean(monitorModel);
+    try {
+      StandardMBean standardMBean = new StandardMBean(monitorMBean, ClusterMonitorMBean.class);
+      MBeanServer server = ManagementFactory.getPlatformMBeanServer();
+      ObjectName objectName = new ObjectName("io.scalecube.cluster:name=Cluster@" + member().id());
+      server.registerMBean(standardMBean, objectName);
+    } catch (Exception ex) {
+      throw Exceptions.propagate(ex);
+    }
   }
 
-  private ObjectInstance startJmxMonitor0() throws Exception {
-    ClusterMonitorModel monitorModel = monitorModelBuilder.config(config).cluster(this).build();
-
-    JmxClusterMonitorMBean bean = new JmxClusterMonitorMBean(monitorModel);
-    StandardMBean standardMBean = new StandardMBean(bean, ClusterMonitorMBean.class);
-    MBeanServer server = ManagementFactory.getPlatformMBeanServer();
-    ObjectName objectName = new ObjectName("io.scalecube.cluster:name=Cluster@" + member().id());
-
-    return server.registerMBean(standardMBean, objectName);
+  private void stopJmxMonitor() {
+    try {
+      MBeanServer server = ManagementFactory.getPlatformMBeanServer();
+      ObjectName objectName = new ObjectName("io.scalecube.cluster:name=Cluster@" + member().id());
+      server.unregisterMBean(objectName);
+    } catch (Exception ex) {
+      throw Exceptions.propagate(ex);
+    }
   }
 
   private void onError(Throwable th) {
@@ -480,7 +489,11 @@ public final class ClusterImpl implements Cluster {
     return Mono.defer(
         () -> {
           LOGGER.info("[{}] Cluster member is shutting down", localMember);
-          return Flux.concatDelayError(leaveCluster(), dispose(), transport.stop())
+          return Flux.concatDelayError(
+                  leaveCluster(),
+                  dispose(),
+                  transport.stop(),
+                  Mono.fromRunnable(this::stopJmxMonitor))
               .then()
               .doFinally(s -> scheduler.dispose())
               .doOnSuccess(
