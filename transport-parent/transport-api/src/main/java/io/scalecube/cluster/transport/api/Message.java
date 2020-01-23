@@ -197,8 +197,8 @@ public final class Message implements Externalizable {
   @Override
   public String toString() {
     return new StringJoiner(", ", Message.class.getSimpleName() + "[", "]")
-        .add("headers=" + headers)
-        .add("data=" + data)
+        .add("headers(" + headers.size() + ")")
+        .add("data=" + (data != null ? data.getClass().getName() : null))
         .toString();
   }
 
