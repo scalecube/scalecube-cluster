@@ -188,7 +188,7 @@ public final class TransportImpl implements Transport {
                     config.port(),
                     ex.toString()))
         .map(server -> new TransportImpl(server, this))
-        .doOnSuccess(t -> LOGGER.debug("[{}] Bound cluster transport", address))
+        .doOnSuccess(t -> LOGGER.info("[{}] Bound cluster transport", t.address()))
         .cast(Transport.class);
   }
 
@@ -214,13 +214,13 @@ public final class TransportImpl implements Transport {
   private Mono<Void> doStop() {
     return Mono.defer(
         () -> {
-          LOGGER.debug("[{}] Transport is shutting down", address);
+          LOGGER.info("[{}] Transport is shutting down", address);
           // Complete incoming messages observable
           messageSink.complete();
           return Flux.concatDelayError(closeServer(), shutdownLoopResources())
               .then()
               .doFinally(s -> connections.clear())
-              .doOnSuccess(avoid -> LOGGER.debug("[{}] Transport has been shut down", address));
+              .doOnSuccess(avoid -> LOGGER.info("[{}] Transport has been shut down", address));
         });
   }
 
@@ -233,6 +233,7 @@ public final class TransportImpl implements Transport {
   public Mono<Void> send(Address address, Message message) {
     return connections
         .computeIfAbsent(address, this::connect0)
+        .doOnSubscribe(s -> LOGGER.debug("[{}] Send {} to {}", this.address, message, address))
         .map(Connection::outbound)
         .flatMap(out -> out.send(Mono.just(message).map(this::toByteBuf), bb -> true).then())
         .then();
@@ -267,11 +268,7 @@ public final class TransportImpl implements Transport {
 
   @SuppressWarnings("unused")
   private Mono<Void> onMessage(NettyInbound in, NettyOutbound out) {
-    return in.receive() //
-        .retain()
-        .map(this::toMessage)
-        .doOnNext(messageSink::next)
-        .then();
+    return in.receive().retain().map(this::toMessage).doOnNext(messageSink::next).then();
   }
 
   private Message toMessage(ByteBuf byteBuf) {
@@ -300,7 +297,7 @@ public final class TransportImpl implements Transport {
     return newTcpClient(address)
         .doOnDisconnected(
             c -> {
-              LOGGER.debug("[{}] Disconnected from: {}, {}", this.address, address, c.channel());
+              LOGGER.debug("[{}] Disconnected from {}, {}", this.address, address, c.channel());
               connections.remove(address);
             })
         .doOnConnected(
@@ -308,7 +305,7 @@ public final class TransportImpl implements Transport {
         .connect()
         .doOnError(
             th -> {
-              LOGGER.debug(
+              LOGGER.warn(
                   "[{}][connect0][{}] Exception occurred: {}",
                   this.address,
                   address,

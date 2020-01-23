@@ -45,7 +45,7 @@ public class TransportSendOrderTest extends BaseTest {
     int sentPerIteration = 1000;
     long[] iterationTimeSeries = new long[iterationNum - 1];
     for (int i = 0; i < iterationNum; i++) {
-      LOGGER.info("####### {} : iteration = {}", testInfo.getDisplayName(), i);
+      LOGGER.debug("####### {} : iteration = {}", testInfo.getDisplayName(), i);
 
       client = createTransport();
       final List<Message> received = new ArrayList<>();
@@ -74,7 +74,7 @@ public class TransportSendOrderTest extends BaseTest {
       }
       assertSendOrder(sentPerIteration, received);
 
-      LOGGER.info("Iteration time: {} ms", iterationTime);
+      LOGGER.debug("Iteration time: {} ms", iterationTime);
 
       serverSubscriber.dispose();
       destroyTransport(client);
@@ -82,7 +82,7 @@ public class TransportSendOrderTest extends BaseTest {
 
     LongSummaryStatistics iterationTimeStats =
         LongStream.of(iterationTimeSeries).summaryStatistics();
-    LOGGER.info("Iteration time stats (ms): {}", iterationTimeStats);
+    LOGGER.debug("Iteration time stats (ms): {}", iterationTimeStats);
   }
 
   @Test
@@ -94,7 +94,7 @@ public class TransportSendOrderTest extends BaseTest {
     long[] iterationTimeSeries = new long[iterationNum - 1];
     List<Long> totalSentTimeSeries = new ArrayList<>(sentPerIteration * (iterationNum - 1));
     for (int i = 0; i < iterationNum; i++) {
-      LOGGER.info("####### {} : iteration = {}", testInfo.getDisplayName(), i);
+      LOGGER.debug("####### {} : iteration = {}", testInfo.getDisplayName(), i);
       List<Long> iterSentTimeSeries = new ArrayList<>(sentPerIteration);
 
       client = createTransport();
@@ -137,15 +137,15 @@ public class TransportSendOrderTest extends BaseTest {
       LongSummaryStatistics iterSentTimeStats =
           iterSentTimeSeries.stream().mapToLong(v -> v).summaryStatistics();
       if (i == 0) { // warm up iteration
-        LOGGER.info("Warm up iteration time: {} ms", iterationTime);
-        LOGGER.info("Sent time stats warm up iter (ms): {}", iterSentTimeStats);
+        LOGGER.debug("Warm up iteration time: {} ms", iterationTime);
+        LOGGER.debug("Sent time stats warm up iter (ms): {}", iterSentTimeStats);
       } else {
         totalSentTimeSeries.addAll(iterSentTimeSeries);
         LongSummaryStatistics totalSentTimeStats =
             totalSentTimeSeries.stream().mapToLong(v -> v).summaryStatistics();
-        LOGGER.info("Iteration time: {} ms", iterationTime);
-        LOGGER.info("Sent time stats iter  (ms): {}", iterSentTimeStats);
-        LOGGER.info("Sent time stats total (ms): {}", totalSentTimeStats);
+        LOGGER.debug("Iteration time: {} ms", iterationTime);
+        LOGGER.debug("Sent time stats iter  (ms): {}", iterSentTimeStats);
+        LOGGER.debug("Sent time stats total (ms): {}", totalSentTimeStats);
       }
 
       serverSubscriber.dispose();
@@ -154,7 +154,7 @@ public class TransportSendOrderTest extends BaseTest {
 
     LongSummaryStatistics iterationTimeStats =
         LongStream.of(iterationTimeSeries).summaryStatistics();
-    LOGGER.info("Iteration time stats (ms): {}", iterationTimeStats);
+    LOGGER.debug("Iteration time stats (ms): {}", iterationTimeStats);
   }
 
   @Test
@@ -163,7 +163,7 @@ public class TransportSendOrderTest extends BaseTest {
 
     final int total = 1000;
     for (int i = 0; i < 10; i++) {
-      LOGGER.info("####### {} : iteration = {}", testInfo.getDisplayName(), i);
+      LOGGER.debug("####### {} : iteration = {}", testInfo.getDisplayName(), i);
       ExecutorService exec =
           Executors.newFixedThreadPool(
               4,
