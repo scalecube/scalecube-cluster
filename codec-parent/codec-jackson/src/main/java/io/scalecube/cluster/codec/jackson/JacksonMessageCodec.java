@@ -18,23 +18,11 @@ public class JacksonMessageCodec implements MessageCodec {
     this.delegate = delegate;
   }
 
-  /**
-   * Deserializes message from given input stream.
-   *
-   * @param stream input stream
-   * @return message from the input stream
-   */
   @Override
   public Message deserialize(InputStream stream) throws Exception {
     return this.delegate.readValue(stream, Message.class);
   }
 
-  /**
-   * Serializes given message into given output stream.
-   *
-   * @param message message
-   * @param stream output stream
-   */
   @Override
   public void serialize(Message message, OutputStream stream) throws Exception {
     this.delegate.writeValue(stream, message);

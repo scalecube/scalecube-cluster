@@ -23,7 +23,7 @@
     </dependency>
     <dependency>
       <groupId>io.scalecube</groupId>
-      <artifactId>scalecube-codec-jackson</artifactId>
+      <artifactId>scalecube-codec-jackson-smile</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>

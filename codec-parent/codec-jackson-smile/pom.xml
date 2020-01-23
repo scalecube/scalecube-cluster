@@ -10,7 +10,7 @@
     <version>2.4.10-SNAPSHOT</version>
   </parent>
 
-  <artifactId>codec-jackson-smile</artifactId>
+  <artifactId>scalecube-codec-jackson-smile</artifactId>
   <name>ScaleCube/ClusterCodecJacksonSmile</name>
 
   <dependencies>
