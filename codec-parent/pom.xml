@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
   <parent>
     <artifactId>scalecube-cluster-parent</artifactId>
     <groupId>io.scalecube</groupId>
@@ -15,6 +16,7 @@
 
   <modules>
     <module>codec-jackson</module>
+    <module>codec-jackson-smile</module>
   </modules>
 
   <dependencies>
@@ -29,4 +31,5 @@
       <version>${project.version}</version>
     </dependency>
   </dependencies>
+
 </project>

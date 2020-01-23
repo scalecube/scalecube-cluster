@@ -1,4 +1,4 @@
-package io.scalecube.cluster.codec.jackson;
+package io.scalecube.cluster.codec.jackson.smile;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.scalecube.cluster.metadata.MetadataCodec;
@@ -6,15 +6,15 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import reactor.core.Exceptions;
 
-public class JacksonMetadataCodec implements MetadataCodec {
+public class JacksonSmileMetadataCodec implements MetadataCodec {
 
   private final ObjectMapper delegate;
 
-  public JacksonMetadataCodec() {
+  public JacksonSmileMetadataCodec() {
     this(DefaultObjectMapper.OBJECT_MAPPER);
   }
 
-  public JacksonMetadataCodec(ObjectMapper delegate) {
+  public JacksonSmileMetadataCodec(ObjectMapper delegate) {
     this.delegate = delegate;
   }
 
