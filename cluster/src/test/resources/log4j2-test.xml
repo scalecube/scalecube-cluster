@@ -10,15 +10,15 @@
   </Appenders>
 
   <Loggers>
-    <Logger name="io.netty" level="${env:nettyLogLevel:-warn}"/>
-    <Logger name="reactor.netty" level="${env:reactorNettyLogLevel:-warn}"/>
-    <Logger name="io.scalecube.cluster.transport" level="${env:clusterTransport:-warn}"/>
-    <Logger name="io.scalecube.cluster.fdetector" level="${env:clusterFdetector:-warn}"/>
-    <Logger name="io.scalecube.cluster.gossip" level="${env:clusterGossip:-warn}"/>
-    <Logger name="io.scalecube.cluster.membership" level="${env:clusterMembership:-warn}"/>
-    <Logger name="io.scalecube.cluster.metadata" level="${env:clusterMetadata:-warn}"/>
+    <Logger name="io.netty" level="${env:nettyLogLevel:-error}"/>
+    <Logger name="reactor.netty" level="${env:reactorNettyLogLevel:-error}"/>
+    <Logger name="io.scalecube.cluster.transport" level="${env:clusterTransport:-error}"/>
+    <Logger name="io.scalecube.cluster.fdetector" level="${env:clusterFdetector:-error}"/>
+    <Logger name="io.scalecube.cluster.gossip" level="${env:clusterGossip:-error}"/>
+    <Logger name="io.scalecube.cluster.membership" level="${env:clusterMembership:-error}"/>
+    <Logger name="io.scalecube.cluster.metadata" level="${env:clusterMetadata:-error}"/>
 
-    <Root level="${env:logLevel:-warn}">
+    <Root level="${env:logLevel:-error}">
       <AppenderRef ref="console"/>
     </Root>
   </Loggers>
