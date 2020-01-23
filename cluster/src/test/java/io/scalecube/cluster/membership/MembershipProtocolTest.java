@@ -30,7 +30,6 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInfo;
 import reactor.core.Exceptions;
 import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
@@ -51,8 +50,8 @@ public class MembershipProtocolTest extends BaseTest {
   private Scheduler scheduler;
 
   @BeforeEach
-  void setUp(TestInfo testInfo) {
-    scheduler = Schedulers.newSingle(testInfo.getDisplayName().replaceAll(" ", "_"), true);
+  void setUp() {
+    scheduler = Schedulers.newSingle("scheduler", true);
     stopables = new ArrayList<>();
   }
 

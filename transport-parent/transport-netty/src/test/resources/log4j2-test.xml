@@ -4,23 +4,21 @@
   <Appenders>
     <Console name="console" target="SYSTEM_OUT">
       <PatternLayout>
-        <pattern>%level{length=1} %date{MMdd-HHmm:ss,SSS} %logger{1.} %message [%thread]%n</pattern>
+        <pattern>%level{length=1} %date{HHmm:ss,SSS} %logger{1.} %message [%thread]%n</pattern>
       </PatternLayout>
     </Console>
   </Appenders>
 
   <Loggers>
-    <Logger name="io.netty" level="info"/>
-    <Logger name="reactor.netty" level="info"/>
-    <Logger name="io.scalecube.cluster.transport" level="info"/>
-    <Logger name="io.scalecube.cluster.fdetector" level="info"/>
-    <Logger name="io.scalecube.cluster.gossip" level="info"/>
-    <Logger name="io.scalecube.cluster.membership" level="info"/>
-    <Logger name="io.scalecube.cluster.metadata" level="info"/>
-    <Logger name="io.scalecube.cluster" level="info"/>
-    <Logger name="io.scalecube.services" level="info"/>
+    <Logger name="io.netty" level="${env:nettyLogLevel:-warn}"/>
+    <Logger name="reactor.netty" level="${env:reactorNettyLogLevel:-warn}"/>
+    <Logger name="io.scalecube.cluster.transport" level="${env:clusterTransport:-warn}"/>
+    <Logger name="io.scalecube.cluster.fdetector" level="${env:clusterFdetector:-warn}"/>
+    <Logger name="io.scalecube.cluster.gossip" level="${env:clusterGossip:-warn}"/>
+    <Logger name="io.scalecube.cluster.membership" level="${env:clusterMembership:-warn}"/>
+    <Logger name="io.scalecube.cluster.metadata" level="${env:clusterMetadata:-warn}"/>
 
-    <Root level="info">
+    <Root level="${env:logLevel:-warn}">
       <AppenderRef ref="console"/>
     </Root>
   </Loggers>

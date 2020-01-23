@@ -261,7 +261,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       return;
     }
     // If seed addresses are specified in config - send initial sync to those nodes
-    LOGGER.debug("[{}] Making initial Sync to all seed members: {}", localMember, seedMembers);
+    LOGGER.info("[{}] Making initial Sync to all seed members: {}", localMember, seedMembers);
 
     //noinspection unchecked
     Mono<Message>[] syncs =
@@ -289,7 +289,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
         .subscribe(
             null,
             ex ->
-                LOGGER.debug(
+                LOGGER.warn(
                     "[{}] Exception on initial SyncAck, cause: {}", localMember, ex.toString()));
   }
 
@@ -352,7 +352,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
         .subscribe(
             null,
             ex ->
-                LOGGER.debug(
+                LOGGER.warn(
                     "[{}][doSync] Failed to send Sync to {}, cause: {}",
                     localMember,
                     address,
@@ -403,7 +403,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                         .subscribe(
                             null,
                             ex ->
-                                LOGGER.debug(
+                                LOGGER.warn(
                                     "[{}] Failed to send SyncAck to {}, cause: {}",
                                     localMember,
                                     sender,
@@ -433,7 +433,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           .subscribe(
               null,
               ex ->
-                  LOGGER.debug(
+                  LOGGER.warn(
                       "[{}][onFailureDetectorEvent] Failed to send Sync to {}, cause: {}",
                       localMember,
                       address,
@@ -581,7 +581,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                   .fetchMetadata(r1.member())
                   .doOnError(
                       ex ->
-                          LOGGER.debug(
+                          LOGGER.warn(
                               "[{}][updateMembership][{}] Skipping to add/update member: {}, "
                                   + "due to failed fetchMetadata call (cause: {})",
                               localMember,
@@ -676,7 +676,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   }
 
   private void publishEvent(MembershipEvent event) {
-    LOGGER.debug("[{}][publishEvent] {}", localMember, event);
+    LOGGER.info("[{}][publishEvent] {}", localMember, event);
     sink.next(event);
   }
 
@@ -699,9 +699,9 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
           // Log that member leaved gracefully or without notification
           if (r0.isLeaving()) {
-            LOGGER.debug("[{}] Member leaved gracefully: {}", localMember, member);
+            LOGGER.info("[{}] Member leaved gracefully: {}", localMember, member);
           } else {
-            LOGGER.warn("[{}] Member leaved without notification: {}", localMember, member);
+            LOGGER.info("[{}] Member leaved without notification: {}", localMember, member);
           }
 
           final long timestamp = System.currentTimeMillis();
@@ -756,7 +756,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
         r.member().id(),
         id -> {
           LOGGER.debug(
-              "[{}] Scheduled SuspicionTimeoutTask for {}, suspicionTimeout {}",
+              "[{}] Scheduled SuspicionTimeoutTask for {}, suspicionTimeout: {}",
               localMember,
               id,
               suspicionTimeout);
@@ -794,7 +794,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
               .spread(msg)
               .doOnError(
                   ex ->
-                      LOGGER.debug(
+                      LOGGER.warn(
                           "[{}] Failed to send membership with gossip, cause: {}",
                           localMember,
                           ex.toString()))
@@ -864,10 +864,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   }
 
   private List<Member> getRemovedMembers() {
-    return removedMembersHistory //
-        .stream()
-        .map(MembershipEvent::member)
-        .collect(Collectors.toList());
+    return removedMembersHistory.stream().map(MembershipEvent::member).collect(Collectors.toList());
   }
 
   private List<Member> findRecordsByCondition(Predicate<MembershipRecord> condition) {

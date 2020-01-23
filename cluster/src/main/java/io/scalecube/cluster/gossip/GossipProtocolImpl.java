@@ -299,7 +299,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
                     .subscribe(
                         null,
                         ex ->
-                            LOGGER.debug(
+                            LOGGER.warn(
                                 "[{}][{}] Failed to send GossipReq({}) to {}, cause: {}",
                                 localMember,
                                 period,

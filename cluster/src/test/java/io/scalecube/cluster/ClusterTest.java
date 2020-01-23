@@ -171,10 +171,7 @@ public class ClusterTest extends BaseTest {
     } finally {
       // Shutdown all nodes
       shutdown(
-          Stream.concat(
-                  Stream.of(seedNode), //
-                  otherNodes.stream())
-              .collect(Collectors.toList()));
+          Stream.concat(Stream.of(seedNode), otherNodes.stream()).collect(Collectors.toList()));
     }
   }
 
@@ -243,9 +240,7 @@ public class ClusterTest extends BaseTest {
     } finally {
       // Shutdown all nodes
       shutdown(
-          Stream.concat(
-                  Stream.of(seedNode, metadataNode), //
-                  otherNodes.stream())
+          Stream.concat(Stream.of(seedNode, metadataNode), otherNodes.stream())
               .collect(Collectors.toList()));
     }
   }
@@ -321,9 +316,7 @@ public class ClusterTest extends BaseTest {
     } finally {
       // Shutdown all nodes
       shutdown(
-          Stream.concat(
-                  Stream.of(seedNode, metadataNode), //
-                  otherNodes.stream())
+          Stream.concat(Stream.of(seedNode, metadataNode), otherNodes.stream())
               .collect(Collectors.toList()));
     }
   }
@@ -400,9 +393,7 @@ public class ClusterTest extends BaseTest {
     } finally {
       // Shutdown all nodes
       shutdown(
-          Stream.concat(
-                  Stream.of(seedNode, metadataNode), //
-                  otherNodes.stream())
+          Stream.concat(Stream.of(seedNode, metadataNode), otherNodes.stream())
               .collect(Collectors.toList()));
     }
   }

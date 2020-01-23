@@ -479,12 +479,12 @@ public final class ClusterImpl implements Cluster {
   private Mono<Void> doShutdown() {
     return Mono.defer(
         () -> {
-          LOGGER.debug("[{}] Cluster member is shutting down", localMember);
+          LOGGER.info("[{}] Cluster member is shutting down", localMember);
           return Flux.concatDelayError(leaveCluster(), dispose(), transport.stop())
               .then()
               .doFinally(s -> scheduler.dispose())
               .doOnSuccess(
-                  avoid -> LOGGER.debug("[{}] Cluster member has been shutdown", localMember));
+                  avoid -> LOGGER.info("[{}] Cluster member has been shutdown", localMember));
         });
   }
 
@@ -492,8 +492,8 @@ public final class ClusterImpl implements Cluster {
     return membership
         .leaveCluster()
         .subscribeOn(scheduler)
-        .doOnSubscribe(s -> LOGGER.debug("[{}] Cluster member is leaving a cluster", localMember))
-        .doOnSuccess(s -> LOGGER.debug("[{}] Cluster member has left a cluster", localMember))
+        .doOnSubscribe(s -> LOGGER.info("[{}] Cluster member is leaving a cluster", localMember))
+        .doOnSuccess(s -> LOGGER.info("[{}] Cluster member has left a cluster", localMember))
         .doOnError(
             ex ->
                 LOGGER.warn(
