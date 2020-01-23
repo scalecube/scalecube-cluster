@@ -1,4 +1,4 @@
-package io.scalecube.cluster.codec.jackson;
+package io.scalecube.cluster.codec.jackson.smile;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.scalecube.cluster.transport.api.Message;
@@ -6,15 +6,15 @@ import io.scalecube.cluster.transport.api.MessageCodec;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-public class JacksonMessageCodec implements MessageCodec {
+public class JacksonSmileMessageCodec implements MessageCodec {
 
   private final ObjectMapper delegate;
 
-  public JacksonMessageCodec() {
+  public JacksonSmileMessageCodec() {
     this(DefaultObjectMapper.OBJECT_MAPPER);
   }
 
-  public JacksonMessageCodec(ObjectMapper delegate) {
+  public JacksonSmileMessageCodec(ObjectMapper delegate) {
     this.delegate = delegate;
   }
 
@@ -25,6 +25,6 @@ public class JacksonMessageCodec implements MessageCodec {
 
   @Override
   public void serialize(Message message, OutputStream stream) throws Exception {
-    this.delegate.writeValue(stream, message);
+    stream.write(this.delegate.writeValueAsBytes(message));
   }
 }

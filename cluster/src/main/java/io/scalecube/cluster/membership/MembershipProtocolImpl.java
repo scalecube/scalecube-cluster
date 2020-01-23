@@ -289,7 +289,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
         .subscribe(
             null,
             ex ->
-                LOGGER.warn(
+                LOGGER.debug(
                     "[{}] Exception on initial SyncAck, cause: {}", localMember, ex.toString()));
   }
 
@@ -352,7 +352,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
         .subscribe(
             null,
             ex ->
-                LOGGER.warn(
+                LOGGER.debug(
                     "[{}][doSync] Failed to send Sync to {}, cause: {}",
                     localMember,
                     address,
@@ -403,7 +403,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                         .subscribe(
                             null,
                             ex ->
-                                LOGGER.warn(
+                                LOGGER.debug(
                                     "[{}] Failed to send SyncAck to {}, cause: {}",
                                     localMember,
                                     sender,
@@ -433,7 +433,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           .subscribe(
               null,
               ex ->
-                  LOGGER.warn(
+                  LOGGER.debug(
                       "[{}][onFailureDetectorEvent] Failed to send Sync to {}, cause: {}",
                       localMember,
                       address,
@@ -794,7 +794,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
               .spread(msg)
               .doOnError(
                   ex ->
-                      LOGGER.warn(
+                      LOGGER.debug(
                           "[{}] Failed to send membership with gossip, cause: {}",
                           localMember,
                           ex.toString()))

@@ -233,7 +233,6 @@ public final class TransportImpl implements Transport {
   public Mono<Void> send(Address address, Message message) {
     return connections
         .computeIfAbsent(address, this::connect0)
-        .doOnSubscribe(s -> LOGGER.debug("[{}] Send {} to {}", this.address, message, address))
         .map(Connection::outbound)
         .flatMap(out -> out.send(Mono.just(message).map(this::toByteBuf), bb -> true).then())
         .then();
@@ -305,7 +304,7 @@ public final class TransportImpl implements Transport {
         .connect()
         .doOnError(
             th -> {
-              LOGGER.warn(
+              LOGGER.debug(
                   "[{}][connect0][{}] Exception occurred: {}",
                   this.address,
                   address,
