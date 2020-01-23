@@ -304,7 +304,7 @@ public final class TransportImpl implements Transport {
         .connect()
         .doOnError(
             th -> {
-              LOGGER.warn(
+              LOGGER.debug(
                   "[{}][connect0][{}] Exception occurred: {}",
                   this.address,
                   address,

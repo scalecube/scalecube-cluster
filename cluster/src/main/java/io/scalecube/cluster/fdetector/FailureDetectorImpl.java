@@ -151,7 +151,7 @@ public final class FailureDetectorImpl implements FailureDetector {
               publishPingResult(period, pingMember, computeMemberStatus(message, period));
             },
             ex -> {
-              LOGGER.warn(
+              LOGGER.debug(
                   "[{}][{}] Failed to get PingAck from {} within {} ms",
                   localMember,
                   period,
@@ -198,7 +198,7 @@ public final class FailureDetectorImpl implements FailureDetector {
                       publishPingResult(period, pingMember, computeMemberStatus(message, period));
                     },
                     throwable -> {
-                      LOGGER.warn(
+                      LOGGER.debug(
                           "[{}][{}] Timeout getting transit PingAck from {} to {} within {} ms",
                           localMember,
                           period,
@@ -250,7 +250,7 @@ public final class FailureDetectorImpl implements FailureDetector {
         .subscribe(
             null,
             ex ->
-                LOGGER.warn(
+                LOGGER.debug(
                     "[{}][{}] Failed to send PingAck to {}, cause: {}",
                     localMember,
                     period,
@@ -276,7 +276,7 @@ public final class FailureDetectorImpl implements FailureDetector {
         .subscribe(
             null,
             ex ->
-                LOGGER.warn(
+                LOGGER.debug(
                     "[{}][{}] Failed to send transit Ping to {}, cause: {}",
                     localMember,
                     period,
@@ -306,7 +306,7 @@ public final class FailureDetectorImpl implements FailureDetector {
         .subscribe(
             null,
             ex ->
-                LOGGER.warn(
+                LOGGER.debug(
                     "[{}][{}] Failed to resend transit PingAck to {}, cause: {}",
                     localMember,
                     period,
