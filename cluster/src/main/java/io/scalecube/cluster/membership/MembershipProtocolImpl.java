@@ -346,14 +346,14 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
     Address address = addressOptional.get();
     Message message = prepareSyncDataMsg(SYNC, null);
-    LOGGER.debug("[doSync][{}] Send Sync to {}", localMember, address);
+    LOGGER.debug("[{}][doSync] Send Sync to {}", localMember, address);
     transport
         .send(address, message)
         .subscribe(
             null,
             ex ->
                 LOGGER.debug(
-                    "[doSync][{}] Failed to send Sync to {}, cause: {}",
+                    "[{}][doSync] Failed to send Sync to {}, cause: {}",
                     localMember,
                     address,
                     ex.toString()));
@@ -421,7 +421,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     if (r0.status() == fdEvent.status()) { // status not changed
       return;
     }
-    LOGGER.debug("[onFailureDetectorEvent][{}] Received status change: {}", localMember, fdEvent);
+    LOGGER.debug("[{}][onFailureDetectorEvent] Received status change: {}", localMember, fdEvent);
     if (fdEvent.status() == ALIVE) {
       // TODO: Consider to make more elegant solution
       // Alive won't override SUSPECT so issue instead extra sync with member to force it spread
@@ -434,7 +434,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
               null,
               ex ->
                   LOGGER.debug(
-                      "[onFailureDetectorEvent][{}] Failed to send Sync to {}, cause: {}",
+                      "[{}][onFailureDetectorEvent] Failed to send Sync to {}, cause: {}",
                       localMember,
                       address,
                       ex.toString()));
@@ -535,7 +535,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           // Check if new record r1 overrides existing membership record r0
           if ((r0 == null || !r0.isLeaving()) && !r1.isOverrides(r0)) {
             LOGGER.debug(
-                "[updateMembership][{}][{}] Skipping update, "
+                "[{}][updateMembership][{}] Skipping update, "
                     + "can't override r0: {} with received r1: {}",
                 localMember,
                 reason,
@@ -582,7 +582,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                   .doOnError(
                       ex ->
                           LOGGER.warn(
-                              "[updateMembership][{}][{}] Skipping to add/update member: {}, "
+                              "[{}][updateMembership][{}] Skipping to add/update member: {}, "
                                   + "due to failed fetchMetadata call (cause: {})",
                               localMember,
                               reason,
@@ -637,7 +637,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           membershipTable.put(localMember.id(), r2);
 
           LOGGER.debug(
-              "[updateMembership][{}][{}] Updating incarnation, "
+              "[{}][updateMembership][{}] Updating incarnation, "
                   + "local record r0: {} to received r1: {}, "
                   + "spreading with increased incarnation r2: {}",
               localMember,
@@ -676,7 +676,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   }
 
   private void publishEvent(MembershipEvent event) {
-    LOGGER.info("[publishEvent][{}] {}", localMember, event);
+    LOGGER.info("[{}][publishEvent] {}", localMember, event);
     sink.next(event);
   }
 
