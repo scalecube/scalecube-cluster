@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipEvent.Type;
-import io.scalecube.cluster.metadata.SimpleMapMetadataCodec;
+import io.scalecube.cluster.metadata.MetadataCodec;
 import io.scalecube.net.Address;
 import java.net.InetAddress;
 import java.time.Duration;
@@ -31,6 +31,52 @@ public class ClusterTest extends BaseTest {
 
   public static final Duration TIMEOUT = Duration.ofSeconds(30);
   public static final int CONNECT_TIMEOUT = 3000;
+
+  @Test
+  public void testStartStopRepeatedly() throws Exception {
+    Address address = Address.from("localhost:4848");
+
+    // Start seed node
+    Cluster seedNode =
+        new ClusterImpl()
+            .gossip(opts -> opts.gossipInterval(100))
+            .failureDetector(opts -> opts.pingInterval(100))
+            .membership(opts -> opts.syncInterval(100))
+            .transport(opts -> opts.host(address.host()).port(address.port()))
+            .transport(opts -> opts.connectTimeout(CONNECT_TIMEOUT))
+            .startAwait();
+
+    Cluster otherNode =
+        new ClusterImpl()
+            .membership(opts -> opts.seedMembers(address))
+            .gossip(opts -> opts.gossipInterval(100))
+            .failureDetector(opts -> opts.pingInterval(100))
+            .membership(opts -> opts.syncInterval(100))
+            .transport(opts -> opts.connectTimeout(CONNECT_TIMEOUT))
+            .startAwait();
+
+    assertEquals(2, seedNode.members().size());
+    assertEquals(2, otherNode.members().size());
+
+    for (int i = 0; i < 10; i++) {
+      seedNode.shutdown();
+      seedNode.onShutdown().then(Mono.delay(Duration.ofMillis(100))).block();
+
+      seedNode =
+          new ClusterImpl()
+              .gossip(opts -> opts.gossipInterval(100))
+              .failureDetector(opts -> opts.pingInterval(100))
+              .membership(opts -> opts.syncInterval(100))
+              .transport(opts -> opts.host(address.host()).port(address.port()))
+              .transport(opts -> opts.connectTimeout(CONNECT_TIMEOUT))
+              .startAwait();
+
+      TimeUnit.SECONDS.sleep(1);
+
+      assertEquals(2, seedNode.members().size());
+      assertEquals(2, otherNode.members().size());
+    }
+  }
 
   @Test
   public void testMembersAccessFromScheduler() {
@@ -92,7 +138,7 @@ public class ClusterTest extends BaseTest {
 
     // Start seed node
     Cluster seedNode =
-        new ClusterImpl(new ClusterConfig().memberHost("localhost").memberPort(7878))
+        new ClusterImpl(new ClusterConfig().containerHost("localhost").containerPort(7878))
             .transport(opts -> opts.port(7878).connectTimeout(CONNECT_TIMEOUT))
             .membership(opts -> opts.seedMembers(addresses))
             .startAwait();
@@ -125,10 +171,7 @@ public class ClusterTest extends BaseTest {
     } finally {
       // Shutdown all nodes
       shutdown(
-          Stream.concat(
-                  Stream.of(seedNode), //
-                  otherNodes.stream())
-              .collect(Collectors.toList()));
+          Stream.concat(Stream.of(seedNode), otherNodes.stream()).collect(Collectors.toList()));
     }
   }
 
@@ -197,9 +240,7 @@ public class ClusterTest extends BaseTest {
     } finally {
       // Shutdown all nodes
       shutdown(
-          Stream.concat(
-                  Stream.of(seedNode, metadataNode), //
-                  otherNodes.stream())
+          Stream.concat(Stream.of(seedNode, metadataNode), otherNodes.stream())
               .collect(Collectors.toList()));
     }
   }
@@ -266,7 +307,7 @@ public class ClusterTest extends BaseTest {
         Optional<Member> memberOptional = node.member(metadataNode.member().id());
         assertTrue(memberOptional.isPresent());
         Member member = memberOptional.get();
-        //noinspection unchecked
+        //noinspection unchecked,OptionalGetWithoutIsPresent
         Map<String, String> actualMetadata = (Map<String, String>) node.metadata(member).get();
         assertEquals(2, actualMetadata.size());
         assertEquals("value1", actualMetadata.get("key1"));
@@ -275,9 +316,7 @@ public class ClusterTest extends BaseTest {
     } finally {
       // Shutdown all nodes
       shutdown(
-          Stream.concat(
-                  Stream.of(seedNode, metadataNode), //
-                  otherNodes.stream())
+          Stream.concat(Stream.of(seedNode, metadataNode), otherNodes.stream())
               .collect(Collectors.toList()));
     }
   }
@@ -345,7 +384,7 @@ public class ClusterTest extends BaseTest {
         Optional<Member> memberOptional = node.member(metadataNode.member().id());
         assertTrue(memberOptional.isPresent());
         Member member = memberOptional.get();
-        //noinspection unchecked
+        //noinspection unchecked,OptionalGetWithoutIsPresent
         Map<String, String> actualMetadata = (Map<String, String>) node.metadata(member).get();
         assertEquals(1, actualMetadata.size());
         assertEquals("value1", actualMetadata.get("key1"));
@@ -354,9 +393,7 @@ public class ClusterTest extends BaseTest {
     } finally {
       // Shutdown all nodes
       shutdown(
-          Stream.concat(
-                  Stream.of(seedNode, metadataNode), //
-                  otherNodes.stream())
+          Stream.concat(Stream.of(seedNode, metadataNode), otherNodes.stream())
               .collect(Collectors.toList()));
     }
   }
@@ -465,7 +502,7 @@ public class ClusterTest extends BaseTest {
         .filter(MembershipEvent::isRemoved)
         .subscribe(
             event -> {
-              Object metadata = SimpleMapMetadataCodec.INSTANCE.decode(event.oldMetadata());
+              Object metadata = MetadataCodec.INSTANCE.deserialize(event.oldMetadata());
               //noinspection unchecked
               removedMetadata.set((Map<String, String>) metadata);
               latch.countDown();

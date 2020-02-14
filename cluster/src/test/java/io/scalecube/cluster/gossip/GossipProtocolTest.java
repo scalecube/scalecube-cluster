@@ -30,7 +30,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -92,8 +91,8 @@ class GossipProtocolTest extends BaseTest {
   private Scheduler scheduler;
 
   @BeforeEach
-  void setUp(TestInfo testInfo) {
-    scheduler = Schedulers.newSingle(testInfo.getDisplayName().replaceAll(" ", "_"), true);
+  void setUp() {
+    scheduler = Schedulers.newSingle("scheduler", true);
   }
 
   @AfterEach

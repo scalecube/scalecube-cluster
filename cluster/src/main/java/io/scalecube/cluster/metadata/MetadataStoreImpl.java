@@ -8,10 +8,10 @@ import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.net.Address;
 import java.nio.ByteBuffer;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
@@ -28,6 +28,8 @@ public class MetadataStoreImpl implements MetadataStore {
   public static final String GET_METADATA_REQ = "sc/metadata/req";
   public static final String GET_METADATA_RESP = "sc/metadata/resp";
 
+  public static final ByteBuffer EMPTY_BUFFER = ByteBuffer.allocate(0);
+
   // Injected
 
   private Object localMetadata;
@@ -38,7 +40,7 @@ public class MetadataStoreImpl implements MetadataStore {
 
   // State
 
-  private final Map<Member, ByteBuffer> membersMetadata = new ConcurrentHashMap<>();
+  private final Map<Member, ByteBuffer> membersMetadata = new HashMap<>();
 
   // Scheduler
 
@@ -78,17 +80,12 @@ public class MetadataStoreImpl implements MetadataStore {
     // Subscribe
     actionsDisposables.add(
         // Listen to incoming get_metadata requests from other members
-        transport
-            .listen() //
-            .publishOn(scheduler)
-            .subscribe(this::onMessage, this::onError));
+        transport.listen().publishOn(scheduler).subscribe(this::onMessage, this::onError));
   }
 
   @Override
   public void stop() {
-    // Stop accepting requests
     actionsDisposables.dispose();
-    // Clear metadata hash map
     membersMetadata.clear();
   }
 
@@ -114,21 +111,15 @@ public class MetadataStoreImpl implements MetadataStore {
       throw new IllegalArgumentException("removeMetadata must not accept local member");
     }
 
-    // If metadata is null then 'update' turns into 'remove'
-    if (metadata == null) {
-      return removeMetadata(member);
-    }
-
     ByteBuffer value = metadata.slice();
     ByteBuffer result = membersMetadata.put(member, value);
 
-    // updated
     if (result == null) {
       LOGGER.debug(
-          "Added metadata: {} for member {} [at {}]", value.remaining(), member, localMember);
+          "[{}] Added metadata(size={}) for member {}", localMember, value.remaining(), member);
     } else {
       LOGGER.debug(
-          "Updated metadata: {} for member {} [at {}]", value.remaining(), member, localMember);
+          "[{}] Updated metadata(size={}) for member {}", localMember, value.remaining(), member);
     }
     return result;
   }
@@ -141,7 +132,11 @@ public class MetadataStoreImpl implements MetadataStore {
     // remove
     ByteBuffer metadata = membersMetadata.remove(member);
     if (metadata != null) {
-      LOGGER.debug("Removed metadata for member {} [at {}]", member, localMember);
+      LOGGER.debug(
+          "[{}] Removed metadata(size={}) for member {}",
+          localMember,
+          metadata.remaining(),
+          member);
       return metadata;
     }
     return null;
@@ -149,13 +144,13 @@ public class MetadataStoreImpl implements MetadataStore {
 
   @Override
   public Mono<ByteBuffer> fetchMetadata(Member member) {
-    return Mono.create(
-        sink -> {
-          LOGGER.debug("Getting metadata for member {} [at {}]", member, localMember);
-
-          // Increment counter
+    return Mono.defer(
+        () -> {
           final String cid = cidGenerator.nextCid();
           final Address targetAddress = member.address();
+
+          LOGGER.debug("[{}][{}] Getting metadata for member {}", localMember, cid, member);
+
           Message request =
               Message.builder()
                   .qualifier(GET_METADATA_REQ)
@@ -163,32 +158,29 @@ public class MetadataStoreImpl implements MetadataStore {
                   .data(new GetMetadataRequest(member))
                   .build();
 
-          transport
+          return transport
               .requestResponse(targetAddress, request)
               .timeout(Duration.ofMillis(config.metadataTimeout()), scheduler)
               .publishOn(scheduler)
-              .subscribe(
-                  response -> {
-                    LOGGER.debug(
-                        "Received GetMetadataResp[{}] from {} [at {}]",
-                        cid,
-                        targetAddress,
-                        localMember);
-                    GetMetadataResponse respData = response.data();
-                    ByteBuffer metadata = respData.getMetadata();
-                    sink.success(metadata);
-                  },
-                  th -> {
-                    LOGGER.warn(
-                        "Failed getting GetMetadataResp[{}] "
-                            + "from {} within {} ms [at {}], cause : {}",
-                        cid,
-                        targetAddress,
-                        config.metadataTimeout(),
-                        localMember,
-                        th.toString());
-                    sink.error(th);
-                  });
+              .doOnSuccess(
+                  s ->
+                      LOGGER.debug(
+                          "[{}][{}] Received GetMetadataResp from {}",
+                          localMember,
+                          cid,
+                          targetAddress))
+              .map(Message::<GetMetadataResponse>data)
+              .map(GetMetadataResponse::getMetadata)
+              .doOnError(
+                  th ->
+                      LOGGER.warn(
+                          "[{}][{}] Timeout getting GetMetadataResp "
+                              + "from {} within {} ms, cause: {}",
+                          localMember,
+                          cid,
+                          targetAddress,
+                          config.metadataTimeout(),
+                          th.toString()));
         });
   }
 
@@ -203,11 +195,12 @@ public class MetadataStoreImpl implements MetadataStore {
   }
 
   private void onError(Throwable throwable) {
-    LOGGER.error("Received unexpected error: ", throwable);
+    LOGGER.error("[{}] Received unexpected error:", localMember, throwable);
   }
 
   private void onMetadataRequest(Message message) {
-    LOGGER.debug("Received GetMetadataReq: {} [at {}]", message, localMember);
+    final Address sender = message.sender();
+    LOGGER.debug("[{}] Received GetMetadataReq from {}", localMember, sender);
 
     GetMetadataRequest reqData = message.data();
     Member targetMember = reqData.getMember();
@@ -215,16 +208,16 @@ public class MetadataStoreImpl implements MetadataStore {
     // Validate target member
     if (!targetMember.id().equals(localMember.id())) {
       LOGGER.warn(
-          "Received GetMetadataReq: {} to {}, but local member is {}",
-          message,
+          "[{}] Received GetMetadataReq from {} to {}, but local member is {}",
+          localMember,
+          sender,
           targetMember,
           localMember);
       return;
     }
 
-    // Prepare repopnse
-    ByteBuffer byteBuffer = config.metadataEncoder().encode(localMetadata);
-    GetMetadataResponse respData = new GetMetadataResponse(localMember, byteBuffer);
+    // Prepare response
+    GetMetadataResponse respData = new GetMetadataResponse(localMember, encodeMetadata());
 
     Message response =
         Message.builder()
@@ -233,18 +226,26 @@ public class MetadataStoreImpl implements MetadataStore {
             .data(respData)
             .build();
 
-    Address responseAddress = message.sender();
-    LOGGER.debug("Send GetMetadataResp: {} to {} [at {}]", response, responseAddress, localMember);
+    LOGGER.debug("[{}] Send GetMetadataResp to {}", localMember, sender);
     transport
-        .send(responseAddress, response)
+        .send(sender, response)
         .subscribe(
             null,
             ex ->
                 LOGGER.debug(
-                    "Failed to send GetMetadataResp: {} to {} [at {}], cause: {}",
-                    response,
-                    responseAddress,
+                    "[{}] Failed to send GetMetadataResp to {}, cause: {}",
                     localMember,
+                    sender,
                     ex.toString()));
+  }
+
+  private ByteBuffer encodeMetadata() {
+    ByteBuffer result;
+    if (config.metadataEncoder() != null) {
+      result = config.metadataEncoder().encode(localMetadata);
+    } else {
+      result = config.metadataCodec().serialize(localMetadata);
+    }
+    return Optional.ofNullable(result).orElse(EMPTY_BUFFER);
   }
 }

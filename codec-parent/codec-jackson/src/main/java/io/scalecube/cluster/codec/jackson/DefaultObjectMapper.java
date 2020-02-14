@@ -1,4 +1,4 @@
-package io.scalecube.cluster.utils;
+package io.scalecube.cluster.codec.jackson;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -8,8 +8,9 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectMapper.DefaultTyping;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
 
-public class DefaultObjectMapper {
+final class DefaultObjectMapper {
 
   public static final ObjectMapper OBJECT_MAPPER = initMapper();
 
@@ -26,7 +27,10 @@ public class DefaultObjectMapper {
     mapper.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
     mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
     mapper.configure(SerializationFeature.WRITE_ENUMS_USING_TO_STRING, true);
-    mapper.enableDefaultTyping(DefaultTyping.JAVA_LANG_OBJECT, JsonTypeInfo.As.PROPERTY);
+    mapper.enableDefaultTyping(
+        LaissezFaireSubTypeValidator.instance,
+        DefaultTyping.JAVA_LANG_OBJECT,
+        JsonTypeInfo.As.WRAPPER_OBJECT);
     return mapper;
   }
 }

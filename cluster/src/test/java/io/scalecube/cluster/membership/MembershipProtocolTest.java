@@ -30,7 +30,6 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInfo;
 import reactor.core.Exceptions;
 import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
@@ -51,8 +50,8 @@ public class MembershipProtocolTest extends BaseTest {
   private Scheduler scheduler;
 
   @BeforeEach
-  void setUp(TestInfo testInfo) {
-    scheduler = Schedulers.newSingle(testInfo.getDisplayName().replaceAll(" ", "_"), true);
+  void setUp() {
+    scheduler = Schedulers.newSingle("scheduler", true);
     stopables = new ArrayList<>();
   }
 
@@ -176,7 +175,6 @@ public class MembershipProtocolTest extends BaseTest {
 
     assertTrue(cmAEvents.isEmpty());
   }
-
 
   @Test
   public void testLeaveClusterOnSuspectedNode() {
@@ -752,19 +750,19 @@ public class MembershipProtocolTest extends BaseTest {
     NetworkEmulatorTransport e = createTransport();
 
     MembershipProtocolImpl cmA =
-        createMembership(a, testConfig(Collections.emptyList()).memberHost(localAddress));
+        createMembership(a, testConfig(Collections.emptyList()).containerHost(localAddress));
     MembershipProtocolImpl cmB =
         createMembership(
-            b, testConfig(Collections.singletonList(a.address())).memberHost(localAddress));
+            b, testConfig(Collections.singletonList(a.address())).containerHost(localAddress));
     MembershipProtocolImpl cmC =
         createMembership(
-            c, testConfig(Collections.singletonList(a.address())).memberHost(localAddress));
+            c, testConfig(Collections.singletonList(a.address())).containerHost(localAddress));
     MembershipProtocolImpl cmD =
         createMembership(
-            d, testConfig(Collections.singletonList(b.address())).memberHost(localAddress));
+            d, testConfig(Collections.singletonList(b.address())).containerHost(localAddress));
     MembershipProtocolImpl cmE =
         createMembership(
-            e, testConfig(Collections.singletonList(b.address())).memberHost(localAddress));
+            e, testConfig(Collections.singletonList(b.address())).containerHost(localAddress));
 
     try {
       awaitSeconds(3);

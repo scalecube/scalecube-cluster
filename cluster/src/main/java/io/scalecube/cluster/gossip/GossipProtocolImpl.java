@@ -157,7 +157,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
       // Sweep gossips
       Set<String> gossipsToRemove = getGossipsToRemove(period);
       if (!gossipsToRemove.isEmpty()) {
-        LOGGER.debug("Sweep gossips[{}]: {}", period, gossipsToRemove);
+        LOGGER.debug("[{}][{}] Sweep gossips: {}", localMember, period, gossipsToRemove);
         for (String gossipId : gossipsToRemove) {
           gossips.remove(gossipId);
         }
@@ -166,7 +166,11 @@ public final class GossipProtocolImpl implements GossipProtocol {
       // Check spread gossips
       Set<String> gossipsThatSpread = getGossipsThatMostLikelyDisseminated(period);
       if (!gossipsThatSpread.isEmpty()) {
-        LOGGER.debug("Most likely disseminated gossips[{}]: {}", period, gossipsThatSpread);
+        LOGGER.debug(
+            "[{}][{}] Most likely disseminated gossips: {}",
+            localMember,
+            period,
+            gossipsThatSpread);
         for (String gossipId : gossipsThatSpread) {
           MonoSink<String> sink = futures.remove(gossipId);
           if (sink != null) {
@@ -175,7 +179,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
         }
       }
     } catch (Exception ex) {
-      LOGGER.warn("Exception at doSpreadGossip[{}]: ", period, ex);
+      LOGGER.warn("[{}][{}][doSpreadGossip] Exception occurred:", localMember, period, ex);
     }
   }
 
@@ -219,8 +223,10 @@ public final class GossipProtocolImpl implements GossipProtocol {
       final SequenceIdCollector sequenceIdCollector = entry.getValue();
       if (sequenceIdCollector.size() > intervalsThreshold) {
         LOGGER.warn(
-            "Too many missed gossip messages from original gossiper: '{}', "
+            "[{}][{}] Too many missed gossip messages from original gossiper: '{}', "
                 + "current node({}) was SUSPECTED much for a long time or connection problem",
+            localMember,
+            currentPeriod,
             entry.getKey(),
             localMember);
 
@@ -235,17 +241,27 @@ public final class GossipProtocolImpl implements GossipProtocol {
       boolean removed = remoteMembers.remove(member);
       sequenceIdCollectors.remove(member.id());
       if (removed) {
-        LOGGER.debug("Removed {} from remoteMembers list (size={})", member, remoteMembers.size());
+        LOGGER.debug(
+            "[{}][{}] Removed {} from remoteMembers list (size={})",
+            localMember,
+            currentPeriod,
+            member,
+            remoteMembers.size());
       }
     }
     if (event.isAdded()) {
       remoteMembers.add(member);
-      LOGGER.debug("Added {} to remoteMembers list (size={})", member, remoteMembers.size());
+      LOGGER.debug(
+          "[{}][{}] Added {} to remoteMembers list (size={})",
+          localMember,
+          currentPeriod,
+          member,
+          remoteMembers.size());
     }
   }
 
   private void onError(Throwable throwable) {
-    LOGGER.error("Received unexpected error: ", throwable);
+    LOGGER.error("[{}][{}] Received unexpected error:", localMember, currentPeriod, throwable);
   }
 
   // ================================================
@@ -284,7 +300,8 @@ public final class GossipProtocolImpl implements GossipProtocol {
                         null,
                         ex ->
                             LOGGER.debug(
-                                "Failed to send GossipReq[{}]: {} to {}, cause: {}",
+                                "[{}][{}] Failed to send GossipReq({}) to {}, cause: {}",
+                                localMember,
                                 period,
                                 message,
                                 address,

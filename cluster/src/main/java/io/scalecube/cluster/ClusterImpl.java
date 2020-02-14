@@ -7,6 +7,9 @@ import io.scalecube.cluster.gossip.GossipProtocolImpl;
 import io.scalecube.cluster.membership.MembershipConfig;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipProtocolImpl;
+import io.scalecube.cluster.metadata.MetadataCodec;
+import io.scalecube.cluster.metadata.MetadataDecoder;
+import io.scalecube.cluster.metadata.MetadataEncoder;
 import io.scalecube.cluster.metadata.MetadataStore;
 import io.scalecube.cluster.metadata.MetadataStoreImpl;
 import io.scalecube.cluster.monitor.ClusterMonitorMBean;
@@ -17,7 +20,10 @@ import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.net.Address;
 import io.scalecube.transport.netty.TransportImpl;
+import io.scalecube.utils.ServiceLoaderUtil;
+import java.io.Serializable;
 import java.lang.management.ManagementFactory;
+import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
@@ -28,13 +34,13 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.management.MBeanServer;
-import javax.management.ObjectInstance;
 import javax.management.ObjectName;
 import javax.management.StandardMBean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
+import reactor.core.Exceptions;
 import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
@@ -112,17 +118,15 @@ public final class ClusterImpl implements Cluster {
         .then(doStart())
         .doOnSuccess(avoid -> onStart.onComplete())
         .doOnError(onStart::onError)
-        .subscribe(
-            null,
-            th -> {
-              LOGGER.error("Cluster member {} failed on start: ", localMember, th);
-              shutdown.onComplete();
-            });
+        .subscribe(null, th -> LOGGER.error("[{}][doStart] Exception occurred:", localMember, th));
 
-    shutdown //
+    shutdown
         .then(doShutdown())
         .doFinally(s -> onShutdown.onComplete())
-        .subscribe();
+        .subscribe(
+            null,
+            th ->
+                LOGGER.warn("[{}][doShutdown] Exception occurred: {}", localMember, th.toString()));
   }
 
   /**
@@ -221,11 +225,7 @@ public final class ClusterImpl implements Cluster {
   }
 
   private Mono<Cluster> doStart() {
-    return Mono.defer(
-        () -> {
-          validateConfiguration();
-          return doStart0();
-        });
+    return Mono.fromRunnable(this::validateConfiguration).then(Mono.defer(this::doStart0));
   }
 
   private Mono<Cluster> doStart0() {
@@ -284,17 +284,42 @@ public final class ClusterImpl implements Cluster {
                   .then(Mono.fromRunnable(() -> gossip.start()))
                   .then(Mono.fromRunnable(() -> metadataStore.start()))
                   .then(Mono.fromRunnable(this::startHandler))
-                  .then((membership.start()))
-                  .then(startJmxMonitor());
+                  .then(membership.start())
+                  .then(Mono.fromRunnable(this::startJmxMonitor))
+                  .then();
             })
+        .doOnSubscribe(s -> LOGGER.info("[{}][doStart] Starting, config: {}", localMember, config))
+        .doOnSuccess(avoid -> LOGGER.info("[{}][doStart] Started", localMember))
         .thenReturn(this);
   }
 
   private void validateConfiguration() {
-    Objects.requireNonNull(
-        config.metadataDecoder(), "Invalid cluster config: metadataDecoder must be specified");
-    Objects.requireNonNull(
-        config.metadataEncoder(), "Invalid cluster config: metadataEncoder must be specified");
+    final MetadataDecoder metadataDecoder = config.metadataDecoder();
+    final MetadataEncoder metadataEncoder = config.metadataEncoder();
+    final MetadataCodec metadataCodec =
+        ServiceLoaderUtil.findFirst(MetadataCodec.class).orElse(null);
+
+    if (metadataDecoder != null && metadataEncoder != null && metadataCodec != null) {
+      throw new IllegalArgumentException(
+          "Invalid cluster config: either pair of [metadataDecoder, metadataEncoder] "
+              + "or metadataCodec must be specified, not both");
+    }
+
+    if ((metadataDecoder == null && metadataEncoder != null)
+        || (metadataDecoder != null && metadataEncoder == null)) {
+      throw new IllegalArgumentException(
+          "Invalid cluster config: both of [metadataDecoder, metadataEncoder]  must be specified");
+    }
+
+    if (metadataDecoder == null && metadataEncoder == null) {
+      if (metadataCodec == null) {
+        Object metadata = config.metadata();
+        if (metadata != null && !(metadata instanceof Serializable)) {
+          throw new IllegalArgumentException(
+              "Invalid cluster config: metadata must be Serializable");
+        }
+      }
+    }
 
     Objects.requireNonNull(
         config.transportConfig().messageCodec(),
@@ -312,23 +337,31 @@ public final class ClusterImpl implements Cluster {
     actionsDisposables.add(listenGossip().subscribe(handler::onGossip, this::onError));
   }
 
-  private Mono<Void> startJmxMonitor() {
-    return Mono.fromCallable(this::startJmxMonitor0).then();
+  private void startJmxMonitor() {
+    ClusterMonitorModel monitorModel = monitorModelBuilder.config(config).cluster(this).build();
+    JmxClusterMonitorMBean monitorMBean = new JmxClusterMonitorMBean(monitorModel);
+    try {
+      StandardMBean standardMBean = new StandardMBean(monitorMBean, ClusterMonitorMBean.class);
+      MBeanServer server = ManagementFactory.getPlatformMBeanServer();
+      ObjectName objectName = new ObjectName("io.scalecube.cluster:name=Cluster@" + member().id());
+      server.registerMBean(standardMBean, objectName);
+    } catch (Exception ex) {
+      throw Exceptions.propagate(ex);
+    }
   }
 
-  private ObjectInstance startJmxMonitor0() throws Exception {
-    ClusterMonitorModel monitorModel = monitorModelBuilder.config(config).cluster(this).build();
-
-    JmxClusterMonitorMBean bean = new JmxClusterMonitorMBean(monitorModel);
-    StandardMBean standardMBean = new StandardMBean(bean, ClusterMonitorMBean.class);
-    MBeanServer server = ManagementFactory.getPlatformMBeanServer();
-    ObjectName objectName = new ObjectName("io.scalecube.cluster:name=Cluster@" + member().id());
-
-    return server.registerMBean(standardMBean, objectName);
+  private void stopJmxMonitor() {
+    try {
+      MBeanServer server = ManagementFactory.getPlatformMBeanServer();
+      ObjectName objectName = new ObjectName("io.scalecube.cluster:name=Cluster@" + member().id());
+      server.unregisterMBean(objectName);
+    } catch (Exception ex) {
+      throw Exceptions.propagate(ex);
+    }
   }
 
   private void onError(Throwable th) {
-    LOGGER.error("Received unexpected error: ", th);
+    LOGGER.error("[{}] Received unexpected error:", localMember, th);
   }
 
   private Flux<Message> listenMessage() {
@@ -354,11 +387,11 @@ public final class ClusterImpl implements Cluster {
    * @return local cluster member with cluster address and cluster member id
    */
   private Member createLocalMember(Address address) {
-    int port = Optional.ofNullable(config.memberPort()).orElse(address.port());
+    int port = Optional.ofNullable(config.containerPort()).orElse(address.port());
 
     // calculate local member cluster address
     Address memberAddress =
-        Optional.ofNullable(config.memberHost())
+        Optional.ofNullable(config.containerHost())
             .map(host -> Address.create(host, port))
             .orElseGet(() -> Address.create(address.host(), port));
 
@@ -415,13 +448,16 @@ public final class ClusterImpl implements Cluster {
     if (member().equals(member)) {
       return metadata();
     }
-    return metadataStore
-        .metadata(member)
-        .map(
-            byteBuffer -> {
-              //noinspection unchecked
-              return (T) config.metadataDecoder().decode(byteBuffer);
-            });
+    return metadataStore.metadata(member).map(this::toMetadata);
+  }
+
+  @SuppressWarnings("unchecked")
+  private <T> T toMetadata(ByteBuffer buffer) {
+    if (config.metadataDecoder() != null) {
+      return (T) config.metadataDecoder().decode(buffer);
+    } else {
+      return (T) config.metadataCodec().deserialize(buffer);
+    }
   }
 
   @Override
@@ -454,16 +490,15 @@ public final class ClusterImpl implements Cluster {
   private Mono<Void> doShutdown() {
     return Mono.defer(
         () -> {
-          LOGGER.info("Cluster member {} is shutting down", localMember);
-          return Flux.concatDelayError(leaveCluster(), dispose(), transport.stop())
+          LOGGER.info("[{}][doShutdown] Shutting down", localMember);
+          return Flux.concatDelayError(
+                  leaveCluster(),
+                  dispose(),
+                  transport.stop(),
+                  Mono.fromRunnable(this::stopJmxMonitor))
               .then()
               .doFinally(s -> scheduler.dispose())
-              .doOnSuccess(
-                  avoid -> LOGGER.info("Cluster member {} has been shut down", localMember))
-              .doOnError(
-                  th ->
-                      LOGGER.warn(
-                          "Cluster member {} failed on shutdown: {}", localMember, th.toString()));
+              .doOnSuccess(avoid -> LOGGER.info("[{}][doShutdown] Shutdown", localMember));
         });
   }
 
@@ -471,11 +506,12 @@ public final class ClusterImpl implements Cluster {
     return membership
         .leaveCluster()
         .subscribeOn(scheduler)
-        .doOnSuccess(s -> LOGGER.debug("Cluster member {} has left a cluster", localMember))
+        .doOnSubscribe(s -> LOGGER.info("[{}][leaveCluster] Leaving cluster", localMember))
+        .doOnSuccess(s -> LOGGER.info("[{}][leaveCluster] Left cluster", localMember))
         .doOnError(
             ex ->
-                LOGGER.info(
-                    "Cluster member {} failed on leaveCluster: {}", localMember, ex.toString()))
+                LOGGER.warn(
+                    "[{}][leaveCluster] Exception occurred: {}", localMember, ex.toString()))
         .then();
   }
 

@@ -1,10 +1,16 @@
 package io.scalecube.cluster.fdetector;
 
 import io.scalecube.cluster.Member;
+import java.io.Externalizable;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
 import java.util.StringJoiner;
 
 /** DTO class. Supports FailureDetector messages (Ping, Ack, PingReq). */
-final class PingData {
+final class PingData implements Externalizable {
+
+  private static final long serialVersionUID = 1L;
 
   enum AckType {
 
@@ -32,8 +38,7 @@ final class PingData {
   /** Ping response type. */
   private AckType ackType;
 
-  /** Instantiates empty ping data for deserialization purpose. */
-  PingData() {}
+  public PingData() {}
 
   private PingData(PingData other) {
     this.from = other.from;
@@ -76,6 +81,30 @@ final class PingData {
     PingData p = new PingData(this);
     p.ackType = ackType;
     return p;
+  }
+
+  @Override
+  public void writeExternal(ObjectOutput out) throws IOException {
+    // from
+    out.writeObject(from);
+    // to
+    out.writeObject(to);
+    // originalIssuer
+    out.writeObject(originalIssuer);
+    // ackType
+    out.writeObject(ackType);
+  }
+
+  @Override
+  public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+    // from
+    from = (Member) in.readObject();
+    // to
+    to = (Member) in.readObject();
+    // originalIssuer
+    originalIssuer = (Member) in.readObject();
+    // ackType
+    ackType = (AckType) in.readObject();
   }
 
   @Override

@@ -1,3 +1,11 @@
+env:
+  global:
+    - clusterTransport=warn
+    - clusterFdetector=warn
+    - clusterGossip=warn
+    - clusterMembership=warn
+    - clusterMetadata=warn
+    - clusterUtils=warn
 addons:
   apt:
     packages:

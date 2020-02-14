@@ -7,7 +7,8 @@ import java.io.OutputStream;
 /** Contains methods for message serializing/deserializing logic. */
 public interface MessageCodec {
 
-  MessageCodec INSTANCE = ServiceLoaderUtil.findFirst(MessageCodec.class).orElse(null);
+  MessageCodec INSTANCE =
+      ServiceLoaderUtil.findFirst(MessageCodec.class).orElseGet(JdkMessageCodec::new);
 
   /**
    * Deserializes message from given input stream.

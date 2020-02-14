@@ -58,7 +58,7 @@ public class TransportTest extends BaseTest {
   public void testInteractWithNoConnection(TestInfo testInfo) {
     Address serverAddress = Address.from("localhost:49255");
     for (int i = 0; i < 10; i++) {
-      LOGGER.info("####### {} : iteration = {}", testInfo.getDisplayName(), i);
+      LOGGER.debug("####### {} : iteration = {}", testInfo.getDisplayName(), i);
 
       client = createTransport();
 

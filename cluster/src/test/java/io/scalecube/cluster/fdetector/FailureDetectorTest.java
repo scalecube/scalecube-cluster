@@ -26,7 +26,6 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInfo;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
@@ -36,8 +35,8 @@ public class FailureDetectorTest extends BaseTest {
   private Scheduler scheduler;
 
   @BeforeEach
-  void setUp(TestInfo testInfo) {
-    scheduler = Schedulers.newSingle(testInfo.getDisplayName().replaceAll(" ", "_"), true);
+  void setUp() {
+    scheduler = Schedulers.newSingle("scheduler", true);
   }
 
   @AfterEach
