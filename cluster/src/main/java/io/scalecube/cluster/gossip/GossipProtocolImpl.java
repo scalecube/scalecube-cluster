@@ -179,7 +179,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
         }
       }
     } catch (Exception ex) {
-      LOGGER.warn("[doSpreadGossip][{}][{}] Exception occurred:", localMember, period, ex);
+      LOGGER.warn("[{}][{}][doSpreadGossip] Exception occurred:", localMember, period, ex);
     }
   }
 
