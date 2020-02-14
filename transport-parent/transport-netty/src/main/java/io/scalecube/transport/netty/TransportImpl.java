@@ -114,7 +114,7 @@ public final class TransportImpl implements Transport {
     stop.then(doStop())
         .doFinally(s -> onStop.onComplete())
         .subscribe(
-            null, ex -> LOGGER.warn("[{}][doStop] Exception occurred: {}", address, ex.toString()));
+            null, ex -> LOGGER.warn("[doStop][{}] Exception occurred: {}", address, ex.toString()));
   }
 
   private static Address prepareAddress(DisposableServer server) {
@@ -181,16 +181,11 @@ public final class TransportImpl implements Transport {
     return newTcpServer()
         .handle(this::onMessage)
         .bind()
-        .map(server -> new TransportImpl(server, this))
-        .cast(Transport.class)
-        .doOnSubscribe(s -> LOGGER.info("Bind cluster transport on port={}", config.port()))
-        .doOnSuccess(t -> LOGGER.info("[{}] Bound cluster transport", t.address()))
+        .doOnSuccess(t -> LOGGER.info("[bind0][{}] Bound cluster transport", t.address()))
         .doOnError(
-            ex ->
-                LOGGER.error(
-                    "Failed to bind cluster transport on port={}, cause: {}",
-                    config.port(),
-                    ex.toString()));
+            ex -> LOGGER.error("[bind0][{}] Exception occurred: {}", config.port(), ex.toString()))
+        .map(server -> new TransportImpl(server, this))
+        .cast(Transport.class);
   }
 
   @Override
@@ -215,13 +210,13 @@ public final class TransportImpl implements Transport {
   private Mono<Void> doStop() {
     return Mono.defer(
         () -> {
-          LOGGER.info("[{}][doStop] Stopping", address);
+          LOGGER.info("[doStop][{}] Stopping", address);
           // Complete incoming messages observable
           messageSink.complete();
           return Flux.concatDelayError(closeServer(), shutdownLoopResources())
               .then()
               .doFinally(s -> connections.clear())
-              .doOnSuccess(avoid -> LOGGER.info("[{}][doStop] Stopped", address));
+              .doOnSuccess(avoid -> LOGGER.info("[doStop][{}] Stopped", address));
         });
   }
 
@@ -275,7 +270,7 @@ public final class TransportImpl implements Transport {
     try (ByteBufInputStream stream = new ByteBufInputStream(byteBuf, true)) {
       return messageCodec.deserialize(stream);
     } catch (Exception e) {
-      LOGGER.warn("[{}][toMessage] Exception occurred: {}", address, e.toString());
+      LOGGER.warn("[toMessage][{}] Exception occurred: {}", address, e.toString());
       throw new DecoderException(e);
     }
   }
@@ -287,30 +282,27 @@ public final class TransportImpl implements Transport {
       messageCodec.serialize(message, stream);
     } catch (Exception e) {
       bb.release();
-      LOGGER.warn("[{}][toByteBuf] Exception occurred: {}", address, e.toString());
+      LOGGER.warn("[toByteBuf][{}] Exception occurred: {}", address, e.toString());
       throw new EncoderException(e);
     }
     return bb;
   }
 
-  private Mono<? extends Connection> connect0(Address address) {
-    return newTcpClient(address)
+  private Mono<? extends Connection> connect0(Address address1) {
+    return newTcpClient(address1)
         .doOnDisconnected(
             c -> {
-              LOGGER.debug("[{}] Disconnected from {}, {}", this.address, address, c.channel());
-              connections.remove(address);
+              LOGGER.debug("[disconnected][{}][{}] Channel: {}", address, address1, c.channel());
+              connections.remove(address1);
             })
         .doOnConnected(
-            c -> LOGGER.debug("[{}] Connected to {}, {}", this.address, address, c.channel()))
+            c -> LOGGER.debug("[connected][{}][{}] Channel: {}", address, address1, c.channel()))
         .connect()
         .doOnError(
             th -> {
               LOGGER.debug(
-                  "[{}][connect0][{}] Exception occurred: {}",
-                  this.address,
-                  address,
-                  th.toString());
-              connections.remove(address);
+                  "[connect0][{}][{}] Exception occurred: {}", address, address1, th.toString());
+              connections.remove(address1);
             })
         .cache();
   }
@@ -321,12 +313,14 @@ public final class TransportImpl implements Transport {
           if (server == null) {
             return Mono.empty();
           }
+          LOGGER.info("[closeServer][{}] Closing server channel", address);
           return Mono.fromRunnable(server::dispose)
               .then(server.onDispose())
+              .doOnSuccess(avoid -> LOGGER.info("[closeServer][{}] Closed server channel", address))
               .doOnError(
                   e ->
                       LOGGER.warn(
-                          "[{}][closeServer] Exception occurred: {}", address, e.toString()));
+                          "[closeServer][{}] Exception occurred: {}", address, e.toString()));
         });
   }
 
