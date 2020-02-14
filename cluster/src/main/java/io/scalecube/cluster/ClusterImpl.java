@@ -498,7 +498,7 @@ public final class ClusterImpl implements Cluster {
                   Mono.fromRunnable(this::stopJmxMonitor))
               .then()
               .doFinally(s -> scheduler.dispose())
-              .doOnSuccess(s -> LOGGER.info("[doShutdown][{}] Shutdown", localMember));
+              .doOnSuccess(avoid -> LOGGER.info("[doShutdown][{}] Shutdown", localMember));
         });
   }
 
