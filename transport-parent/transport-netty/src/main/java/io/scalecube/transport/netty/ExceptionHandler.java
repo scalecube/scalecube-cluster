@@ -18,6 +18,6 @@ final class ExceptionHandler extends ChannelDuplexHandler {
 
   @Override
   public final void exceptionCaught(ChannelHandlerContext ctx, Throwable ex) {
-    LOGGER.debug("Exception caught for channel {}, cause: {}", ctx.channel(), ex.toString());
+    LOGGER.debug("Exception caught on channel {}, cause: {}", ctx.channel(), ex.toString());
   }
 }

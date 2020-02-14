@@ -181,15 +181,16 @@ public final class TransportImpl implements Transport {
     return newTcpServer()
         .handle(this::onMessage)
         .bind()
+        .map(server -> new TransportImpl(server, this))
+        .cast(Transport.class)
+        .doOnSubscribe(s -> LOGGER.info("Bind cluster transport on port={}", config.port()))
+        .doOnSuccess(t -> LOGGER.info("[{}] Bound cluster transport", t.address()))
         .doOnError(
             ex ->
                 LOGGER.error(
                     "Failed to bind cluster transport on port={}, cause: {}",
                     config.port(),
-                    ex.toString()))
-        .map(server -> new TransportImpl(server, this))
-        .doOnSuccess(t -> LOGGER.info("[{}] Bound cluster transport", t.address()))
-        .cast(Transport.class);
+                    ex.toString()));
   }
 
   @Override
@@ -214,13 +215,13 @@ public final class TransportImpl implements Transport {
   private Mono<Void> doStop() {
     return Mono.defer(
         () -> {
-          LOGGER.info("[{}] Transport is shutting down", address);
+          LOGGER.info("[{}][doStop] Stopping", address);
           // Complete incoming messages observable
           messageSink.complete();
           return Flux.concatDelayError(closeServer(), shutdownLoopResources())
               .then()
               .doFinally(s -> connections.clear())
-              .doOnSuccess(avoid -> LOGGER.info("[{}] Transport has been shut down", address));
+              .doOnSuccess(avoid -> LOGGER.info("[{}][doStop] Stopped", address));
         });
   }
 
