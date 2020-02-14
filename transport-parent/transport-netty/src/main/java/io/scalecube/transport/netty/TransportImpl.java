@@ -210,13 +210,13 @@ public final class TransportImpl implements Transport {
   private Mono<Void> doStop() {
     return Mono.defer(
         () -> {
-          LOGGER.info("[doStop][{}] Shutting down", address);
+          LOGGER.info("[doStop][{}] Stopping", address);
           // Complete incoming messages observable
           messageSink.complete();
           return Flux.concatDelayError(closeServer(), shutdownLoopResources())
               .then()
               .doFinally(s -> connections.clear())
-              .doOnSuccess(avoid -> LOGGER.info("[doStop][{}] Shut down", address));
+              .doOnSuccess(avoid -> LOGGER.info("[doStop][{}] Stopped", address));
         });
   }
 
@@ -313,7 +313,7 @@ public final class TransportImpl implements Transport {
           if (server == null) {
             return Mono.empty();
           }
-          LOGGER.info("[closeServer][{}] Close server channel", address);
+          LOGGER.info("[closeServer][{}] Closing server channel", address);
           return Mono.fromRunnable(server::dispose)
               .then(server.onDispose())
               .doOnSuccess(avoid -> LOGGER.info("[closeServer][{}] Closed server channel", address))
