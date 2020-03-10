@@ -10,7 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper.DefaultTyping;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
 
-final class DefaultObjectMapper {
+public final class DefaultObjectMapper {
 
   public static final ObjectMapper OBJECT_MAPPER = initMapper();
 
