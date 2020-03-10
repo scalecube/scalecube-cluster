@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper.DefaultTyping;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
 import com.fasterxml.jackson.dataformat.smile.SmileFactory;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 
 final class DefaultObjectMapper {
 
@@ -32,6 +33,7 @@ final class DefaultObjectMapper {
         LaissezFaireSubTypeValidator.instance,
         DefaultTyping.JAVA_LANG_OBJECT,
         JsonTypeInfo.As.WRAPPER_OBJECT);
+    mapper.registerModule(new Jdk8Module());
     return mapper;
   }
 }
