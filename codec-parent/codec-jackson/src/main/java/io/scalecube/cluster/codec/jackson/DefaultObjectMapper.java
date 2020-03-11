@@ -32,7 +32,7 @@ final class DefaultObjectMapper {
         LaissezFaireSubTypeValidator.instance,
         DefaultTyping.JAVA_LANG_OBJECT,
         JsonTypeInfo.As.WRAPPER_OBJECT);
-    mapper.registerModule(new Jdk8Module());
+    mapper.findAndRegisterModules();
     return mapper;
   }
 }
