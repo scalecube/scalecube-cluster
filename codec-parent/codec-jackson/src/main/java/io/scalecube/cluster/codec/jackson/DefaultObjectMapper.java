@@ -27,10 +27,11 @@ final class DefaultObjectMapper {
     mapper.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
     mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
     mapper.configure(SerializationFeature.WRITE_ENUMS_USING_TO_STRING, true);
-    mapper.enableDefaultTyping(
+    mapper.activateDefaultTyping(
         LaissezFaireSubTypeValidator.instance,
         DefaultTyping.JAVA_LANG_OBJECT,
         JsonTypeInfo.As.WRAPPER_OBJECT);
+    mapper.findAndRegisterModules();
     return mapper;
   }
 }
