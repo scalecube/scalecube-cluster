@@ -22,26 +22,15 @@ final class SyncData implements Externalizable {
   /** Full cluster membership table. */
   private List<MembershipRecord> membership;
 
-  /**
-   * Sort of cluster identifier. Only members in the same sync group allowed to join into cluster.
-   */
-  private String syncGroup;
-
   public SyncData() {}
 
-  public SyncData(Collection<MembershipRecord> membership, String syncGroup) {
+  public SyncData(Collection<MembershipRecord> membership) {
     Objects.requireNonNull(membership);
-    Objects.requireNonNull(syncGroup);
     this.membership = Collections.unmodifiableList(new ArrayList<>(membership));
-    this.syncGroup = syncGroup;
   }
 
   public Collection<MembershipRecord> getMembership() {
     return membership;
-  }
-
-  public String getSyncGroup() {
-    return syncGroup;
   }
 
   @Override
@@ -51,8 +40,6 @@ final class SyncData implements Externalizable {
     for (MembershipRecord record : membership) {
       out.writeObject(record);
     }
-    // syncGroup
-    out.writeUTF(syncGroup);
   }
 
   @Override
@@ -64,15 +51,12 @@ final class SyncData implements Externalizable {
       membership.add((MembershipRecord) in.readObject());
     }
     this.membership = Collections.unmodifiableList(membership);
-    // syncGroup
-    syncGroup = in.readUTF();
   }
 
   @Override
   public String toString() {
     return new StringJoiner(", ", SyncData.class.getSimpleName() + "[", "]")
         .add("membership=" + membership)
-        .add("syncGroup='" + syncGroup + "'")
         .toString();
   }
 }

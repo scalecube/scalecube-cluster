@@ -71,6 +71,8 @@ class GossipProtocolTest extends BaseTest {
   private static final int gossipFanout = GossipConfig.DEFAULT_GOSSIP_FANOUT;
   private static final int gossipRepeatMultiplier = GossipConfig.DEFAULT_GOSSIP_REPEAT_MULT;
 
+  private static final String NAMESPACE = "ns";
+
   // Uncomment and modify params to run single experiment repeatedly
   // static {
   // int repeatCount = 1000;
@@ -255,12 +257,12 @@ class GossipProtocolTest extends BaseTest {
             .gossipRepeatMult(gossipRepeatMultiplier);
 
     Member localMember =
-        new Member("member-" + transport.address().port(), null, transport.address());
+        new Member("member-" + transport.address().port(), null, transport.address(), NAMESPACE);
 
     Flux<MembershipEvent> membershipFlux =
         Flux.fromIterable(members)
             .filter(address -> !transport.address().equals(address))
-            .map(address -> new Member("member-" + address.port(), null, address))
+            .map(address -> new Member("member-" + address.port(), null, address, NAMESPACE))
             .map(member -> MembershipEvent.createAdded(member, null, 0));
 
     GossipProtocolImpl gossipProtocol =

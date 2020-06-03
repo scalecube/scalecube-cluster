@@ -29,8 +29,10 @@ import java.util.Collections;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.management.MBeanServer;
@@ -53,6 +55,8 @@ import reactor.core.scheduler.Schedulers;
 public final class ClusterImpl implements Cluster {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Cluster.class);
+
+  private static final Pattern NAMESPACE_PATTERN = Pattern.compile("^(\\w+[\\w\\-./]*\\w)+");
 
   private static final Set<String> SYSTEM_MESSAGES =
       Collections.unmodifiableSet(
@@ -326,8 +330,13 @@ public final class ClusterImpl implements Cluster {
         "Invalid cluster config: transport.messageCodec must be specified");
 
     Objects.requireNonNull(
-        config.membershipConfig().syncGroup(),
-        "Invalid cluster config: membership.syncGroup must be specified");
+        config.membershipConfig().namespace(),
+        "Invalid cluster config: membership.namespace must be specified");
+
+    if (!NAMESPACE_PATTERN.matcher(config.membershipConfig().namespace()).matches()) {
+      throw new IllegalArgumentException(
+          "Invalid cluster config: membership.namespace format is invalid");
+    }
   }
 
   private void startHandler() {
@@ -395,7 +404,11 @@ public final class ClusterImpl implements Cluster {
             .map(host -> Address.create(host, port))
             .orElseGet(() -> Address.create(address.host(), port));
 
-    return new Member(Member.generateId(), config.memberAlias(), memberAddress);
+    return new Member(
+        Long.toHexString(UUID.randomUUID().getMostSignificantBits() & Long.MAX_VALUE),
+        config.memberAlias(),
+        memberAddress,
+        config.membershipConfig().namespace());
   }
 
   @Override
