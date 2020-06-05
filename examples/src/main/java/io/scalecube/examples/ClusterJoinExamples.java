@@ -55,7 +55,7 @@ public class ClusterJoinExamples {
                             bob.address(),
                             carol.address(),
                             dan.address()) // won't join anyway
-                        .syncGroup("another cluster"));
+                        .namespace("another-cluster"));
     Cluster eve = new ClusterImpl(configWithSyncGroup).startAwait();
 
     // Print cluster members of each node

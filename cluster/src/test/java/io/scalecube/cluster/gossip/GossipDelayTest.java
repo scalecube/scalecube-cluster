@@ -21,11 +21,13 @@ import reactor.core.scheduler.Schedulers;
 
 public class GossipDelayTest extends BaseTest {
 
+  private static final String NAMESPACE = "ns";
+
   private static final long gossipInterval = GossipConfig.DEFAULT_GOSSIP_INTERVAL;
   private static final int gossipFanout = GossipConfig.DEFAULT_GOSSIP_FANOUT;
   private static final int gossipRepeatMultiplier = GossipConfig.DEFAULT_GOSSIP_REPEAT_MULT;
 
-  private Scheduler scheduler = Schedulers.newSingle("scheduler", true);
+  private final Scheduler scheduler = Schedulers.newSingle("scheduler", true);
 
   @Test
   public void testMessageDelayMoreThanGossipSweepTime() throws InterruptedException {
@@ -80,12 +82,12 @@ public class GossipDelayTest extends BaseTest {
             .gossipRepeatMult(gossipRepeatMultiplier);
 
     Member localMember =
-        new Member("member-" + transport.address().port(), null, transport.address());
+        new Member("member-" + transport.address().port(), null, transport.address(), NAMESPACE);
 
     Flux<MembershipEvent> membershipFlux =
         Flux.fromIterable(members)
             .filter(address -> !transport.address().equals(address))
-            .map(address -> new Member("member-" + address.port(), null, address))
+            .map(address -> new Member("member-" + address.port(), null, address, NAMESPACE))
             .map(member -> MembershipEvent.createAdded(member, null, 0));
 
     GossipProtocolImpl gossipProtocol =
