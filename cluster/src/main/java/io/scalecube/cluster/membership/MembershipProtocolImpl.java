@@ -98,6 +98,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   // Disposables
   private final Disposable.Composite actionsDisposables = Disposables.composite();
+  private final Disposable.Swap disposable = Disposables.swap();
 
   // Scheduled
   private final Scheduler scheduler;
@@ -293,6 +294,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   public void stop() {
     // Stop accepting requests, events and sending sync
     actionsDisposables.dispose();
+    disposable.dispose();
 
     // Cancel remove members tasks
     for (String memberId : suspicionTimeoutTasks.keySet()) {
@@ -475,7 +477,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   private void schedulePeriodicSync() {
     int syncInterval = membershipConfig.syncInterval();
-    actionsDisposables.add(
+    disposable.update(
         scheduler.schedulePeriodically(
             this::doSync, syncInterval, syncInterval, TimeUnit.MILLISECONDS));
   }

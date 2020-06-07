@@ -222,7 +222,7 @@ public final class Message implements Externalizable {
     for (int i = 0; i < headersSize; i++) {
       String name = in.readUTF();
       String value = in.readUTF();
-      headers.put(name, value.equals("null") ? null : value);
+      headers.put(name, "null".equals(value) ? null : value);
     }
     this.headers = Collections.unmodifiableMap(headers);
     // data
