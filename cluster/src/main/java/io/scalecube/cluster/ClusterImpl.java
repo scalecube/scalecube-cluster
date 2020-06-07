@@ -29,7 +29,6 @@ import java.util.Collections;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
@@ -405,7 +404,7 @@ public final class ClusterImpl implements Cluster {
             .orElseGet(() -> Address.create(address.host(), port));
 
     return new Member(
-        Long.toHexString(UUID.randomUUID().getMostSignificantBits() & Long.MAX_VALUE),
+        config.memberIdGenerator().get(),
         config.memberAlias(),
         memberAddress,
         config.membershipConfig().namespace());
