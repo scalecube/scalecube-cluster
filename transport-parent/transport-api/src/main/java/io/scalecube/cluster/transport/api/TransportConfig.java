@@ -14,7 +14,6 @@ public final class TransportConfig implements Cloneable {
   // Local cluster working via loopback interface (overrides default/LAN settings)
   public static final int DEFAULT_LOCAL_CONNECT_TIMEOUT = 1_000;
 
-  private String host = null;
   private int port = 0;
   private int connectTimeout = DEFAULT_CONNECT_TIMEOUT;
   private MessageCodec messageCodec = MessageCodec.INSTANCE;
@@ -50,23 +49,7 @@ public final class TransportConfig implements Cloneable {
    * @return new {@code MembershipConfig}
    */
   public static TransportConfig defaultLocalConfig() {
-    return defaultConfig().connectTimeout(DEFAULT_LOCAL_CONNECT_TIMEOUT).host("localhost");
-  }
-
-  public String host() {
-    return host;
-  }
-
-  /**
-   * Sets a host.
-   *
-   * @param host host
-   * @return new {@code TransportConfig} instance
-   */
-  public TransportConfig host(String host) {
-    TransportConfig t = clone();
-    t.host = host;
-    return t;
+    return defaultConfig().connectTimeout(DEFAULT_LOCAL_CONNECT_TIMEOUT);
   }
 
   public int port() {
@@ -145,7 +128,6 @@ public final class TransportConfig implements Cloneable {
   @Override
   public String toString() {
     return new StringJoiner(", ", TransportConfig.class.getSimpleName() + "[", "]")
-        .add("host='" + host + "'")
         .add("port=" + port)
         .add("connectTimeout=" + connectTimeout)
         .add("messageCodec=" + messageCodec)
