@@ -42,7 +42,7 @@ public class ClusterTest extends BaseTest {
             .gossip(opts -> opts.gossipInterval(100))
             .failureDetector(opts -> opts.pingInterval(100))
             .membership(opts -> opts.syncInterval(100))
-            .transport(opts -> opts.host(address.host()).port(address.port()))
+            .transport(opts -> opts.port(address.port()))
             .transport(opts -> opts.connectTimeout(CONNECT_TIMEOUT))
             .startAwait();
 
@@ -67,7 +67,7 @@ public class ClusterTest extends BaseTest {
               .gossip(opts -> opts.gossipInterval(100))
               .failureDetector(opts -> opts.pingInterval(100))
               .membership(opts -> opts.syncInterval(100))
-              .transport(opts -> opts.host(address.host()).port(address.port()))
+              .transport(opts -> opts.port(address.port()))
               .transport(opts -> opts.connectTimeout(CONNECT_TIMEOUT))
               .startAwait();
 

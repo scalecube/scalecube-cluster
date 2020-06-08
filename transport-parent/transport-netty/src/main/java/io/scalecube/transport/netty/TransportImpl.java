@@ -334,20 +334,13 @@ public final class TransportImpl implements Transport {
    * @return tcp server
    */
   private TcpServer newTcpServer() {
-    TcpServer tcpServer =
-        TcpServer.create()
-            .runOn(loopResources)
-            .option(ChannelOption.TCP_NODELAY, true)
-            .option(ChannelOption.SO_KEEPALIVE, true)
-            .option(ChannelOption.SO_REUSEADDR, true)
-            .port(config.port());
-
-    if (config.host() != null) {
-      tcpServer = tcpServer.host(config.host());
-    }
-
-    return tcpServer.bootstrap(
-        b -> BootstrapHandlers.updateConfiguration(b, "inbound", channelInitializer));
+    return TcpServer.create()
+        .runOn(loopResources)
+        .option(ChannelOption.TCP_NODELAY, true)
+        .option(ChannelOption.SO_KEEPALIVE, true)
+        .option(ChannelOption.SO_REUSEADDR, true)
+        .port(config.port())
+        .bootstrap(b -> BootstrapHandlers.updateConfiguration(b, "inbound", channelInitializer));
   }
 
   /**
