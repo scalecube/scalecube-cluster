@@ -23,7 +23,7 @@
   </scm>
 
   <properties>
-    <scalecube-commons.version>1.0.1</scalecube-commons.version>
+    <scalecube-commons.version>1.0.4</scalecube-commons.version>
     <slf4j.version>1.7.30</slf4j.version>
     <log4j.version>2.13.2</log4j.version>
     <reactor.version>Dysprosium-SR8</reactor.version>
