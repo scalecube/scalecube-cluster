@@ -687,7 +687,7 @@ public class MembershipProtocolTest extends BaseTest {
       cmC_Restarted = createMembership(c_Restarted, addresses);
       cmD_Restarted = createMembership(d_Restarted, addresses);
 
-      awaitSeconds(2);
+      awaitSeconds(3);
 
       // new C -> A, B, new D
       assertTrusted(cmC_Restarted, cmA.member(), cmB.member(), cmD_Restarted.member());
