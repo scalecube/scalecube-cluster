@@ -6,8 +6,8 @@ import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
-import java.nio.file.Paths;
 import java.util.Objects;
+import java.util.StringJoiner;
 
 /**
  * Cluster member which represents node in the cluster and contains its id and address. This class
@@ -134,10 +134,11 @@ public final class Member implements Externalizable {
 
   @Override
   public String toString() {
+    StringJoiner stringJoiner = new StringJoiner("/", "", "");
     if (alias == null) {
-      return Paths.get(namespace, id + "@" + address).toString();
+      return stringJoiner.add(namespace).add(id + "@" + address).toString();
     } else {
-      return Paths.get(namespace, alias, id + "@" + address).toString();
+      return stringJoiner.add(namespace).add(alias).add(id + "@" + address).toString();
     }
   }
 }
