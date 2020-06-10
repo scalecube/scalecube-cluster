@@ -4,8 +4,10 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.buffer.ByteBufOutputStream;
+import io.netty.channel.ChannelOption;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.EncoderException;
+import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
 import io.netty.util.ReferenceCountUtil;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.MessageCodec;
@@ -29,6 +31,9 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoProcessor;
 import reactor.netty.Connection;
 import reactor.netty.DisposableServer;
+import reactor.netty.http.client.HttpClient;
+import reactor.netty.http.client.HttpClient.WebsocketSender;
+import reactor.netty.http.client.WebsocketClientSpec;
 import reactor.netty.http.server.HttpServer;
 import reactor.netty.http.server.HttpServerRequest;
 import reactor.netty.http.server.HttpServerResponse;
@@ -37,11 +42,6 @@ import reactor.netty.http.websocket.WebsocketOutbound;
 import reactor.netty.resources.LoopResources;
 
 public final class TransportImpl implements Transport {
-
-  public static void main(String[] args) throws InterruptedException {
-    Transport block = TransportImpl.bind().block();
-    Thread.currentThread().join();
-  }
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Transport.class);
 
@@ -197,7 +197,57 @@ public final class TransportImpl implements Transport {
 
   @Override
   public Mono<Void> send(Address address, Message message) {
-    return null;
+    return connections
+        .computeIfAbsent(address, this::connect0)
+        .flatMap(
+            connection ->
+                connection
+                    .outbound()
+                    .sendObject(
+                        Mono.just(message).map(this::toByteBuf).map(BinaryWebSocketFrame::new),
+                        f -> true)
+                    .then())
+        .then();
+  }
+
+  private Mono<? extends Connection> connect0(Address address1) {
+    return newWebsocketSender(address1)
+        .uri("/")
+        .connect()
+        .doOnNext(
+            c -> {
+              c.onDispose()
+                  .doOnTerminate(
+                      () -> {
+                        connections.remove(address1);
+                      })
+                  .subscribe();
+              LOGGER.debug("[{}][connected][{}] Channel: {}", address, address1, c.channel());
+            })
+        .doOnError(
+            th -> {
+              LOGGER.debug(
+                  "[{}][connect0][{}] Exception occurred: {}", address, address1, th.toString());
+              connections.remove(address1);
+            })
+        .cache();
+  }
+
+  private WebsocketSender newWebsocketSender(Address address) {
+    return HttpClient.newConnection()
+        .tcpConfiguration(
+            tcpClient ->
+                tcpClient
+                    .runOn(loopResources)
+                    .host(address.host())
+                    .port(address.port())
+                    .wiretap(true)
+                    .option(ChannelOption.TCP_NODELAY, true)
+                    .option(ChannelOption.SO_KEEPALIVE, true)
+                    .option(ChannelOption.SO_REUSEADDR, true)
+                    .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.connectTimeout()))
+        .websocket(
+            WebsocketClientSpec.builder().maxFramePayloadLength(config.maxFrameLength()).build());
   }
 
   @Override
