@@ -9,6 +9,6 @@ public final class TcpTransportFactory implements TransportFactory {
 
   @Override
   public Transport createTransport(TransportConfig config) {
-    return new TransportImpl(config, new TcpReceiver(config), new TcpSender(config));
+    return new TransportImpl(config.messageCodec(), new TcpReceiver(config), new TcpSender(config));
   }
 }

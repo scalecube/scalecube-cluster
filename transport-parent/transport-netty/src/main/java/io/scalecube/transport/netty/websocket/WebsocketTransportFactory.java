@@ -9,6 +9,7 @@ public final class WebsocketTransportFactory implements TransportFactory {
 
   @Override
   public Transport createTransport(TransportConfig config) {
-    return new TransportImpl(config, new WebsocketReceiver(config), new WebsocketSender(config));
+    return new TransportImpl(
+        config.messageCodec(), new WebsocketReceiver(config), new WebsocketSender(config));
   }
 }

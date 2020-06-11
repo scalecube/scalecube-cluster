@@ -38,7 +38,6 @@ public final class TransportImpl implements Transport {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Transport.class);
 
-  private final TransportConfig config;
   private final MessageCodec messageCodec;
 
   // Subject
@@ -46,7 +45,7 @@ public final class TransportImpl implements Transport {
   private final FluxSink<Message> sink = subject.sink();
 
   // Close handler
-  private final MonoProcessor<Void> stop = MonoProcessor.create();;
+  private final MonoProcessor<Void> stop = MonoProcessor.create();
   private final MonoProcessor<Void> onStop = MonoProcessor.create();
 
   // Server
@@ -62,13 +61,12 @@ public final class TransportImpl implements Transport {
   /**
    * Constructor with cofig as parameter.
    *
-   * @param config transport configuration
+   * @param messageCodec message codec
    * @param receiver transport receiver part
    * @param sender transport sender part
    */
-  public TransportImpl(TransportConfig config, Receiver receiver, Sender sender) {
-    this.config = config;
-    this.messageCodec = config.messageCodec();
+  public TransportImpl(MessageCodec messageCodec, Receiver receiver, Sender sender) {
+    this.messageCodec = messageCodec;
     this.receiver = receiver;
     this.sender = sender;
   }
