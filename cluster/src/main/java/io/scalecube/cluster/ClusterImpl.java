@@ -567,6 +567,11 @@ public final class ClusterImpl implements Cluster {
     }
 
     @Override
+    public Mono<Transport> start() {
+      return transport.start();
+    }
+
+    @Override
     public Mono<Void> stop() {
       return transport.stop();
     }

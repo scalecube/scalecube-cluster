@@ -15,7 +15,6 @@
   <modules>
     <module>transport-api</module>
     <module>transport-netty</module>
-    <module>transport-websocket</module>
   </modules>
 
   <dependencies>

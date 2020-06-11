@@ -19,6 +19,13 @@ public interface Transport {
   Address address();
 
   /**
+   * Start transport. After this call method {@link #address()} shall be eligible for calling.
+   *
+   * @return started {@code Transport}
+   */
+  Mono<Transport> start();
+
+  /**
    * Stop transport, disconnect all connections and release all resources which belong to this
    * transport. After transport is stopped it can't be used again. Observable returned from method
    * {@link #listen()} will immediately emit onComplete event for all subscribers.
