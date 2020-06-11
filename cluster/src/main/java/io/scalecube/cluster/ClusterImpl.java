@@ -18,6 +18,7 @@ import io.scalecube.cluster.monitor.JmxClusterMonitorMBean;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.transport.api.TransportConfig;
+import io.scalecube.cluster.transport.api.TransportFactory;
 import io.scalecube.net.Address;
 import io.scalecube.transport.netty.TransportImpl;
 import io.scalecube.utils.ServiceLoaderUtil;
@@ -30,6 +31,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -155,6 +157,19 @@ public final class ClusterImpl implements Cluster {
     Objects.requireNonNull(options);
     ClusterImpl cluster = new ClusterImpl(this);
     cluster.config = config.transport(options);
+    return cluster;
+  }
+
+  /**
+   * Returns a new cluster's instance which will apply the given options.
+   *
+   * @param supplier transport factory supplier
+   * @return new {@code ClusterImpl} instance
+   */
+  public ClusterImpl transportFactory(Supplier<TransportFactory> supplier) {
+    Objects.requireNonNull(supplier);
+    ClusterImpl cluster = new ClusterImpl(this);
+    cluster.config = config.transport(opts -> opts.transportFactory(supplier.get()));
     return cluster;
   }
 

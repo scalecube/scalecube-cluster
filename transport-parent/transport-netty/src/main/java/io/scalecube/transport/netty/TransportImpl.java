@@ -12,6 +12,7 @@ import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.cluster.transport.api.TransportFactory;
 import io.scalecube.net.Address;
+import io.scalecube.transport.netty.tcp.TcpTransportFactory;
 import java.net.InetAddress;
 import java.util.Map;
 import java.util.Objects;
@@ -137,7 +138,7 @@ public final class TransportImpl implements Transport {
     TransportFactory transportFactory =
         Optional.ofNullable(config.transportFactory())
             .or(() -> Optional.ofNullable(TransportFactory.INSTANCE))
-            .orElseThrow(() -> new IllegalStateException("No TransportFactory is defined"));
+            .orElse(new TcpTransportFactory());
     return transportFactory.createTransport(config).start();
   }
 
