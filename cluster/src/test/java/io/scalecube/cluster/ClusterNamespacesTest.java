@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.params.provider.Arguments.of;
 
+import io.scalecube.transport.netty.websocket.WebsocketTransportFactory;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -22,7 +23,11 @@ public class ClusterNamespacesTest extends BaseTest {
     Exception actualException =
         assertThrows(
             IllegalArgumentException.class,
-            () -> new ClusterImpl().membership(opts -> opts.namespace(namespace)).startAwait());
+            () ->
+                new ClusterImpl()
+                    .transportFactory(WebsocketTransportFactory::new)
+                    .membership(opts -> opts.namespace(namespace))
+                    .startAwait());
     Assertions.assertAll(
         () ->
             assertEquals(
@@ -50,16 +55,22 @@ public class ClusterNamespacesTest extends BaseTest {
 
   @Test
   public void testSeparateEmptyNamespaces() {
-    Cluster root = new ClusterImpl().membership(opts -> opts.namespace("root")).startAwait();
+    Cluster root =
+        new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
+            .membership(opts -> opts.namespace("root"))
+            .startAwait();
 
     Cluster root1 =
         new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
             .membership(opts -> opts.namespace("root1"))
             .membership(opts -> opts.seedMembers(root.address()))
             .startAwait();
 
     Cluster root2 =
         new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
             .membership(opts -> opts.namespace("root2"))
             .membership(opts -> opts.seedMembers(root.address()))
             .startAwait();
@@ -71,28 +82,36 @@ public class ClusterNamespacesTest extends BaseTest {
 
   @Test
   public void testSeparateNonEmptyNamespaces() {
-    Cluster root = new ClusterImpl().membership(opts -> opts.namespace("root")).startAwait();
+    Cluster root =
+        new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
+            .membership(opts -> opts.namespace("root"))
+            .startAwait();
 
     Cluster bob =
         new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
             .membership(opts -> opts.namespace("root"))
             .membership(opts -> opts.seedMembers(root.address()))
             .startAwait();
 
     Cluster carol =
         new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
             .membership(opts -> opts.namespace("root"))
             .membership(opts -> opts.seedMembers(root.address(), bob.address()))
             .startAwait();
 
     Cluster root2 =
         new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
             .membership(opts -> opts.namespace("root2"))
             .membership(opts -> opts.seedMembers(root.address()))
             .startAwait();
 
     Cluster dan =
         new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
             .membership(opts -> opts.namespace("root2"))
             .membership(
                 opts ->
@@ -102,6 +121,7 @@ public class ClusterNamespacesTest extends BaseTest {
 
     Cluster eve =
         new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
             .membership(opts -> opts.namespace("root2"))
             .membership(
                 opts ->
@@ -125,22 +145,28 @@ public class ClusterNamespacesTest extends BaseTest {
   @Test
   public void testSimpleNamespacesHierarchy() {
     Cluster rootDevelop =
-        new ClusterImpl().membership(opts -> opts.namespace("develop")).startAwait();
+        new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
+            .membership(opts -> opts.namespace("develop"))
+            .startAwait();
 
     Cluster bob =
         new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
             .membership(opts -> opts.namespace("develop/develop"))
             .membership(opts -> opts.seedMembers(rootDevelop.address()))
             .startAwait();
 
     Cluster carol =
         new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
             .membership(opts -> opts.namespace("develop/develop"))
             .membership(opts -> opts.seedMembers(rootDevelop.address(), bob.address()))
             .startAwait();
 
     Cluster dan =
         new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
             .membership(opts -> opts.namespace("develop/develop-2"))
             .membership(
                 opts -> opts.seedMembers(rootDevelop.address(), bob.address(), carol.address()))
@@ -148,6 +174,7 @@ public class ClusterNamespacesTest extends BaseTest {
 
     Cluster eve =
         new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
             .membership(opts -> opts.namespace("develop/develop-2"))
             .membership(
                 opts ->
@@ -168,24 +195,35 @@ public class ClusterNamespacesTest extends BaseTest {
 
   @Test
   public void testIsolatedParentNamespaces() {
-    Cluster parent1 = new ClusterImpl().membership(opts -> opts.namespace("a/1")).startAwait();
+    Cluster parent1 =
+        new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
+            .membership(opts -> opts.namespace("a/1"))
+            .startAwait();
 
     Cluster bob =
         new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
             .membership(opts -> opts.namespace("a/1/c"))
             .membership(opts -> opts.seedMembers(parent1.address()))
             .startAwait();
 
     Cluster carol =
         new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
             .membership(opts -> opts.namespace("a/1/c"))
             .membership(opts -> opts.seedMembers(parent1.address(), bob.address()))
             .startAwait();
 
-    Cluster parent2 = new ClusterImpl().membership(opts -> opts.namespace("a/111")).startAwait();
+    Cluster parent2 =
+        new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
+            .membership(opts -> opts.namespace("a/111"))
+            .startAwait();
 
     Cluster dan =
         new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
             .membership(opts -> opts.namespace("a/111/c"))
             .membership(
                 opts ->
@@ -195,6 +233,7 @@ public class ClusterNamespacesTest extends BaseTest {
 
     Cluster eve =
         new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
             .membership(opts -> opts.namespace("a/111/c"))
             .membership(
                 opts ->
