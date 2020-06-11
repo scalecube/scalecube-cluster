@@ -4,23 +4,22 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.buffer.ByteBufOutputStream;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.EncoderException;
-import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
-import io.netty.handler.codec.LengthFieldPrepender;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.MessageCodec;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.transport.api.TransportConfig;
+import io.scalecube.cluster.transport.api.TransportFactory;
 import io.scalecube.net.Address;
+import io.scalecube.transport.netty.tcp.TcpTransportFactory;
 import java.net.InetAddress;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
@@ -32,89 +31,44 @@ import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoProcessor;
 import reactor.netty.Connection;
-import reactor.netty.ConnectionObserver;
 import reactor.netty.DisposableServer;
-import reactor.netty.NettyInbound;
-import reactor.netty.NettyOutbound;
-import reactor.netty.channel.BootstrapHandlers;
-import reactor.netty.resources.ConnectionProvider;
 import reactor.netty.resources.LoopResources;
-import reactor.netty.tcp.TcpClient;
-import reactor.netty.tcp.TcpServer;
 
 public final class TransportImpl implements Transport {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Transport.class);
 
-  private final TransportConfig config;
-  private final LoopResources loopResources;
+  private final MessageCodec messageCodec;
 
   // Subject
-  private final DirectProcessor<Message> messagesSubject;
-  private final FluxSink<Message> messageSink;
-
-  private final Map<Address, Mono<? extends Connection>> connections;
-
-  // Pipeline
-  private final ExceptionHandler exceptionHandler;
-  private final TransportChannelInitializer channelInitializer;
+  private final DirectProcessor<Message> subject = DirectProcessor.create();
+  private final FluxSink<Message> sink = subject.sink();
 
   // Close handler
-  private final MonoProcessor<Void> stop;
-  private final MonoProcessor<Void> onStop;
+  private final MonoProcessor<Void> stop = MonoProcessor.create();
+  private final MonoProcessor<Void> onStop = MonoProcessor.create();
 
   // Server
-  private final Address address;
-  private final DisposableServer server;
+  private Address address;
+  private DisposableServer server;
+  private final Map<Address, Mono<? extends Connection>> connections = new ConcurrentHashMap<>();
+  private final LoopResources loopResources = LoopResources.create("sc-cluster-io", 1, true);
 
-  // Message codec
-  private final MessageCodec messageCodec;
+  // Transport factory
+  private final Receiver receiver;
+  private final Sender sender;
 
   /**
    * Constructor with cofig as parameter.
    *
-   * @param config transport configuration
+   * @param messageCodec message codec
+   * @param receiver transport receiver part
+   * @param sender transport sender part
    */
-  public TransportImpl(TransportConfig config) {
-    this.config = config;
-    this.loopResources = LoopResources.create("sc-cluster-io", 1, true);
-    this.messagesSubject = DirectProcessor.create();
-    this.messageSink = messagesSubject.sink();
-    this.connections = new ConcurrentHashMap<>();
-    this.exceptionHandler = new ExceptionHandler();
-    this.channelInitializer = new TransportChannelInitializer();
-    this.stop = MonoProcessor.create();
-    this.onStop = MonoProcessor.create();
-    this.messageCodec = config.messageCodec();
-    this.address = null;
-    this.server = null;
-  }
-
-  /**
-   * Copying constructor.
-   *
-   * @param server bound server
-   * @param other instance of transport to copy from
-   */
-  private TransportImpl(DisposableServer server, TransportImpl other) {
-    this.server = server;
-    this.address = prepareAddress(server);
-    this.config = other.config;
-    this.loopResources = other.loopResources;
-    this.messagesSubject = other.messagesSubject;
-    this.messageSink = other.messageSink;
-    this.connections = other.connections;
-    this.exceptionHandler = other.exceptionHandler;
-    this.channelInitializer = other.channelInitializer;
-    this.stop = other.stop;
-    this.onStop = other.onStop;
-    this.messageCodec = other.messageCodec;
-
-    // Setup cleanup
-    stop.then(doStop())
-        .doFinally(s -> onStop.onComplete())
-        .subscribe(
-            null, ex -> LOGGER.warn("[{}][doStop] Exception occurred: {}", address, ex.toString()));
+  public TransportImpl(MessageCodec messageCodec, Receiver receiver, Sender sender) {
+    this.messageCodec = messageCodec;
+    this.receiver = receiver;
+    this.sender = sender;
   }
 
   private static Address prepareAddress(DisposableServer server) {
@@ -125,6 +79,16 @@ public final class TransportImpl implements Transport {
     } else {
       return Address.create(address.getHostAddress(), port);
     }
+  }
+
+  private void init(DisposableServer server) {
+    this.server = server;
+    this.address = prepareAddress(server);
+    // Setup cleanup
+    stop.then(doStop())
+        .doFinally(s -> onStop.onComplete())
+        .subscribe(
+            null, ex -> LOGGER.warn("[{}][doStop] Exception occurred: {}", address, ex.toString()));
   }
 
   /**
@@ -169,7 +133,11 @@ public final class TransportImpl implements Transport {
    * @return promise for bind operation
    */
   public static Mono<Transport> bind(TransportConfig config) {
-    return new TransportImpl(config).bind0();
+    TransportFactory transportFactory =
+        Optional.ofNullable(config.transportFactory())
+            .or(() -> Optional.ofNullable(TransportFactory.INSTANCE))
+            .orElse(new TcpTransportFactory());
+    return transportFactory.createTransport(config).start();
   }
 
   /**
@@ -177,15 +145,19 @@ public final class TransportImpl implements Transport {
    *
    * @return mono transport
    */
-  public Mono<Transport> bind0() {
-    return newTcpServer()
-        .handle(this::onMessage)
-        .bind()
+  @Override
+  public Mono<Transport> start() {
+    return Mono.deferWithContext(context -> receiver.bind())
+        .doOnNext(this::init)
         .doOnSuccess(t -> LOGGER.info("[bind0][{}] Bound cluster transport", t.address()))
-        .doOnError(
-            ex -> LOGGER.error("[bind0][{}] Exception occurred: {}", config.port(), ex.toString()))
-        .map(server -> new TransportImpl(server, this))
-        .cast(Transport.class);
+        .doOnError(ex -> LOGGER.error("[bind0][{}] Exception occurred: {}", address, ex.toString()))
+        .thenReturn(this)
+        .cast(Transport.class)
+        .subscriberContext(
+            context ->
+                context.put(
+                    ReceiverContext.class,
+                    new ReceiverContext(loopResources, this::toMessage, sink::next)));
   }
 
   @Override
@@ -212,7 +184,7 @@ public final class TransportImpl implements Transport {
         () -> {
           LOGGER.info("[{}][doStop] Stopping", address);
           // Complete incoming messages observable
-          messageSink.complete();
+          sink.complete();
           return Flux.concatDelayError(closeServer(), shutdownLoopResources())
               .then()
               .doFinally(s -> connections.clear())
@@ -222,16 +194,20 @@ public final class TransportImpl implements Transport {
 
   @Override
   public final Flux<Message> listen() {
-    return messagesSubject.onBackpressureBuffer();
+    return subject.onBackpressureBuffer();
   }
 
   @Override
   public Mono<Void> send(Address address, Message message) {
-    return connections
-        .computeIfAbsent(address, this::connect0)
-        .map(Connection::outbound)
-        .flatMap(out -> out.send(Mono.just(message).map(this::toByteBuf), bb -> true).then())
-        .then();
+    return Mono.deferWithContext(context -> connections.computeIfAbsent(address, this::connect0))
+        .flatMap(
+            connection ->
+                Mono.deferWithContext(context -> sender.send(message))
+                    .subscriberContext(context -> context.put(Connection.class, connection)))
+        .subscriberContext(
+            context ->
+                context.put(
+                    SenderContext.class, new SenderContext(loopResources, this::toByteBuf)));
   }
 
   @Override
@@ -261,11 +237,6 @@ public final class TransportImpl implements Transport {
         });
   }
 
-  @SuppressWarnings("unused")
-  private Mono<Void> onMessage(NettyInbound in, NettyOutbound out) {
-    return in.receive().retain().map(this::toMessage).doOnNext(messageSink::next).then();
-  }
-
   private Message toMessage(ByteBuf byteBuf) {
     try (ByteBufInputStream stream = new ByteBufInputStream(byteBuf, true)) {
       return messageCodec.deserialize(stream);
@@ -276,28 +247,27 @@ public final class TransportImpl implements Transport {
   }
 
   private ByteBuf toByteBuf(Message message) {
-    ByteBuf bb = ByteBufAllocator.DEFAULT.buffer();
-    ByteBufOutputStream stream = new ByteBufOutputStream(bb);
+    ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer();
+    ByteBufOutputStream stream = new ByteBufOutputStream(byteBuf);
     try {
       messageCodec.serialize(message, stream);
     } catch (Exception e) {
-      bb.release();
+      byteBuf.release();
       LOGGER.warn("[{}][toByteBuf] Exception occurred: {}", address, e.toString());
       throw new EncoderException(e);
     }
-    return bb;
+    return byteBuf;
   }
 
   private Mono<? extends Connection> connect0(Address address1) {
-    return newTcpClient(address1)
-        .doOnDisconnected(
-            c -> {
-              LOGGER.debug("[{}][disconnected][{}] Channel: {}", address, address1, c.channel());
-              connections.remove(address1);
+    return sender
+        .connect(address1)
+        .doOnSuccess(
+            connection -> {
+              connection.onDispose().doOnTerminate(() -> connections.remove(address1)).subscribe();
+              LOGGER.debug(
+                  "[{}][connected][{}] Channel: {}", address, address1, connection.channel());
             })
-        .doOnConnected(
-            c -> LOGGER.debug("[{}][connected][{}] Channel: {}", address, address1, c.channel()))
-        .connect()
         .doOnError(
             th -> {
               LOGGER.debug(
@@ -328,52 +298,50 @@ public final class TransportImpl implements Transport {
     return Mono.fromRunnable(loopResources::dispose).then(loopResources.disposeLater());
   }
 
-  /**
-   * Creates TcpServer.
-   *
-   * @return tcp server
-   */
-  private TcpServer newTcpServer() {
-    return TcpServer.create()
-        .runOn(loopResources)
-        .option(ChannelOption.TCP_NODELAY, true)
-        .option(ChannelOption.SO_KEEPALIVE, true)
-        .option(ChannelOption.SO_REUSEADDR, true)
-        .port(config.port())
-        .bootstrap(b -> BootstrapHandlers.updateConfiguration(b, "inbound", channelInitializer));
+  public static final class ReceiverContext {
+
+    private final LoopResources loopResources;
+    private final Function<ByteBuf, Message> messageDecoder;
+    private final Consumer<Message> messageConsumer;
+
+    private ReceiverContext(
+        LoopResources loopResources,
+        Function<ByteBuf, Message> messageDecoder,
+        Consumer<Message> messageConsumer) {
+      this.loopResources = loopResources;
+      this.messageDecoder = messageDecoder;
+      this.messageConsumer = messageConsumer;
+    }
+
+    public LoopResources loopResources() {
+      return loopResources;
+    }
+
+    public Function<ByteBuf, Message> messageDecoder() {
+      return messageDecoder;
+    }
+
+    public void onMessage(Message message) {
+      messageConsumer.accept(message);
+    }
   }
 
-  /**
-   * Creates TcpClient for target address.
-   *
-   * @param address connect address
-   * @return tcp client
-   */
-  private TcpClient newTcpClient(Address address) {
-    return TcpClient.create(ConnectionProvider.newConnection())
-        .runOn(loopResources)
-        .host(address.host())
-        .port(address.port())
-        .option(ChannelOption.TCP_NODELAY, true)
-        .option(ChannelOption.SO_KEEPALIVE, true)
-        .option(ChannelOption.SO_REUSEADDR, true)
-        .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.connectTimeout())
-        .bootstrap(b -> BootstrapHandlers.updateConfiguration(b, "outbound", channelInitializer));
-  }
+  public static final class SenderContext {
 
-  private final class TransportChannelInitializer
-      implements BiConsumer<ConnectionObserver, Channel> {
+    private final LoopResources loopResources;
+    private final Function<Message, ByteBuf> messageEncoder;
 
-    private static final int LENGTH_FIELD_LENGTH = 4;
+    private SenderContext(LoopResources loopResources, Function<Message, ByteBuf> messageEncoder) {
+      this.loopResources = loopResources;
+      this.messageEncoder = messageEncoder;
+    }
 
-    @Override
-    public void accept(ConnectionObserver connectionObserver, Channel channel) {
-      ChannelPipeline pipeline = channel.pipeline();
-      pipeline.addLast(new LengthFieldPrepender(LENGTH_FIELD_LENGTH));
-      pipeline.addLast(
-          new LengthFieldBasedFrameDecoder(
-              config.maxFrameLength(), 0, LENGTH_FIELD_LENGTH, 0, LENGTH_FIELD_LENGTH));
-      pipeline.addLast(exceptionHandler);
+    public LoopResources loopResources() {
+      return loopResources;
+    }
+
+    public Function<Message, ByteBuf> messageEncoder() {
+      return messageEncoder;
     }
   }
 }

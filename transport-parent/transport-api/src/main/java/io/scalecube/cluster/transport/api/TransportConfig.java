@@ -18,6 +18,7 @@ public final class TransportConfig implements Cloneable {
   private int connectTimeout = DEFAULT_CONNECT_TIMEOUT;
   private MessageCodec messageCodec = MessageCodec.INSTANCE;
   private int maxFrameLength = 2 * 1024 * 1024; // 2 MB
+  private TransportFactory transportFactory;
 
   public TransportConfig() {}
 
@@ -116,6 +117,22 @@ public final class TransportConfig implements Cloneable {
     return t;
   }
 
+  public TransportFactory transportFactory() {
+    return transportFactory;
+  }
+
+  /**
+   * Sets a transportFactory.
+   *
+   * @param transportFactory transport factory
+   * @return new {@code TransportConfig} instance
+   */
+  public TransportConfig transportFactory(TransportFactory transportFactory) {
+    TransportConfig t = clone();
+    t.transportFactory = transportFactory;
+    return t;
+  }
+
   @Override
   public TransportConfig clone() {
     try {
@@ -132,6 +149,7 @@ public final class TransportConfig implements Cloneable {
         .add("connectTimeout=" + connectTimeout)
         .add("messageCodec=" + messageCodec)
         .add("maxFrameLength=" + maxFrameLength)
+        .add("transportFactory=" + transportFactory)
         .toString();
   }
 }
