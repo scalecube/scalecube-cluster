@@ -1,5 +1,6 @@
 package io.scalecube.transport.netty.tcp;
 
+import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -15,12 +16,16 @@ import java.net.UnknownHostException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.locks.LockSupport;
+import org.hamcrest.MatcherAssert;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
+import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.ReplayProcessor;
 import reactor.test.StepVerifier;
@@ -338,5 +343,25 @@ public class TcpTransportTest extends BaseTest {
         .expectNoEvent(Duration.ofMillis(300))
         .thenCancel()
         .verify(TIMEOUT);
+  }
+
+  @Test
+  public void testTransportChannelDoesntLeak() {
+    client = createTcpTransport();
+
+    for (int i = 0; i <= Math.pow(2, 16 + 1); i++) {
+      LockSupport.parkNanos(1000);
+      try {
+        client
+            .send(
+                Address.create(UUID.randomUUID().toString(), 4801),
+                Message.builder().data("hello").build())
+            .block(TIMEOUT);
+      } catch (Exception ex) {
+        System.out.println(i);
+        Throwable unwrap = Exceptions.unwrap(ex);
+        MatcherAssert.assertThat(unwrap, instanceOf(UnknownHostException.class));
+      }
+    }
   }
 }

@@ -1,5 +1,6 @@
 package io.scalecube.transport.netty.websocket;
 
+import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -11,6 +12,7 @@ import io.scalecube.cluster.utils.NetworkEmulatorTransport;
 import io.scalecube.net.Address;
 import io.scalecube.transport.netty.BaseTest;
 import java.io.IOException;
+import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -18,9 +20,12 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.locks.LockSupport;
+import org.hamcrest.MatcherAssert;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
+import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.ReplayProcessor;
 import reactor.test.StepVerifier;
@@ -338,5 +343,22 @@ public class WebsocketTransportTest extends BaseTest {
         .expectNoEvent(Duration.ofMillis(300))
         .thenCancel()
         .verify(TIMEOUT);
+  }
+
+  @Test
+  public void testTransportChannelDoesntLeak() {
+    client = createWebsocketTransport();
+
+    for (int i = 0; i <= Math.pow(2, 16); i++) {
+      LockSupport.parkNanos(1000);
+      try {
+        client
+            .send(Address.create("localhost", 5801), Message.builder().data("hello").build())
+            .block(TIMEOUT);
+      } catch (Exception ex) {
+        Throwable unwrap = Exceptions.unwrap(ex);
+        MatcherAssert.assertThat(unwrap, instanceOf(SocketException.class));
+      }
+    }
   }
 }
