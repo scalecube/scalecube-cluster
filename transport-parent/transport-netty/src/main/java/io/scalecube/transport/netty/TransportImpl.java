@@ -149,7 +149,7 @@ public final class TransportImpl implements Transport {
   public Mono<Transport> start() {
     return Mono.deferWithContext(context -> receiver.bind())
         .doOnNext(this::init)
-        .doOnSuccess(t -> LOGGER.info("[bind0][{}] Bound cluster transport", t.address()))
+        .doOnSuccess(t -> LOGGER.debug("[bind0][{}] Bound cluster transport", t.address()))
         .doOnError(ex -> LOGGER.error("[bind0][{}] Exception occurred: {}", address, ex.toString()))
         .thenReturn(this)
         .cast(Transport.class)
@@ -182,13 +182,13 @@ public final class TransportImpl implements Transport {
   private Mono<Void> doStop() {
     return Mono.defer(
         () -> {
-          LOGGER.info("[{}][doStop] Stopping", address);
+          LOGGER.debug("[{}][doStop] Stopping", address);
           // Complete incoming messages observable
           sink.complete();
           return Flux.concatDelayError(closeServer(), shutdownLoopResources())
               .then()
               .doFinally(s -> connections.clear())
-              .doOnSuccess(avoid -> LOGGER.info("[{}][doStop] Stopped", address));
+              .doOnSuccess(avoid -> LOGGER.debug("[{}][doStop] Stopped", address));
         });
   }
 
@@ -283,10 +283,11 @@ public final class TransportImpl implements Transport {
           if (server == null) {
             return Mono.empty();
           }
-          LOGGER.info("[{}][closeServer] Closing server channel", address);
+          LOGGER.debug("[{}][closeServer] Closing server channel", address);
           return Mono.fromRunnable(server::dispose)
               .then(server.onDispose())
-              .doOnSuccess(avoid -> LOGGER.info("[{}][closeServer] Closed server channel", address))
+              .doOnSuccess(
+                  avoid -> LOGGER.debug("[{}][closeServer] Closed server channel", address))
               .doOnError(
                   e ->
                       LOGGER.warn(

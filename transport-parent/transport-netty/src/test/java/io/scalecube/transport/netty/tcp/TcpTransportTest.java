@@ -346,10 +346,10 @@ public class TcpTransportTest extends BaseTest {
   }
 
   @Test
-  public void testTransportChannelDoesntLeak() {
+  public void testNoChannelLeaksWhenFailedToConnect() {
     client = createTcpTransport();
 
-    for (int i = 0; i <= Math.pow(2, 16 + 1); i++) {
+    for (int i = 0; i <= Math.pow(2, 16); i++) {
       LockSupport.parkNanos(1000);
       try {
         client
@@ -358,10 +358,33 @@ public class TcpTransportTest extends BaseTest {
                 Message.builder().data("hello").build())
             .block(TIMEOUT);
       } catch (Exception ex) {
-        System.out.println(i);
         Throwable unwrap = Exceptions.unwrap(ex);
         MatcherAssert.assertThat(unwrap, instanceOf(UnknownHostException.class));
       }
+    }
+  }
+
+  @Test
+  public void testNoChannelLeaksWhenSuccessfullyConnected() {
+    server = createTcpTransport();
+    server
+        .listen()
+        .doOnNext(
+            message -> {
+              Address sender = message.sender();
+              server.send(sender, message).subscribe();
+            })
+        .subscribe();
+
+    for (int i = 0; i <= Math.pow(2, 16); i++) {
+      LockSupport.parkNanos(1000);
+      client = createTcpTransport();
+      client
+          .requestResponse(
+              server.address(),
+              Message.withData("hello").correlationId(UUID.randomUUID().toString()).build())
+          .block(TIMEOUT);
+      client.stop().block(TIMEOUT);
     }
   }
 }

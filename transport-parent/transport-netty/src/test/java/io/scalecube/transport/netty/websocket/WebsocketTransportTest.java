@@ -17,6 +17,7 @@ import java.net.UnknownHostException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -346,7 +347,7 @@ public class WebsocketTransportTest extends BaseTest {
   }
 
   @Test
-  public void testTransportChannelDoesntLeak() {
+  public void testNoChannelLeaksWhenFailedToConnect() {
     client = createWebsocketTransport();
 
     for (int i = 0; i <= Math.pow(2, 16); i++) {
@@ -359,6 +360,30 @@ public class WebsocketTransportTest extends BaseTest {
         Throwable unwrap = Exceptions.unwrap(ex);
         MatcherAssert.assertThat(unwrap, instanceOf(SocketException.class));
       }
+    }
+  }
+
+  @Test
+  public void testNoChannelLeaksWhenSuccessfullyConnected() {
+    server = createWebsocketTransport();
+    server
+        .listen()
+        .doOnNext(
+            message -> {
+              Address sender = message.sender();
+              server.send(sender, message).subscribe();
+            })
+        .subscribe();
+
+    for (int i = 0; i <= Math.pow(2, 16); i++) {
+      LockSupport.parkNanos(1000);
+      client = createWebsocketTransport();
+      client
+          .requestResponse(
+              server.address(),
+              Message.withData("hello").correlationId(UUID.randomUUID().toString()).build())
+          .block(TIMEOUT);
+      client.stop().block(TIMEOUT);
     }
   }
 }
