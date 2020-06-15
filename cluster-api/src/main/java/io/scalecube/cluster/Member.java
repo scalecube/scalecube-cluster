@@ -73,7 +73,6 @@ public final class Member implements Externalizable {
    * from other cluster members.
    *
    * @see io.scalecube.cluster.transport.api.TransportConfig#port(int)
-   * @see io.scalecube.cluster.transport.api.TransportConfig#host(String)
    * @see ClusterConfig#containerHost(String)
    * @see ClusterConfig#containerPort(Integer)
    * @return member address

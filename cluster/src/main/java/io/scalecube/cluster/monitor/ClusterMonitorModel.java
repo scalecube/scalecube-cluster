@@ -9,13 +9,13 @@ import java.util.function.Supplier;
 
 public class ClusterMonitorModel {
 
-  private Cluster cluster;
-  private ClusterConfig config;
-  private Supplier<Integer> incarnationSupplier;
-  private List<Address> seedMembers;
-  private Supplier<List<Member>> aliveMembersSupplier;
-  private Supplier<List<Member>> suspectedMembersSupplier;
-  private Supplier<List<Member>> removedMembersSupplier;
+  private final Cluster cluster;
+  private final ClusterConfig config;
+  private final Supplier<Integer> incarnationSupplier;
+  private final List<Address> seedMembers;
+  private final Supplier<List<Member>> aliveMembersSupplier;
+  private final Supplier<List<Member>> suspectedMembersSupplier;
+  private final Supplier<List<Member>> removedMembersSupplier;
 
   private ClusterMonitorModel(Builder builder) {
     this.cluster = builder.cluster;
