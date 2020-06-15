@@ -12,7 +12,6 @@ import io.scalecube.cluster.utils.NetworkEmulatorTransport;
 import io.scalecube.net.Address;
 import io.scalecube.transport.netty.BaseTest;
 import java.io.IOException;
-import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -354,11 +353,13 @@ public class WebsocketTransportTest extends BaseTest {
       LockSupport.parkNanos(1000);
       try {
         client
-            .send(Address.create("localhost", 5801), Message.builder().data("hello").build())
+            .send(
+                Address.create(UUID.randomUUID().toString(), 4801),
+                Message.builder().data("hello").build())
             .block(TIMEOUT);
       } catch (Exception ex) {
         Throwable unwrap = Exceptions.unwrap(ex);
-        MatcherAssert.assertThat(unwrap, instanceOf(SocketException.class));
+        MatcherAssert.assertThat(unwrap, instanceOf(UnknownHostException.class));
       }
     }
   }
