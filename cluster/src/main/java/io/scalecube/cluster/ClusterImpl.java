@@ -366,18 +366,9 @@ public final class ClusterImpl implements Cluster {
     try {
       StandardMBean standardMBean = new StandardMBean(monitorMBean, ClusterMonitorMBean.class);
       MBeanServer server = ManagementFactory.getPlatformMBeanServer();
-      ObjectName objectName = new ObjectName("io.scalecube.cluster:name=Cluster@" + member().id());
+      ObjectName objectName =
+          new ObjectName("io.scalecube.cluster:name=" + member().id() + "@" + System.nanoTime());
       server.registerMBean(standardMBean, objectName);
-    } catch (Exception ex) {
-      throw Exceptions.propagate(ex);
-    }
-  }
-
-  private void stopJmxMonitor() {
-    try {
-      MBeanServer server = ManagementFactory.getPlatformMBeanServer();
-      ObjectName objectName = new ObjectName("io.scalecube.cluster:name=Cluster@" + member().id());
-      server.unregisterMBean(objectName);
     } catch (Exception ex) {
       throw Exceptions.propagate(ex);
     }
@@ -518,11 +509,7 @@ public final class ClusterImpl implements Cluster {
     return Mono.defer(
         () -> {
           LOGGER.info("[{}][doShutdown] Shutting down", localMember);
-          return Flux.concatDelayError(
-                  leaveCluster(),
-                  dispose(),
-                  transport.stop(),
-                  Mono.fromRunnable(this::stopJmxMonitor))
+          return Flux.concatDelayError(leaveCluster(), dispose(), transport.stop())
               .then()
               .doFinally(s -> scheduler.dispose())
               .doOnSuccess(avoid -> LOGGER.info("[{}][doShutdown] Shutdown", localMember));

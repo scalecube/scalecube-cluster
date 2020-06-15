@@ -33,8 +33,7 @@ public final class ClusterConfig implements Cloneable {
   // Local cluster working via loopback interface (overrides default/LAN settings)
   public static final int DEFAULT_LOCAL_METADATA_TIMEOUT = 1_000;
 
-  private Supplier<String> memberIdGenerator =
-      () -> Long.toHexString(UUID.randomUUID().getMostSignificantBits() & Long.MAX_VALUE);
+  private Supplier<String> memberIdGenerator = () -> UUID.randomUUID().toString().replace("-", "");
   private Object metadata;
   private int metadataTimeout = DEFAULT_METADATA_TIMEOUT;
   private MetadataCodec metadataCodec = MetadataCodec.INSTANCE;
