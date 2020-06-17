@@ -208,7 +208,7 @@ public final class Message implements Externalizable {
     out.writeInt(headers.size());
     for (Entry<String, String> header : headers.entrySet()) {
       out.writeUTF(header.getKey());
-      out.writeUTF(Optional.ofNullable(header.getValue()).orElse("null"));
+      out.writeObject(header.getValue()); // value is nullable
     }
     // data
     out.writeObject(data);
@@ -221,8 +221,8 @@ public final class Message implements Externalizable {
     Map<String, String> headers = new HashMap<>(headersSize);
     for (int i = 0; i < headersSize; i++) {
       String name = in.readUTF();
-      String value = in.readUTF();
-      headers.put(name, "null".equals(value) ? null : value);
+      String value = (String) in.readObject(); // value is nullable
+      headers.put(name, value);
     }
     this.headers = Collections.unmodifiableMap(headers);
     // data
@@ -263,12 +263,12 @@ public final class Message implements Externalizable {
     /**
      * Setter for header.
      *
-     * @param key key; required parameter.
-     * @param value value; optional.
+     * @param key key (required)
+     * @param value value (optional)
      * @return builder
      */
     public Builder header(String key, String value) {
-      Objects.requireNonNull(key, "header key");
+      Objects.requireNonNull(key);
       headers.put(key, value);
       return this;
     }
