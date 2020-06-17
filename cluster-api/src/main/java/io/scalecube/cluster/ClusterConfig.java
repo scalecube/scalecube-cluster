@@ -4,8 +4,6 @@ import io.scalecube.cluster.fdetector.FailureDetectorConfig;
 import io.scalecube.cluster.gossip.GossipConfig;
 import io.scalecube.cluster.membership.MembershipConfig;
 import io.scalecube.cluster.metadata.MetadataCodec;
-import io.scalecube.cluster.metadata.MetadataDecoder;
-import io.scalecube.cluster.metadata.MetadataEncoder;
 import io.scalecube.cluster.transport.api.TransportConfig;
 import java.util.Optional;
 import java.util.StringJoiner;
@@ -37,8 +35,6 @@ public final class ClusterConfig implements Cloneable {
   private Object metadata;
   private int metadataTimeout = DEFAULT_METADATA_TIMEOUT;
   private MetadataCodec metadataCodec = MetadataCodec.INSTANCE;
-  private MetadataEncoder metadataEncoder = MetadataEncoder.INSTANCE;
-  private MetadataDecoder metadataDecoder = MetadataDecoder.INSTANCE;
 
   private String memberAlias;
   private String containerHost;
@@ -158,75 +154,6 @@ public final class ClusterConfig implements Cloneable {
   }
 
   /**
-   * Deprecated since {@code 2.4.10} in favor of {@link MetadataCodec}.
-   *
-   * @return metadataEncoder
-   */
-  @Deprecated
-  public MetadataEncoder metadataEncoder() {
-    return metadataEncoder;
-  }
-
-  /**
-   * Setter for metadataEncoder. Deprecated since {@code 2.4.10} in favor of {@link MetadataCodec}.
-   *
-   * @param metadataEncoder metadata encoder
-   * @return new {@code ClusterConfig} instance
-   */
-  @Deprecated
-  public ClusterConfig metadataEncoder(MetadataEncoder metadataEncoder) {
-    ClusterConfig c = clone();
-    c.metadataEncoder = metadataEncoder;
-    return c;
-  }
-
-  /**
-   * Deprecated since {@code 2.4.10} in favor of {@link MetadataCodec}.
-   *
-   * @return metadataDecoder
-   */
-  @Deprecated
-  public MetadataDecoder metadataDecoder() {
-    return metadataDecoder;
-  }
-
-  /**
-   * Setter for metadataDecoder. Deprecated since {@code 2.4.10} in favor of {@link MetadataCodec}.
-   *
-   * @param metadataDecoder metadata decoder
-   * @return new {@code ClusterConfig} instance
-   */
-  @Deprecated
-  public ClusterConfig metadataDecoder(MetadataDecoder metadataDecoder) {
-    ClusterConfig c = clone();
-    c.metadataDecoder = metadataDecoder;
-    return c;
-  }
-
-  /**
-   * Deprecated since {@code 2.4.10} in favor of {@link #containerHost()}.
-   *
-   * @return member host
-   */
-  @Deprecated
-  public String memberHost() {
-    return containerHost;
-  }
-
-  /**
-   * Deprecated since {@code 2.4.10} in favor of {@link #containerHost(String)}.
-   *
-   * @param memberHost member host
-   * @return new {@code ClusterConfig} instance
-   */
-  @Deprecated
-  public ClusterConfig memberHost(String memberHost) {
-    ClusterConfig c = clone();
-    c.containerHost = memberHost;
-    return c;
-  }
-
-  /**
    * Returns mappedHost. {@code mappedHost} is a config property for container environments, it's
    * being set for advertising to scalecube cluster some connectable hostname which maps to
    * scalecube transport's hostname on which scalecube transport is listening.
@@ -296,29 +223,6 @@ public final class ClusterConfig implements Cloneable {
   public ClusterConfig containerPort(Integer mappedPort) {
     ClusterConfig c = clone();
     c.containerPort = mappedPort;
-    return c;
-  }
-
-  /**
-   * Deprecated since {@code 2.4.10} in favor of {@link #containerPort()}.
-   *
-   * @return member port
-   */
-  @Deprecated
-  public Integer memberPort() {
-    return containerPort;
-  }
-
-  /**
-   * Deprecated since {@code 2.4.10} in favor of {@link #containerPort(Integer)}.
-   *
-   * @param memberPort member port
-   * @return new {@code ClusterConfig} instance
-   */
-  @Deprecated
-  public ClusterConfig memberPort(Integer memberPort) {
-    ClusterConfig c = clone();
-    c.containerPort = memberPort;
     return c;
   }
 
@@ -407,8 +311,6 @@ public final class ClusterConfig implements Cloneable {
         .add("metadata=" + metadataAsString())
         .add("metadataTimeout=" + metadataTimeout)
         .add("metadataCodec=" + metadataCodec)
-        .add("metadataEncoder=" + metadataEncoder)
-        .add("metadataDecoder=" + metadataDecoder)
         .add("memberAlias='" + memberAlias + "'")
         .add("containerHost='" + containerHost + "'")
         .add("containerPort=" + containerPort)

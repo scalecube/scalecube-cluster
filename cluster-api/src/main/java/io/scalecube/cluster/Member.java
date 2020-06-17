@@ -133,11 +133,11 @@ public final class Member implements Externalizable {
 
   @Override
   public String toString() {
-    StringJoiner stringJoiner = new StringJoiner("/", "", "");
+    StringJoiner stringJoiner = new StringJoiner("/");
     if (alias == null) {
       return stringJoiner.add(namespace).add(id + "@" + address).toString();
     } else {
-      return stringJoiner.add(namespace).add(alias).add(id + "@" + address).toString();
+      return stringJoiner.add(namespace).add(alias + "-" + id + "@" + address).toString();
     }
   }
 }
