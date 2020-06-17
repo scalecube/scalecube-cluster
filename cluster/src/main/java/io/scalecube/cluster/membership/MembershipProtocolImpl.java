@@ -500,10 +500,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private Message prepareSyncDataMsg(String qualifier, String cid) {
     List<MembershipRecord> membershipRecords = new ArrayList<>(membershipTable.values());
     SyncData syncData = new SyncData(membershipRecords, membershipConfig.syncGroup());
-    return Message.withData(syncData)
-        .qualifier(qualifier)
-        .correlationId(Optional.ofNullable(cid).orElse("null"))
-        .build();
+    return Message.withData(syncData).qualifier(qualifier).correlationId(cid).build();
   }
 
   private Mono<Void> syncMembership(SyncData syncData, boolean onStart) {
