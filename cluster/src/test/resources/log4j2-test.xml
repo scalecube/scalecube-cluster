@@ -21,10 +21,10 @@
     <Logger name="io.scalecube.cluster.fdetector" level="${env:clusterFdetector:-info}"/>
     <Logger name="io.scalecube.cluster.gossip" level="${env:clusterGossip:-info}"/>
     <Logger name="io.scalecube.cluster.membership" level="${env:clusterMembership:-info}"/>
-    <Logger name="io.scalecube.cluster.metadata" level="${env:clusterMetadata:-debug}"/>
-    <Logger name="io.scalecube.cluster.utils" level="${env:clusterUtils:-debug}"/>
+    <Logger name="io.scalecube.cluster.metadata" level="${env:clusterMetadata:-info}"/>
+    <Logger name="io.scalecube.cluster.utils" level="${env:clusterUtils:-info}"/>
 
-    <Root level="${env:logLevel:-debug}">
+    <Root level="${env:logLevel:-info}">
       <AppenderRef ref="console"/>
     </Root>
   </Loggers>

@@ -2,8 +2,11 @@ package io.scalecube.transport.netty;
 
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
+import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.cluster.utils.NetworkEmulatorTransport;
 import io.scalecube.net.Address;
+import io.scalecube.transport.netty.tcp.TcpTransportFactory;
+import io.scalecube.transport.netty.websocket.WebsocketTransportFactory;
 import java.time.Duration;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -67,7 +70,20 @@ public class BaseTest {
    *
    * @return tramsprot
    */
-  protected NetworkEmulatorTransport createTransport() {
-    return new NetworkEmulatorTransport(TransportImpl.bindAwait());
+  protected NetworkEmulatorTransport createTcpTransport() {
+    return new NetworkEmulatorTransport(
+        TransportImpl.bindAwait(
+            TransportConfig.defaultConfig().transportFactory(new TcpTransportFactory())));
+  }
+
+  /**
+   * Factory method to create a transport.
+   *
+   * @return tramsprot
+   */
+  protected NetworkEmulatorTransport createWebsocketTransport() {
+    return new NetworkEmulatorTransport(
+        TransportImpl.bindAwait(
+            TransportConfig.defaultConfig().transportFactory(new WebsocketTransportFactory())));
   }
 }

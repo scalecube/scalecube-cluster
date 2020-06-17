@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
@@ -40,6 +41,8 @@ import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
 public class MembershipProtocolTest extends BaseTest {
+
+  private static final String NAMESPACE = "ns";
 
   public static final Duration TIMEOUT = Duration.ofSeconds(10);
 
@@ -106,7 +109,7 @@ public class MembershipProtocolTest extends BaseTest {
     final NetworkEmulatorTransport a = createTransport();
     final NetworkEmulatorTransport b = createTransport();
     final Member anotherMember =
-        new Member("leavingNodeId-1", null, Address.from("localhost:9236"));
+        new Member("leavingNodeId-1", null, Address.from("localhost:9236"), NAMESPACE);
     final List<Address> addresses = Arrays.asList(a.address(), b.address());
 
     final MembershipProtocolImpl cmA = createMembership(a, addresses);
@@ -149,7 +152,7 @@ public class MembershipProtocolTest extends BaseTest {
     final NetworkEmulatorTransport a = createTransport();
     final NetworkEmulatorTransport b = createTransport();
     final Member anotherMember =
-        new Member("leavingNodeId-1", null, Address.from("localhost:9236"));
+        new Member("leavingNodeId-1", null, Address.from("localhost:9236"), NAMESPACE);
     final List<Address> addresses = Arrays.asList(a.address(), b.address());
 
     final MembershipProtocolImpl cmA = createMembership(a, addresses);
@@ -181,7 +184,7 @@ public class MembershipProtocolTest extends BaseTest {
     final NetworkEmulatorTransport a = createTransport();
     final NetworkEmulatorTransport b = createTransport();
     final Member anotherMember =
-        new Member("leavingNodeId-1", null, Address.from("localhost:9236"));
+        new Member("leavingNodeId-1", null, Address.from("localhost:9236"), NAMESPACE);
     final List<Address> addresses = Arrays.asList(a.address(), b.address());
 
     final MembershipProtocolImpl cmA = createMembership(a, addresses);
@@ -684,7 +687,7 @@ public class MembershipProtocolTest extends BaseTest {
       cmC_Restarted = createMembership(c_Restarted, addresses);
       cmD_Restarted = createMembership(d_Restarted, addresses);
 
-      awaitSeconds(2);
+      awaitSeconds(3);
 
       // new C -> A, B, new D
       assertTrusted(cmC_Restarted, cmA.member(), cmB.member(), cmD_Restarted.member());
@@ -1108,10 +1111,12 @@ public class MembershipProtocolTest extends BaseTest {
   private ClusterConfig testConfig(List<Address> seedAddresses) {
     // Create faster config for local testing
     return new ClusterConfig()
-        .membership(
-            opts ->
-                opts.seedMembers(seedAddresses).syncInterval(TEST_SYNC_INTERVAL).syncTimeout(100))
-        .failureDetector(opts -> opts.pingInterval(PING_INTERVAL).pingTimeout(100))
+        .membership(opts -> opts.seedMembers(seedAddresses))
+        .membership(opts -> opts.syncInterval(TEST_SYNC_INTERVAL))
+        .membership(opts -> opts.syncTimeout(100))
+        .membership(opts -> opts.namespace(NAMESPACE))
+        .failureDetector(opts -> opts.pingInterval(PING_INTERVAL))
+        .failureDetector(opts -> opts.pingTimeout(100))
         .metadataTimeout(100);
   }
 
@@ -1121,7 +1126,7 @@ public class MembershipProtocolTest extends BaseTest {
   }
 
   private MembershipProtocolImpl createMembership(Transport transport, ClusterConfig config) {
-    Member localMember = new Member(Member.generateId(), null, transport.address());
+    Member localMember = new Member(newMemberId(), null, transport.address(), NAMESPACE);
 
     DirectProcessor<MembershipEvent> membershipProcessor = DirectProcessor.create();
     FluxSink<MembershipEvent> membershipSink = membershipProcessor.sink();
@@ -1169,6 +1174,10 @@ public class MembershipProtocolTest extends BaseTest {
 
     stopables.add(membership);
     return membership;
+  }
+
+  private String newMemberId() {
+    return Long.toHexString(UUID.randomUUID().getMostSignificantBits() & Long.MAX_VALUE);
   }
 
   private void stopAll(MembershipProtocolImpl... memberships) {

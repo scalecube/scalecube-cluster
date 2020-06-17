@@ -19,6 +19,7 @@ import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.net.Address;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -97,6 +98,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   // Disposables
   private final Disposable.Composite actionsDisposables = Disposables.composite();
+  private final Disposable.Swap disposable = Disposables.swap();
 
   // Scheduled
   private final Scheduler scheduler;
@@ -267,17 +269,16 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     Mono<Message>[] syncs =
         seedMembers.stream()
             .map(
-                address -> {
-                  String cid = cidGenerator.nextCid();
-                  return transport
-                      .requestResponse(address, prepareSyncDataMsg(SYNC, cid))
-                      .filter(this::checkSyncGroup);
-                })
+                address ->
+                    transport
+                        .requestResponse(address, prepareSyncDataMsg(SYNC, cidGenerator.nextCid()))
+                        .doOnError(this::onSyncError)
+                        .onErrorResume(Exception.class, e -> Mono.empty()))
             .toArray(Mono[]::new);
 
     // Process initial SyncAck
     Flux.mergeDelayError(syncs.length, syncs)
-        .take(1)
+        .take(syncs.length)
         .timeout(Duration.ofMillis(membershipConfig.syncTimeout()), scheduler)
         .publishOn(scheduler)
         .flatMap(message -> onSyncAck(message, true))
@@ -286,17 +287,14 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
               schedulePeriodicSync();
               sink.success();
             })
-        .subscribe(
-            null,
-            ex ->
-                LOGGER.debug(
-                    "[{}] Exception on initial SyncAck, cause: {}", localMember, ex.toString()));
+        .subscribe(null, this::onSyncAckError);
   }
 
   @Override
   public void stop() {
     // Stop accepting requests, events and sending sync
     actionsDisposables.dispose();
+    disposable.dispose();
 
     // Cancel remove members tasks
     for (String memberId : suspicionTimeoutTasks.keySet()) {
@@ -339,12 +337,11 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   }
 
   private void doSync() {
-    Optional<Address> addressOptional = selectSyncAddress();
-    if (!addressOptional.isPresent()) {
+    Address address = selectSyncAddress().orElse(null);
+    if (address == null) {
       return;
     }
 
-    Address address = addressOptional.get();
     Message message = prepareSyncDataMsg(SYNC, null);
     LOGGER.debug("[{}][doSync] Send Sync to {}", localMember, address);
     transport
@@ -364,16 +361,21 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   // ================================================
 
   private void onMessage(Message message) {
-    if (checkSyncGroup(message)) {
-      if (SYNC.equals(message.qualifier())) {
-        onSync(message).subscribe(null, this::onError);
-      }
-      if (SYNC_ACK.equals(message.qualifier())) {
-        if (message.correlationId() == null) { // filter out initial sync
-          onSyncAck(message, false).subscribe(null, this::onError);
-        }
+    if (isSync(message)) {
+      onSync(message).subscribe(null, this::onError);
+    } else if (isSyncAck(message)) {
+      if (message.correlationId() == null) { // filter out initial sync
+        onSyncAck(message, false).subscribe(null, this::onError);
       }
     }
+  }
+
+  private boolean isSync(Message message) {
+    return SYNC.equals(message.qualifier());
+  }
+
+  private boolean isSyncAck(Message message) {
+    return SYNC_ACK.equals(message.qualifier());
   }
 
   // ================================================
@@ -473,37 +475,17 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   // ============== Helper Methods ==================
   // ================================================
 
-  private void onError(Throwable throwable) {
-    LOGGER.error("[{}] Received unexpected error:", localMember, throwable);
-  }
-
-  @SuppressWarnings("unused")
-  private void onErrorIgnore(Throwable throwable) {
-    // no-op
-  }
-
-  private boolean checkSyncGroup(Message message) {
-    if (message.data() instanceof SyncData) {
-      SyncData syncData = message.data();
-      return membershipConfig.syncGroup().equals(syncData.getSyncGroup());
-    }
-    return false;
-  }
-
   private void schedulePeriodicSync() {
     int syncInterval = membershipConfig.syncInterval();
-    actionsDisposables.add(
+    disposable.update(
         scheduler.schedulePeriodically(
             this::doSync, syncInterval, syncInterval, TimeUnit.MILLISECONDS));
   }
 
   private Message prepareSyncDataMsg(String qualifier, String cid) {
     List<MembershipRecord> membershipRecords = new ArrayList<>(membershipTable.values());
-    SyncData syncData = new SyncData(membershipRecords, membershipConfig.syncGroup());
-    return Message.withData(syncData)
-        .qualifier(qualifier)
-        .correlationId(Optional.ofNullable(cid).orElse("null"))
-        .build();
+    SyncData syncData = new SyncData(membershipRecords);
+    return Message.withData(syncData).qualifier(qualifier).correlationId(cid).build();
   }
 
   private Mono<Void> syncMembership(SyncData syncData, boolean onStart) {
@@ -511,11 +493,71 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
         () -> {
           MembershipUpdateReason reason =
               onStart ? MembershipUpdateReason.INITIAL_SYNC : MembershipUpdateReason.SYNC;
-          return Mono.whenDelayError(
+
+          //noinspection unchecked
+          Mono<Void>[] monos =
               syncData.getMembership().stream()
-                  .map(r1 -> updateMembership(r1, reason))
-                  .toArray(Mono[]::new));
+                  .map(
+                      r1 ->
+                          updateMembership(r1, reason)
+                              .doOnError(ex -> onSyncMembershipError(reason, ex))
+                              .onErrorResume(ex -> Mono.empty()))
+                  .toArray(Mono[]::new);
+
+          return Flux.mergeDelayError(monos.length, monos).then();
         });
+  }
+
+  private static boolean areNamespacesRelated(String namespace1, String namespace2) {
+    Path ns1 = Path.of(namespace1);
+    Path ns2 = Path.of(namespace2);
+
+    if (ns1.compareTo(ns2) == 0) {
+      return true;
+    }
+
+    int n1 = ns1.getNameCount();
+    int n2 = ns2.getNameCount();
+    if (n1 == n2) {
+      return false;
+    }
+
+    Path shorter = n1 < n2 ? ns1 : ns2;
+    Path longer = n1 < n2 ? ns2 : ns1;
+
+    boolean areNamespacesRelated = true;
+    for (int i = 0; i < shorter.getNameCount(); i++) {
+      if (!shorter.getName(i).equals(longer.getName(i))) {
+        areNamespacesRelated = false;
+        break;
+      }
+    }
+    return areNamespacesRelated;
+  }
+
+  private void onSyncMembershipError(MembershipUpdateReason reason, Throwable ex) {
+    LOGGER.debug(
+        "[{}][syncMembership][{}] Exception occurred, cause: {}",
+        localMember,
+        reason,
+        ex.toString());
+  }
+
+  private void onSyncError(Throwable ex) {
+    LOGGER.debug("[{}] Exception on initial Sync, cause: {}", localMember, ex.toString());
+  }
+
+  private void onSyncAckError(Throwable ex) {
+    LOGGER.debug("[{}] Exception on initial SyncAck, cause: {}", localMember, ex.toString());
+  }
+
+  private void onError(Throwable throwable) {
+    LOGGER.error("[{}] Received unexpected error:", localMember, throwable);
+  }
+
+  @SuppressWarnings("unused")
+  private void onErrorIgnore(Throwable throwable) {
+    // no-op
   }
 
   /**
@@ -528,6 +570,21 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     return Mono.defer(
         () -> {
           Objects.requireNonNull(r1, "Membership record can't be null");
+
+          // Compare local namespace against namespace from incoming member
+          String localNamespace = membershipConfig.namespace();
+          String namespace = r1.member().namespace();
+          if (!areNamespacesRelated(localNamespace, namespace)) {
+            LOGGER.debug(
+                "[{}][updateMembership][{}] Skipping update, "
+                    + "namespace not matched, local: {}, inbound: {}",
+                localMember,
+                reason,
+                localNamespace,
+                namespace);
+            return Mono.empty();
+          }
+
           // Get current record
           MembershipRecord r0 = membershipTable.get(r1.member().id());
 

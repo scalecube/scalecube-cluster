@@ -32,6 +32,8 @@ import reactor.core.scheduler.Schedulers;
 
 public class FailureDetectorTest extends BaseTest {
 
+  private static final String NAMESPACE = "ns";
+
   private Scheduler scheduler;
 
   @BeforeEach
@@ -409,12 +411,12 @@ public class FailureDetectorTest extends BaseTest {
       Transport transport, List<Address> addresses, FailureDetectorConfig config) {
 
     Member localMember =
-        new Member("member-" + transport.address().port(), null, transport.address());
+        new Member("member-" + transport.address().port(), null, transport.address(), NAMESPACE);
 
     Flux<MembershipEvent> membershipFlux =
         Flux.fromIterable(addresses)
             .filter(address -> !transport.address().equals(address))
-            .map(address -> new Member("member-" + address.port(), null, address))
+            .map(address -> new Member("member-" + address.port(), null, address, NAMESPACE))
             .map(member -> MembershipEvent.createAdded(member, null, 0));
 
     CorrelationIdGenerator cidGenerator = new CorrelationIdGenerator(localMember.id());

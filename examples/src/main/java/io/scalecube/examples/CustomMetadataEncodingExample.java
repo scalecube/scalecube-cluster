@@ -3,21 +3,26 @@ package io.scalecube.examples;
 import io.scalecube.cluster.Cluster;
 import io.scalecube.cluster.ClusterImpl;
 import io.scalecube.cluster.metadata.MetadataCodec;
+import io.scalecube.transport.netty.websocket.WebsocketTransportFactory;
 import java.nio.ByteBuffer;
 import java.util.concurrent.TimeUnit;
 
-public class ClusterCustomMetadataEncodingExample {
+public class CustomMetadataEncodingExample {
 
   /** Main method. */
   public static void main(String[] args) throws Exception {
     // Start seed cluster member Alice
     Cluster alice =
-        new ClusterImpl().config(opts -> opts.metadataCodec(new LongMetadataCodec())).startAwait();
+        new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
+            .config(opts -> opts.metadataCodec(new LongMetadataCodec()))
+            .startAwait();
     System.out.println(
         "[" + alice.member().id() + "] Alice's metadata: " + alice.metadata().orElse(null));
 
     Cluster joe =
         new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
             .config(opts -> opts.metadataCodec(new LongMetadataCodec()).metadata(123L))
             .membership(opts -> opts.seedMembers(alice.address()))
             .startAwait();
@@ -26,6 +31,7 @@ public class ClusterCustomMetadataEncodingExample {
 
     Cluster bob =
         new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
             .config(opts -> opts.metadataCodec(new LongMetadataCodec()).metadata(456L))
             .membership(opts -> opts.seedMembers(alice.address()))
             .startAwait();
