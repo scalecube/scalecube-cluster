@@ -8,8 +8,6 @@ import io.scalecube.cluster.membership.MembershipConfig;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipProtocolImpl;
 import io.scalecube.cluster.metadata.MetadataCodec;
-import io.scalecube.cluster.metadata.MetadataDecoder;
-import io.scalecube.cluster.metadata.MetadataEncoder;
 import io.scalecube.cluster.metadata.MetadataStore;
 import io.scalecube.cluster.metadata.MetadataStoreImpl;
 import io.scalecube.cluster.monitor.ClusterMonitorMBean;
@@ -294,40 +292,24 @@ public final class ClusterImpl implements Cluster {
   }
 
   private void validateConfiguration() {
-    final MetadataDecoder metadataDecoder = config.metadataDecoder();
-    final MetadataEncoder metadataEncoder = config.metadataEncoder();
     final MetadataCodec metadataCodec =
         ServiceLoaderUtil.findFirst(MetadataCodec.class).orElse(null);
 
-    if (metadataDecoder != null && metadataEncoder != null && metadataCodec != null) {
-      throw new IllegalArgumentException(
-          "Invalid cluster config: either pair of [metadataDecoder, metadataEncoder] "
-              + "or metadataCodec must be specified, not both");
-    }
-
-    if ((metadataDecoder == null && metadataEncoder != null)
-        || (metadataDecoder != null && metadataEncoder == null)) {
-      throw new IllegalArgumentException(
-          "Invalid cluster config: both of [metadataDecoder, metadataEncoder]  must be specified");
-    }
-
-    if (metadataDecoder == null && metadataEncoder == null) {
-      if (metadataCodec == null) {
-        Object metadata = config.metadata();
-        if (metadata != null && !(metadata instanceof Serializable)) {
-          throw new IllegalArgumentException(
-              "Invalid cluster config: metadata must be Serializable");
-        }
+    if (metadataCodec == null) {
+      Object metadata = config.metadata();
+      if (metadata != null && !(metadata instanceof Serializable)) {
+        throw new IllegalArgumentException(
+            "Invalid cluster configuration: metadata must be Serializable");
       }
     }
 
     Objects.requireNonNull(
         config.transportConfig().messageCodec(),
-        "Invalid cluster config: transport.messageCodec must be specified");
+        "Invalid cluster configuration: transport.messageCodec must be specified");
 
     Objects.requireNonNull(
         config.membershipConfig().syncGroup(),
-        "Invalid cluster config: membership.syncGroup must be specified");
+        "Invalid cluster configuration: membership.syncGroup must be specified");
   }
 
   private void startHandler() {
@@ -453,11 +435,7 @@ public final class ClusterImpl implements Cluster {
 
   @SuppressWarnings("unchecked")
   private <T> T toMetadata(ByteBuffer buffer) {
-    if (config.metadataDecoder() != null) {
-      return (T) config.metadataDecoder().decode(buffer);
-    } else {
-      return (T) config.metadataCodec().deserialize(buffer);
-    }
+    return (T) config.metadataCodec().deserialize(buffer);
   }
 
   @Override
