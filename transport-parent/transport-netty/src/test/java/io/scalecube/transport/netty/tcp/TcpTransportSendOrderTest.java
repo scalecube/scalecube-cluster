@@ -1,10 +1,11 @@
-package io.scalecube.transport.netty;
+package io.scalecube.transport.netty.tcp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.net.Address;
+import io.scalecube.transport.netty.BaseTest;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -24,7 +25,7 @@ import org.junit.jupiter.api.TestInfo;
 import reactor.core.Disposable;
 import reactor.core.Exceptions;
 
-public class TransportSendOrderTest extends BaseTest {
+public class TcpTransportSendOrderTest extends BaseTest {
 
   // Auto-destroyed on tear down
   private Transport client;
@@ -39,7 +40,7 @@ public class TransportSendOrderTest extends BaseTest {
 
   @Test
   public void testSendOrderSingleThreadWithoutPromises(TestInfo testInfo) throws Exception {
-    server = createTransport();
+    server = createTcpTransport();
 
     int iterationNum = 11; // +1 warm up iteration
     int sentPerIteration = 1000;
@@ -47,7 +48,7 @@ public class TransportSendOrderTest extends BaseTest {
     for (int i = 0; i < iterationNum; i++) {
       LOGGER.debug("####### {} : iteration = {}", testInfo.getDisplayName(), i);
 
-      client = createTransport();
+      client = createTcpTransport();
       final List<Message> received = new ArrayList<>();
       final CountDownLatch latch = new CountDownLatch(sentPerIteration);
 
@@ -87,7 +88,7 @@ public class TransportSendOrderTest extends BaseTest {
 
   @Test
   public void testSendOrderSingleThread(TestInfo testInfo) throws Exception {
-    server = createTransport();
+    server = createTcpTransport();
 
     int iterationNum = 11; // +1 warm up iteration
     int sentPerIteration = 1000;
@@ -97,7 +98,7 @@ public class TransportSendOrderTest extends BaseTest {
       LOGGER.debug("####### {} : iteration = {}", testInfo.getDisplayName(), i);
       List<Long> iterSentTimeSeries = new ArrayList<>(sentPerIteration);
 
-      client = createTransport();
+      client = createTcpTransport();
       final List<Message> received = new ArrayList<>();
       final CountDownLatch latch = new CountDownLatch(sentPerIteration);
 
@@ -159,7 +160,7 @@ public class TransportSendOrderTest extends BaseTest {
 
   @Test
   public void testSendOrderMultiThread(TestInfo testInfo) throws Exception {
-    Transport server = createTransport();
+    Transport server = createTcpTransport();
 
     final int total = 1000;
     for (int i = 0; i < 10; i++) {
@@ -174,7 +175,7 @@ public class TransportSendOrderTest extends BaseTest {
                 return thread;
               });
 
-      Transport client = createTransport();
+      Transport client = createTcpTransport();
       final List<Message> received = new ArrayList<>();
       final CountDownLatch latch = new CountDownLatch(4 * total);
       server
