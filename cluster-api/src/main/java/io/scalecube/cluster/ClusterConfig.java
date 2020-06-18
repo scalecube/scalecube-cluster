@@ -7,7 +7,6 @@ import io.scalecube.cluster.metadata.MetadataCodec;
 import io.scalecube.cluster.transport.api.TransportConfig;
 import java.util.Optional;
 import java.util.StringJoiner;
-import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import reactor.core.Exceptions;
@@ -31,7 +30,6 @@ public final class ClusterConfig implements Cloneable {
   // Local cluster working via loopback interface (overrides default/LAN settings)
   public static final int DEFAULT_LOCAL_METADATA_TIMEOUT = 1_000;
 
-  private Supplier<String> memberIdGenerator = () -> UUID.randomUUID().toString().replace("-", "");
   private Object metadata;
   private int metadataTimeout = DEFAULT_METADATA_TIMEOUT;
   private MetadataCodec metadataCodec = MetadataCodec.INSTANCE;
@@ -88,10 +86,6 @@ public final class ClusterConfig implements Cloneable {
         .metadataTimeout(DEFAULT_LOCAL_METADATA_TIMEOUT);
   }
 
-  public Supplier<String> memberIdGenerator() {
-    return memberIdGenerator;
-  }
-
   /**
    * Setter for memberIdGenerator.
    *
@@ -100,7 +94,6 @@ public final class ClusterConfig implements Cloneable {
    */
   public ClusterConfig memberIdGenerator(Supplier<String> memberIdGenerator) {
     ClusterConfig c = clone();
-    c.memberIdGenerator = memberIdGenerator;
     return c;
   }
 
@@ -307,7 +300,6 @@ public final class ClusterConfig implements Cloneable {
   @Override
   public String toString() {
     return new StringJoiner(", ", ClusterConfig.class.getSimpleName() + "[", "]")
-        .add("memberIdGenerator=" + memberIdGenerator)
         .add("metadata=" + metadataAsString())
         .add("metadataTimeout=" + metadataTimeout)
         .add("metadataCodec=" + metadataCodec)
