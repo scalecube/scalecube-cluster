@@ -137,7 +137,7 @@ public final class Member implements Externalizable {
     if (alias == null) {
       return stringJoiner.add(namespace).add(id + "@" + address).toString();
     } else {
-      return stringJoiner.add(namespace).add(alias + "-" + id + "@" + address).toString();
+      return stringJoiner.add(namespace).add(alias + ":" + id + "@" + address).toString();
     }
   }
 }
