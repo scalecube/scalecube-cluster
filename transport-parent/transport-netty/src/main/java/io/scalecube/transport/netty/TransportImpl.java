@@ -133,11 +133,11 @@ public final class TransportImpl implements Transport {
    * @return promise for bind operation
    */
   public static Mono<Transport> bind(TransportConfig config) {
-    TransportFactory transportFactory =
-        Optional.ofNullable(config.transportFactory())
-            .or(() -> Optional.ofNullable(TransportFactory.INSTANCE))
-            .orElse(new TcpTransportFactory());
-    return transportFactory.createTransport(config).start();
+    return Optional.ofNullable(
+            Optional.ofNullable(config.transportFactory()).orElse(TransportFactory.INSTANCE))
+        .orElse(new TcpTransportFactory())
+        .createTransport(config)
+        .start();
   }
 
   /**

@@ -20,6 +20,7 @@ import io.scalecube.net.Address;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -509,8 +510,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   }
 
   private static boolean areNamespacesRelated(String namespace1, String namespace2) {
-    Path ns1 = Path.of(namespace1);
-    Path ns2 = Path.of(namespace2);
+    Path ns1 = Paths.get(namespace1);
+    Path ns2 = Paths.get(namespace2);
 
     if (ns1.compareTo(ns2) == 0) {
       return true;
