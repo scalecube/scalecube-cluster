@@ -10,7 +10,6 @@ import reactor.core.publisher.Mono;
 import reactor.netty.Connection;
 import reactor.netty.channel.BootstrapHandlers;
 import reactor.netty.resources.ConnectionProvider;
-import reactor.netty.tcp.SslProvider;
 import reactor.netty.tcp.TcpClient;
 
 final class TcpSender implements Sender {
@@ -42,18 +41,19 @@ final class TcpSender implements Sender {
   }
 
   private TcpClient newTcpClient(SenderContext context, Address address) {
-    return TcpClient.create(ConnectionProvider.newConnection())
-        .runOn(context.loopResources())
-        .host(address.host())
-        .port(address.port())
-        .option(ChannelOption.TCP_NODELAY, true)
-        .option(ChannelOption.SO_KEEPALIVE, true)
-        .option(ChannelOption.SO_REUSEADDR, true)
-        .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.connectTimeout())
-        .secure(config.isSecured() ? SslProvider.defaultClientProvider() : null)
-        .bootstrap(
-            b ->
-                BootstrapHandlers.updateConfiguration(
-                    b, "outbound", new TcpChannelInitializer(config.maxFrameLength())));
+    TcpClient tcpClient =
+        TcpClient.create(ConnectionProvider.newConnection())
+            .runOn(context.loopResources())
+            .host(address.host())
+            .port(address.port())
+            .option(ChannelOption.TCP_NODELAY, true)
+            .option(ChannelOption.SO_KEEPALIVE, true)
+            .option(ChannelOption.SO_REUSEADDR, true)
+            .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.connectTimeout())
+            .bootstrap(
+                b ->
+                    BootstrapHandlers.updateConfiguration(
+                        b, "outbound", new TcpChannelInitializer(config.maxFrameLength())));
+    return config.isSecured() ? tcpClient.secure() : tcpClient;
   }
 }
