@@ -73,7 +73,7 @@ public final class MembershipConfig implements Cloneable {
   }
 
   /**
-   * Sets a seedMembers.
+   * Setter for {@code seedMembers}.
    *
    * @param seedMembers seed members
    * @return new {@code MembershipConfig} instance
@@ -83,7 +83,7 @@ public final class MembershipConfig implements Cloneable {
   }
 
   /**
-   * Sets a seedMembers.
+   * Setter for {@code seedMembers}.
    *
    * @param seedMembers seed members
    * @return new {@code MembershipConfig} instance
@@ -99,7 +99,7 @@ public final class MembershipConfig implements Cloneable {
   }
 
   /**
-   * Sets a syncInterval.
+   * Setter for {@code syncInterval}.
    *
    * @param syncInterval sync interval
    * @return new {@code MembershipConfig} instance
@@ -115,7 +115,7 @@ public final class MembershipConfig implements Cloneable {
   }
 
   /**
-   * Sets a syncTimeout.
+   * Setter for {@code syncTimeout}.
    *
    * @param syncTimeout sync timeout
    * @return new {@code MembershipConfig} instance
@@ -131,7 +131,7 @@ public final class MembershipConfig implements Cloneable {
   }
 
   /**
-   * Sets a suspicionMult.
+   * Setter for {@code suspicionMult}.
    *
    * @param suspicionMult suspicion multiplier
    * @return new {@code MembershipConfig} instance
@@ -147,7 +147,7 @@ public final class MembershipConfig implements Cloneable {
   }
 
   /**
-   * Sets a namespace.
+   * Setter for {@code namespace}.
    *
    * @param namespace namespace
    * @return new {@code MembershipConfig} instance
@@ -163,7 +163,7 @@ public final class MembershipConfig implements Cloneable {
   }
 
   /**
-   * Sets a removedMembersHistorySize.
+   * Setter for {@code removedMembersHistorySize}.
    *
    * @param removedMembersHistorySize history size for remove members
    * @return new {@code MembershipConfig} instance

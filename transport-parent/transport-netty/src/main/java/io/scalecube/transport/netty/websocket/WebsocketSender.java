@@ -11,6 +11,7 @@ import reactor.core.publisher.Mono;
 import reactor.netty.Connection;
 import reactor.netty.http.client.HttpClient;
 import reactor.netty.http.client.WebsocketClientSpec;
+import reactor.netty.tcp.SslProvider;
 
 final class WebsocketSender implements Sender {
 
@@ -55,7 +56,8 @@ final class WebsocketSender implements Sender {
                     .option(ChannelOption.TCP_NODELAY, true)
                     .option(ChannelOption.SO_KEEPALIVE, true)
                     .option(ChannelOption.SO_REUSEADDR, true)
-                    .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.connectTimeout()))
+                    .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.connectTimeout())
+                    .secure(config.isSecured() ? SslProvider.defaultClientProvider() : null))
         .websocket(
             WebsocketClientSpec.builder().maxFramePayloadLength(config.maxFrameLength()).build());
   }

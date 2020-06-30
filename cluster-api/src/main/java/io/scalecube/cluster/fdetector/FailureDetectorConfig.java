@@ -64,7 +64,7 @@ public final class FailureDetectorConfig implements Cloneable {
   }
 
   /**
-   * Sets pingInterval.
+   * Setter for {@code pingInterval}.
    *
    * @param pingInterval ping interval
    * @return new {@code FailureDetectorConfig}
@@ -80,7 +80,7 @@ public final class FailureDetectorConfig implements Cloneable {
   }
 
   /**
-   * Sets ping timeout.
+   * Setter for {@code pingTimeout}.
    *
    * @param pingTimeout ping timeout
    * @return new {@code FailureDetectorConfig}
@@ -96,7 +96,7 @@ public final class FailureDetectorConfig implements Cloneable {
   }
 
   /**
-   * Sets number of members for requesting a ping.
+   * Setter for number of members for requesting a ping.
    *
    * @param pingReqMembers number of members for requesting a ping
    * @return new {@code FailureDetectorConfig}

@@ -61,7 +61,7 @@ public final class NetworkEmulator {
   }
 
   /**
-   * Sets given network emulator outbound settings for specific destination.
+   * Setter for network emulator outbound settings for specific destination.
    *
    * @param destination address of target endpoint
    * @param lossPercent loss in percents
@@ -74,7 +74,7 @@ public final class NetworkEmulator {
   }
 
   /**
-   * Sets default network emulator outbound settings.
+   * Setter for network emulator outbound settings.
    *
    * @param lossPercent loss in percents
    * @param meanDelay mean delay
@@ -214,7 +214,7 @@ public final class NetworkEmulator {
   }
 
   /**
-   * Sets given network emulator inbound settings for specific destination.
+   * Setter for network emulator inbound settings for specific destination.
    *
    * @param shallPass shallPass inbound flag
    */
@@ -225,7 +225,7 @@ public final class NetworkEmulator {
   }
 
   /**
-   * Sets default network emulator inbound settings.
+   * Setter for network emulator inbound settings.
    *
    * @param shallPass shallPass inbound flag
    */
