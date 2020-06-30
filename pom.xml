@@ -22,10 +22,10 @@
 
   <properties>
     <scalecube-commons.version>1.0.7</scalecube-commons.version>
+
     <slf4j.version>1.7.30</slf4j.version>
     <log4j.version>2.13.2</log4j.version>
     <reactor.version>Dysprosium-SR9</reactor.version>
-    <netty.version>4.1.50.Final</netty.version>
     <jackson.version>2.11.0</jackson.version>
 
     <mockito-junit-jupiter.version>2.27.0</mockito-junit-jupiter.version>
@@ -103,15 +103,6 @@
         <groupId>io.projectreactor</groupId>
         <artifactId>reactor-bom</artifactId>
         <version>${reactor.version}</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
-
-      <!--  Netty    -->
-      <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-bom</artifactId>
-        <version>${netty.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
