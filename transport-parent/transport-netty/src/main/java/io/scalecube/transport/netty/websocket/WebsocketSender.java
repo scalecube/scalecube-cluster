@@ -11,6 +11,7 @@ import reactor.core.publisher.Mono;
 import reactor.netty.Connection;
 import reactor.netty.http.client.HttpClient;
 import reactor.netty.http.client.WebsocketClientSpec;
+import reactor.netty.tcp.TcpClient;
 
 final class WebsocketSender implements Sender {
 
@@ -47,15 +48,18 @@ final class WebsocketSender implements Sender {
   private HttpClient.WebsocketSender newWebsocketSender(SenderContext context, Address address) {
     return HttpClient.newConnection()
         .tcpConfiguration(
-            tcpClient ->
-                tcpClient
-                    .runOn(context.loopResources())
-                    .host(address.host())
-                    .port(address.port())
-                    .option(ChannelOption.TCP_NODELAY, true)
-                    .option(ChannelOption.SO_KEEPALIVE, true)
-                    .option(ChannelOption.SO_REUSEADDR, true)
-                    .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.connectTimeout()))
+            tcpClient -> {
+              TcpClient tcpClient1 =
+                  tcpClient
+                      .runOn(context.loopResources())
+                      .host(address.host())
+                      .port(address.port())
+                      .option(ChannelOption.TCP_NODELAY, true)
+                      .option(ChannelOption.SO_KEEPALIVE, true)
+                      .option(ChannelOption.SO_REUSEADDR, true)
+                      .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.connectTimeout());
+              return config.isSecured() ? tcpClient1.secure() : tcpClient1;
+            })
         .websocket(
             WebsocketClientSpec.builder().maxFramePayloadLength(config.maxFrameLength()).build());
   }

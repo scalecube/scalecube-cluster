@@ -15,6 +15,7 @@ public final class TransportConfig implements Cloneable {
   public static final int DEFAULT_LOCAL_CONNECT_TIMEOUT = 1_000;
 
   private int port = 0;
+  private boolean isSecured = false; // is client secured
   private int connectTimeout = DEFAULT_CONNECT_TIMEOUT;
   private MessageCodec messageCodec = MessageCodec.INSTANCE;
   private int maxFrameLength = 2 * 1024 * 1024; // 2 MB
@@ -58,7 +59,7 @@ public final class TransportConfig implements Cloneable {
   }
 
   /**
-   * Sets a port.
+   * Setter for {@code port}.
    *
    * @param port port
    * @return new {@code TransportConfig} instance
@@ -69,12 +70,28 @@ public final class TransportConfig implements Cloneable {
     return t;
   }
 
+  public boolean isSecured() {
+    return isSecured;
+  }
+
+  /**
+   * Setter to denote whether client part of the transport is secured.
+   *
+   * @param isSecured isSecured
+   * @return new {@code TransportConfig} instance
+   */
+  public TransportConfig secured(boolean isSecured) {
+    TransportConfig t = clone();
+    t.isSecured = isSecured;
+    return t;
+  }
+
   public int connectTimeout() {
     return connectTimeout;
   }
 
   /**
-   * Sets a connectTimeout.
+   * Setter for {@code connectTimeout}.
    *
    * @param connectTimeout connect timeout
    * @return new {@code TransportConfig} instance
@@ -90,7 +107,7 @@ public final class TransportConfig implements Cloneable {
   }
 
   /**
-   * Sets a messageCodec.
+   * Setter for {@code messageCodec}.
    *
    * @param messageCodec message codec
    * @return new {@code TransportConfig} instance
@@ -106,7 +123,7 @@ public final class TransportConfig implements Cloneable {
   }
 
   /**
-   * Sets a maxFrameLength.
+   * Setter for {@code maxFrameLength}.
    *
    * @param maxFrameLength max frame length
    * @return new {@code TransportConfig} instance
@@ -122,7 +139,7 @@ public final class TransportConfig implements Cloneable {
   }
 
   /**
-   * Sets a transportFactory.
+   * Setter for {@code transportFactory}.
    *
    * @param transportFactory transport factory
    * @return new {@code TransportConfig} instance
@@ -146,6 +163,7 @@ public final class TransportConfig implements Cloneable {
   public String toString() {
     return new StringJoiner(", ", TransportConfig.class.getSimpleName() + "[", "]")
         .add("port=" + port)
+        .add("isSecured=" + isSecured)
         .add("connectTimeout=" + connectTimeout)
         .add("messageCodec=" + messageCodec)
         .add("maxFrameLength=" + maxFrameLength)

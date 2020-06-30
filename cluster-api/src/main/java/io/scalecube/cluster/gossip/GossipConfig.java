@@ -60,7 +60,7 @@ public final class GossipConfig implements Cloneable {
   }
 
   /**
-   * Sets gossipFanout.
+   * Setter for {@code gossipFanout}.
    *
    * @param gossipFanout gossip fanout
    * @return new {@code GossipConfig}
@@ -76,7 +76,7 @@ public final class GossipConfig implements Cloneable {
   }
 
   /**
-   * Sets gossipInterval.
+   * Setter for {@code gossipInterval}.
    *
    * @param gossipInterval gossip interval
    * @return new {@code GossipConfig}
@@ -92,7 +92,7 @@ public final class GossipConfig implements Cloneable {
   }
 
   /**
-   * Sets gossipRepeatMult.
+   * Setter for {@code gossipRepeatMult}.
    *
    * @param gossipRepeatMult gossip repeat multiplier
    * @return new {@code GossipConfig}
@@ -108,7 +108,7 @@ public final class GossipConfig implements Cloneable {
   }
 
   /**
-   * Sets gossipSegmentationThreshold.
+   * Setter for {@code gossipSegmentationThreshold}.
    *
    * @param gossipSegmentationThreshold gossip segmentation threshold
    * @return new {@code GossipConfig}
