@@ -241,7 +241,7 @@ public final class TransportImpl implements Transport {
     try (ByteBufInputStream stream = new ByteBufInputStream(byteBuf, true)) {
       return messageCodec.deserialize(stream);
     } catch (Exception e) {
-      LOGGER.warn("[{}][toMessage] Exception occurred: {}", address, e.toString());
+      LOGGER.warn("[{}][decodeMessage] Exception occurred: {}", address, e.toString());
       throw new DecoderException(e);
     }
   }
@@ -253,7 +253,7 @@ public final class TransportImpl implements Transport {
       messageCodec.serialize(message, stream);
     } catch (Exception e) {
       byteBuf.release();
-      LOGGER.warn("[{}][toByteBuf] Exception occurred: {}", address, e.toString());
+      LOGGER.warn("[{}][encodeMessage] Exception occurred: {}", address, e.toString());
       throw new EncoderException(e);
     }
     return byteBuf;
@@ -270,7 +270,7 @@ public final class TransportImpl implements Transport {
             })
         .doOnError(
             th -> {
-              LOGGER.debug(
+              LOGGER.warn(
                   "[{}][connect0][{}] Exception occurred: {}", address, address1, th.toString());
               connections.remove(address1);
             })
