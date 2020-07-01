@@ -35,8 +35,8 @@ public final class ClusterConfig implements Cloneable {
   private MetadataCodec metadataCodec = MetadataCodec.INSTANCE;
 
   private String memberAlias;
-  private String containerHost;
-  private Integer containerPort;
+  private String externalHost;
+  private Integer externalPort;
 
   private TransportConfig transportConfig = TransportConfig.defaultConfig();
   private FailureDetectorConfig failureDetectorConfig = FailureDetectorConfig.defaultConfig();
@@ -147,27 +147,27 @@ public final class ClusterConfig implements Cloneable {
   }
 
   /**
-   * Returns mappedHost. {@code mappedHost} is a config property for container environments, it's
-   * being set for advertising to scalecube cluster some connectable hostname which maps to
+   * Returns externalHost. {@code externalHost} is a config property for container environments,
+   * it's being set for advertising to scalecube cluster some connectable hostname which maps to
    * scalecube transport's hostname on which scalecube transport is listening.
    *
-   * @return mapped host
+   * @return external host
    */
-  public String containerHost() {
-    return containerHost;
+  public String externalHost() {
+    return externalHost;
   }
 
   /**
-   * Setter for mappedHost. {@code mappedHost} is a config property for container environments, it's
-   * being set for advertising to scalecube cluster some connectable hostname which maps to
+   * Setter for externalHost. {@code externalHost} is a config property for container environments,
+   * it's being set for advertising to scalecube cluster some connectable hostname which maps to
    * scalecube transport's hostname on which scalecube transport is listening.
    *
-   * @param mappedHost mapped host
+   * @param externalHost external host
    * @return new {@code ClusterConfig} instance
    */
-  public ClusterConfig containerHost(String mappedHost) {
+  public ClusterConfig externalHost(String externalHost) {
     ClusterConfig c = clone();
-    c.containerHost = mappedHost;
+    c.externalHost = externalHost;
     return c;
   }
 
@@ -195,27 +195,27 @@ public final class ClusterConfig implements Cloneable {
   }
 
   /**
-   * Returns mappedPort. {@code mappedPort} is a config property for container environments, it's
-   * being set for advertising to scalecube cluster a port which mapped to scalecube transport's
-   * listening port.
+   * Returns externalPort. {@code externalPort} is a config property for container environments,
+   * it's being set for advertising to scalecube cluster a port which mapped to scalecube
+   * transport's listening port.
    *
-   * @return mapped port
+   * @return external port
    */
-  public Integer containerPort() {
-    return containerPort;
+  public Integer externalPort() {
+    return externalPort;
   }
 
   /**
-   * Setter for mappedPort. {@code mappedPort} is a config property for container environments, it's
-   * being set for advertising to scalecube cluster a port which mapped to scalecube transport's
-   * listening port.
+   * Setter for externalPort. {@code externalPort} is a config property for container environments,
+   * it's being set for advertising to scalecube cluster a port which mapped to scalecube
+   * transport's listening port.
    *
-   * @param mappedPort mapped port
+   * @param externalPort external port
    * @return new {@code ClusterConfig} instance
    */
-  public ClusterConfig containerPort(Integer mappedPort) {
+  public ClusterConfig externalPort(Integer externalPort) {
     ClusterConfig c = clone();
-    c.containerPort = mappedPort;
+    c.externalPort = externalPort;
     return c;
   }
 
@@ -304,8 +304,8 @@ public final class ClusterConfig implements Cloneable {
         .add("metadataTimeout=" + metadataTimeout)
         .add("metadataCodec=" + metadataCodec)
         .add("memberAlias='" + memberAlias + "'")
-        .add("containerHost='" + containerHost + "'")
-        .add("containerPort=" + containerPort)
+        .add("externalHost='" + externalHost + "'")
+        .add("externalPort=" + externalPort)
         .add("transportConfig=" + transportConfig)
         .add("failureDetectorConfig=" + failureDetectorConfig)
         .add("gossipConfig=" + gossipConfig)
