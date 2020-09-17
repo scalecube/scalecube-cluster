@@ -1,4 +1,4 @@
-package io.scalecube.transport.netty;
+package io.scalecube.transport.netty.websocket;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.utils.NetworkEmulatorTransport;
 import io.scalecube.net.Address;
+import io.scalecube.transport.netty.BaseTest;
 import java.io.IOException;
 import java.net.UnknownHostException;
 import java.time.Duration;
@@ -24,7 +25,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.ReplayProcessor;
 import reactor.test.StepVerifier;
 
-public class TransportTest extends BaseTest {
+public class WebsocketTransportTest extends BaseTest {
 
   public static final Duration TIMEOUT = Duration.ofSeconds(10);
 
@@ -41,7 +42,7 @@ public class TransportTest extends BaseTest {
 
   @Test
   public void testUnresolvedHostConnection() {
-    client = createTransport();
+    client = createWebsocketTransport();
     // create transport with wrong host
     try {
       Address address = Address.from("wronghost:49255");
@@ -60,7 +61,7 @@ public class TransportTest extends BaseTest {
     for (int i = 0; i < 10; i++) {
       LOGGER.debug("####### {} : iteration = {}", testInfo.getDisplayName(), i);
 
-      client = createTransport();
+      client = createWebsocketTransport();
 
       // create transport and don't wait just send message
       try {
@@ -86,8 +87,8 @@ public class TransportTest extends BaseTest {
 
   @Test
   public void testPingPongClientTfListenAndServerTfListen() throws Exception {
-    client = createTransport();
-    server = createTransport();
+    client = createWebsocketTransport();
+    server = createWebsocketTransport();
 
     server
         .listen()
@@ -110,8 +111,8 @@ public class TransportTest extends BaseTest {
 
   @Test
   public void testNetworkSettings() {
-    client = createTransport();
-    server = createTransport();
+    client = createWebsocketTransport();
+    server = createWebsocketTransport();
 
     int lostPercent = 50;
     int mean = 0;
@@ -134,8 +135,8 @@ public class TransportTest extends BaseTest {
 
   @Test
   public void testPingPongOnSingleChannel() throws Exception {
-    server = createTransport();
-    client = createTransport();
+    server = createWebsocketTransport();
+    client = createWebsocketTransport();
 
     server
         .listen()
@@ -170,8 +171,8 @@ public class TransportTest extends BaseTest {
 
   @Test
   public void testShouldRequestResponseSuccess() {
-    client = createTransport();
-    server = createTransport();
+    client = createWebsocketTransport();
+    server = createWebsocketTransport();
 
     server
         .listen()
@@ -204,8 +205,8 @@ public class TransportTest extends BaseTest {
 
   @Test
   public void testPingPongOnSeparateChannel() throws Exception {
-    server = createTransport();
-    client = createTransport();
+    server = createWebsocketTransport();
+    client = createWebsocketTransport();
 
     server
         .listen()
@@ -240,8 +241,8 @@ public class TransportTest extends BaseTest {
 
   @Test
   public void testCompleteObserver() throws Exception {
-    server = createTransport();
-    client = createTransport();
+    server = createWebsocketTransport();
+    client = createWebsocketTransport();
 
     final CompletableFuture<Boolean> completeLatch = new CompletableFuture<>();
     final CompletableFuture<Message> messageLatch = new CompletableFuture<>();
@@ -266,8 +267,8 @@ public class TransportTest extends BaseTest {
 
   @Test
   public void testObserverThrowsException() throws Exception {
-    server = createTransport();
-    client = createTransport();
+    server = createWebsocketTransport();
+    client = createWebsocketTransport();
 
     server
         .listen()
@@ -316,8 +317,8 @@ public class TransportTest extends BaseTest {
 
   @Test
   public void testBlockAndUnblockTraffic() throws Exception {
-    client = createTransport();
-    server = createTransport();
+    client = createWebsocketTransport();
+    server = createWebsocketTransport();
 
     server.listen().subscribe(message -> server.send(message.sender(), message).subscribe());
 

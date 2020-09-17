@@ -42,7 +42,7 @@ public class ClusterTest extends BaseTest {
             .gossip(opts -> opts.gossipInterval(100))
             .failureDetector(opts -> opts.pingInterval(100))
             .membership(opts -> opts.syncInterval(100))
-            .transport(opts -> opts.host(address.host()).port(address.port()))
+            .transport(opts -> opts.port(address.port()))
             .transport(opts -> opts.connectTimeout(CONNECT_TIMEOUT))
             .startAwait();
 
@@ -67,7 +67,7 @@ public class ClusterTest extends BaseTest {
               .gossip(opts -> opts.gossipInterval(100))
               .failureDetector(opts -> opts.pingInterval(100))
               .membership(opts -> opts.syncInterval(100))
-              .transport(opts -> opts.host(address.host()).port(address.port()))
+              .transport(opts -> opts.port(address.port()))
               .transport(opts -> opts.connectTimeout(CONNECT_TIMEOUT))
               .startAwait();
 
@@ -138,7 +138,7 @@ public class ClusterTest extends BaseTest {
 
     // Start seed node
     Cluster seedNode =
-        new ClusterImpl(new ClusterConfig().containerHost("localhost").containerPort(7878))
+        new ClusterImpl(new ClusterConfig().externalHost("localhost").externalPort(7878))
             .transport(opts -> opts.port(7878).connectTimeout(CONNECT_TIMEOUT))
             .membership(opts -> opts.seedMembers(addresses))
             .startAwait();

@@ -28,8 +28,8 @@ public final class MembershipConfig implements Cloneable {
   private int syncInterval = DEFAULT_SYNC_INTERVAL;
   private int syncTimeout = DEFAULT_SYNC_TIMEOUT;
   private int suspicionMult = DEFAULT_SUSPICION_MULT;
-  private String syncGroup = "default";
   private int removedMembersHistorySize = 42;
+  private String namespace = "default";
 
   public MembershipConfig() {}
 
@@ -73,7 +73,7 @@ public final class MembershipConfig implements Cloneable {
   }
 
   /**
-   * Sets a seedMembers.
+   * Setter for {@code seedMembers}.
    *
    * @param seedMembers seed members
    * @return new {@code MembershipConfig} instance
@@ -83,7 +83,7 @@ public final class MembershipConfig implements Cloneable {
   }
 
   /**
-   * Sets a seedMembers.
+   * Setter for {@code seedMembers}.
    *
    * @param seedMembers seed members
    * @return new {@code MembershipConfig} instance
@@ -99,7 +99,7 @@ public final class MembershipConfig implements Cloneable {
   }
 
   /**
-   * Sets a syncInterval.
+   * Setter for {@code syncInterval}.
    *
    * @param syncInterval sync interval
    * @return new {@code MembershipConfig} instance
@@ -115,7 +115,7 @@ public final class MembershipConfig implements Cloneable {
   }
 
   /**
-   * Sets a syncTimeout.
+   * Setter for {@code syncTimeout}.
    *
    * @param syncTimeout sync timeout
    * @return new {@code MembershipConfig} instance
@@ -131,7 +131,7 @@ public final class MembershipConfig implements Cloneable {
   }
 
   /**
-   * Sets a suspicionMult.
+   * Setter for {@code suspicionMult}.
    *
    * @param suspicionMult suspicion multiplier
    * @return new {@code MembershipConfig} instance
@@ -142,19 +142,19 @@ public final class MembershipConfig implements Cloneable {
     return m;
   }
 
-  public String syncGroup() {
-    return syncGroup;
+  public String namespace() {
+    return namespace;
   }
 
   /**
-   * Sets a syncGroup.
+   * Setter for {@code namespace}.
    *
-   * @param syncGroup sync group
+   * @param namespace namespace
    * @return new {@code MembershipConfig} instance
    */
-  public MembershipConfig syncGroup(String syncGroup) {
+  public MembershipConfig namespace(String namespace) {
     MembershipConfig m = clone();
-    m.syncGroup = syncGroup;
+    m.namespace = namespace;
     return m;
   }
 
@@ -163,7 +163,7 @@ public final class MembershipConfig implements Cloneable {
   }
 
   /**
-   * Sets a removedMembersHistorySize.
+   * Setter for {@code removedMembersHistorySize}.
    *
    * @param removedMembersHistorySize history size for remove members
    * @return new {@code MembershipConfig} instance
@@ -190,7 +190,7 @@ public final class MembershipConfig implements Cloneable {
         .add("syncInterval=" + syncInterval)
         .add("syncTimeout=" + syncTimeout)
         .add("suspicionMult=" + suspicionMult)
-        .add("syncGroup='" + syncGroup + "'")
+        .add("namespace='" + namespace + "'")
         .add("removedMembersHistorySize=" + removedMembersHistorySize)
         .toString();
   }

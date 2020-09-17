@@ -8,8 +8,6 @@ import io.scalecube.cluster.membership.MembershipConfig;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipProtocolImpl;
 import io.scalecube.cluster.metadata.MetadataCodec;
-import io.scalecube.cluster.metadata.MetadataDecoder;
-import io.scalecube.cluster.metadata.MetadataEncoder;
 import io.scalecube.cluster.metadata.MetadataStore;
 import io.scalecube.cluster.metadata.MetadataStoreImpl;
 import io.scalecube.cluster.monitor.ClusterMonitorMBean;
@@ -18,6 +16,7 @@ import io.scalecube.cluster.monitor.JmxClusterMonitorMBean;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.transport.api.TransportConfig;
+import io.scalecube.cluster.transport.api.TransportFactory;
 import io.scalecube.net.Address;
 import io.scalecube.transport.netty.TransportImpl;
 import io.scalecube.utils.ServiceLoaderUtil;
@@ -29,8 +28,11 @@ import java.util.Collections;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.management.MBeanServer;
@@ -53,6 +55,8 @@ import reactor.core.scheduler.Schedulers;
 public final class ClusterImpl implements Cluster {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Cluster.class);
+
+  private static final Pattern NAMESPACE_PATTERN = Pattern.compile("^(\\w+[\\w\\-./]*\\w)+");
 
   private static final Set<String> SYSTEM_MESSAGES =
       Collections.unmodifiableSet(
@@ -152,6 +156,19 @@ public final class ClusterImpl implements Cluster {
     Objects.requireNonNull(options);
     ClusterImpl cluster = new ClusterImpl(this);
     cluster.config = config.transport(options);
+    return cluster;
+  }
+
+  /**
+   * Returns a new cluster's instance which will apply the given options.
+   *
+   * @param supplier transport factory supplier
+   * @return new {@code ClusterImpl} instance
+   */
+  public ClusterImpl transportFactory(Supplier<TransportFactory> supplier) {
+    Objects.requireNonNull(supplier);
+    ClusterImpl cluster = new ClusterImpl(this);
+    cluster.config = config.transport(opts -> opts.transportFactory(supplier.get()));
     return cluster;
   }
 
@@ -294,40 +311,29 @@ public final class ClusterImpl implements Cluster {
   }
 
   private void validateConfiguration() {
-    final MetadataDecoder metadataDecoder = config.metadataDecoder();
-    final MetadataEncoder metadataEncoder = config.metadataEncoder();
     final MetadataCodec metadataCodec =
         ServiceLoaderUtil.findFirst(MetadataCodec.class).orElse(null);
 
-    if (metadataDecoder != null && metadataEncoder != null && metadataCodec != null) {
-      throw new IllegalArgumentException(
-          "Invalid cluster config: either pair of [metadataDecoder, metadataEncoder] "
-              + "or metadataCodec must be specified, not both");
-    }
-
-    if ((metadataDecoder == null && metadataEncoder != null)
-        || (metadataDecoder != null && metadataEncoder == null)) {
-      throw new IllegalArgumentException(
-          "Invalid cluster config: both of [metadataDecoder, metadataEncoder]  must be specified");
-    }
-
-    if (metadataDecoder == null && metadataEncoder == null) {
-      if (metadataCodec == null) {
-        Object metadata = config.metadata();
-        if (metadata != null && !(metadata instanceof Serializable)) {
-          throw new IllegalArgumentException(
-              "Invalid cluster config: metadata must be Serializable");
-        }
+    if (metadataCodec == null) {
+      Object metadata = config.metadata();
+      if (metadata != null && !(metadata instanceof Serializable)) {
+        throw new IllegalArgumentException(
+            "Invalid cluster configuration: metadata must be Serializable");
       }
     }
 
     Objects.requireNonNull(
         config.transportConfig().messageCodec(),
-        "Invalid cluster config: transport.messageCodec must be specified");
+        "Invalid cluster configuration: transport.messageCodec must be specified");
 
     Objects.requireNonNull(
-        config.membershipConfig().syncGroup(),
-        "Invalid cluster config: membership.syncGroup must be specified");
+        config.membershipConfig().namespace(),
+        "Invalid cluster configuration: membership.namespace must be specified");
+
+    if (!NAMESPACE_PATTERN.matcher(config.membershipConfig().namespace()).matches()) {
+      throw new IllegalArgumentException(
+          "Invalid cluster config: membership.namespace format is invalid");
+    }
   }
 
   private void startHandler() {
@@ -343,18 +349,9 @@ public final class ClusterImpl implements Cluster {
     try {
       StandardMBean standardMBean = new StandardMBean(monitorMBean, ClusterMonitorMBean.class);
       MBeanServer server = ManagementFactory.getPlatformMBeanServer();
-      ObjectName objectName = new ObjectName("io.scalecube.cluster:name=Cluster@" + member().id());
+      ObjectName objectName =
+          new ObjectName("io.scalecube.cluster:name=" + member().id() + "@" + System.nanoTime());
       server.registerMBean(standardMBean, objectName);
-    } catch (Exception ex) {
-      throw Exceptions.propagate(ex);
-    }
-  }
-
-  private void stopJmxMonitor() {
-    try {
-      MBeanServer server = ManagementFactory.getPlatformMBeanServer();
-      ObjectName objectName = new ObjectName("io.scalecube.cluster:name=Cluster@" + member().id());
-      server.unregisterMBean(objectName);
     } catch (Exception ex) {
       throw Exceptions.propagate(ex);
     }
@@ -387,15 +384,19 @@ public final class ClusterImpl implements Cluster {
    * @return local cluster member with cluster address and cluster member id
    */
   private Member createLocalMember(Address address) {
-    int port = Optional.ofNullable(config.containerPort()).orElse(address.port());
+    int port = Optional.ofNullable(config.externalPort()).orElse(address.port());
 
     // calculate local member cluster address
     Address memberAddress =
-        Optional.ofNullable(config.containerHost())
+        Optional.ofNullable(config.externalHost())
             .map(host -> Address.create(host, port))
             .orElseGet(() -> Address.create(address.host(), port));
 
-    return new Member(Member.generateId(), config.memberAlias(), memberAddress);
+    return new Member(
+        UUID.randomUUID().toString().replace("-", ""),
+        config.memberAlias(),
+        memberAddress,
+        config.membershipConfig().namespace());
   }
 
   @Override
@@ -453,11 +454,7 @@ public final class ClusterImpl implements Cluster {
 
   @SuppressWarnings("unchecked")
   private <T> T toMetadata(ByteBuffer buffer) {
-    if (config.metadataDecoder() != null) {
-      return (T) config.metadataDecoder().decode(buffer);
-    } else {
-      return (T) config.metadataCodec().deserialize(buffer);
-    }
+    return (T) config.metadataCodec().deserialize(buffer);
   }
 
   @Override
@@ -491,11 +488,7 @@ public final class ClusterImpl implements Cluster {
     return Mono.defer(
         () -> {
           LOGGER.info("[{}][doShutdown] Shutting down", localMember);
-          return Flux.concatDelayError(
-                  leaveCluster(),
-                  dispose(),
-                  transport.stop(),
-                  Mono.fromRunnable(this::stopJmxMonitor))
+          return Flux.concatDelayError(leaveCluster(), dispose(), transport.stop())
               .then()
               .doFinally(s -> scheduler.dispose())
               .doOnSuccess(avoid -> LOGGER.info("[{}][doShutdown] Shutdown", localMember));
@@ -552,6 +545,11 @@ public final class ClusterImpl implements Cluster {
     @Override
     public Address address() {
       return transport.address();
+    }
+
+    @Override
+    public Mono<Transport> start() {
+      return transport.start();
     }
 
     @Override

@@ -21,6 +21,8 @@ import org.junit.jupiter.api.Test;
 
 public class GossipRequestTest extends BaseTest {
 
+  private static final String NAMESPACE = "ns";
+
   private static final String testDataQualifier = "scalecube/testData";
 
   private TestData testData;
@@ -37,8 +39,7 @@ public class GossipRequestTest extends BaseTest {
 
   @Test
   public void testSerializationAndDeserialization() throws Exception {
-
-    Member from = new Member("0", null, Address.from("localhost:1234"));
+    Member from = new Member("0", null, Address.from("localhost:1234"), NAMESPACE);
     List<Gossip> gossips = getGossips();
     Message message =
         Message.withData(new GossipRequest(gossips, from.id())).correlationId("CORR_ID").build();

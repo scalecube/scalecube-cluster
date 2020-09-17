@@ -14,11 +14,12 @@ public final class TransportConfig implements Cloneable {
   // Local cluster working via loopback interface (overrides default/LAN settings)
   public static final int DEFAULT_LOCAL_CONNECT_TIMEOUT = 1_000;
 
-  private String host = null;
   private int port = 0;
+  private boolean isSecured = false; // is client secured
   private int connectTimeout = DEFAULT_CONNECT_TIMEOUT;
   private MessageCodec messageCodec = MessageCodec.INSTANCE;
   private int maxFrameLength = 2 * 1024 * 1024; // 2 MB
+  private TransportFactory transportFactory;
 
   public TransportConfig() {}
 
@@ -50,23 +51,7 @@ public final class TransportConfig implements Cloneable {
    * @return new {@code MembershipConfig}
    */
   public static TransportConfig defaultLocalConfig() {
-    return defaultConfig().connectTimeout(DEFAULT_LOCAL_CONNECT_TIMEOUT).host("localhost");
-  }
-
-  public String host() {
-    return host;
-  }
-
-  /**
-   * Sets a host.
-   *
-   * @param host host
-   * @return new {@code TransportConfig} instance
-   */
-  public TransportConfig host(String host) {
-    TransportConfig t = clone();
-    t.host = host;
-    return t;
+    return defaultConfig().connectTimeout(DEFAULT_LOCAL_CONNECT_TIMEOUT);
   }
 
   public int port() {
@@ -74,7 +59,7 @@ public final class TransportConfig implements Cloneable {
   }
 
   /**
-   * Sets a port.
+   * Setter for {@code port}.
    *
    * @param port port
    * @return new {@code TransportConfig} instance
@@ -85,12 +70,28 @@ public final class TransportConfig implements Cloneable {
     return t;
   }
 
+  public boolean isSecured() {
+    return isSecured;
+  }
+
+  /**
+   * Setter to denote whether client part of the transport is secured.
+   *
+   * @param isSecured isSecured
+   * @return new {@code TransportConfig} instance
+   */
+  public TransportConfig secured(boolean isSecured) {
+    TransportConfig t = clone();
+    t.isSecured = isSecured;
+    return t;
+  }
+
   public int connectTimeout() {
     return connectTimeout;
   }
 
   /**
-   * Sets a connectTimeout.
+   * Setter for {@code connectTimeout}.
    *
    * @param connectTimeout connect timeout
    * @return new {@code TransportConfig} instance
@@ -106,7 +107,7 @@ public final class TransportConfig implements Cloneable {
   }
 
   /**
-   * Sets a messageCodec.
+   * Setter for {@code messageCodec}.
    *
    * @param messageCodec message codec
    * @return new {@code TransportConfig} instance
@@ -122,7 +123,7 @@ public final class TransportConfig implements Cloneable {
   }
 
   /**
-   * Sets a maxFrameLength.
+   * Setter for {@code maxFrameLength}.
    *
    * @param maxFrameLength max frame length
    * @return new {@code TransportConfig} instance
@@ -130,6 +131,22 @@ public final class TransportConfig implements Cloneable {
   public TransportConfig maxFrameLength(int maxFrameLength) {
     TransportConfig t = clone();
     t.maxFrameLength = maxFrameLength;
+    return t;
+  }
+
+  public TransportFactory transportFactory() {
+    return transportFactory;
+  }
+
+  /**
+   * Setter for {@code transportFactory}.
+   *
+   * @param transportFactory transport factory
+   * @return new {@code TransportConfig} instance
+   */
+  public TransportConfig transportFactory(TransportFactory transportFactory) {
+    TransportConfig t = clone();
+    t.transportFactory = transportFactory;
     return t;
   }
 
@@ -145,11 +162,12 @@ public final class TransportConfig implements Cloneable {
   @Override
   public String toString() {
     return new StringJoiner(", ", TransportConfig.class.getSimpleName() + "[", "]")
-        .add("host='" + host + "'")
         .add("port=" + port)
+        .add("isSecured=" + isSecured)
         .add("connectTimeout=" + connectTimeout)
         .add("messageCodec=" + messageCodec)
         .add("maxFrameLength=" + maxFrameLength)
+        .add("transportFactory=" + transportFactory)
         .toString();
   }
 }
