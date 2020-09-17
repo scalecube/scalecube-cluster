@@ -7,7 +7,6 @@ import io.scalecube.cluster.metadata.MetadataCodec;
 import io.scalecube.cluster.transport.api.TransportConfig;
 import java.util.Optional;
 import java.util.StringJoiner;
-import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import reactor.core.Exceptions;
 
@@ -84,17 +83,6 @@ public final class ClusterConfig implements Cloneable {
         .membership(opts -> MembershipConfig.defaultLocalConfig())
         .transport(opts -> TransportConfig.defaultLocalConfig())
         .metadataTimeout(DEFAULT_LOCAL_METADATA_TIMEOUT);
-  }
-
-  /**
-   * Setter for memberIdGenerator.
-   *
-   * @param memberIdGenerator memberIdGenerator
-   * @return new {@code ClusterConfig} instance
-   */
-  public ClusterConfig memberIdGenerator(Supplier<String> memberIdGenerator) {
-    ClusterConfig c = clone();
-    return c;
   }
 
   public <T> T metadata() {
