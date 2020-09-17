@@ -393,7 +393,7 @@ public final class ClusterImpl implements Cluster {
             .orElseGet(() -> Address.create(address.host(), port));
 
     return new Member(
-        UUID.randomUUID().toString().replace("-", ""),
+        UUID.randomUUID().toString(),
         config.memberAlias(),
         memberAddress,
         config.membershipConfig().namespace());
