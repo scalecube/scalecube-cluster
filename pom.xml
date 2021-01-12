@@ -24,19 +24,6 @@
     </repository>
   </repositories>
 
-  <profiles>
-    <profile>
-      <id>deploy2Github</id>
-      <distributionManagement>
-        <repository>
-          <id>github</id>
-          <name>GitHub Packages</name>
-          <url>https://maven.pkg.github.com/scalecube/scalecube-cluster</url>
-        </repository>
-      </distributionManagement>
-    </profile>
-  </profiles>
-
   <scm>
     <url>https://github.com/scalecube/scalecube-cluster</url>
     <connection>scm:git:https://github.com/scalecube/scalecube-cluster.git</connection>
@@ -149,5 +136,45 @@
       </dependency>
     </dependencies>
   </dependencyManagement>
+
+  <profiles>
+    <profile>
+      <id>deploy2Github</id>
+      <distributionManagement>
+        <repository>
+          <id>github</id>
+          <name>GitHub Packages</name>
+          <url>https://maven.pkg.github.com/scalecube/scalecube-cluster</url>
+        </repository>
+      </distributionManagement>
+    </profile>
+    <profile>
+      <id>deploy2Maven</id>
+      <distributionManagement>
+        <repository>
+          <id>ossrh</id>
+          <name>Central Repository OSSRH</name>
+          <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+        </repository>
+      </distributionManagement>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.sonatype.plugins</groupId>
+            <artifactId>nexus-staging-maven-plugin</artifactId>
+          </plugin>
+          <plugin>
+            <artifactId>maven-source-plugin</artifactId>
+          </plugin>
+          <plugin>
+            <artifactId>maven-javadoc-plugin</artifactId>
+          </plugin>
+          <plugin>
+            <artifactId>maven-gpg-plugin</artifactId>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 
 </project>
