@@ -14,6 +14,7 @@ import io.scalecube.cluster.transport.api.TransportFactory;
 import io.scalecube.net.Address;
 import io.scalecube.transport.netty.tcp.TcpTransportFactory;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -72,8 +73,8 @@ public final class TransportImpl implements Transport {
   }
 
   private static Address prepareAddress(DisposableServer server) {
-    InetAddress address = server.address().getAddress();
-    int port = server.address().getPort();
+    InetAddress address = ((InetSocketAddress) server.address()).getAddress();
+    int port = ((InetSocketAddress) server.address()).getPort();
     if (address.isAnyLocalAddress()) {
       return Address.create(Address.getLocalIpAddress().getHostAddress(), port);
     } else {

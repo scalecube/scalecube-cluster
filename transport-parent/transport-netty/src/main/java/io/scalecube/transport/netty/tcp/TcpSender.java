@@ -8,7 +8,6 @@ import io.scalecube.transport.netty.Sender;
 import io.scalecube.transport.netty.TransportImpl.SenderContext;
 import reactor.core.publisher.Mono;
 import reactor.netty.Connection;
-import reactor.netty.channel.BootstrapHandlers;
 import reactor.netty.resources.ConnectionProvider;
 import reactor.netty.tcp.TcpClient;
 
@@ -50,10 +49,8 @@ final class TcpSender implements Sender {
             .option(ChannelOption.SO_KEEPALIVE, true)
             .option(ChannelOption.SO_REUSEADDR, true)
             .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.connectTimeout())
-            .bootstrap(
-                b ->
-                    BootstrapHandlers.updateConfiguration(
-                        b, "outbound", new TcpChannelInitializer(config.maxFrameLength())));
+            .doOnChannelInit((connectionObserver, channel, remoteAddress) ->
+                new TcpChannelInitializer(config.maxFrameLength()).accept(connectionObserver, channel));
     return config.isSecured() ? tcpClient.secure() : tcpClient;
   }
 }
