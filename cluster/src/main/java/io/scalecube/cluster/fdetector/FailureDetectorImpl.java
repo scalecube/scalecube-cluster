@@ -20,10 +20,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
-import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxProcessor;
-import reactor.core.publisher.FluxSink;
+import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Scheduler;
 
 public final class FailureDetectorImpl implements FailureDetector {
@@ -46,18 +44,15 @@ public final class FailureDetectorImpl implements FailureDetector {
   // State
 
   private long currentPeriod = 0;
-  private List<Member> pingMembers = new ArrayList<>();
   private int pingMemberIndex = 0; // index for sequential ping member selection
+  private final List<Member> pingMembers = new ArrayList<>();
 
   // Disposables
 
   private final Disposable.Composite actionsDisposables = Disposables.composite();
 
-  // Subject
-  private final FluxProcessor<FailureDetectorEvent, FailureDetectorEvent> subject =
-      DirectProcessor.<FailureDetectorEvent>create().serialize();
-
-  private final FluxSink<FailureDetectorEvent> sink = subject.sink();
+  // Sink
+  private final Sinks.Many<FailureDetectorEvent> sink = Sinks.many().multicast().directBestEffort();
 
   // Scheduled
   private final Scheduler scheduler;
@@ -111,12 +106,12 @@ public final class FailureDetectorImpl implements FailureDetector {
     actionsDisposables.dispose();
 
     // Stop publishing events
-    sink.complete();
+    sink.tryEmitComplete();
   }
 
   @Override
   public Flux<FailureDetectorEvent> listen() {
-    return subject.onBackpressureBuffer();
+    return sink.asFlux();
   }
 
   // ================================================
@@ -376,7 +371,7 @@ public final class FailureDetectorImpl implements FailureDetector {
 
   private void publishPingResult(long period, Member member, MemberStatus status) {
     LOGGER.debug("[{}][{}] Member {} detected as {}", localMember, period, member, status);
-    sink.next(new FailureDetectorEvent(member, status));
+    sink.tryEmitNext(new FailureDetectorEvent(member, status));
   }
 
   private MemberStatus computeMemberStatus(Message message, long period) {

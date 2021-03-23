@@ -9,7 +9,6 @@ import java.net.InetSocketAddress;
 import reactor.core.publisher.Mono;
 import reactor.netty.DisposableServer;
 import reactor.netty.http.server.HttpServer;
-import reactor.netty.http.server.HttpServerRequest;
 import reactor.netty.http.server.HttpServerResponse;
 import reactor.netty.http.websocket.WebsocketInbound;
 import reactor.netty.http.websocket.WebsocketOutbound;
@@ -24,31 +23,25 @@ final class WebsocketReceiver implements Receiver {
 
   @Override
   public Mono<DisposableServer> bind() {
-    return Mono.deferWithContext(context -> Mono.just(context.get(ReceiverContext.class)))
+    return Mono.deferContextual(context -> Mono.just(context.get(ReceiverContext.class)))
         .flatMap(
             context ->
                 newHttpServer(context)
-                    .handle((request, response) -> onMessage(context, request, response))
+                    .handle((request, response) -> onMessage(context, response))
                     .bind()
                     .cast(DisposableServer.class));
   }
 
   private HttpServer newHttpServer(ReceiverContext context) {
     return HttpServer.create()
-        .tcpConfiguration(
-            tcpServer ->
-                tcpServer
-                    .runOn(context.loopResources())
-                    .bindAddress(() -> new InetSocketAddress(config.port()))
-                    .option(ChannelOption.TCP_NODELAY, true)
-                    .option(ChannelOption.SO_KEEPALIVE, true)
-                    .option(ChannelOption.SO_REUSEADDR, true));
+        .runOn(context.loopResources())
+        .bindAddress(() -> new InetSocketAddress(config.port()))
+        .childOption(ChannelOption.TCP_NODELAY, true)
+        .childOption(ChannelOption.SO_KEEPALIVE, true)
+        .childOption(ChannelOption.SO_REUSEADDR, true);
   }
 
-  private Mono<Void> onMessage(
-      ReceiverContext context,
-      @SuppressWarnings("unused") HttpServerRequest request,
-      HttpServerResponse response) {
+  private Mono<Void> onMessage(ReceiverContext context, HttpServerResponse response) {
     return response.sendWebsocket(
         (WebsocketInbound inbound, WebsocketOutbound outbound) ->
             inbound

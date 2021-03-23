@@ -21,12 +21,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
-import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxProcessor;
-import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
+import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Scheduler;
 
 public final class GossipProtocolImpl implements GossipProtocol {
@@ -58,12 +56,8 @@ public final class GossipProtocolImpl implements GossipProtocol {
 
   private final Disposable.Composite actionsDisposables = Disposables.composite();
 
-  // Subject
-
-  private final FluxProcessor<Message, Message> subject =
-      DirectProcessor.<Message>create().serialize();
-
-  private final FluxSink<Message> sink = subject.sink();
+  // Sink
+  private final Sinks.Many<Message> sink = Sinks.many().multicast().directBestEffort();
 
   // Scheduled
 
@@ -119,7 +113,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
     actionsDisposables.dispose();
 
     // Stop publishing events
-    sink.complete();
+    sink.tryEmitComplete();
   }
 
   @Override
@@ -131,7 +125,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
 
   @Override
   public Flux<Message> listen() {
-    return subject.onBackpressureBuffer();
+    return sink.asFlux();
   }
 
   // ================================================
@@ -207,7 +201,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
         if (gossipState == null) { // new gossip
           gossipState = new GossipState(gossip, period);
           gossips.put(gossip.gossipId(), gossipState);
-          sink.next(gossip.message());
+          sink.tryEmitNext(gossip.message());
         }
         gossipState.addToInfected(gossipRequest.from());
       }
