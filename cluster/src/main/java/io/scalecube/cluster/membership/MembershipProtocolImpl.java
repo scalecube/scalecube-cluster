@@ -90,7 +90,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private final Set<String> aliveEmittedSet = new HashSet<>();
 
   // Sink
-  private final Sinks.Many<MembershipEvent> sink = Sinks.many().multicast().directBestEffort();
+  private final Sinks.Many<MembershipEvent> sink = Sinks.many().multicast().onBackpressureBuffer();
 
   // Disposables
   private final Disposable.Composite actionsDisposables = Disposables.composite();

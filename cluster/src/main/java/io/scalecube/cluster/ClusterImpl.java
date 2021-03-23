@@ -77,7 +77,7 @@ public final class ClusterImpl implements Cluster {
       cluster -> new ClusterMessageHandler() {};
 
   // Sink
-  private final Sinks.Many<MembershipEvent> sink = Sinks.many().multicast().directBestEffort();
+  private final Sinks.Many<MembershipEvent> sink = Sinks.many().multicast().onBackpressureBuffer();
 
   // Disposables
   private final Disposable.Composite actionsDisposables = Disposables.composite();

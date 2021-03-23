@@ -57,7 +57,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
   private final Disposable.Composite actionsDisposables = Disposables.composite();
 
   // Sink
-  private final Sinks.Many<Message> sink = Sinks.many().multicast().directBestEffort();
+  private final Sinks.Many<Message> sink = Sinks.many().multicast().onBackpressureBuffer();
 
   // Scheduled
 

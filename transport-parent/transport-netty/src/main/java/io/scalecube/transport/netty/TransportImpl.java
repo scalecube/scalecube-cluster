@@ -40,7 +40,7 @@ public final class TransportImpl implements Transport {
   private final MessageCodec messageCodec;
 
   // Sink
-  private final Sinks.Many<Message> sink = Sinks.many().multicast().directBestEffort();
+  private final Sinks.Many<Message> sink = Sinks.many().multicast().onBackpressureBuffer();
 
   // Close handler
   private final Sinks.One<Void> stop = Sinks.one();
