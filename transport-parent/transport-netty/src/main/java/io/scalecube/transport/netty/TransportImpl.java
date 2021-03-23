@@ -26,11 +26,9 @@ import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
 import reactor.core.Exceptions;
-import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
-import reactor.core.publisher.MonoProcessor;
+import reactor.core.publisher.Sinks;
 import reactor.netty.Connection;
 import reactor.netty.DisposableServer;
 import reactor.netty.resources.LoopResources;
@@ -41,13 +39,12 @@ public final class TransportImpl implements Transport {
 
   private final MessageCodec messageCodec;
 
-  // Subject
-  private final DirectProcessor<Message> subject = DirectProcessor.create();
-  private final FluxSink<Message> sink = subject.sink();
+  // Sink
+  private final Sinks.Many<Message> sink = Sinks.many().multicast().directBestEffort();
 
   // Close handler
-  private final MonoProcessor<Void> stop = MonoProcessor.create();
-  private final MonoProcessor<Void> onStop = MonoProcessor.create();
+  private final Sinks.One<Void> stop = Sinks.one();
+  private final Sinks.One<Void> onStop = Sinks.one();
 
   // Server
   private Address address;
@@ -86,8 +83,9 @@ public final class TransportImpl implements Transport {
     this.server = server;
     this.address = prepareAddress(server);
     // Setup cleanup
-    stop.then(doStop())
-        .doFinally(s -> onStop.onComplete())
+    stop.asMono()
+        .then(doStop())
+        .doFinally(s -> onStop.tryEmitEmpty())
         .subscribe(
             null, ex -> LOGGER.warn("[{}][doStop] Exception occurred: {}", address, ex.toString()));
   }
@@ -148,17 +146,17 @@ public final class TransportImpl implements Transport {
    */
   @Override
   public Mono<Transport> start() {
-    return Mono.deferWithContext(context -> receiver.bind())
+    return Mono.deferContextual(context -> receiver.bind())
         .doOnNext(this::init)
         .doOnSuccess(t -> LOGGER.info("[bind0][{}] Bound cluster transport", t.address()))
         .doOnError(ex -> LOGGER.error("[bind0][{}] Exception occurred: {}", address, ex.toString()))
         .thenReturn(this)
         .cast(Transport.class)
-        .subscriberContext(
+        .contextWrite(
             context ->
                 context.put(
                     ReceiverContext.class,
-                    new ReceiverContext(loopResources, this::toMessage, sink::next)));
+                    new ReceiverContext(loopResources, this::toMessage, sink::tryEmitNext)));
   }
 
   @Override
@@ -168,15 +166,15 @@ public final class TransportImpl implements Transport {
 
   @Override
   public boolean isStopped() {
-    return onStop.isDisposed();
+    return onStop.asMono().toFuture().isDone();
   }
 
   @Override
   public final Mono<Void> stop() {
     return Mono.defer(
         () -> {
-          stop.onComplete();
-          return onStop;
+          stop.tryEmitEmpty();
+          return onStop.asMono();
         });
   }
 
@@ -185,7 +183,7 @@ public final class TransportImpl implements Transport {
         () -> {
           LOGGER.info("[{}][doStop] Stopping", address);
           // Complete incoming messages observable
-          sink.complete();
+          sink.tryEmitComplete();
           return Flux.concatDelayError(closeServer(), shutdownLoopResources())
               .then()
               .doFinally(s -> connections.clear())
@@ -195,17 +193,17 @@ public final class TransportImpl implements Transport {
 
   @Override
   public final Flux<Message> listen() {
-    return subject.onBackpressureBuffer();
+    return sink.asFlux().onBackpressureBuffer();
   }
 
   @Override
   public Mono<Void> send(Address address, Message message) {
-    return Mono.deferWithContext(context -> connections.computeIfAbsent(address, this::connect0))
+    return Mono.deferContextual(context -> connections.computeIfAbsent(address, this::connect0))
         .flatMap(
             connection ->
-                Mono.deferWithContext(context -> sender.send(message))
-                    .subscriberContext(context -> context.put(Connection.class, connection)))
-        .subscriberContext(
+                Mono.deferContextual(context -> sender.send(message))
+                    .contextWrite(context -> context.put(Connection.class, connection)))
+        .contextWrite(
             context ->
                 context.put(
                     SenderContext.class, new SenderContext(loopResources, this::toByteBuf)));

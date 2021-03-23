@@ -22,7 +22,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.ReplayProcessor;
+import reactor.core.publisher.Sinks;
 import reactor.test.StepVerifier;
 
 public class WebsocketTransportTest extends BaseTest {
@@ -322,8 +322,8 @@ public class WebsocketTransportTest extends BaseTest {
 
     server.listen().subscribe(message -> server.send(message.sender(), message).subscribe());
 
-    ReplayProcessor<Message> responses = ReplayProcessor.create();
-    client.listen().subscribe(responses);
+    final Sinks.Many<Message> sink = Sinks.many().replay().all();
+    client.listen().subscribe(sink::tryEmitNext, sink::tryEmitError, sink::tryEmitComplete);
 
     // test at unblocked transport
     send(client, server.address(), Message.fromQualifier("q/unblocked")).subscribe();
@@ -333,7 +333,7 @@ public class WebsocketTransportTest extends BaseTest {
     client.networkEmulator().blockOutbound(server.address());
     send(client, server.address(), Message.fromQualifier("q/blocked")).subscribe();
 
-    StepVerifier.create(responses)
+    StepVerifier.create(sink.asFlux())
         .assertNext(message -> assertEquals("q/unblocked", message.qualifier()))
         .expectNoEvent(Duration.ofMillis(300))
         .thenCancel()

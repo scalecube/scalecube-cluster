@@ -44,12 +44,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
-import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxProcessor;
-import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
+import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Scheduler;
 
 public final class MembershipProtocolImpl implements MembershipProtocol {
@@ -91,11 +89,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private final List<MembershipEvent> removedMembersHistory = new CopyOnWriteArrayList<>();
   private final Set<String> aliveEmittedSet = new HashSet<>();
 
-  // Subject
-
-  private final FluxProcessor<MembershipEvent, MembershipEvent> subject =
-      DirectProcessor.<MembershipEvent>create().serialize();
-  private final FluxSink<MembershipEvent> sink = subject.sink();
+  // Sink
+  private final Sinks.Many<MembershipEvent> sink = Sinks.many().multicast().directBestEffort();
 
   // Disposables
   private final Disposable.Composite actionsDisposables = Disposables.composite();
@@ -204,7 +199,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   @Override
   public Flux<MembershipEvent> listen() {
-    return subject.onBackpressureBuffer();
+    return sink.asFlux().onBackpressureBuffer();
   }
 
   /**
@@ -307,7 +302,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     suspicionTimeoutTasks.clear();
 
     // Stop publishing events
-    sink.complete();
+    sink.tryEmitComplete();
   }
 
   @Override
@@ -735,7 +730,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   private void publishEvent(MembershipEvent event) {
     LOGGER.info("[{}][publishEvent] {}", localMember, event);
-    sink.next(event);
+    sink.tryEmitNext(event);
   }
 
   private Mono<Void> onDeadMemberDetected(MembershipRecord r1) {

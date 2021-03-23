@@ -231,6 +231,7 @@ public class ClusterNamespacesTest extends BaseTest {
                         parent1.address(), parent2.address(), bob.address(), carol.address()))
             .startAwait();
 
+    //noinspection unused
     Cluster eve =
         new ClusterImpl()
             .transportFactory(WebsocketTransportFactory::new)

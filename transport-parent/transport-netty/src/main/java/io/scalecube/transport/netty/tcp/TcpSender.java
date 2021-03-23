@@ -21,14 +21,14 @@ final class TcpSender implements Sender {
 
   @Override
   public Mono<Connection> connect(Address address) {
-    return Mono.deferWithContext(context -> Mono.just(context.get(SenderContext.class)))
+    return Mono.deferContextual(context -> Mono.just(context.get(SenderContext.class)))
         .map(context -> newTcpClient(context, address))
         .flatMap(TcpClient::connect);
   }
 
   @Override
   public Mono<Void> send(Message message) {
-    return Mono.deferWithContext(
+    return Mono.deferContextual(
         context -> {
           Connection connection = context.get(Connection.class);
           SenderContext senderContext = context.get(SenderContext.class);

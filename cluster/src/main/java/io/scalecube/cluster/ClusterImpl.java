@@ -43,11 +43,9 @@ import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
 import reactor.core.Exceptions;
-import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
-import reactor.core.publisher.MonoProcessor;
+import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
@@ -78,18 +76,17 @@ public final class ClusterImpl implements Cluster {
   private Function<Cluster, ? extends ClusterMessageHandler> handler =
       cluster -> new ClusterMessageHandler() {};
 
-  // Subject
-  private final DirectProcessor<MembershipEvent> membershipEvents = DirectProcessor.create();
-  private final FluxSink<MembershipEvent> membershipSink = membershipEvents.sink();
+  // Sink
+  private final Sinks.Many<MembershipEvent> sink = Sinks.many().multicast().directBestEffort();
 
   // Disposables
   private final Disposable.Composite actionsDisposables = Disposables.composite();
 
   // Lifecycle
-  private final MonoProcessor<Void> start = MonoProcessor.create();
-  private final MonoProcessor<Void> onStart = MonoProcessor.create();
-  private final MonoProcessor<Void> shutdown = MonoProcessor.create();
-  private final MonoProcessor<Void> onShutdown = MonoProcessor.create();
+  private final Sinks.One<Void> start = Sinks.one();
+  private final Sinks.One<Void> onStart = Sinks.one();
+  private final Sinks.One<Void> shutdown = Sinks.one();
+  private final Sinks.One<Void> onShutdown = Sinks.one();
 
   // Cluster components
   private Transport transport;
@@ -119,14 +116,16 @@ public final class ClusterImpl implements Cluster {
 
   private void initLifecycle() {
     start
+        .asMono()
         .then(doStart())
-        .doOnSuccess(avoid -> onStart.onComplete())
-        .doOnError(onStart::onError)
+        .doOnSuccess(c -> onStart.tryEmitEmpty())
+        .doOnError(onStart::tryEmitError)
         .subscribe(null, th -> LOGGER.error("[{}][doStart] Exception occurred:", localMember, th));
 
     shutdown
+        .asMono()
         .then(doShutdown())
-        .doFinally(s -> onShutdown.onComplete())
+        .doFinally(s -> onShutdown.tryEmitEmpty())
         .subscribe(
             null,
             th ->
@@ -232,8 +231,8 @@ public final class ClusterImpl implements Cluster {
   public Mono<Cluster> start() {
     return Mono.defer(
         () -> {
-          start.onComplete();
-          return onStart.thenReturn(this);
+          start.tryEmitEmpty();
+          return onStart.asMono().thenReturn(this);
         });
   }
 
@@ -260,7 +259,7 @@ public final class ClusterImpl implements Cluster {
                   new FailureDetectorImpl(
                       localMember,
                       transport,
-                      membershipEvents.onBackpressureBuffer(),
+                      sink.asFlux().onBackpressureBuffer(),
                       config.failureDetectorConfig(),
                       scheduler,
                       cidGenerator);
@@ -269,7 +268,7 @@ public final class ClusterImpl implements Cluster {
                   new GossipProtocolImpl(
                       localMember,
                       transport,
-                      membershipEvents.onBackpressureBuffer(),
+                      sink.asFlux().onBackpressureBuffer(),
                       config.gossipConfig(),
                       scheduler);
 
@@ -295,7 +294,7 @@ public final class ClusterImpl implements Cluster {
                       .listen()
                       /*.publishOn(scheduler)*/
                       // Dont uncomment, already beign executed inside sc-cluster thread
-                      .subscribe(membershipSink::next, this::onError, membershipSink::complete));
+                      .subscribe(sink::tryEmitNext, this::onError, sink::tryEmitComplete));
 
               return Mono.fromRunnable(() -> failureDetector.start())
                   .then(Mono.fromRunnable(() -> gossip.start()))
@@ -373,7 +372,7 @@ public final class ClusterImpl implements Cluster {
 
   private Flux<MembershipEvent> listenMembership() {
     // listen on live stream
-    return membershipEvents.onBackpressureBuffer();
+    return sink.asFlux().onBackpressureBuffer();
   }
 
   /**
@@ -481,7 +480,7 @@ public final class ClusterImpl implements Cluster {
 
   @Override
   public void shutdown() {
-    shutdown.onComplete();
+    shutdown.tryEmitEmpty();
   }
 
   private Mono<Void> doShutdown() {
@@ -524,12 +523,12 @@ public final class ClusterImpl implements Cluster {
 
   @Override
   public Mono<Void> onShutdown() {
-    return onShutdown;
+    return onShutdown.asMono();
   }
 
   @Override
   public boolean isShutdown() {
-    return onShutdown.isDisposed();
+    return onShutdown.asMono().toFuture().isDone();
   }
 
   private static class SenderAwareTransport implements Transport {

@@ -11,7 +11,7 @@ import reactor.core.publisher.Mono;
 import reactor.netty.Connection;
 import reactor.netty.http.client.HttpClient;
 import reactor.netty.http.client.WebsocketClientSpec;
-import reactor.netty.tcp.TcpClient;
+import reactor.netty.resources.ConnectionProvider;
 
 final class WebsocketSender implements Sender {
 
@@ -23,14 +23,14 @@ final class WebsocketSender implements Sender {
 
   @Override
   public Mono<Connection> connect(Address address) {
-    return Mono.deferWithContext(context -> Mono.just(context.get(SenderContext.class)))
+    return Mono.deferContextual(context -> Mono.just(context.get(SenderContext.class)))
         .map(context -> newWebsocketSender(context, address))
         .flatMap(sender -> sender.uri("/").connect());
   }
 
   @Override
   public Mono<Void> send(Message message) {
-    return Mono.deferWithContext(
+    return Mono.deferContextual(
         context -> {
           Connection connection = context.get(Connection.class);
           SenderContext senderContext = context.get(SenderContext.class);
@@ -46,21 +46,19 @@ final class WebsocketSender implements Sender {
   }
 
   private HttpClient.WebsocketSender newWebsocketSender(SenderContext context, Address address) {
-    return HttpClient.newConnection()
-        .tcpConfiguration(
-            tcpClient -> {
-              TcpClient tcpClient1 =
-                  tcpClient
-                      .runOn(context.loopResources())
-                      .host(address.host())
-                      .port(address.port())
-                      .option(ChannelOption.TCP_NODELAY, true)
-                      .option(ChannelOption.SO_KEEPALIVE, true)
-                      .option(ChannelOption.SO_REUSEADDR, true)
-                      .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.connectTimeout());
-              return config.isSecured() ? tcpClient1.secure() : tcpClient1;
-            })
-        .websocket(
-            WebsocketClientSpec.builder().maxFramePayloadLength(config.maxFrameLength()).build());
+    HttpClient httpClient =
+        HttpClient.create(ConnectionProvider.newConnection())
+            .runOn(context.loopResources())
+            .host(address.host())
+            .port(address.port())
+            .option(ChannelOption.TCP_NODELAY, true)
+            .option(ChannelOption.SO_KEEPALIVE, true)
+            .option(ChannelOption.SO_REUSEADDR, true)
+            .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.connectTimeout());
+
+    httpClient = config.isSecured() ? httpClient.secure() : httpClient;
+
+    return httpClient.websocket(
+        WebsocketClientSpec.builder().maxFramePayloadLength(config.maxFrameLength()).build());
   }
 }
