@@ -90,7 +90,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private final Set<String> aliveEmittedSet = new HashSet<>();
 
   // Sink
-  private final Sinks.Many<MembershipEvent> sink = Sinks.many().multicast().onBackpressureBuffer();
+  private final Sinks.Many<MembershipEvent> sink = Sinks.many().multicast().directBestEffort();
 
   // Disposables
   private final Disposable.Composite actionsDisposables = Disposables.composite();
@@ -199,7 +199,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   @Override
   public Flux<MembershipEvent> listen() {
-    return sink.asFlux();
+    return sink.asFlux().onBackpressureBuffer();
   }
 
   /**

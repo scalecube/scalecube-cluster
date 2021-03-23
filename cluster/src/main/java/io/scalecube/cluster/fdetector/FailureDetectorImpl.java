@@ -52,8 +52,7 @@ public final class FailureDetectorImpl implements FailureDetector {
   private final Disposable.Composite actionsDisposables = Disposables.composite();
 
   // Sink
-  private final Sinks.Many<FailureDetectorEvent> sink =
-      Sinks.many().multicast().onBackpressureBuffer();
+  private final Sinks.Many<FailureDetectorEvent> sink = Sinks.many().multicast().directBestEffort();
 
   // Scheduled
   private final Scheduler scheduler;
@@ -112,7 +111,7 @@ public final class FailureDetectorImpl implements FailureDetector {
 
   @Override
   public Flux<FailureDetectorEvent> listen() {
-    return sink.asFlux();
+    return sink.asFlux().onBackpressureBuffer();
   }
 
   // ================================================

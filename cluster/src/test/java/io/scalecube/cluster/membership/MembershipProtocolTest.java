@@ -1127,7 +1127,7 @@ public class MembershipProtocolTest extends BaseTest {
   private MembershipProtocolImpl createMembership(Transport transport, ClusterConfig config) {
     Member localMember = new Member(newMemberId(), null, transport.address(), NAMESPACE);
 
-    Sinks.Many<MembershipEvent> sink = Sinks.many().multicast().onBackpressureBuffer();
+    Sinks.Many<MembershipEvent> sink = Sinks.many().multicast().directBestEffort();
 
     CorrelationIdGenerator cidGenerator = new CorrelationIdGenerator(localMember.id());
 
@@ -1135,14 +1135,18 @@ public class MembershipProtocolTest extends BaseTest {
         new FailureDetectorImpl(
             localMember,
             transport,
-            sink.asFlux(),
+            sink.asFlux().onBackpressureBuffer(),
             config.failureDetectorConfig(),
             scheduler,
             cidGenerator);
 
     GossipProtocolImpl gossipProtocol =
         new GossipProtocolImpl(
-            localMember, transport, sink.asFlux(), config.gossipConfig(), scheduler);
+            localMember,
+            transport,
+            sink.asFlux().onBackpressureBuffer(),
+            config.gossipConfig(),
+            scheduler);
 
     MetadataStoreImpl metadataStore =
         new MetadataStoreImpl(localMember, transport, null, config, scheduler, cidGenerator);

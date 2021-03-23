@@ -57,7 +57,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
   private final Disposable.Composite actionsDisposables = Disposables.composite();
 
   // Sink
-  private final Sinks.Many<Message> sink = Sinks.many().multicast().onBackpressureBuffer();
+  private final Sinks.Many<Message> sink = Sinks.many().multicast().directBestEffort();
 
   // Scheduled
 
@@ -125,7 +125,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
 
   @Override
   public Flux<Message> listen() {
-    return sink.asFlux();
+    return sink.asFlux().onBackpressureBuffer();
   }
 
   // ================================================

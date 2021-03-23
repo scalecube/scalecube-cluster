@@ -77,7 +77,7 @@ public final class ClusterImpl implements Cluster {
       cluster -> new ClusterMessageHandler() {};
 
   // Sink
-  private final Sinks.Many<MembershipEvent> sink = Sinks.many().multicast().onBackpressureBuffer();
+  private final Sinks.Many<MembershipEvent> sink = Sinks.many().multicast().directBestEffort();
 
   // Disposables
   private final Disposable.Composite actionsDisposables = Disposables.composite();
@@ -259,14 +259,18 @@ public final class ClusterImpl implements Cluster {
                   new FailureDetectorImpl(
                       localMember,
                       transport,
-                      sink.asFlux(),
+                      sink.asFlux().onBackpressureBuffer(),
                       config.failureDetectorConfig(),
                       scheduler,
                       cidGenerator);
 
               gossip =
                   new GossipProtocolImpl(
-                      localMember, transport, sink.asFlux(), config.gossipConfig(), scheduler);
+                      localMember,
+                      transport,
+                      sink.asFlux().onBackpressureBuffer(),
+                      config.gossipConfig(),
+                      scheduler);
 
               metadataStore =
                   new MetadataStoreImpl(
@@ -368,7 +372,7 @@ public final class ClusterImpl implements Cluster {
 
   private Flux<MembershipEvent> listenMembership() {
     // listen on live stream
-    return sink.asFlux();
+    return sink.asFlux().onBackpressureBuffer();
   }
 
   /**
