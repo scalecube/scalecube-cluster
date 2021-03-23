@@ -7,7 +7,6 @@ import io.scalecube.transport.netty.TransportImpl.ReceiverContext;
 import java.net.InetSocketAddress;
 import reactor.core.publisher.Mono;
 import reactor.netty.DisposableServer;
-import reactor.netty.channel.BootstrapHandlers;
 import reactor.netty.tcp.TcpServer;
 
 final class TcpReceiver implements Receiver {
@@ -42,9 +41,10 @@ final class TcpReceiver implements Receiver {
         .option(ChannelOption.TCP_NODELAY, true)
         .option(ChannelOption.SO_KEEPALIVE, true)
         .option(ChannelOption.SO_REUSEADDR, true)
-        .bootstrap(
-            b ->
-                BootstrapHandlers.updateConfiguration(
-                    b, "inbound", new TcpChannelInitializer(config.maxFrameLength())));
+        .doOnChannelInit(
+            (connectionObserver, channel, remoteAddress) -> {
+              new TcpChannelInitializer(config.maxFrameLength())
+                  .accept(connectionObserver, channel);
+            });
   }
 }

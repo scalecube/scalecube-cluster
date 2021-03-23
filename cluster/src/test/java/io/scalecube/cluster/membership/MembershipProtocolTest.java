@@ -39,6 +39,7 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.ReplayProcessor;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
+import reactor.util.retry.Retry;
 
 public class MembershipProtocolTest extends BaseTest {
 
@@ -1199,7 +1200,7 @@ public class MembershipProtocolTest extends BaseTest {
 
   private Mono<Void> awaitUntil(Runnable assertAction) {
     return Mono.<Void>fromRunnable(assertAction)
-        .retryBackoff(Long.MAX_VALUE, Duration.ofMillis(100), Duration.ofSeconds(1));
+        .retryWhen(Retry.backoff(Long.MAX_VALUE, Duration.ofMillis(100)));
   }
 
   private void assertTrusted(MembershipProtocolImpl membership, Member... expected) {
