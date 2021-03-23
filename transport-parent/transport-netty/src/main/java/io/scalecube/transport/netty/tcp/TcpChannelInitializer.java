@@ -25,11 +25,11 @@ final class TcpChannelInitializer implements BiConsumer<ConnectionObserver, Chan
   @Override
   public void accept(ConnectionObserver connectionObserver, Channel channel) {
     ChannelPipeline pipeline = channel.pipeline();
-    pipeline.addFirst(new ExceptionHandler());
     pipeline.addFirst(
         new LengthFieldBasedFrameDecoder(
             maxFrameLength, 0, LENGTH_FIELD_LENGTH, 0, LENGTH_FIELD_LENGTH));
     pipeline.addFirst(new LengthFieldPrepender(LENGTH_FIELD_LENGTH));
+    pipeline.addLast(new ExceptionHandler());
   }
 
   @ChannelHandler.Sharable
