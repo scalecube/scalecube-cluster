@@ -47,7 +47,7 @@ public class WebsocketTransportTest extends BaseTest {
     try {
       Address address = Address.from("wronghost:49255");
       Message message = Message.withData("q").build();
-      client.send(address, message).block(Duration.ofSeconds(5));
+      client.send(address, message).block(Duration.ofSeconds(20));
       fail("fail");
     } catch (Exception e) {
       assertEquals(
