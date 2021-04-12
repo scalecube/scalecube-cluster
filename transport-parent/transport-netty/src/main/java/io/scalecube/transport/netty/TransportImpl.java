@@ -26,7 +26,9 @@ import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
 import reactor.core.Exceptions;
+import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 import reactor.netty.Connection;
@@ -39,8 +41,9 @@ public final class TransportImpl implements Transport {
 
   private final MessageCodec messageCodec;
 
-  // Sink
-  private final Sinks.Many<Message> sink = Sinks.many().multicast().directAllOrNothing();
+  // Subject
+  private final DirectProcessor<Message> subject = DirectProcessor.create();
+  private final FluxSink<Message> sink = subject.sink();
 
   // Close handler
   private final Sinks.One<Void> stop = Sinks.one();
@@ -156,7 +159,7 @@ public final class TransportImpl implements Transport {
             context ->
                 context.put(
                     ReceiverContext.class,
-                    new ReceiverContext(loopResources, this::toMessage, sink::tryEmitNext)));
+                    new ReceiverContext(loopResources, this::toMessage, sink::next)));
   }
 
   @Override
@@ -183,7 +186,7 @@ public final class TransportImpl implements Transport {
         () -> {
           LOGGER.info("[{}][doStop] Stopping", address);
           // Complete incoming messages observable
-          sink.tryEmitComplete();
+          sink.complete();
           return Flux.concatDelayError(closeServer(), shutdownLoopResources())
               .then()
               .doFinally(s -> connections.clear())
@@ -193,7 +196,7 @@ public final class TransportImpl implements Transport {
 
   @Override
   public final Flux<Message> listen() {
-    return sink.asFlux().onBackpressureBuffer();
+    return subject.onBackpressureBuffer();
   }
 
   @Override
