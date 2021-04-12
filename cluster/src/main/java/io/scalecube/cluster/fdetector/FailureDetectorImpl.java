@@ -52,7 +52,8 @@ public final class FailureDetectorImpl implements FailureDetector {
   private final Disposable.Composite actionsDisposables = Disposables.composite();
 
   // Sink
-  private final Sinks.Many<FailureDetectorEvent> sink = Sinks.many().multicast().directBestEffort();
+  private final Sinks.Many<FailureDetectorEvent> sink =
+      Sinks.many().multicast().directAllOrNothing();
 
   // Scheduled
   private final Scheduler scheduler;

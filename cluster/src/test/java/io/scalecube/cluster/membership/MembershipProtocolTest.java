@@ -1127,7 +1127,7 @@ public class MembershipProtocolTest extends BaseTest {
   private MembershipProtocolImpl createMembership(Transport transport, ClusterConfig config) {
     Member localMember = new Member(newMemberId(), null, transport.address(), NAMESPACE);
 
-    Sinks.Many<MembershipEvent> sink = Sinks.many().multicast().directBestEffort();
+    Sinks.Many<MembershipEvent> sink = Sinks.many().multicast().directAllOrNothing();
 
     CorrelationIdGenerator cidGenerator = new CorrelationIdGenerator(localMember.id());
 
