@@ -3,8 +3,8 @@ package io.scalecube.cluster.membership;
 import static io.scalecube.cluster.membership.MemberStatus.ALIVE;
 import static io.scalecube.cluster.membership.MemberStatus.DEAD;
 import static io.scalecube.cluster.membership.MemberStatus.LEAVING;
+import static reactor.core.publisher.Sinks.EmitResult.FAIL_NON_SERIALIZED;
 
-import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.CorrelationIdGenerator;
 import io.scalecube.cluster.Member;
@@ -47,7 +47,10 @@ import reactor.core.Disposables;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
+import reactor.core.publisher.SignalType;
 import reactor.core.publisher.Sinks;
+import reactor.core.publisher.Sinks.EmitFailureHandler;
+import reactor.core.publisher.Sinks.EmitResult;
 import reactor.core.scheduler.Scheduler;
 
 public final class MembershipProtocolImpl implements MembershipProtocol {
@@ -90,7 +93,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private final Set<String> aliveEmittedSet = new HashSet<>();
 
   // Sink
-  private final Sinks.Many<MembershipEvent> sink = Sinks.many().multicast().directAllOrNothing();
+  private final Sinks.Many<MembershipEvent> sink = Sinks.many().multicast().directBestEffort();
 
   // Disposables
   private final Disposable.Composite actionsDisposables = Disposables.composite();
@@ -108,7 +111,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
    * @param failureDetector failure detector
    * @param gossipProtocol gossip protocol
    * @param metadataStore metadata store
-   * @param config cluster config parameters
+   * @param membershipConfig membershipConfig
+   * @param failureDetectorConfig failureDetectorConfig
    * @param scheduler scheduler
    * @param cidGenerator correlation id generator
    * @param monitorModelBuilder monitor model builder
@@ -119,7 +123,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       FailureDetector failureDetector,
       GossipProtocol gossipProtocol,
       MetadataStore metadataStore,
-      ClusterConfig config,
+      MembershipConfig membershipConfig,
+      FailureDetectorConfig failureDetectorConfig,
       Scheduler scheduler,
       CorrelationIdGenerator cidGenerator,
       ClusterMonitorModel.Builder monitorModelBuilder) {
@@ -132,8 +137,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     this.scheduler = Objects.requireNonNull(scheduler);
     this.cidGenerator = Objects.requireNonNull(cidGenerator);
     this.monitorModelBuilder = Objects.requireNonNull(monitorModelBuilder);
-    this.membershipConfig = Objects.requireNonNull(config).membershipConfig();
-    this.failureDetectorConfig = Objects.requireNonNull(config).failureDetectorConfig();
+    this.membershipConfig = Objects.requireNonNull(membershipConfig);
+    this.failureDetectorConfig = Objects.requireNonNull(failureDetectorConfig);
 
     // Prepare seeds
     seedMembers = cleanUpSeedMembers(membershipConfig.seedMembers());
@@ -302,7 +307,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     suspicionTimeoutTasks.clear();
 
     // Stop publishing events
-    sink.tryEmitComplete();
+    sink.emitComplete(RetryEmitFailureHandler.INSTANCE);
   }
 
   @Override
@@ -730,7 +735,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   private void publishEvent(MembershipEvent event) {
     LOGGER.info("[{}][publishEvent] {}", localMember, event);
-    sink.tryEmitNext(event);
+    sink.emitNext(event, RetryEmitFailureHandler.INSTANCE);
   }
 
   private Mono<Void> onDeadMemberDetected(MembershipRecord r1) {
@@ -935,6 +940,16 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     removedMembersHistory.add(event);
     if (removedMembersHistory.size() > s) {
       removedMembersHistory.remove(0);
+    }
+  }
+
+  private static class RetryEmitFailureHandler implements EmitFailureHandler {
+
+    private static final RetryEmitFailureHandler INSTANCE = new RetryEmitFailureHandler();
+
+    @Override
+    public boolean onEmitFailure(SignalType signalType, EmitResult emitResult) {
+      return emitResult == FAIL_NON_SERIALIZED;
     }
   }
 }

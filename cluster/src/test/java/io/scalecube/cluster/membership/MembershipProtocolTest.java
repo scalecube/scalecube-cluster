@@ -2,6 +2,7 @@ package io.scalecube.cluster.membership;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static reactor.core.publisher.Sinks.EmitResult.FAIL_NON_SERIALIZED;
 
 import io.scalecube.cluster.BaseTest;
 import io.scalecube.cluster.ClusterConfig;
@@ -34,7 +35,10 @@ import org.junit.jupiter.api.Test;
 import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.SignalType;
 import reactor.core.publisher.Sinks;
+import reactor.core.publisher.Sinks.EmitFailureHandler;
+import reactor.core.publisher.Sinks.EmitResult;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 import reactor.util.retry.Retry;
@@ -1127,7 +1131,7 @@ public class MembershipProtocolTest extends BaseTest {
   private MembershipProtocolImpl createMembership(Transport transport, ClusterConfig config) {
     Member localMember = new Member(newMemberId(), null, transport.address(), NAMESPACE);
 
-    Sinks.Many<MembershipEvent> sink = Sinks.many().multicast().directAllOrNothing();
+    Sinks.Many<MembershipEvent> sink = Sinks.many().multicast().directBestEffort();
 
     CorrelationIdGenerator cidGenerator = new CorrelationIdGenerator(localMember.id());
 
@@ -1158,7 +1162,8 @@ public class MembershipProtocolTest extends BaseTest {
             failureDetector,
             gossipProtocol,
             metadataStore,
-            config,
+            config.membershipConfig(),
+            config.failureDetectorConfig(),
             scheduler,
             cidGenerator,
             new ClusterMonitorModel.Builder());
@@ -1285,7 +1290,20 @@ public class MembershipProtocolTest extends BaseTest {
     membership
         .listen()
         .filter(MembershipEvent::isRemoved)
-        .subscribe(sink::tryEmitNext, sink::tryEmitError, sink::tryEmitComplete);
+        .subscribe(
+            event -> sink.emitNext(event, RetryEmitFailureHandler.INSTANCE),
+            error -> sink.emitError(error, RetryEmitFailureHandler.INSTANCE),
+            () -> sink.emitComplete(RetryEmitFailureHandler.INSTANCE));
     return sink;
+  }
+
+  private static class RetryEmitFailureHandler implements EmitFailureHandler {
+
+    private static final RetryEmitFailureHandler INSTANCE = new RetryEmitFailureHandler();
+
+    @Override
+    public boolean onEmitFailure(SignalType signalType, EmitResult emitResult) {
+      return emitResult == FAIL_NON_SERIALIZED;
+    }
   }
 }

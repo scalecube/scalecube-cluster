@@ -1,5 +1,7 @@
 package io.scalecube.cluster.gossip;
 
+import static reactor.core.publisher.Sinks.EmitResult.FAIL_NON_SERIALIZED;
+
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.membership.MembershipEvent;
@@ -24,7 +26,10 @@ import reactor.core.Disposables;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
+import reactor.core.publisher.SignalType;
 import reactor.core.publisher.Sinks;
+import reactor.core.publisher.Sinks.EmitFailureHandler;
+import reactor.core.publisher.Sinks.EmitResult;
 import reactor.core.scheduler.Scheduler;
 
 public final class GossipProtocolImpl implements GossipProtocol {
@@ -57,7 +62,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
   private final Disposable.Composite actionsDisposables = Disposables.composite();
 
   // Sink
-  private final Sinks.Many<Message> sink = Sinks.many().multicast().directAllOrNothing();
+  private final Sinks.Many<Message> sink = Sinks.many().multicast().directBestEffort();
 
   // Scheduled
 
@@ -113,7 +118,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
     actionsDisposables.dispose();
 
     // Stop publishing events
-    sink.tryEmitComplete();
+    sink.emitComplete(RetryEmitFailureHandler.INSTANCE);
   }
 
   @Override
@@ -201,7 +206,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
         if (gossipState == null) { // new gossip
           gossipState = new GossipState(gossip, period);
           gossips.put(gossip.gossipId(), gossipState);
-          sink.tryEmitNext(gossip.message());
+          sink.emitNext(gossip.message(), RetryEmitFailureHandler.INSTANCE);
         }
         gossipState.addToInfected(gossipRequest.from());
       }
@@ -377,5 +382,15 @@ public final class GossipProtocolImpl implements GossipProtocol {
    */
   Member getMember() {
     return localMember;
+  }
+
+  private static class RetryEmitFailureHandler implements EmitFailureHandler {
+
+    private static final RetryEmitFailureHandler INSTANCE = new RetryEmitFailureHandler();
+
+    @Override
+    public boolean onEmitFailure(SignalType signalType, EmitResult emitResult) {
+      return emitResult == FAIL_NON_SERIALIZED;
+    }
   }
 }

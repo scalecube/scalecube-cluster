@@ -1,5 +1,7 @@
 package io.scalecube.cluster.fdetector;
 
+import static reactor.core.publisher.Sinks.EmitResult.FAIL_NON_SERIALIZED;
+
 import io.scalecube.cluster.CorrelationIdGenerator;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.fdetector.PingData.AckType;
@@ -21,7 +23,10 @@ import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.SignalType;
 import reactor.core.publisher.Sinks;
+import reactor.core.publisher.Sinks.EmitFailureHandler;
+import reactor.core.publisher.Sinks.EmitResult;
 import reactor.core.scheduler.Scheduler;
 
 public final class FailureDetectorImpl implements FailureDetector {
@@ -52,8 +57,7 @@ public final class FailureDetectorImpl implements FailureDetector {
   private final Disposable.Composite actionsDisposables = Disposables.composite();
 
   // Sink
-  private final Sinks.Many<FailureDetectorEvent> sink =
-      Sinks.many().multicast().directAllOrNothing();
+  private final Sinks.Many<FailureDetectorEvent> sink = Sinks.many().multicast().directBestEffort();
 
   // Scheduled
   private final Scheduler scheduler;
@@ -107,7 +111,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     actionsDisposables.dispose();
 
     // Stop publishing events
-    sink.tryEmitComplete();
+    sink.emitComplete(RetryEmitFailureHandler.INSTANCE);
   }
 
   @Override
@@ -372,7 +376,7 @@ public final class FailureDetectorImpl implements FailureDetector {
 
   private void publishPingResult(long period, Member member, MemberStatus status) {
     LOGGER.debug("[{}][{}] Member {} detected as {}", localMember, period, member, status);
-    sink.tryEmitNext(new FailureDetectorEvent(member, status));
+    sink.emitNext(new FailureDetectorEvent(member, status), RetryEmitFailureHandler.INSTANCE);
   }
 
   private MemberStatus computeMemberStatus(Message message, long period) {
@@ -419,5 +423,15 @@ public final class FailureDetectorImpl implements FailureDetector {
    */
   Transport getTransport() {
     return transport;
+  }
+
+  private static class RetryEmitFailureHandler implements EmitFailureHandler {
+
+    private static final RetryEmitFailureHandler INSTANCE = new RetryEmitFailureHandler();
+
+    @Override
+    public boolean onEmitFailure(SignalType signalType, EmitResult emitResult) {
+      return emitResult == FAIL_NON_SERIALIZED;
+    }
   }
 }

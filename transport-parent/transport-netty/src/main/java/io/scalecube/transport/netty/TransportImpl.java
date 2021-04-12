@@ -1,5 +1,7 @@
 package io.scalecube.transport.netty;
 
+import static reactor.core.publisher.Sinks.EmitResult.FAIL_NON_SERIALIZED;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufInputStream;
@@ -26,11 +28,12 @@ import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
 import reactor.core.Exceptions;
-import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.SignalType;
 import reactor.core.publisher.Sinks;
+import reactor.core.publisher.Sinks.EmitFailureHandler;
+import reactor.core.publisher.Sinks.EmitResult;
 import reactor.netty.Connection;
 import reactor.netty.DisposableServer;
 import reactor.netty.resources.LoopResources;
@@ -42,8 +45,7 @@ public final class TransportImpl implements Transport {
   private final MessageCodec messageCodec;
 
   // Subject
-  private final DirectProcessor<Message> subject = DirectProcessor.create();
-  private final FluxSink<Message> sink = subject.sink();
+  private final Sinks.Many<Message> sink = Sinks.many().multicast().directBestEffort();
 
   // Close handler
   private final Sinks.One<Void> stop = Sinks.one();
@@ -159,7 +161,10 @@ public final class TransportImpl implements Transport {
             context ->
                 context.put(
                     ReceiverContext.class,
-                    new ReceiverContext(loopResources, this::toMessage, sink::next)));
+                    new ReceiverContext(
+                        loopResources,
+                        this::toMessage,
+                        message -> sink.emitNext(message, RetryEmitFailureHandler.INSTANCE))));
   }
 
   @Override
@@ -186,7 +191,7 @@ public final class TransportImpl implements Transport {
         () -> {
           LOGGER.info("[{}][doStop] Stopping", address);
           // Complete incoming messages observable
-          sink.complete();
+          sink.emitComplete(RetryEmitFailureHandler.INSTANCE);
           return Flux.concatDelayError(closeServer(), shutdownLoopResources())
               .then()
               .doFinally(s -> connections.clear())
@@ -196,7 +201,7 @@ public final class TransportImpl implements Transport {
 
   @Override
   public final Flux<Message> listen() {
-    return subject.onBackpressureBuffer();
+    return sink.asFlux().onBackpressureBuffer();
   }
 
   @Override
@@ -344,6 +349,16 @@ public final class TransportImpl implements Transport {
 
     public Function<Message, ByteBuf> messageEncoder() {
       return messageEncoder;
+    }
+  }
+
+  private static class RetryEmitFailureHandler implements EmitFailureHandler {
+
+    private static final RetryEmitFailureHandler INSTANCE = new RetryEmitFailureHandler();
+
+    @Override
+    public boolean onEmitFailure(SignalType signalType, EmitResult emitResult) {
+      return emitResult == FAIL_NON_SERIALIZED;
     }
   }
 }
