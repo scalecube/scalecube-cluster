@@ -1,5 +1,7 @@
 package io.scalecube.cluster;
 
+import static reactor.core.publisher.Sinks.EmitResult.FAIL_NON_SERIALIZED;
+
 import io.scalecube.cluster.fdetector.FailureDetectorConfig;
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipConfig;
@@ -45,7 +47,10 @@ import reactor.core.Disposables;
 import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.SignalType;
 import reactor.core.publisher.Sinks;
+import reactor.core.publisher.Sinks.EmitFailureHandler;
+import reactor.core.publisher.Sinks.EmitResult;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
@@ -283,7 +288,8 @@ public final class ClusterImpl implements Cluster {
                       failureDetector,
                       gossip,
                       metadataStore,
-                      config,
+                      config.membershipConfig(),
+                      config.failureDetectorConfig(),
                       scheduler,
                       cidGenerator,
                       monitorModelBuilder);
@@ -293,8 +299,11 @@ public final class ClusterImpl implements Cluster {
                   membership
                       .listen()
                       /*.publishOn(scheduler)*/
-                      // Dont uncomment, already beign executed inside sc-cluster thread
-                      .subscribe(sink::tryEmitNext, this::onError, sink::tryEmitComplete));
+                      // Dont uncomment, already beign executed inside scalecube-cluster thread
+                      .subscribe(
+                          event -> sink.emitNext(event, RetryEmitFailureHandler.INSTANCE),
+                          th -> LOGGER.error("[{}][membership][error] cause:", localMember, th),
+                          () -> sink.emitComplete(RetryEmitFailureHandler.INSTANCE)));
 
               return Mono.fromRunnable(() -> failureDetector.start())
                   .then(Mono.fromRunnable(() -> gossip.start()))
@@ -578,6 +587,16 @@ public final class ClusterImpl implements Cluster {
 
     private Message enhanceWithSender(Message message) {
       return Message.with(message).sender(address).build();
+    }
+  }
+
+  private static class RetryEmitFailureHandler implements EmitFailureHandler {
+
+    private static final RetryEmitFailureHandler INSTANCE = new RetryEmitFailureHandler();
+
+    @Override
+    public boolean onEmitFailure(SignalType signalType, EmitResult emitResult) {
+      return emitResult == FAIL_NON_SERIALIZED;
     }
   }
 }
