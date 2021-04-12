@@ -123,14 +123,14 @@ public final class ClusterImpl implements Cluster {
     start
         .asMono()
         .then(doStart())
-        .doOnSuccess(c -> onStart.tryEmitEmpty())
-        .doOnError(onStart::tryEmitError)
+        .doOnSuccess(c -> onStart.emitEmpty(RetryEmitFailureHandler.INSTANCE))
+        .doOnError(th -> onStart.emitError(th, RetryEmitFailureHandler.INSTANCE))
         .subscribe(null, th -> LOGGER.error("[{}][doStart] Exception occurred:", localMember, th));
 
     shutdown
         .asMono()
         .then(doShutdown())
-        .doFinally(s -> onShutdown.tryEmitEmpty())
+        .doFinally(s -> onShutdown.emitEmpty(RetryEmitFailureHandler.INSTANCE))
         .subscribe(
             null,
             th ->
@@ -236,7 +236,7 @@ public final class ClusterImpl implements Cluster {
   public Mono<Cluster> start() {
     return Mono.defer(
         () -> {
-          start.tryEmitEmpty();
+          start.emitEmpty(RetryEmitFailureHandler.INSTANCE);
           return onStart.asMono().thenReturn(this);
         });
   }
@@ -489,7 +489,7 @@ public final class ClusterImpl implements Cluster {
 
   @Override
   public void shutdown() {
-    shutdown.tryEmitEmpty();
+    shutdown.emitEmpty(RetryEmitFailureHandler.INSTANCE);
   }
 
   private Mono<Void> doShutdown() {

@@ -90,7 +90,7 @@ public final class TransportImpl implements Transport {
     // Setup cleanup
     stop.asMono()
         .then(doStop())
-        .doFinally(s -> onStop.tryEmitEmpty())
+        .doFinally(s -> onStop.emitEmpty(RetryEmitFailureHandler.INSTANCE))
         .subscribe(
             null, ex -> LOGGER.warn("[{}][doStop] Exception occurred: {}", address, ex.toString()));
   }
@@ -181,7 +181,7 @@ public final class TransportImpl implements Transport {
   public final Mono<Void> stop() {
     return Mono.defer(
         () -> {
-          stop.tryEmitEmpty();
+          stop.emitEmpty(RetryEmitFailureHandler.INSTANCE);
           return onStop.asMono();
         });
   }
