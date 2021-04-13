@@ -50,7 +50,7 @@ public final class TransportImpl implements Transport {
   private Address address;
   private DisposableServer server;
   private final Map<Address, Mono<? extends Connection>> connections = new ConcurrentHashMap<>();
-  private final LoopResources loopResources = LoopResources.create("sc-cluster-io", 1, true);
+  private final LoopResources loopResources = LoopResources.create("sc-cluster-io", 1, 1, true);
 
   // Transport factory
   private final Receiver receiver;
