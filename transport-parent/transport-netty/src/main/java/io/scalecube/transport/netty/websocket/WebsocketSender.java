@@ -55,7 +55,7 @@ final class WebsocketSender implements Sender {
             .option(ChannelOption.SO_KEEPALIVE, true)
             .option(ChannelOption.SO_REUSEADDR, true)
             .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.connectTimeout())
-            .resolver(opts -> opts.cacheMaxTimeToLive(Duration.ZERO));
+            .resolver(opts -> opts.cacheMaxTimeToLive(Duration.ofMillis(1)));
 
     if (config.isClientSecured()) {
       httpClient = httpClient.secure();
