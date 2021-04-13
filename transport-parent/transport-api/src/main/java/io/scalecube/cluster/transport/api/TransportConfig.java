@@ -15,7 +15,7 @@ public final class TransportConfig implements Cloneable {
   public static final int DEFAULT_LOCAL_CONNECT_TIMEOUT = 1_000;
 
   private int port = 0;
-  private boolean isSecured = false; // is client secured
+  private boolean clientSecured = false; // client secured flag
   private int connectTimeout = DEFAULT_CONNECT_TIMEOUT;
   private MessageCodec messageCodec = MessageCodec.INSTANCE;
   private int maxFrameLength = 2 * 1024 * 1024; // 2 MB
@@ -70,19 +70,19 @@ public final class TransportConfig implements Cloneable {
     return t;
   }
 
-  public boolean isSecured() {
-    return isSecured;
+  public boolean isClientSecured() {
+    return clientSecured;
   }
 
   /**
    * Setter to denote whether client part of the transport is secured.
    *
-   * @param isSecured isSecured
+   * @param clientSecured clientSecured
    * @return new {@code TransportConfig} instance
    */
-  public TransportConfig secured(boolean isSecured) {
+  public TransportConfig clientSecured(boolean clientSecured) {
     TransportConfig t = clone();
-    t.isSecured = isSecured;
+    t.clientSecured = clientSecured;
     return t;
   }
 
@@ -163,7 +163,7 @@ public final class TransportConfig implements Cloneable {
   public String toString() {
     return new StringJoiner(", ", TransportConfig.class.getSimpleName() + "[", "]")
         .add("port=" + port)
-        .add("isSecured=" + isSecured)
+        .add("clientSecured=" + clientSecured)
         .add("connectTimeout=" + connectTimeout)
         .add("messageCodec=" + messageCodec)
         .add("maxFrameLength=" + maxFrameLength)

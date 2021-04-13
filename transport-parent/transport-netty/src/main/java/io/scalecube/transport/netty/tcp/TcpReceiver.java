@@ -38,9 +38,9 @@ final class TcpReceiver implements Receiver {
     return TcpServer.create()
         .runOn(context.loopResources())
         .bindAddress(() -> new InetSocketAddress(config.port()))
-        .option(ChannelOption.TCP_NODELAY, true)
-        .option(ChannelOption.SO_KEEPALIVE, true)
-        .option(ChannelOption.SO_REUSEADDR, true)
+        .childOption(ChannelOption.TCP_NODELAY, true)
+        .childOption(ChannelOption.SO_KEEPALIVE, true)
+        .childOption(ChannelOption.SO_REUSEADDR, true)
         .doOnChannelInit(
             (connectionObserver, channel, remoteAddress) -> {
               new TcpChannelInitializer(config.maxFrameLength())

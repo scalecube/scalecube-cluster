@@ -35,14 +35,11 @@ final class WebsocketReceiver implements Receiver {
 
   private HttpServer newHttpServer(ReceiverContext context) {
     return HttpServer.create()
-        .tcpConfiguration(
-            tcpServer ->
-                tcpServer
-                    .runOn(context.loopResources())
-                    .bindAddress(() -> new InetSocketAddress(config.port()))
-                    .option(ChannelOption.TCP_NODELAY, true)
-                    .option(ChannelOption.SO_KEEPALIVE, true)
-                    .option(ChannelOption.SO_REUSEADDR, true));
+        .runOn(context.loopResources())
+        .bindAddress(() -> new InetSocketAddress(config.port()))
+        .childOption(ChannelOption.TCP_NODELAY, true)
+        .childOption(ChannelOption.SO_KEEPALIVE, true)
+        .childOption(ChannelOption.SO_REUSEADDR, true);
   }
 
   private Mono<Void> onMessage(
