@@ -41,9 +41,8 @@ final class TcpReceiver implements Receiver {
         .childOption(ChannelOption.SO_KEEPALIVE, true)
         .childOption(ChannelOption.SO_REUSEADDR, true)
         .doOnChannelInit(
-            (connectionObserver, channel, remoteAddress) -> {
-              new TcpChannelInitializer(config.maxFrameLength())
-                  .accept(connectionObserver, channel);
-            });
+            (connectionObserver, channel, remoteAddress) ->
+                new TcpChannelInitializer(config.maxFrameLength())
+                    .accept(connectionObserver, channel));
   }
 }

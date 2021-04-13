@@ -1,5 +1,6 @@
 package io.scalecube.transport.netty.websocket;
 
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelOption;
 import io.netty.util.ReferenceCountUtil;
 import io.scalecube.cluster.transport.api.TransportConfig;
@@ -52,6 +53,9 @@ final class WebsocketReceiver implements Receiver {
                 .retain()
                 .doOnNext(
                     byteBuf -> {
+                      if (byteBuf == Unpooled.EMPTY_BUFFER) {
+                        return;
+                      }
                       if (!byteBuf.isReadable()) {
                         ReferenceCountUtil.safeRelease(byteBuf);
                         return;
