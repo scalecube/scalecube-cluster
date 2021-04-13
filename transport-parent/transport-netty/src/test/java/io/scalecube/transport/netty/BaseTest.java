@@ -20,6 +20,8 @@ public class BaseTest {
 
   protected static final Logger LOGGER = LoggerFactory.getLogger(BaseTest.class);
 
+  protected static final int CONNECT_TIMEOUT = 10000;
+
   @BeforeEach
   public final void baseSetUp(TestInfo testInfo) {
     LOGGER.info("***** Test started  : " + testInfo.getDisplayName() + " *****");
@@ -73,7 +75,9 @@ public class BaseTest {
   protected NetworkEmulatorTransport createTcpTransport() {
     return new NetworkEmulatorTransport(
         TransportImpl.bindAwait(
-            TransportConfig.defaultConfig().transportFactory(new TcpTransportFactory())));
+            TransportConfig.defaultConfig()
+                .connectTimeout(CONNECT_TIMEOUT)
+                .transportFactory(new TcpTransportFactory())));
   }
 
   /**
@@ -84,6 +88,8 @@ public class BaseTest {
   protected NetworkEmulatorTransport createWebsocketTransport() {
     return new NetworkEmulatorTransport(
         TransportImpl.bindAwait(
-            TransportConfig.defaultConfig().transportFactory(new WebsocketTransportFactory())));
+            TransportConfig.defaultConfig()
+                .connectTimeout(CONNECT_TIMEOUT)
+                .transportFactory(new WebsocketTransportFactory())));
   }
 }
