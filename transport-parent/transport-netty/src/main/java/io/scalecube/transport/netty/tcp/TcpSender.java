@@ -6,6 +6,7 @@ import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.net.Address;
 import io.scalecube.transport.netty.Sender;
 import io.scalecube.transport.netty.TransportImpl.SenderContext;
+import java.time.Duration;
 import reactor.core.publisher.Mono;
 import reactor.netty.Connection;
 import reactor.netty.tcp.TcpClient;
@@ -48,6 +49,7 @@ final class TcpSender implements Sender {
             .option(ChannelOption.SO_KEEPALIVE, true)
             .option(ChannelOption.SO_REUSEADDR, true)
             .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.connectTimeout())
+            .resolver(opts -> opts.cacheMaxTimeToLive(Duration.ZERO))
             .doOnChannelInit(
                 (connectionObserver, channel, remoteAddress) ->
                     new TcpChannelInitializer(config.maxFrameLength())
