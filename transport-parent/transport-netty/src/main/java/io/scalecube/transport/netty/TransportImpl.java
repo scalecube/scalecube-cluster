@@ -148,13 +148,13 @@ public final class TransportImpl implements Transport {
    */
   @Override
   public Mono<Transport> start() {
-    return Mono.deferWithContext(context -> receiver.bind())
+    return Mono.deferContextual(context -> receiver.bind())
         .doOnNext(this::init)
         .doOnSuccess(t -> LOGGER.info("[bind0][{}] Bound cluster transport", t.address()))
         .doOnError(ex -> LOGGER.error("[bind0][{}] Exception occurred: {}", address, ex.toString()))
         .thenReturn(this)
         .cast(Transport.class)
-        .subscriberContext(
+        .contextWrite(
             context ->
                 context.put(
                     ReceiverContext.class,
@@ -200,12 +200,12 @@ public final class TransportImpl implements Transport {
 
   @Override
   public Mono<Void> send(Address address, Message message) {
-    return Mono.deferWithContext(context -> connections.computeIfAbsent(address, this::connect0))
+    return Mono.deferContextual(context -> connections.computeIfAbsent(address, this::connect0))
         .flatMap(
             connection ->
-                Mono.deferWithContext(context -> sender.send(message))
-                    .subscriberContext(context -> context.put(Connection.class, connection)))
-        .subscriberContext(
+                Mono.deferContextual(context -> sender.send(message))
+                    .contextWrite(context -> context.put(Connection.class, connection)))
+        .contextWrite(
             context ->
                 context.put(
                     SenderContext.class, new SenderContext(loopResources, this::toByteBuf)));
