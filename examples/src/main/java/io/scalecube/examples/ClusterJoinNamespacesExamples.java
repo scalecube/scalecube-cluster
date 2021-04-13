@@ -5,6 +5,7 @@ import static java.util.stream.Collectors.joining;
 import io.scalecube.cluster.Cluster;
 import io.scalecube.cluster.ClusterImpl;
 import io.scalecube.cluster.Member;
+import io.scalecube.transport.netty.tcp.TcpTransportFactory;
 
 public class ClusterJoinNamespacesExamples {
 
@@ -15,6 +16,7 @@ public class ClusterJoinNamespacesExamples {
         new ClusterImpl()
             .config(opts -> opts.memberAlias("Alice"))
             .membership(opts -> opts.namespace("alice"))
+            .transportFactory(TcpTransportFactory::new)
             .startAwait();
 
     // Join Bob to cluster (seed: Alice)
@@ -23,6 +25,7 @@ public class ClusterJoinNamespacesExamples {
             .config(opts -> opts.memberAlias("Bob"))
             .membership(opts -> opts.namespace("alice/bob-and-carol"))
             .membership(opts -> opts.seedMembers(alice.address()))
+            .transportFactory(TcpTransportFactory::new)
             .startAwait();
 
     // Join Carol to cluster (seed: Alice and Bob)
@@ -31,6 +34,7 @@ public class ClusterJoinNamespacesExamples {
             .config(opts -> opts.memberAlias("Carol"))
             .membership(opts -> opts.namespace("alice/bob-and-carol"))
             .membership(opts -> opts.seedMembers(alice.address()))
+            .transportFactory(TcpTransportFactory::new)
             .startAwait();
 
     Cluster bobAndCarolChild1 =
@@ -38,6 +42,7 @@ public class ClusterJoinNamespacesExamples {
             .config(opts -> opts.memberAlias("Bob-and-Carol-Child-1"))
             .membership(opts -> opts.namespace("alice/bob-and-carol/child-1"))
             .membership(opts -> opts.seedMembers(alice.address()))
+            .transportFactory(TcpTransportFactory::new)
             .startAwait();
 
     Cluster carolChild2 =
@@ -45,6 +50,7 @@ public class ClusterJoinNamespacesExamples {
             .config(opts -> opts.memberAlias("Bob-and-Carol-Child-2"))
             .membership(opts -> opts.namespace("alice/bob-and-carol/child-2"))
             .membership(opts -> opts.seedMembers(alice.address()))
+            .transportFactory(TcpTransportFactory::new)
             .startAwait();
 
     // Join Dan to cluster
@@ -53,6 +59,7 @@ public class ClusterJoinNamespacesExamples {
             .config(opts -> opts.memberAlias("Dan"))
             .membership(opts -> opts.namespace("alice/dan-and-eve"))
             .membership(opts -> opts.seedMembers(alice.address()))
+            .transportFactory(TcpTransportFactory::new)
             .startAwait();
 
     // Join Eve to cluster
@@ -61,6 +68,7 @@ public class ClusterJoinNamespacesExamples {
             .config(opts -> opts.memberAlias("Eve"))
             .membership(opts -> opts.namespace("alice/dan-and-eve"))
             .membership(opts -> opts.seedMembers(alice.address()))
+            .transportFactory(TcpTransportFactory::new)
             .startAwait();
 
     // Print cluster members of each node

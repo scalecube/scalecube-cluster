@@ -4,6 +4,7 @@ import io.scalecube.cluster.Cluster;
 import io.scalecube.cluster.ClusterImpl;
 import io.scalecube.cluster.ClusterMessageHandler;
 import io.scalecube.cluster.transport.api.Message;
+import io.scalecube.transport.netty.tcp.TcpTransportFactory;
 import reactor.core.publisher.Flux;
 
 /**
@@ -19,6 +20,7 @@ public class MessagingExample {
     // Start cluster node Alice to listen and respond for incoming greeting messages
     Cluster alice =
         new ClusterImpl()
+            .transportFactory(TcpTransportFactory::new)
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {
@@ -38,6 +40,7 @@ public class MessagingExample {
     Cluster bob =
         new ClusterImpl()
             .membership(opts -> opts.seedMembers(alice.address()))
+            .transportFactory(TcpTransportFactory::new)
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {
@@ -56,6 +59,7 @@ public class MessagingExample {
     Cluster carol =
         new ClusterImpl()
             .membership(opts -> opts.seedMembers(alice.address(), bob.address()))
+            .transportFactory(TcpTransportFactory::new)
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {

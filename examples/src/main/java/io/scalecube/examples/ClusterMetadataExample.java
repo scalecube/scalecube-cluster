@@ -5,6 +5,7 @@ import io.scalecube.cluster.ClusterImpl;
 import io.scalecube.cluster.ClusterMessageHandler;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.transport.api.Message;
+import io.scalecube.transport.netty.tcp.TcpTransportFactory;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -22,7 +23,7 @@ public class ClusterMetadataExample {
   /** Main method. */
   public static void main(String[] args) throws Exception {
     // Start seed cluster member Alice
-    Cluster alice = new ClusterImpl().startAwait();
+    Cluster alice = new ClusterImpl().transportFactory(TcpTransportFactory::new).startAwait();
 
     // Join Joe to cluster with metadata and listen for incoming messages and print them to stdout
     //noinspection unused
@@ -30,6 +31,7 @@ public class ClusterMetadataExample {
         new ClusterImpl()
             .config(opts -> opts.metadata(Collections.singletonMap("name", "Joe")))
             .membership(opts -> opts.seedMembers(alice.address()))
+            .transportFactory(TcpTransportFactory::new)
             .handler(
                 cluster -> {
                   //noinspection CodeBlock2Expr

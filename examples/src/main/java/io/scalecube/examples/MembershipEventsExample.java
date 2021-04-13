@@ -7,6 +7,7 @@ import io.scalecube.cluster.ClusterMessageHandler;
 import io.scalecube.cluster.fdetector.FailureDetectorConfig;
 import io.scalecube.cluster.membership.MembershipConfig;
 import io.scalecube.cluster.membership.MembershipEvent;
+import io.scalecube.transport.netty.tcp.TcpTransportFactory;
 import java.text.SimpleDateFormat;
 import java.util.Collections;
 import java.util.Date;
@@ -28,6 +29,7 @@ public class MembershipEventsExample {
         new ClusterImpl()
             .config(opts -> opts.memberAlias("Alice"))
             .config(opts -> opts.metadata(Collections.singletonMap("name", "Alice")))
+            .transportFactory(TcpTransportFactory::new)
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {
@@ -46,6 +48,7 @@ public class MembershipEventsExample {
             .config(opts -> opts.memberAlias("Bob"))
             .config(opts -> opts.metadata(Collections.singletonMap("name", "Bob")))
             .membership(opts -> opts.seedMembers(alice.address()))
+            .transportFactory(TcpTransportFactory::new)
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {
@@ -64,6 +67,7 @@ public class MembershipEventsExample {
             .config(opts -> opts.memberAlias("Carol"))
             .config(opts -> opts.metadata(Collections.singletonMap("name", "Carol")))
             .membership(opts -> opts.seedMembers(bob.address()))
+            .transportFactory(TcpTransportFactory::new)
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {
