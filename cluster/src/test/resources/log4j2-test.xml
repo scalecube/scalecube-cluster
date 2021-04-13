@@ -17,7 +17,7 @@
     <Logger name="reactor.core" level="${env:reactorCoreLogLevel:-warn}"/>
     <Logger name="reactor.netty" level="${env:reactorNettyLogLevel:-warn}"/>
     <Logger name="io.netty" level="${env:nettyLogLevel:-warn}"/>
-    <Logger name="io.scalecube.cluster.transport" level="${env:clusterTransport:-info}"/>
+    <Logger name="io.scalecube.cluster.transport" level="${env:clusterTransport:-debug}"/>
     <Logger name="io.scalecube.cluster.fdetector" level="${env:clusterFdetector:-info}"/>
     <Logger name="io.scalecube.cluster.gossip" level="${env:clusterGossip:-info}"/>
     <Logger name="io.scalecube.cluster.membership" level="${env:clusterMembership:-info}"/>

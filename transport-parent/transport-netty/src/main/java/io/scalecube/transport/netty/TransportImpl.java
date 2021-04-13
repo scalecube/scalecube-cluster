@@ -10,14 +10,11 @@ import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.MessageCodec;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.transport.api.TransportConfig;
-import io.scalecube.cluster.transport.api.TransportFactory;
 import io.scalecube.net.Address;
-import io.scalecube.transport.netty.tcp.TcpTransportFactory;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -134,11 +131,8 @@ public final class TransportImpl implements Transport {
    * @return promise for bind operation
    */
   public static Mono<Transport> bind(TransportConfig config) {
-    return Optional.ofNullable(
-            Optional.ofNullable(config.transportFactory()).orElse(TransportFactory.INSTANCE))
-        .orElse(new TcpTransportFactory())
-        .createTransport(config)
-        .start();
+    Objects.requireNonNull(config.transportFactory(), "[bind] transportFactory");
+    return config.transportFactory().createTransport(config).start();
   }
 
   /**
