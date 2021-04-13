@@ -11,7 +11,7 @@
   </parent>
 
   <artifactId>scalecube-cluster-parent</artifactId>
-  <version>2.6.7-SNAPSHOT</version>
+  <version>2.6.9-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>scalecube-cluster</name>
 
@@ -35,7 +35,7 @@
   </scm>
 
   <properties>
-    <scalecube-commons.version>1.0.12</scalecube-commons.version>
+    <scalecube-commons.version>1.0.13</scalecube-commons.version>
 
     <slf4j.version>1.7.30</slf4j.version>
     <log4j.version>2.13.2</log4j.version>
