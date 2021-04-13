@@ -50,7 +50,7 @@ public final class TransportImpl implements Transport {
   private Address address;
   private DisposableServer server;
   private final Map<Address, Mono<? extends Connection>> connections = new ConcurrentHashMap<>();
-  private final LoopResources loopResources = LoopResources.create("sc-cluster-io", 1, 1, true);
+  private final LoopResources loopResources = LoopResources.create("sc-cluster-io", 1, true);
 
   // Transport factory
   private final Receiver receiver;
@@ -70,8 +70,9 @@ public final class TransportImpl implements Transport {
   }
 
   private static Address prepareAddress(DisposableServer server) {
-    InetAddress address = ((InetSocketAddress) server.address()).getAddress();
-    int port = ((InetSocketAddress) server.address()).getPort();
+    final InetSocketAddress serverAddress = (InetSocketAddress) server.address();
+    InetAddress address = serverAddress.getAddress();
+    int port = serverAddress.getPort();
     if (address.isAnyLocalAddress()) {
       return Address.create(Address.getLocalIpAddress().getHostAddress(), port);
     } else {
