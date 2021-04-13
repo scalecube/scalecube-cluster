@@ -23,7 +23,7 @@ final class WebsocketReceiver implements Receiver {
 
   @Override
   public Mono<DisposableServer> bind() {
-    return Mono.deferWithContext(context -> Mono.just(context.get(ReceiverContext.class)))
+    return Mono.deferContextual(context -> Mono.just(context.get(ReceiverContext.class)))
         .flatMap(
             context ->
                 newHttpServer(context)
