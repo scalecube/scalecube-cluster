@@ -180,9 +180,8 @@ public final class TransportImpl implements Transport {
           LOGGER.info("[{}][doStop] Stopping", address);
           // Complete incoming messages observable
           sink.complete();
-          return Flux.concatDelayError(closeServer(), shutdownLoopResources())
+          return Flux.concatDelayError(shutdownLoopResources())
               .then()
-              .doFinally(s -> connections.clear())
               .doOnSuccess(avoid -> LOGGER.info("[{}][doStop] Stopped", address));
         });
   }
