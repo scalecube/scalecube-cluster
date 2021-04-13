@@ -20,7 +20,7 @@ public class BaseTest {
 
   protected static final Logger LOGGER = LoggerFactory.getLogger(BaseTest.class);
 
-  protected static final int CONNECT_TIMEOUT = 10000;
+  protected static final int CONNECT_TIMEOUT = 30000;
 
   @BeforeEach
   public final void baseSetUp(TestInfo testInfo) {
