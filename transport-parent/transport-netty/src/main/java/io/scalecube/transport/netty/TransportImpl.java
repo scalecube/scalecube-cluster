@@ -261,20 +261,26 @@ public final class TransportImpl implements Transport {
     return byteBuf;
   }
 
-  private Mono<? extends Connection> connect0(Address address1) {
+  private Mono<? extends Connection> connect0(Address connectAddress) {
     return sender
-        .connect(address1)
+        .connect(connectAddress)
         .doOnSuccess(
             connection -> {
-              connection.onDispose().doOnTerminate(() -> connections.remove(address1)).subscribe();
+              connection
+                  .onDispose()
+                  .doOnTerminate(() -> connections.remove(connectAddress))
+                  .subscribe();
               LOGGER.debug(
-                  "[{}][connected][{}] Channel: {}", address, address1, connection.channel());
+                  "[{}][connected][{}] Channel: {}", address, connectAddress, connection.channel());
             })
         .doOnError(
             th -> {
               LOGGER.warn(
-                  "[{}][connect0][{}] Exception occurred: {}", address, address1, th.toString());
-              connections.remove(address1);
+                  "[{}][connect0][{}] Exception occurred: {}",
+                  address,
+                  connectAddress,
+                  th.toString());
+              connections.remove(connectAddress);
             })
         .cache();
   }
