@@ -8,7 +8,6 @@ import io.scalecube.transport.netty.Sender;
 import io.scalecube.transport.netty.TransportImpl.SenderContext;
 import reactor.core.publisher.Mono;
 import reactor.netty.Connection;
-import reactor.netty.resources.ConnectionProvider;
 import reactor.netty.tcp.TcpClient;
 
 final class TcpSender implements Sender {
@@ -41,7 +40,7 @@ final class TcpSender implements Sender {
 
   private TcpClient newTcpClient(SenderContext context, Address address) {
     TcpClient tcpClient =
-        TcpClient.create(ConnectionProvider.newConnection())
+        TcpClient.newConnection()
             .runOn(context.loopResources())
             .host(address.host())
             .port(address.port())
