@@ -8,6 +8,7 @@ import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipEvent.Type;
 import io.scalecube.cluster.metadata.MetadataCodec;
 import io.scalecube.net.Address;
+import io.scalecube.transport.netty.tcp.TcpTransportFactory;
 import java.net.InetAddress;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -44,6 +45,7 @@ public class ClusterTest extends BaseTest {
             .membership(opts -> opts.syncInterval(100))
             .transport(opts -> opts.port(address.port()))
             .transport(opts -> opts.connectTimeout(CONNECT_TIMEOUT))
+            .transportFactory(TcpTransportFactory::new)
             .startAwait();
 
     Cluster otherNode =
@@ -53,6 +55,7 @@ public class ClusterTest extends BaseTest {
             .failureDetector(opts -> opts.pingInterval(100))
             .membership(opts -> opts.syncInterval(100))
             .transport(opts -> opts.connectTimeout(CONNECT_TIMEOUT))
+            .transportFactory(TcpTransportFactory::new)
             .startAwait();
 
     assertEquals(2, seedNode.members().size());
@@ -69,6 +72,7 @@ public class ClusterTest extends BaseTest {
               .membership(opts -> opts.syncInterval(100))
               .transport(opts -> opts.port(address.port()))
               .transport(opts -> opts.connectTimeout(CONNECT_TIMEOUT))
+              .transportFactory(TcpTransportFactory::new)
               .startAwait();
 
       TimeUnit.SECONDS.sleep(1);
@@ -81,9 +85,12 @@ public class ClusterTest extends BaseTest {
   @Test
   public void testMembersAccessFromScheduler() {
     // Start seed node
-    Cluster seedNode = new ClusterImpl().startAwait();
+    Cluster seedNode = new ClusterImpl().transportFactory(TcpTransportFactory::new).startAwait();
     Cluster otherNode =
-        new ClusterImpl().membership(opts -> opts.seedMembers(seedNode.address())).startAwait();
+        new ClusterImpl()
+            .membership(opts -> opts.seedMembers(seedNode.address()))
+            .transportFactory(TcpTransportFactory::new)
+            .startAwait();
 
     assertEquals(2, seedNode.members().size());
     assertEquals(2, otherNode.members().size());
@@ -115,6 +122,7 @@ public class ClusterTest extends BaseTest {
         new ClusterImpl()
             .transport(opts -> opts.port(4801).connectTimeout(CONNECT_TIMEOUT))
             .membership(opts -> opts.seedMembers(addresses))
+            .transportFactory(TcpTransportFactory::new)
             .startAwait();
 
     Thread.sleep(CONNECT_TIMEOUT);
@@ -141,6 +149,7 @@ public class ClusterTest extends BaseTest {
         new ClusterImpl(new ClusterConfig().externalHost("localhost").externalPort(7878))
             .transport(opts -> opts.port(7878).connectTimeout(CONNECT_TIMEOUT))
             .membership(opts -> opts.seedMembers(addresses))
+            .transportFactory(TcpTransportFactory::new)
             .startAwait();
 
     Thread.sleep(CONNECT_TIMEOUT);
@@ -152,7 +161,7 @@ public class ClusterTest extends BaseTest {
   @Test
   public void testJoinDynamicPort() {
     // Start seed node
-    Cluster seedNode = new ClusterImpl().startAwait();
+    Cluster seedNode = new ClusterImpl().transportFactory(TcpTransportFactory::new).startAwait();
 
     int membersNum = 10;
     List<Cluster> otherNodes = new ArrayList<>(membersNum);
@@ -163,6 +172,7 @@ public class ClusterTest extends BaseTest {
         otherNodes.add(
             new ClusterImpl()
                 .membership(opts -> opts.seedMembers(seedNode.address()))
+                .transportFactory(TcpTransportFactory::new)
                 .startAwait());
       }
       LOGGER.info("Start up time: {} ms", System.currentTimeMillis() - startAt);
@@ -178,7 +188,7 @@ public class ClusterTest extends BaseTest {
   @Test
   public void testUpdateMetadata() throws Exception {
     // Start seed member
-    Cluster seedNode = new ClusterImpl().startAwait();
+    Cluster seedNode = new ClusterImpl().transportFactory(TcpTransportFactory::new).startAwait();
 
     Cluster metadataNode = null;
     int testMembersNum = 10;
@@ -193,6 +203,7 @@ public class ClusterTest extends BaseTest {
           new ClusterImpl()
               .config(opts -> opts.metadata(metadata))
               .membership(opts -> opts.seedMembers(seedNode.address()))
+              .transportFactory(TcpTransportFactory::new)
               .startAwait();
 
       // Start other test members
@@ -201,6 +212,7 @@ public class ClusterTest extends BaseTest {
               integer ->
                   new ClusterImpl()
                       .membership(opts -> opts.seedMembers(seedNode.address()))
+                      .transportFactory(TcpTransportFactory::new)
                       .handler(
                           cluster ->
                               new ClusterMessageHandler() {
@@ -248,7 +260,7 @@ public class ClusterTest extends BaseTest {
   @Test
   public void testUpdateMetadataProperty() throws Exception {
     // Start seed member
-    Cluster seedNode = new ClusterImpl().startAwait();
+    Cluster seedNode = new ClusterImpl().transportFactory(TcpTransportFactory::new).startAwait();
 
     Cluster metadataNode = null;
     int testMembersNum = 10;
@@ -264,6 +276,7 @@ public class ClusterTest extends BaseTest {
           new ClusterImpl()
               .config(opts -> opts.metadata(metadata))
               .membership(opts -> opts.seedMembers(seedNode.address()))
+              .transportFactory(TcpTransportFactory::new)
               .startAwait();
 
       // Start other test members
@@ -272,6 +285,7 @@ public class ClusterTest extends BaseTest {
               integer ->
                   new ClusterImpl()
                       .membership(opts -> opts.seedMembers(seedNode.address()))
+                      .transportFactory(TcpTransportFactory::new)
                       .handler(
                           cluster ->
                               new ClusterMessageHandler() {
@@ -324,7 +338,7 @@ public class ClusterTest extends BaseTest {
   @Test
   public void testRemoveMetadataProperty() throws Exception {
     // Start seed member
-    Cluster seedNode = new ClusterImpl().startAwait();
+    Cluster seedNode = new ClusterImpl().transportFactory(TcpTransportFactory::new).startAwait();
 
     Cluster metadataNode = null;
     int testMembersNum = 10;
@@ -340,6 +354,7 @@ public class ClusterTest extends BaseTest {
           new ClusterImpl()
               .config(opts -> opts.metadata(metadata))
               .membership(opts -> opts.seedMembers(seedNode.address()))
+              .transportFactory(TcpTransportFactory::new)
               .startAwait();
 
       // Start other test members
@@ -348,6 +363,7 @@ public class ClusterTest extends BaseTest {
               integer ->
                   new ClusterImpl()
                       .membership(opts -> opts.seedMembers(seedNode.address()))
+                      .transportFactory(TcpTransportFactory::new)
                       .handler(
                           cluster ->
                               new ClusterMessageHandler() {
@@ -417,22 +433,29 @@ public class ClusterTest extends BaseTest {
         };
 
     // Start seed member
-    final Cluster seedNode = new ClusterImpl().handler(cluster -> listener).startAwait();
+    final Cluster seedNode =
+        new ClusterImpl()
+            .transportFactory(TcpTransportFactory::new)
+            .handler(cluster -> listener)
+            .startAwait();
 
     // Start nodes
     final Cluster node1 =
         new ClusterImpl()
             .membership(opts -> opts.seedMembers(seedNode.address()))
+            .transportFactory(TcpTransportFactory::new)
             .handler(cluster -> listener)
             .startAwait();
     final Cluster node2 =
         new ClusterImpl()
             .membership(opts -> opts.seedMembers(seedNode.address()))
+            .transportFactory(TcpTransportFactory::new)
             .handler(cluster -> listener)
             .startAwait();
     final Cluster node3 =
         new ClusterImpl()
             .membership(opts -> opts.seedMembers(seedNode.address()))
+            .transportFactory(TcpTransportFactory::new)
             .handler(cluster -> listener)
             .startAwait();
 
@@ -455,6 +478,7 @@ public class ClusterTest extends BaseTest {
     final Cluster seedNode =
         new ClusterImpl()
             .config(opts -> opts.metadata(seedMetadata))
+            .transportFactory(TcpTransportFactory::new)
             .handler(
                 cluster ->
                     new ClusterMessageHandler() {
@@ -474,6 +498,7 @@ public class ClusterTest extends BaseTest {
         new ClusterImpl()
             .config(opts -> opts.metadata(node1Metadata))
             .membership(opts -> opts.seedMembers(seedNode.address()))
+            .transportFactory(TcpTransportFactory::new)
             .handler(
                 cluster ->
                     new ClusterMessageHandler() {
@@ -518,13 +543,17 @@ public class ClusterTest extends BaseTest {
   @Test
   public void testJoinSeedClusterWithNoExistingSeedMember() {
     // Start seed node
-    Cluster seedNode = new ClusterImpl().startAwait();
+    Cluster seedNode = new ClusterImpl().transportFactory(TcpTransportFactory::new).startAwait();
 
     Address nonExistingSeed1 = Address.from("localhost:1234");
     Address nonExistingSeed2 = Address.from("localhost:5678");
     Address[] seeds = new Address[] {nonExistingSeed1, nonExistingSeed2, seedNode.address()};
 
-    Cluster otherNode = new ClusterImpl().membership(opts -> opts.seedMembers(seeds)).startAwait();
+    Cluster otherNode =
+        new ClusterImpl()
+            .membership(opts -> opts.seedMembers(seeds))
+            .transportFactory(TcpTransportFactory::new)
+            .startAwait();
 
     assertEquals(otherNode.member(), seedNode.otherMembers().iterator().next());
     assertEquals(seedNode.member(), otherNode.otherMembers().iterator().next());
