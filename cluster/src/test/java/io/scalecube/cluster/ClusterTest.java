@@ -26,7 +26,7 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.core.publisher.ReplayProcessor;
+import reactor.core.publisher.Sinks;
 
 public class ClusterTest extends BaseTest {
 
@@ -472,7 +472,7 @@ public class ClusterTest extends BaseTest {
   @Test
   public void testMemberMetadataRemoved() throws InterruptedException {
     // Start seed member
-    ReplayProcessor<MembershipEvent> seedEvents = ReplayProcessor.create();
+    Sinks.Many<MembershipEvent> seedEvents = Sinks.many().replay().all();
     Map<String, String> seedMetadata = new HashMap<>();
     seedMetadata.put("seed", "shmid");
     final Cluster seedNode =
@@ -484,7 +484,7 @@ public class ClusterTest extends BaseTest {
                     new ClusterMessageHandler() {
                       @Override
                       public void onMembershipEvent(MembershipEvent event) {
-                        seedEvents.onNext(event);
+                        seedEvents.tryEmitNext(event);
                       }
                     })
             .startAwait();
@@ -493,7 +493,7 @@ public class ClusterTest extends BaseTest {
     // Start member with metadata
     Map<String, String> node1Metadata = new HashMap<>();
     node1Metadata.put("node", "shmod");
-    ReplayProcessor<MembershipEvent> node1Events = ReplayProcessor.create();
+    Sinks.Many<MembershipEvent> node1Events = Sinks.many().replay().all();
     final Cluster node1 =
         new ClusterImpl()
             .config(opts -> opts.metadata(node1Metadata))
@@ -504,16 +504,18 @@ public class ClusterTest extends BaseTest {
                     new ClusterMessageHandler() {
                       @Override
                       public void onMembershipEvent(MembershipEvent event) {
-                        node1Events.onNext(event);
+                        node1Events.tryEmitNext(event);
                       }
                     })
             .startAwait();
 
     // Check events
-    MembershipEvent nodeAddedEvent = seedEvents.as(Mono::from).block(Duration.ofSeconds(3));
+    MembershipEvent nodeAddedEvent =
+        seedEvents.asFlux().as(Mono::from).block(Duration.ofSeconds(3));
     assertEquals(Type.ADDED, nodeAddedEvent.type());
 
-    MembershipEvent seedAddedEvent = node1Events.as(Mono::from).block(Duration.ofSeconds(3));
+    MembershipEvent seedAddedEvent =
+        node1Events.asFlux().as(Mono::from).block(Duration.ofSeconds(3));
     assertEquals(Type.ADDED, seedAddedEvent.type());
 
     // Check metadata
@@ -524,6 +526,7 @@ public class ClusterTest extends BaseTest {
     CountDownLatch latch = new CountDownLatch(1);
     AtomicReference<Map<String, String>> removedMetadata = new AtomicReference<>();
     seedEvents
+        .asFlux()
         .filter(MembershipEvent::isRemoved)
         .subscribe(
             event -> {

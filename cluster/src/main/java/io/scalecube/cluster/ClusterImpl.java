@@ -1,5 +1,7 @@
 package io.scalecube.cluster;
 
+import static reactor.core.publisher.Sinks.EmitResult.FAIL_NON_SERIALIZED;
+
 import io.scalecube.cluster.fdetector.FailureDetectorConfig;
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipConfig;
@@ -43,11 +45,12 @@ import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
 import reactor.core.Exceptions;
-import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
-import reactor.core.publisher.MonoProcessor;
+import reactor.core.publisher.SignalType;
+import reactor.core.publisher.Sinks;
+import reactor.core.publisher.Sinks.EmitFailureHandler;
+import reactor.core.publisher.Sinks.EmitResult;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
@@ -79,17 +82,17 @@ public final class ClusterImpl implements Cluster {
       cluster -> new ClusterMessageHandler() {};
 
   // Subject
-  private final DirectProcessor<MembershipEvent> membershipEvents = DirectProcessor.create();
-  private final FluxSink<MembershipEvent> membershipSink = membershipEvents.sink();
+  private final Sinks.Many<MembershipEvent> membershipSink =
+      Sinks.many().multicast().directBestEffort();
 
   // Disposables
   private final Disposable.Composite actionsDisposables = Disposables.composite();
 
   // Lifecycle
-  private final MonoProcessor<Void> start = MonoProcessor.create();
-  private final MonoProcessor<Void> onStart = MonoProcessor.create();
-  private final MonoProcessor<Void> shutdown = MonoProcessor.create();
-  private final MonoProcessor<Void> onShutdown = MonoProcessor.create();
+  private final Sinks.One<Void> start = Sinks.one();
+  private final Sinks.One<Void> onStart = Sinks.one();
+  private final Sinks.One<Void> shutdown = Sinks.one();
+  private final Sinks.One<Void> onShutdown = Sinks.one();
 
   // Cluster components
   private Transport transport;
@@ -119,14 +122,16 @@ public final class ClusterImpl implements Cluster {
 
   private void initLifecycle() {
     start
+        .asMono()
         .then(doStart())
-        .doOnSuccess(avoid -> onStart.onComplete())
-        .doOnError(onStart::onError)
+        .doOnSuccess(avoid -> onStart.emitEmpty(RetryEmitFailureHandler.INSTANCE))
+        .doOnError(th -> onStart.emitError(th, RetryEmitFailureHandler.INSTANCE))
         .subscribe(null, th -> LOGGER.error("[{}][doStart] Exception occurred:", localMember, th));
 
     shutdown
+        .asMono()
         .then(doShutdown())
-        .doFinally(s -> onShutdown.onComplete())
+        .doFinally(s -> onShutdown.emitEmpty(RetryEmitFailureHandler.INSTANCE))
         .subscribe(
             null,
             th ->
@@ -232,8 +237,8 @@ public final class ClusterImpl implements Cluster {
   public Mono<Cluster> start() {
     return Mono.defer(
         () -> {
-          start.onComplete();
-          return onStart.thenReturn(this);
+          start.emitEmpty(RetryEmitFailureHandler.INSTANCE);
+          return onStart.asMono().thenReturn(this);
         });
   }
 
@@ -248,9 +253,9 @@ public final class ClusterImpl implements Cluster {
   private Mono<Cluster> doStart0() {
     return TransportImpl.bind(config.transportConfig())
         .flatMap(
-            transport1 -> {
-              localMember = createLocalMember(transport1.address());
-              transport = new SenderAwareTransport(transport1, localMember.address());
+            boundTransport -> {
+              localMember = createLocalMember(boundTransport.address());
+              transport = new SenderAwareTransport(boundTransport, localMember.address());
 
               cidGenerator = new CorrelationIdGenerator(localMember.id());
               scheduler = Schedulers.newSingle("sc-cluster-" + localMember.address().port(), true);
@@ -260,7 +265,7 @@ public final class ClusterImpl implements Cluster {
                   new FailureDetectorImpl(
                       localMember,
                       transport,
-                      membershipEvents.onBackpressureBuffer(),
+                      membershipSink.asFlux().onBackpressureBuffer(),
                       config.failureDetectorConfig(),
                       scheduler,
                       cidGenerator);
@@ -269,7 +274,7 @@ public final class ClusterImpl implements Cluster {
                   new GossipProtocolImpl(
                       localMember,
                       transport,
-                      membershipEvents.onBackpressureBuffer(),
+                      membershipSink.asFlux().onBackpressureBuffer(),
                       config.gossipConfig(),
                       scheduler);
 
@@ -295,7 +300,10 @@ public final class ClusterImpl implements Cluster {
                       .listen()
                       /*.publishOn(scheduler)*/
                       // Dont uncomment, already beign executed inside sc-cluster thread
-                      .subscribe(membershipSink::next, this::onError, membershipSink::complete));
+                      .subscribe(
+                          event -> membershipSink.emitNext(event, RetryEmitFailureHandler.INSTANCE),
+                          th -> LOGGER.error("[{}][membership][error] cause:", localMember, th),
+                          () -> membershipSink.emitComplete(RetryEmitFailureHandler.INSTANCE)));
 
               return Mono.fromRunnable(() -> failureDetector.start())
                   .then(Mono.fromRunnable(() -> gossip.start()))
@@ -373,7 +381,7 @@ public final class ClusterImpl implements Cluster {
 
   private Flux<MembershipEvent> listenMembership() {
     // listen on live stream
-    return membershipEvents.onBackpressureBuffer();
+    return membershipSink.asFlux().onBackpressureBuffer();
   }
 
   /**
@@ -481,7 +489,7 @@ public final class ClusterImpl implements Cluster {
 
   @Override
   public void shutdown() {
-    shutdown.onComplete();
+    shutdown.emitEmpty(RetryEmitFailureHandler.INSTANCE);
   }
 
   private Mono<Void> doShutdown() {
@@ -524,12 +532,12 @@ public final class ClusterImpl implements Cluster {
 
   @Override
   public Mono<Void> onShutdown() {
-    return onShutdown;
+    return onShutdown.asMono();
   }
 
   @Override
   public boolean isShutdown() {
-    return onShutdown.isDisposed();
+    return onShutdown.asMono().toFuture().isDone();
   }
 
   private static class SenderAwareTransport implements Transport {
@@ -579,6 +587,16 @@ public final class ClusterImpl implements Cluster {
 
     private Message enhanceWithSender(Message message) {
       return Message.with(message).sender(address).build();
+    }
+  }
+
+  private static class RetryEmitFailureHandler implements EmitFailureHandler {
+
+    private static final RetryEmitFailureHandler INSTANCE = new RetryEmitFailureHandler();
+
+    @Override
+    public boolean onEmitFailure(SignalType signalType, EmitResult emitResult) {
+      return emitResult == FAIL_NON_SERIALIZED;
     }
   }
 }
