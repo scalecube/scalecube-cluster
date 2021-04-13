@@ -200,8 +200,9 @@ public final class TransportImpl implements Transport {
   }
 
   @Override
-  public Mono<Void> send(Address address, Message message) {
-    return Mono.deferContextual(context -> connections.computeIfAbsent(address, this::connect0))
+  public Mono<Void> send(Address remoteAddress, Message message) {
+    return Mono.deferContextual(
+            context -> connections.computeIfAbsent(remoteAddress, this::connect0))
         .flatMap(
             connection ->
                 Mono.deferContextual(context -> sender.send(message))
@@ -261,26 +262,26 @@ public final class TransportImpl implements Transport {
     return byteBuf;
   }
 
-  private Mono<? extends Connection> connect0(Address connectAddress) {
+  private Mono<? extends Connection> connect0(Address remoteAddress) {
     return sender
-        .connect(connectAddress)
+        .connect(remoteAddress)
         .doOnSuccess(
             connection -> {
               connection
                   .onDispose()
-                  .doOnTerminate(() -> connections.remove(connectAddress))
+                  .doOnTerminate(() -> connections.remove(remoteAddress))
                   .subscribe();
               LOGGER.debug(
-                  "[{}][connected][{}] Channel: {}", address, connectAddress, connection.channel());
+                  "[{}][connected][{}] Channel: {}", address, remoteAddress, connection.channel());
             })
         .doOnError(
             th -> {
               LOGGER.warn(
                   "[{}][connect0][{}] Exception occurred: {}",
                   address,
-                  connectAddress,
+                  remoteAddress,
                   th.toString());
-              connections.remove(connectAddress);
+              connections.remove(remoteAddress);
             })
         .cache();
   }
