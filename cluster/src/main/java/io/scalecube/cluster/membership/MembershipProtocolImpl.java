@@ -714,7 +714,12 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
               r1,
               r2);
 
-          spreadMembershipGossip(r2).subscribe(null, th -> {});
+          spreadMembershipGossip(r2)
+              .subscribe(
+                  null,
+                  th -> {
+                    // no-op
+                  });
         });
   }
 
@@ -853,7 +858,12 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     // Spread gossip (unless already gossiped)
     if (reason != MembershipUpdateReason.MEMBERSHIP_GOSSIP
         && reason != MembershipUpdateReason.INITIAL_SYNC) {
-      spreadMembershipGossip(r).subscribe(null, th -> {});
+      spreadMembershipGossip(r)
+          .subscribe(
+              null,
+              th -> {
+                // no-op
+              });
     }
   }
 
