@@ -73,12 +73,12 @@ public final class TransportImpl implements Transport {
 
   private static Address prepareAddress(DisposableServer server) {
     final InetSocketAddress serverAddress = (InetSocketAddress) server.address();
-    InetAddress address = serverAddress.getAddress();
+    InetAddress inetAddress = serverAddress.getAddress();
     int port = serverAddress.getPort();
-    if (address.isAnyLocalAddress()) {
+    if (inetAddress.isAnyLocalAddress()) {
       return Address.create(Address.getLocalIpAddress().getHostAddress(), port);
     } else {
-      return Address.create(address.getHostAddress(), port);
+      return Address.create(inetAddress.getHostAddress(), port);
     }
   }
 

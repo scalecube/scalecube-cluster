@@ -38,4 +38,6 @@ jobs:
           cat /etc/hosts
           echo '#### ip addr:'
           ip -c addr
+          echo '#### hostname:'
+          hostname
           mvn verify -B
