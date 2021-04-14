@@ -537,7 +537,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   }
 
   private void onSyncMembershipError(MembershipUpdateReason reason, Throwable ex) {
-    LOGGER.debug(
+    LOGGER.warn(
         "[{}][syncMembership][{}] Exception occurred, cause: {}",
         localMember,
         reason,

@@ -1,8 +1,6 @@
 package io.scalecube.transport.netty.websocket;
 
-import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelOption;
-import io.netty.util.ReferenceCountUtil;
 import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.transport.netty.Receiver;
 import io.scalecube.transport.netty.TransportImpl.ReceiverContext;
@@ -48,20 +46,6 @@ final class WebsocketReceiver implements Receiver {
       HttpServerResponse response) {
     return response.sendWebsocket(
         (WebsocketInbound inbound, WebsocketOutbound outbound) ->
-            inbound
-                .receive()
-                .retain()
-                .doOnNext(
-                    byteBuf -> {
-                      if (byteBuf == Unpooled.EMPTY_BUFFER) {
-                        return;
-                      }
-                      if (!byteBuf.isReadable()) {
-                        ReferenceCountUtil.safeRelease(byteBuf);
-                        return;
-                      }
-                      context.onMessage(context.messageDecoder().apply(byteBuf));
-                    })
-                .then());
+            inbound.receive().retain().doOnNext(context::onMessage).then());
   }
 }

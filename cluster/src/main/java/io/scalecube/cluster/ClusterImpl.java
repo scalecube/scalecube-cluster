@@ -325,22 +325,25 @@ public final class ClusterImpl implements Cluster {
     if (metadataCodec == null) {
       Object metadata = config.metadata();
       if (metadata != null && !(metadata instanceof Serializable)) {
-        throw new IllegalArgumentException(
-            "Invalid cluster configuration: metadata must be Serializable");
+        throw new IllegalArgumentException("Invalid cluster config: metadata must be Serializable");
       }
     }
 
     Objects.requireNonNull(
+        config.transportConfig().transportFactory(),
+        "Invalid cluster config: transportFactory must be specified");
+
+    Objects.requireNonNull(
         config.transportConfig().messageCodec(),
-        "Invalid cluster configuration: transport.messageCodec must be specified");
+        "Invalid cluster config: messageCodec must be specified");
 
     Objects.requireNonNull(
         config.membershipConfig().namespace(),
-        "Invalid cluster configuration: membership.namespace must be specified");
+        "Invalid cluster config: membership namespace must be specified");
 
     if (!NAMESPACE_PATTERN.matcher(config.membershipConfig().namespace()).matches()) {
       throw new IllegalArgumentException(
-          "Invalid cluster config: membership.namespace format is invalid");
+          "Invalid cluster config: membership namespace format is invalid");
     }
   }
 

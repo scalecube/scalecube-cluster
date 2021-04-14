@@ -240,7 +240,16 @@ public class MetadataStoreImpl implements MetadataStore {
   }
 
   private ByteBuffer encodeMetadata() {
-    ByteBuffer result = config.metadataCodec().serialize(localMetadata);
+    ByteBuffer result = null;
+    try {
+      result = config.metadataCodec().serialize(localMetadata);
+    } catch (Exception e) {
+      LOGGER.error(
+          "[{}] Failed to encode metadata: {}, cause: {}",
+          localMember,
+          localMetadata,
+          e.toString());
+    }
     return Optional.ofNullable(result).orElse(EMPTY_BUFFER);
   }
 }

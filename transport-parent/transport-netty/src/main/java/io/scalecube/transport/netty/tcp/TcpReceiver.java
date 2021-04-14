@@ -22,13 +22,7 @@ final class TcpReceiver implements Receiver {
         .flatMap(
             context ->
                 newTcpServer(context)
-                    .handle(
-                        (in, out) ->
-                            in.receive()
-                                .retain()
-                                .map(context.messageDecoder())
-                                .doOnNext(context::onMessage)
-                                .then())
+                    .handle((in, out) -> in.receive().retain().doOnNext(context::onMessage).then())
                     .bind()
                     .cast(DisposableServer.class));
   }

@@ -6,8 +6,10 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.buffer.ByteBufOutputStream;
+import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.EncoderException;
+import io.netty.util.ReferenceCountUtil;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.MessageCodec;
 import io.scalecube.cluster.transport.api.Transport;
@@ -18,7 +20,6 @@ import java.net.InetSocketAddress;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -148,18 +149,15 @@ public final class TransportImpl implements Transport {
   public Mono<Transport> start() {
     return Mono.deferContextual(context -> receiver.bind())
         .doOnNext(this::init)
-        .doOnSuccess(t -> LOGGER.info("[bind0][{}] Bound cluster transport", t.address()))
-        .doOnError(ex -> LOGGER.error("[bind0][{}] Exception occurred: {}", address, ex.toString()))
+        .doOnSuccess(t -> LOGGER.info("[start][{}] Bound cluster transport", t.address()))
+        .doOnError(ex -> LOGGER.error("[start][{}] Exception occurred: {}", address, ex.toString()))
         .thenReturn(this)
         .cast(Transport.class)
         .contextWrite(
             context ->
                 context.put(
                     ReceiverContext.class,
-                    new ReceiverContext(
-                        loopResources,
-                        this::toMessage,
-                        message -> sink.emitNext(message, RetryEmitFailureHandler.INSTANCE))));
+                    new ReceiverContext(address, sink, loopResources, this::decodeMessage)));
   }
 
   @Override
@@ -209,7 +207,7 @@ public final class TransportImpl implements Transport {
         .contextWrite(
             context ->
                 context.put(
-                    SenderContext.class, new SenderContext(loopResources, this::toByteBuf)));
+                    SenderContext.class, new SenderContext(loopResources, this::encodeMessage)));
   }
 
   @Override
@@ -239,7 +237,7 @@ public final class TransportImpl implements Transport {
         });
   }
 
-  private Message toMessage(ByteBuf byteBuf) {
+  private Message decodeMessage(ByteBuf byteBuf) {
     try (ByteBufInputStream stream = new ByteBufInputStream(byteBuf, true)) {
       return messageCodec.deserialize(stream);
     } catch (Exception e) {
@@ -248,7 +246,7 @@ public final class TransportImpl implements Transport {
     }
   }
 
-  private ByteBuf toByteBuf(Message message) {
+  private ByteBuf encodeMessage(Message message) {
     ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer();
     ByteBufOutputStream stream = new ByteBufOutputStream(byteBuf);
     try {
@@ -271,12 +269,15 @@ public final class TransportImpl implements Transport {
                   .doOnTerminate(() -> connections.remove(remoteAddress))
                   .subscribe();
               LOGGER.debug(
-                  "[{}][connected][{}] Channel: {}", address, remoteAddress, connection.channel());
+                  "[{}][connect][success] remoteAddress: {}, channel: {}",
+                  address,
+                  remoteAddress,
+                  connection.channel());
             })
         .doOnError(
             th -> {
               LOGGER.warn(
-                  "[{}][connect][{}] Exception occurred: {}",
+                  "[{}][connect][error] remoteAddress: {}, cause: {}",
                   address,
                   remoteAddress,
                   th.toString());
@@ -308,29 +309,40 @@ public final class TransportImpl implements Transport {
 
   public static final class ReceiverContext {
 
+    private final Address address;
+    private final Sinks.Many<Message> sink;
     private final LoopResources loopResources;
     private final Function<ByteBuf, Message> messageDecoder;
-    private final Consumer<Message> messageConsumer;
 
     private ReceiverContext(
+        Address address,
+        Sinks.Many<Message> sink,
         LoopResources loopResources,
-        Function<ByteBuf, Message> messageDecoder,
-        Consumer<Message> messageConsumer) {
+        Function<ByteBuf, Message> messageDecoder) {
+      this.address = address;
+      this.sink = sink;
       this.loopResources = loopResources;
       this.messageDecoder = messageDecoder;
-      this.messageConsumer = messageConsumer;
     }
 
     public LoopResources loopResources() {
       return loopResources;
     }
 
-    public Function<ByteBuf, Message> messageDecoder() {
-      return messageDecoder;
-    }
-
-    public void onMessage(Message message) {
-      messageConsumer.accept(message);
+    public void onMessage(ByteBuf byteBuf) {
+      try {
+        if (byteBuf == Unpooled.EMPTY_BUFFER) {
+          return;
+        }
+        if (!byteBuf.isReadable()) {
+          ReferenceCountUtil.safeRelease(byteBuf);
+          return;
+        }
+        final Message message = messageDecoder.apply(byteBuf);
+        sink.emitNext(message, RetryEmitFailureHandler.INSTANCE);
+      } catch (Exception e) {
+        LOGGER.error("[{}][onMessage] Exception occurred:", address, e);
+      }
     }
   }
 
