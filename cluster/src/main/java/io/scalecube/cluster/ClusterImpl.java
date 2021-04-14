@@ -299,10 +299,10 @@ public final class ClusterImpl implements Cluster {
                   membership
                       .listen()
                       /*.publishOn(scheduler)*/
-                      // Dont uncomment, already beign executed inside sc-cluster thread
+                      // Dont uncomment, already beign executed inside scalecube-cluster thread
                       .subscribe(
                           event -> membershipSink.emitNext(event, RetryEmitFailureHandler.INSTANCE),
-                          th -> LOGGER.error("[{}][membership][error] cause:", localMember, th),
+                          this::onError,
                           () -> membershipSink.emitComplete(RetryEmitFailureHandler.INSTANCE)));
 
               return Mono.fromRunnable(() -> failureDetector.start())
