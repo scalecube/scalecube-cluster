@@ -1,36 +1,37 @@
 package io.scalecube.transport.netty;
 
+import static reactor.core.publisher.Sinks.EmitResult.FAIL_NON_SERIALIZED;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.buffer.ByteBufOutputStream;
+import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.EncoderException;
+import io.netty.util.ReferenceCountUtil;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.MessageCodec;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.transport.api.TransportConfig;
-import io.scalecube.cluster.transport.api.TransportFactory;
 import io.scalecube.net.Address;
-import io.scalecube.transport.netty.tcp.TcpTransportFactory;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
 import reactor.core.Exceptions;
-import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
-import reactor.core.publisher.MonoProcessor;
+import reactor.core.publisher.SignalType;
+import reactor.core.publisher.Sinks;
+import reactor.core.publisher.Sinks.EmitFailureHandler;
+import reactor.core.publisher.Sinks.EmitResult;
 import reactor.netty.Connection;
 import reactor.netty.DisposableServer;
 import reactor.netty.resources.LoopResources;
@@ -42,12 +43,11 @@ public final class TransportImpl implements Transport {
   private final MessageCodec messageCodec;
 
   // Subject
-  private final DirectProcessor<Message> subject = DirectProcessor.create();
-  private final FluxSink<Message> sink = subject.sink();
+  private final Sinks.Many<Message> sink = Sinks.many().multicast().directBestEffort();
 
   // Close handler
-  private final MonoProcessor<Void> stop = MonoProcessor.create();
-  private final MonoProcessor<Void> onStop = MonoProcessor.create();
+  private final Sinks.One<Void> stop = Sinks.one();
+  private final Sinks.One<Void> onStop = Sinks.one();
 
   // Server
   private Address address;
@@ -73,12 +73,13 @@ public final class TransportImpl implements Transport {
   }
 
   private static Address prepareAddress(DisposableServer server) {
-    InetAddress address = ((InetSocketAddress) server.address()).getAddress();
-    int port = ((InetSocketAddress) server.address()).getPort();
-    if (address.isAnyLocalAddress()) {
+    final InetSocketAddress serverAddress = (InetSocketAddress) server.address();
+    InetAddress inetAddress = serverAddress.getAddress();
+    int port = serverAddress.getPort();
+    if (inetAddress.isAnyLocalAddress()) {
       return Address.create(Address.getLocalIpAddress().getHostAddress(), port);
     } else {
-      return Address.create(address.getHostAddress(), port);
+      return Address.create(inetAddress.getHostAddress(), port);
     }
   }
 
@@ -86,8 +87,9 @@ public final class TransportImpl implements Transport {
     this.server = server;
     this.address = prepareAddress(server);
     // Setup cleanup
-    stop.then(doStop())
-        .doFinally(s -> onStop.onComplete())
+    stop.asMono()
+        .then(doStop())
+        .doFinally(s -> onStop.emitEmpty(RetryEmitFailureHandler.INSTANCE))
         .subscribe(
             null, ex -> LOGGER.warn("[{}][doStop] Exception occurred: {}", address, ex.toString()));
   }
@@ -134,11 +136,8 @@ public final class TransportImpl implements Transport {
    * @return promise for bind operation
    */
   public static Mono<Transport> bind(TransportConfig config) {
-    return Optional.ofNullable(
-            Optional.ofNullable(config.transportFactory()).orElse(TransportFactory.INSTANCE))
-        .orElse(new TcpTransportFactory())
-        .createTransport(config)
-        .start();
+    Objects.requireNonNull(config.transportFactory(), "[bind] transportFactory");
+    return config.transportFactory().createTransport(config).start();
   }
 
   /**
@@ -148,17 +147,17 @@ public final class TransportImpl implements Transport {
    */
   @Override
   public Mono<Transport> start() {
-    return Mono.deferWithContext(context -> receiver.bind())
+    return Mono.deferContextual(context -> receiver.bind())
         .doOnNext(this::init)
-        .doOnSuccess(t -> LOGGER.info("[bind0][{}] Bound cluster transport", t.address()))
-        .doOnError(ex -> LOGGER.error("[bind0][{}] Exception occurred: {}", address, ex.toString()))
+        .doOnSuccess(t -> LOGGER.info("[start][{}] Bound cluster transport", t.address()))
+        .doOnError(ex -> LOGGER.error("[start][{}] Exception occurred: {}", address, ex.toString()))
         .thenReturn(this)
         .cast(Transport.class)
-        .subscriberContext(
+        .contextWrite(
             context ->
                 context.put(
                     ReceiverContext.class,
-                    new ReceiverContext(loopResources, this::toMessage, sink::next)));
+                    new ReceiverContext(address, sink, loopResources, this::decodeMessage)));
   }
 
   @Override
@@ -168,15 +167,15 @@ public final class TransportImpl implements Transport {
 
   @Override
   public boolean isStopped() {
-    return onStop.isDisposed();
+    return onStop.asMono().toFuture().isDone();
   }
 
   @Override
   public final Mono<Void> stop() {
     return Mono.defer(
         () -> {
-          stop.onComplete();
-          return onStop;
+          stop.emitEmpty(RetryEmitFailureHandler.INSTANCE);
+          return onStop.asMono();
         });
   }
 
@@ -185,7 +184,7 @@ public final class TransportImpl implements Transport {
         () -> {
           LOGGER.info("[{}][doStop] Stopping", address);
           // Complete incoming messages observable
-          sink.complete();
+          sink.emitComplete(RetryEmitFailureHandler.INSTANCE);
           return Flux.concatDelayError(closeServer(), shutdownLoopResources())
               .then()
               .doFinally(s -> connections.clear())
@@ -195,20 +194,20 @@ public final class TransportImpl implements Transport {
 
   @Override
   public final Flux<Message> listen() {
-    return subject.onBackpressureBuffer();
+    return sink.asFlux().onBackpressureBuffer();
   }
 
   @Override
   public Mono<Void> send(Address address, Message message) {
-    return Mono.deferWithContext(context -> connections.computeIfAbsent(address, this::connect0))
+    return Mono.deferContextual(context -> connections.computeIfAbsent(address, this::connect))
         .flatMap(
             connection ->
-                Mono.deferWithContext(context -> sender.send(message))
-                    .subscriberContext(context -> context.put(Connection.class, connection)))
-        .subscriberContext(
+                Mono.deferContextual(context -> sender.send(message))
+                    .contextWrite(context -> context.put(Connection.class, connection)))
+        .contextWrite(
             context ->
                 context.put(
-                    SenderContext.class, new SenderContext(loopResources, this::toByteBuf)));
+                    SenderContext.class, new SenderContext(loopResources, this::encodeMessage)));
   }
 
   @Override
@@ -238,7 +237,7 @@ public final class TransportImpl implements Transport {
         });
   }
 
-  private Message toMessage(ByteBuf byteBuf) {
+  private Message decodeMessage(ByteBuf byteBuf) {
     try (ByteBufInputStream stream = new ByteBufInputStream(byteBuf, true)) {
       return messageCodec.deserialize(stream);
     } catch (Exception e) {
@@ -247,7 +246,7 @@ public final class TransportImpl implements Transport {
     }
   }
 
-  private ByteBuf toByteBuf(Message message) {
+  private ByteBuf encodeMessage(Message message) {
     ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer();
     ByteBufOutputStream stream = new ByteBufOutputStream(byteBuf);
     try {
@@ -260,20 +259,29 @@ public final class TransportImpl implements Transport {
     return byteBuf;
   }
 
-  private Mono<? extends Connection> connect0(Address address1) {
+  private Mono<? extends Connection> connect(Address remoteAddress) {
     return sender
-        .connect(address1)
+        .connect(remoteAddress)
         .doOnSuccess(
             connection -> {
-              connection.onDispose().doOnTerminate(() -> connections.remove(address1)).subscribe();
+              connection
+                  .onDispose()
+                  .doOnTerminate(() -> connections.remove(remoteAddress))
+                  .subscribe();
               LOGGER.debug(
-                  "[{}][connected][{}] Channel: {}", address, address1, connection.channel());
+                  "[{}][connect][success] remoteAddress: {}, channel: {}",
+                  address,
+                  remoteAddress,
+                  connection.channel());
             })
         .doOnError(
             th -> {
               LOGGER.warn(
-                  "[{}][connect0][{}] Exception occurred: {}", address, address1, th.toString());
-              connections.remove(address1);
+                  "[{}][connect][error] remoteAddress: {}, cause: {}",
+                  address,
+                  remoteAddress,
+                  th.toString());
+              connections.remove(remoteAddress);
             })
         .cache();
   }
@@ -301,29 +309,46 @@ public final class TransportImpl implements Transport {
 
   public static final class ReceiverContext {
 
+    private final Address address;
+    private final Sinks.Many<Message> sink;
     private final LoopResources loopResources;
     private final Function<ByteBuf, Message> messageDecoder;
-    private final Consumer<Message> messageConsumer;
 
     private ReceiverContext(
+        Address address,
+        Sinks.Many<Message> sink,
         LoopResources loopResources,
-        Function<ByteBuf, Message> messageDecoder,
-        Consumer<Message> messageConsumer) {
+        Function<ByteBuf, Message> messageDecoder) {
+      this.address = address;
+      this.sink = sink;
       this.loopResources = loopResources;
       this.messageDecoder = messageDecoder;
-      this.messageConsumer = messageConsumer;
     }
 
     public LoopResources loopResources() {
       return loopResources;
     }
 
-    public Function<ByteBuf, Message> messageDecoder() {
-      return messageDecoder;
-    }
-
-    public void onMessage(Message message) {
-      messageConsumer.accept(message);
+    /**
+     * Inbound message handler method. Filters out junk byteBufs, decodes accepted byteBufs into
+     * messages, and then publishing messages on sink instance.
+     *
+     * @param byteBuf byteBuf
+     */
+    public void onMessage(ByteBuf byteBuf) {
+      try {
+        if (byteBuf == Unpooled.EMPTY_BUFFER) {
+          return;
+        }
+        if (!byteBuf.isReadable()) {
+          ReferenceCountUtil.safeRelease(byteBuf);
+          return;
+        }
+        final Message message = messageDecoder.apply(byteBuf);
+        sink.emitNext(message, RetryEmitFailureHandler.INSTANCE);
+      } catch (Exception e) {
+        LOGGER.error("[{}][onMessage] Exception occurred:", address, e);
+      }
     }
   }
 
@@ -343,6 +368,16 @@ public final class TransportImpl implements Transport {
 
     public Function<Message, ByteBuf> messageEncoder() {
       return messageEncoder;
+    }
+  }
+
+  private static class RetryEmitFailureHandler implements EmitFailureHandler {
+
+    private static final RetryEmitFailureHandler INSTANCE = new RetryEmitFailureHandler();
+
+    @Override
+    public boolean onEmitFailure(SignalType signalType, EmitResult emitResult) {
+      return emitResult == FAIL_NON_SERIALIZED;
     }
   }
 }

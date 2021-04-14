@@ -1,5 +1,7 @@
 package io.scalecube.cluster.fdetector;
 
+import static reactor.core.publisher.Sinks.EmitResult.FAIL_NON_SERIALIZED;
+
 import io.scalecube.cluster.CorrelationIdGenerator;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.fdetector.PingData.AckType;
@@ -20,10 +22,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
-import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxProcessor;
-import reactor.core.publisher.FluxSink;
+import reactor.core.publisher.SignalType;
+import reactor.core.publisher.Sinks;
+import reactor.core.publisher.Sinks.EmitFailureHandler;
+import reactor.core.publisher.Sinks.EmitResult;
 import reactor.core.scheduler.Scheduler;
 
 public final class FailureDetectorImpl implements FailureDetector {
@@ -45,8 +48,8 @@ public final class FailureDetectorImpl implements FailureDetector {
 
   // State
 
+  private final List<Member> pingMembers = new ArrayList<>();
   private long currentPeriod = 0;
-  private List<Member> pingMembers = new ArrayList<>();
   private int pingMemberIndex = 0; // index for sequential ping member selection
 
   // Disposables
@@ -54,12 +57,11 @@ public final class FailureDetectorImpl implements FailureDetector {
   private final Disposable.Composite actionsDisposables = Disposables.composite();
 
   // Subject
-  private final FluxProcessor<FailureDetectorEvent, FailureDetectorEvent> subject =
-      DirectProcessor.<FailureDetectorEvent>create().serialize();
 
-  private final FluxSink<FailureDetectorEvent> sink = subject.sink();
+  private final Sinks.Many<FailureDetectorEvent> sink = Sinks.many().multicast().directBestEffort();
 
   // Scheduled
+
   private final Scheduler scheduler;
 
   /**
@@ -89,13 +91,24 @@ public final class FailureDetectorImpl implements FailureDetector {
     // Subscribe
     actionsDisposables.addAll(
         Arrays.asList(
-            membershipProcessor // Listen membership events to update remoteMembers
-                .publishOn(scheduler)
-                .subscribe(this::onMemberEvent, this::onError),
             transport
                 .listen() // Listen failure detector requests
                 .publishOn(scheduler)
-                .subscribe(this::onMessage, this::onError)));
+                .subscribe(
+                    this::onMessage,
+                    ex ->
+                        LOGGER.error(
+                            "[{}][{}][onMessage][error] cause:", localMember, currentPeriod, ex)),
+            membershipProcessor // Listen membership events to update remoteMembers
+                .publishOn(scheduler)
+                .subscribe(
+                    this::onMembershipEvent,
+                    ex ->
+                        LOGGER.error(
+                            "[{}][{}][onMembershipEvent][error] cause:",
+                            localMember,
+                            currentPeriod,
+                            ex))));
   }
 
   @Override
@@ -111,12 +124,12 @@ public final class FailureDetectorImpl implements FailureDetector {
     actionsDisposables.dispose();
 
     // Stop publishing events
-    sink.complete();
+    sink.emitComplete(RetryEmitFailureHandler.INSTANCE);
   }
 
   @Override
   public Flux<FailureDetectorEvent> listen() {
-    return subject.onBackpressureBuffer();
+    return sink.asFlux().onBackpressureBuffer();
   }
 
   // ================================================
@@ -314,11 +327,7 @@ public final class FailureDetectorImpl implements FailureDetector {
                     ex.toString()));
   }
 
-  private void onError(Throwable throwable) {
-    LOGGER.error("[{}][{}] Received unexpected error:", localMember, currentPeriod, throwable);
-  }
-
-  private void onMemberEvent(MembershipEvent event) {
+  private void onMembershipEvent(MembershipEvent event) {
     Member member = event.member();
     if (event.isRemoved()) {
       boolean removed = pingMembers.remove(member);
@@ -376,7 +385,7 @@ public final class FailureDetectorImpl implements FailureDetector {
 
   private void publishPingResult(long period, Member member, MemberStatus status) {
     LOGGER.debug("[{}][{}] Member {} detected as {}", localMember, period, member, status);
-    sink.next(new FailureDetectorEvent(member, status));
+    sink.emitNext(new FailureDetectorEvent(member, status), RetryEmitFailureHandler.INSTANCE);
   }
 
   private MemberStatus computeMemberStatus(Message message, long period) {
@@ -423,5 +432,15 @@ public final class FailureDetectorImpl implements FailureDetector {
    */
   Transport getTransport() {
     return transport;
+  }
+
+  private static class RetryEmitFailureHandler implements EmitFailureHandler {
+
+    private static final RetryEmitFailureHandler INSTANCE = new RetryEmitFailureHandler();
+
+    @Override
+    public boolean onEmitFailure(SignalType signalType, EmitResult emitResult) {
+      return emitResult == FAIL_NON_SERIALIZED;
+    }
   }
 }

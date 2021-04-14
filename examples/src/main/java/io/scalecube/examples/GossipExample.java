@@ -4,6 +4,7 @@ import io.scalecube.cluster.Cluster;
 import io.scalecube.cluster.ClusterImpl;
 import io.scalecube.cluster.ClusterMessageHandler;
 import io.scalecube.cluster.transport.api.Message;
+import io.scalecube.transport.netty.tcp.TcpTransportFactory;
 
 /**
  * Basic example for member gossiping between cluster members. to run the example Start ClusterNodeA
@@ -18,6 +19,7 @@ public class GossipExample {
     // Start cluster nodes and subscribe on listening gossips
     Cluster alice =
         new ClusterImpl()
+            .transportFactory(TcpTransportFactory::new)
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {
@@ -33,6 +35,7 @@ public class GossipExample {
     Cluster bob =
         new ClusterImpl()
             .membership(opts -> opts.seedMembers(alice.address()))
+            .transportFactory(TcpTransportFactory::new)
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {
@@ -48,6 +51,7 @@ public class GossipExample {
     Cluster carol =
         new ClusterImpl()
             .membership(opts -> opts.seedMembers(alice.address()))
+            .transportFactory(TcpTransportFactory::new)
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {
@@ -63,6 +67,7 @@ public class GossipExample {
     Cluster dan =
         new ClusterImpl()
             .membership(opts -> opts.seedMembers(alice.address()))
+            .transportFactory(TcpTransportFactory::new)
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {
@@ -76,7 +81,10 @@ public class GossipExample {
 
     // Start cluster node Eve that joins cluster and spreads gossip
     Cluster eve =
-        new ClusterImpl().membership(opts -> opts.seedMembers(alice.address())).startAwait();
+        new ClusterImpl()
+            .membership(opts -> opts.seedMembers(alice.address()))
+            .transportFactory(TcpTransportFactory::new)
+            .startAwait();
     eve.spreadGossip(Message.fromData("Gossip from Eve"))
         .doOnError(System.err::println)
         .subscribe(null, Throwable::printStackTrace);

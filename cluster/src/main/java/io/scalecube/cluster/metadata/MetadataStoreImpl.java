@@ -80,7 +80,12 @@ public class MetadataStoreImpl implements MetadataStore {
     // Subscribe
     actionsDisposables.add(
         // Listen to incoming get_metadata requests from other members
-        transport.listen().publishOn(scheduler).subscribe(this::onMessage, this::onError));
+        transport
+            .listen()
+            .publishOn(scheduler)
+            .subscribe(
+                this::onMessage,
+                ex -> LOGGER.error("[{}][onMessage][error] cause:", localMember, ex)));
   }
 
   @Override
@@ -194,10 +199,6 @@ public class MetadataStoreImpl implements MetadataStore {
     }
   }
 
-  private void onError(Throwable throwable) {
-    LOGGER.error("[{}] Received unexpected error:", localMember, throwable);
-  }
-
   private void onMetadataRequest(Message message) {
     final Address sender = message.sender();
     LOGGER.debug("[{}] Received GetMetadataReq from {}", localMember, sender);
@@ -240,7 +241,16 @@ public class MetadataStoreImpl implements MetadataStore {
   }
 
   private ByteBuffer encodeMetadata() {
-    ByteBuffer result = config.metadataCodec().serialize(localMetadata);
+    ByteBuffer result = null;
+    try {
+      result = config.metadataCodec().serialize(localMetadata);
+    } catch (Exception e) {
+      LOGGER.error(
+          "[{}] Failed to encode metadata: {}, cause: {}",
+          localMember,
+          localMetadata,
+          e.toString());
+    }
     return Optional.ofNullable(result).orElse(EMPTY_BUFFER);
   }
 }

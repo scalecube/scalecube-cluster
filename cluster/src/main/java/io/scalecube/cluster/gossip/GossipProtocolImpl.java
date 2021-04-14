@@ -1,5 +1,7 @@
 package io.scalecube.cluster.gossip;
 
+import static reactor.core.publisher.Sinks.EmitResult.FAIL_NON_SERIALIZED;
+
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.membership.MembershipEvent;
@@ -21,12 +23,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
-import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxProcessor;
-import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
+import reactor.core.publisher.SignalType;
+import reactor.core.publisher.Sinks;
+import reactor.core.publisher.Sinks.EmitFailureHandler;
+import reactor.core.publisher.Sinks.EmitResult;
 import reactor.core.scheduler.Scheduler;
 
 public final class GossipProtocolImpl implements GossipProtocol {
@@ -60,10 +63,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
 
   // Subject
 
-  private final FluxProcessor<Message, Message> subject =
-      DirectProcessor.<Message>create().serialize();
-
-  private final FluxSink<Message> sink = subject.sink();
+  private final Sinks.Many<Message> sink = Sinks.many().multicast().directBestEffort();
 
   // Scheduled
 
@@ -95,12 +95,16 @@ public final class GossipProtocolImpl implements GossipProtocol {
         Arrays.asList(
             membershipProcessor // Listen membership events to update remoteMembers
                 .publishOn(scheduler)
-                .subscribe(this::onMemberEvent, this::onError),
+                .subscribe(
+                    this::onMembershipEvent,
+                    ex -> LOGGER.error("[{}][onMembershipEvent][error] cause:", localMember, ex)),
             transport
                 .listen() // Listen gossip requests
                 .publishOn(scheduler)
-                .filter(this::isGossipReq)
-                .subscribe(this::onGossipReq, this::onError)));
+                .filter(this::isGossipRequest)
+                .subscribe(
+                    this::onGossipRequest,
+                    ex -> LOGGER.error("[{}][onGossipRequest][error] cause:", localMember, ex))));
   }
 
   @Override
@@ -119,7 +123,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
     actionsDisposables.dispose();
 
     // Stop publishing events
-    sink.complete();
+    sink.emitComplete(RetryEmitFailureHandler.INSTANCE);
   }
 
   @Override
@@ -131,7 +135,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
 
   @Override
   public Flux<Message> listen() {
-    return subject.onBackpressureBuffer();
+    return sink.asFlux().onBackpressureBuffer();
   }
 
   // ================================================
@@ -198,7 +202,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
     return gossip.gossipId();
   }
 
-  private void onGossipReq(Message message) {
+  private void onGossipRequest(Message message) {
     final long period = this.currentPeriod;
     final GossipRequest gossipRequest = message.data();
     for (Gossip gossip : gossipRequest.gossips()) {
@@ -207,7 +211,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
         if (gossipState == null) { // new gossip
           gossipState = new GossipState(gossip, period);
           gossips.put(gossip.gossipId(), gossipState);
-          sink.next(gossip.message());
+          sink.emitNext(gossip.message(), RetryEmitFailureHandler.INSTANCE);
         }
         gossipState.addToInfected(gossipRequest.from());
       }
@@ -235,7 +239,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
     }
   }
 
-  private void onMemberEvent(MembershipEvent event) {
+  private void onMembershipEvent(MembershipEvent event) {
     Member member = event.member();
     if (event.isRemoved()) {
       boolean removed = remoteMembers.remove(member);
@@ -260,15 +264,11 @@ public final class GossipProtocolImpl implements GossipProtocol {
     }
   }
 
-  private void onError(Throwable throwable) {
-    LOGGER.error("[{}][{}] Received unexpected error:", localMember, currentPeriod, throwable);
-  }
-
   // ================================================
   // ============== Helper Methods ==================
   // ================================================
 
-  private boolean isGossipReq(Message message) {
+  private boolean isGossipRequest(Message message) {
     return GOSSIP_REQ.equals(message.qualifier());
   }
 
@@ -383,5 +383,15 @@ public final class GossipProtocolImpl implements GossipProtocol {
    */
   Member getMember() {
     return localMember;
+  }
+
+  private static class RetryEmitFailureHandler implements EmitFailureHandler {
+
+    private static final RetryEmitFailureHandler INSTANCE = new RetryEmitFailureHandler();
+
+    @Override
+    public boolean onEmitFailure(SignalType signalType, EmitResult emitResult) {
+      return emitResult == FAIL_NON_SERIALIZED;
+    }
   }
 }
