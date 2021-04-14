@@ -32,11 +32,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import reactor.core.Exceptions;
-import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
-import reactor.core.publisher.ReplayProcessor;
+import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 import reactor.util.retry.Retry;
@@ -586,8 +584,8 @@ public class MembershipProtocolTest extends BaseTest {
         .then()
         .block(TIMEOUT);
 
-    ReplayProcessor<MembershipEvent> cmA_RemovedHistory = startRecordingRemoved(cmA);
-    ReplayProcessor<MembershipEvent> cmB_RemovedHistory = startRecordingRemoved(cmB);
+    Sinks.Many<MembershipEvent> cmA_RemovedHistory = startRecordingRemoved(cmA);
+    Sinks.Many<MembershipEvent> cmB_RemovedHistory = startRecordingRemoved(cmB);
 
     stop(cmC);
     stop(cmD);
@@ -668,8 +666,8 @@ public class MembershipProtocolTest extends BaseTest {
       assertTrusted(cmC, cmB.member(), cmA.member(), cmD.member());
       assertTrusted(cmD, cmB.member(), cmC.member(), cmA.member());
 
-      ReplayProcessor<MembershipEvent> cmA_RemovedHistory = startRecordingRemoved(cmA);
-      ReplayProcessor<MembershipEvent> cmB_RemovedHistory = startRecordingRemoved(cmB);
+      Sinks.Many<MembershipEvent> cmA_RemovedHistory = startRecordingRemoved(cmA);
+      Sinks.Many<MembershipEvent> cmB_RemovedHistory = startRecordingRemoved(cmB);
 
       stop(cmC);
       stop(cmD);
@@ -867,9 +865,9 @@ public class MembershipProtocolTest extends BaseTest {
       assertTrusted(cmB, cmA.member(), cmC.member());
       assertTrusted(cmC, cmB.member(), cmA.member());
 
-      ReplayProcessor<MembershipEvent> cmA_RemovedHistory = startRecordingRemoved(cmA);
-      ReplayProcessor<MembershipEvent> cmB_RemovedHistory = startRecordingRemoved(cmB);
-      ReplayProcessor<MembershipEvent> cmC_RemovedHistory = startRecordingRemoved(cmC);
+      Sinks.Many<MembershipEvent> cmA_RemovedHistory = startRecordingRemoved(cmA);
+      Sinks.Many<MembershipEvent> cmB_RemovedHistory = startRecordingRemoved(cmB);
+      Sinks.Many<MembershipEvent> cmC_RemovedHistory = startRecordingRemoved(cmC);
 
       // block inbound msgs from all
       c.networkEmulator().blockAllInbound();
@@ -907,9 +905,9 @@ public class MembershipProtocolTest extends BaseTest {
       assertTrusted(cmB, cmA.member(), cmC.member());
       assertTrusted(cmC, cmB.member(), cmA.member());
 
-      ReplayProcessor<MembershipEvent> cmA_RemovedHistory = startRecordingRemoved(cmA);
-      ReplayProcessor<MembershipEvent> cmB_RemovedHistory = startRecordingRemoved(cmB);
-      ReplayProcessor<MembershipEvent> cmC_RemovedHistory = startRecordingRemoved(cmC);
+      Sinks.Many<MembershipEvent> cmA_RemovedHistory = startRecordingRemoved(cmA);
+      Sinks.Many<MembershipEvent> cmB_RemovedHistory = startRecordingRemoved(cmB);
+      Sinks.Many<MembershipEvent> cmC_RemovedHistory = startRecordingRemoved(cmC);
 
       // block inbound msgs from all
       c.networkEmulator().blockAllInbound();
@@ -1059,10 +1057,10 @@ public class MembershipProtocolTest extends BaseTest {
       assertTrusted(cmD, cmA.member(), cmB.member(), cmC.member());
       assertNoSuspected(cmD);
 
-      ReplayProcessor<MembershipEvent> cmA_removedHistory = startRecordingRemoved(cmA);
-      ReplayProcessor<MembershipEvent> cmB_removedHistory = startRecordingRemoved(cmB);
-      ReplayProcessor<MembershipEvent> cmC_removedHistory = startRecordingRemoved(cmC);
-      ReplayProcessor<MembershipEvent> cmD_removedHistory = startRecordingRemoved(cmD);
+      Sinks.Many<MembershipEvent> cmA_removedHistory = startRecordingRemoved(cmA);
+      Sinks.Many<MembershipEvent> cmB_removedHistory = startRecordingRemoved(cmB);
+      Sinks.Many<MembershipEvent> cmC_removedHistory = startRecordingRemoved(cmC);
+      Sinks.Many<MembershipEvent> cmD_removedHistory = startRecordingRemoved(cmD);
 
       // Split into several clusters
       Stream.of(a, b, c, d)
@@ -1129,8 +1127,7 @@ public class MembershipProtocolTest extends BaseTest {
   private MembershipProtocolImpl createMembership(Transport transport, ClusterConfig config) {
     Member localMember = new Member(newMemberId(), null, transport.address(), NAMESPACE);
 
-    DirectProcessor<MembershipEvent> membershipProcessor = DirectProcessor.create();
-    FluxSink<MembershipEvent> membershipSink = membershipProcessor.sink();
+    Sinks.Many<MembershipEvent> membershipProcessor = Sinks.many().multicast().directBestEffort();
 
     CorrelationIdGenerator cidGenerator = new CorrelationIdGenerator(localMember.id());
 
@@ -1138,14 +1135,18 @@ public class MembershipProtocolTest extends BaseTest {
         new FailureDetectorImpl(
             localMember,
             transport,
-            membershipProcessor,
+            membershipProcessor.asFlux().onBackpressureBuffer(),
             config.failureDetectorConfig(),
             scheduler,
             cidGenerator);
 
     GossipProtocolImpl gossipProtocol =
         new GossipProtocolImpl(
-            localMember, transport, membershipProcessor, config.gossipConfig(), scheduler);
+            localMember,
+            transport,
+            membershipProcessor.asFlux().onBackpressureBuffer(),
+            config.gossipConfig(),
+            scheduler);
 
     MetadataStoreImpl metadataStore =
         new MetadataStoreImpl(localMember, transport, null, config, scheduler, cidGenerator);
@@ -1162,7 +1163,12 @@ public class MembershipProtocolTest extends BaseTest {
             cidGenerator,
             new ClusterMonitorModel.Builder());
 
-    membership.listen().subscribe(membershipSink::next);
+    membership
+        .listen()
+        .subscribe(
+            membershipProcessor::tryEmitNext,
+            membershipProcessor::tryEmitError,
+            membershipProcessor::tryEmitComplete);
 
     try {
       failureDetector.start();
@@ -1239,9 +1245,9 @@ public class MembershipProtocolTest extends BaseTest {
     }
   }
 
-  private void assertRemoved(ReplayProcessor<MembershipEvent> recording, Member... expected) {
+  private void assertRemoved(Sinks.Many<MembershipEvent> recording, Member... expected) {
     List<Member> actual = new ArrayList<>();
-    recording.map(MembershipEvent::member).subscribe(actual::add);
+    recording.asFlux().map(MembershipEvent::member).subscribe(actual::add);
     assertEquals(
         expected.length,
         actual.size(),
@@ -1259,10 +1265,6 @@ public class MembershipProtocolTest extends BaseTest {
 
   private void assertSelfTrusted(MembershipProtocolImpl membership) {
     assertTrusted(membership);
-  }
-
-  private void assertNoRemoved(ReplayProcessor<MembershipEvent> recording) {
-    assertRemoved(recording);
   }
 
   private void assertMemberAndType(
@@ -1283,10 +1285,12 @@ public class MembershipProtocolTest extends BaseTest {
         .collect(Collectors.toList());
   }
 
-  private ReplayProcessor<MembershipEvent> startRecordingRemoved(
-      MembershipProtocolImpl membership) {
-    ReplayProcessor<MembershipEvent> recording = ReplayProcessor.create();
-    membership.listen().filter(MembershipEvent::isRemoved).subscribe(recording);
+  private Sinks.Many<MembershipEvent> startRecordingRemoved(MembershipProtocolImpl membership) {
+    Sinks.Many<MembershipEvent> recording = Sinks.many().replay().all();
+    membership
+        .listen()
+        .filter(MembershipEvent::isRemoved)
+        .subscribe(recording::tryEmitNext, recording::tryEmitError, recording::tryEmitComplete);
     return recording;
   }
 }

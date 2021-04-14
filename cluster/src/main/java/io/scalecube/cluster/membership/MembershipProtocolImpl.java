@@ -3,6 +3,7 @@ package io.scalecube.cluster.membership;
 import static io.scalecube.cluster.membership.MemberStatus.ALIVE;
 import static io.scalecube.cluster.membership.MemberStatus.DEAD;
 import static io.scalecube.cluster.membership.MemberStatus.LEAVING;
+import static reactor.core.publisher.Sinks.EmitResult.FAIL_NON_SERIALIZED;
 
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterMath;
@@ -44,12 +45,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
-import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxProcessor;
-import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
+import reactor.core.publisher.SignalType;
+import reactor.core.publisher.Sinks;
+import reactor.core.publisher.Sinks.EmitFailureHandler;
+import reactor.core.publisher.Sinks.EmitResult;
 import reactor.core.scheduler.Scheduler;
 
 public final class MembershipProtocolImpl implements MembershipProtocol {
@@ -93,9 +95,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   // Subject
 
-  private final FluxProcessor<MembershipEvent, MembershipEvent> subject =
-      DirectProcessor.<MembershipEvent>create().serialize();
-  private final FluxSink<MembershipEvent> sink = subject.sink();
+  private final Sinks.Many<MembershipEvent> sink = Sinks.many().multicast().directBestEffort();
 
   // Disposables
   private final Disposable.Composite actionsDisposables = Disposables.composite();
@@ -204,7 +204,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   @Override
   public Flux<MembershipEvent> listen() {
-    return subject.onBackpressureBuffer();
+    return sink.asFlux().onBackpressureBuffer();
   }
 
   /**
@@ -307,7 +307,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     suspicionTimeoutTasks.clear();
 
     // Stop publishing events
-    sink.complete();
+    sink.emitComplete(RetryEmitFailureHandler.INSTANCE);
   }
 
   @Override
@@ -735,7 +735,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   private void publishEvent(MembershipEvent event) {
     LOGGER.info("[{}][publishEvent] {}", localMember, event);
-    sink.next(event);
+    sink.emitNext(event, RetryEmitFailureHandler.INSTANCE);
   }
 
   private Mono<Void> onDeadMemberDetected(MembershipRecord r1) {
@@ -940,6 +940,16 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     removedMembersHistory.add(event);
     if (removedMembersHistory.size() > s) {
       removedMembersHistory.remove(0);
+    }
+  }
+
+  private static class RetryEmitFailureHandler implements EmitFailureHandler {
+
+    private static final RetryEmitFailureHandler INSTANCE = new RetryEmitFailureHandler();
+
+    @Override
+    public boolean onEmitFailure(SignalType signalType, EmitResult emitResult) {
+      return emitResult == FAIL_NON_SERIALIZED;
     }
   }
 }

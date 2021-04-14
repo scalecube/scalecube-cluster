@@ -86,6 +86,7 @@ class GossipProtocolTest extends BaseTest {
   // }
   // }
 
+  @SuppressWarnings("unused")
   static Stream<Arguments> experiment() {
     return experiments.stream().map(objects -> Arguments.of(objects[0], objects[1], objects[2]));
   }
@@ -291,7 +292,7 @@ class GossipProtocolTest extends BaseTest {
 
     // Await a bit
     try {
-      Thread.sleep(gossipProtocols.size() * 20);
+      Thread.sleep(gossipProtocols.size() * 20L);
     } catch (InterruptedException ignore) {
       // ignore
     }
