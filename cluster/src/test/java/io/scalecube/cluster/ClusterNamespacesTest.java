@@ -31,7 +31,7 @@ public class ClusterNamespacesTest extends BaseTest {
     Assertions.assertAll(
         () ->
             assertEquals(
-                "Invalid cluster config: membership.namespace format is invalid",
+                "Invalid cluster config: membership namespace format is invalid",
                 actualException.getMessage()));
   }
 
