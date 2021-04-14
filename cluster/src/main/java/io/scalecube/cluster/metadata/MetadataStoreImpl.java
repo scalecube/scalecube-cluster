@@ -80,7 +80,12 @@ public class MetadataStoreImpl implements MetadataStore {
     // Subscribe
     actionsDisposables.add(
         // Listen to incoming get_metadata requests from other members
-        transport.listen().publishOn(scheduler).subscribe(this::onMessage, this::onError));
+        transport
+            .listen()
+            .publishOn(scheduler)
+            .subscribe(
+                this::onMessage,
+                ex -> LOGGER.error("[{}][onMessage][error] cause:", localMember, ex)));
   }
 
   @Override
@@ -192,10 +197,6 @@ public class MetadataStoreImpl implements MetadataStore {
     if (GET_METADATA_REQ.equals(message.qualifier())) {
       onMetadataRequest(message);
     }
-  }
-
-  private void onError(Throwable throwable) {
-    LOGGER.error("[{}] Received unexpected error:", localMember, throwable);
   }
 
   private void onMetadataRequest(Message message) {

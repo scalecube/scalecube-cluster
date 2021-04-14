@@ -91,13 +91,24 @@ public final class FailureDetectorImpl implements FailureDetector {
     // Subscribe
     actionsDisposables.addAll(
         Arrays.asList(
-            membershipProcessor // Listen membership events to update remoteMembers
-                .publishOn(scheduler)
-                .subscribe(this::onMemberEvent, this::onError),
             transport
                 .listen() // Listen failure detector requests
                 .publishOn(scheduler)
-                .subscribe(this::onMessage, this::onError)));
+                .subscribe(
+                    this::onMessage,
+                    ex ->
+                        LOGGER.error(
+                            "[{}][{}][onMessage][error] cause:", localMember, currentPeriod, ex)),
+            membershipProcessor // Listen membership events to update remoteMembers
+                .publishOn(scheduler)
+                .subscribe(
+                    this::onMembershipEvent,
+                    ex ->
+                        LOGGER.error(
+                            "[{}][{}][onMembershipEvent][error] cause:",
+                            localMember,
+                            currentPeriod,
+                            ex))));
   }
 
   @Override
@@ -316,11 +327,7 @@ public final class FailureDetectorImpl implements FailureDetector {
                     ex.toString()));
   }
 
-  private void onError(Throwable throwable) {
-    LOGGER.error("[{}][{}] Received unexpected error:", localMember, currentPeriod, throwable);
-  }
-
-  private void onMemberEvent(MembershipEvent event) {
+  private void onMembershipEvent(MembershipEvent event) {
     Member member = event.member();
     if (event.isRemoved()) {
       boolean removed = pingMembers.remove(member);

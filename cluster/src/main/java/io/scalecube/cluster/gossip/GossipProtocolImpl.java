@@ -95,12 +95,16 @@ public final class GossipProtocolImpl implements GossipProtocol {
         Arrays.asList(
             membershipProcessor // Listen membership events to update remoteMembers
                 .publishOn(scheduler)
-                .subscribe(this::onMemberEvent, this::onError),
+                .subscribe(
+                    this::onMembershipEvent,
+                    ex -> LOGGER.error("[{}][onMembershipEvent][error] cause:", localMember, ex)),
             transport
                 .listen() // Listen gossip requests
                 .publishOn(scheduler)
-                .filter(this::isGossipReq)
-                .subscribe(this::onGossipReq, this::onError)));
+                .filter(this::isGossipRequest)
+                .subscribe(
+                    this::onGossipRequest,
+                    ex -> LOGGER.error("[{}][onGossipRequest][error] cause:", localMember, ex))));
   }
 
   @Override
@@ -198,7 +202,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
     return gossip.gossipId();
   }
 
-  private void onGossipReq(Message message) {
+  private void onGossipRequest(Message message) {
     final long period = this.currentPeriod;
     final GossipRequest gossipRequest = message.data();
     for (Gossip gossip : gossipRequest.gossips()) {
@@ -235,7 +239,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
     }
   }
 
-  private void onMemberEvent(MembershipEvent event) {
+  private void onMembershipEvent(MembershipEvent event) {
     Member member = event.member();
     if (event.isRemoved()) {
       boolean removed = remoteMembers.remove(member);
@@ -260,15 +264,11 @@ public final class GossipProtocolImpl implements GossipProtocol {
     }
   }
 
-  private void onError(Throwable throwable) {
-    LOGGER.error("[{}][{}] Received unexpected error:", localMember, currentPeriod, throwable);
-  }
-
   // ================================================
   // ============== Helper Methods ==================
   // ================================================
 
-  private boolean isGossipReq(Message message) {
+  private boolean isGossipRequest(Message message) {
     return GOSSIP_REQ.equals(message.qualifier());
   }
 

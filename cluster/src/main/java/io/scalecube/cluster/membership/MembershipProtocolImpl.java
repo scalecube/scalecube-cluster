@@ -154,15 +154,23 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
             transport
                 .listen() // Listen to incoming SYNC and SYNC ACK requests from other members
                 .publishOn(scheduler)
-                .subscribe(this::onMessage, this::onError),
+                .subscribe(
+                    this::onMessage,
+                    ex -> LOGGER.error("[{}][onMessage][error] cause:", localMember, ex)),
             failureDetector
                 .listen() // Listen to events from failure detector
                 .publishOn(scheduler)
-                .subscribe(this::onFailureDetectorEvent, this::onError),
+                .subscribe(
+                    this::onFailureDetectorEvent,
+                    ex ->
+                        LOGGER.error(
+                            "[{}][onFailureDetectorEvent][error] cause:", localMember, ex)),
             gossipProtocol
                 .listen() // Listen to membership gossips
                 .publishOn(scheduler)
-                .subscribe(this::onMembershipGossip, this::onError),
+                .subscribe(
+                    this::onMembershipGossip,
+                    ex -> LOGGER.error("[{}][onMembershipGossip][error] cause:", localMember, ex)),
             listen() // Listen removed members for monitoring
                 .filter(MembershipEvent::isRemoved)
                 .subscribe(this::onMemberRemoved)));
@@ -273,7 +281,12 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                 address ->
                     transport
                         .requestResponse(address, prepareSyncDataMsg(SYNC, cidGenerator.nextCid()))
-                        .doOnError(this::onSyncError)
+                        .doOnError(
+                            ex ->
+                                LOGGER.warn(
+                                    "[{}] Exception on initial Sync, cause: {}",
+                                    localMember,
+                                    ex.toString()))
                         .onErrorResume(Exception.class, e -> Mono.empty()))
             .toArray(Mono[]::new);
 
@@ -288,7 +301,11 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
               schedulePeriodicSync();
               sink.success();
             })
-        .subscribe(null, this::onSyncAckError);
+        .subscribe(
+            null,
+            ex ->
+                LOGGER.warn(
+                    "[{}] Exception on initial SyncAck, cause: {}", localMember, ex.toString()));
   }
 
   @Override
@@ -363,10 +380,12 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   private void onMessage(Message message) {
     if (isSync(message)) {
-      onSync(message).subscribe(null, this::onError);
+      onSync(message)
+          .subscribe(null, ex -> LOGGER.error("[{}][onSync][error] cause:", localMember, ex));
     } else if (isSyncAck(message)) {
       if (message.correlationId() == null) { // filter out initial sync
-        onSyncAck(message, false).subscribe(null, this::onError);
+        onSyncAck(message, false)
+            .subscribe(null, ex -> LOGGER.error("[{}][onSyncAck][error] cause:", localMember, ex));
       }
     }
   }
@@ -445,7 +464,13 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       MembershipRecord record =
           new MembershipRecord(r0.member(), fdEvent.status(), r0.incarnation());
       updateMembership(record, MembershipUpdateReason.FAILURE_DETECTOR_EVENT)
-          .subscribe(null, this::onError);
+          .subscribe(
+              null,
+              ex ->
+                  LOGGER.error(
+                      "[{}][onFailureDetectorEvent][updateMembership][error] cause:",
+                      localMember,
+                      ex));
     }
   }
 
@@ -455,7 +480,11 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       MembershipRecord record = message.data();
       LOGGER.debug("[{}] Received membership gossip: {}", localMember, record);
       updateMembership(record, MembershipUpdateReason.MEMBERSHIP_GOSSIP)
-          .subscribe(null, this::onError);
+          .subscribe(
+              null,
+              ex ->
+                  LOGGER.error(
+                      "[{}][onMembershipGossip][updateMembership][error] cause:", localMember, ex));
     }
   }
 
@@ -501,7 +530,13 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                   .map(
                       r1 ->
                           updateMembership(r1, reason)
-                              .doOnError(ex -> onSyncMembershipError(reason, ex))
+                              .doOnError(
+                                  ex ->
+                                      LOGGER.warn(
+                                          "[{}][syncMembership][{}][error] cause: {}",
+                                          localMember,
+                                          reason,
+                                          ex.toString()))
                               .onErrorResume(ex -> Mono.empty()))
                   .toArray(Mono[]::new);
 
@@ -534,31 +569,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       }
     }
     return areNamespacesRelated;
-  }
-
-  private void onSyncMembershipError(MembershipUpdateReason reason, Throwable ex) {
-    LOGGER.warn(
-        "[{}][syncMembership][{}] Exception occurred, cause: {}",
-        localMember,
-        reason,
-        ex.toString());
-  }
-
-  private void onSyncError(Throwable ex) {
-    LOGGER.debug("[{}] Exception on initial Sync, cause: {}", localMember, ex.toString());
-  }
-
-  private void onSyncAckError(Throwable ex) {
-    LOGGER.debug("[{}] Exception on initial SyncAck, cause: {}", localMember, ex.toString());
-  }
-
-  private void onError(Throwable throwable) {
-    LOGGER.error("[{}] Received unexpected error:", localMember, throwable);
-  }
-
-  @SuppressWarnings("unused")
-  private void onErrorIgnore(Throwable throwable) {
-    // no-op
   }
 
   /**
@@ -704,7 +714,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
               r1,
               r2);
 
-          spreadMembershipGossip(r2).doOnError(this::onErrorIgnore).subscribe();
+          spreadMembershipGossip(r2).subscribe(null, th -> {});
         });
   }
 
@@ -830,7 +840,11 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       LOGGER.debug("[{}] Declare SUSPECTED member {} as DEAD by timeout", localMember, r);
       MembershipRecord deadRecord = new MembershipRecord(r.member(), DEAD, r.incarnation());
       updateMembership(deadRecord, MembershipUpdateReason.SUSPICION_TIMEOUT)
-          .subscribe(null, this::onError);
+          .subscribe(
+              null,
+              ex ->
+                  LOGGER.error(
+                      "[{}][onSuspicionTimeout][updateMembership][error] cause:", localMember, ex));
     }
   }
 
@@ -839,7 +853,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     // Spread gossip (unless already gossiped)
     if (reason != MembershipUpdateReason.MEMBERSHIP_GOSSIP
         && reason != MembershipUpdateReason.INITIAL_SYNC) {
-      spreadMembershipGossip(r).doOnError(this::onErrorIgnore).subscribe();
+      spreadMembershipGossip(r).subscribe(null, th -> {});
     }
   }
 

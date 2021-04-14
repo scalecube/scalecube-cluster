@@ -302,7 +302,7 @@ public final class ClusterImpl implements Cluster {
                       // Dont uncomment, already beign executed inside scalecube-cluster thread
                       .subscribe(
                           event -> membershipSink.emitNext(event, RetryEmitFailureHandler.INSTANCE),
-                          this::onError,
+                          ex -> LOGGER.error("[{}][membership][error] cause:", localMember, ex),
                           () -> membershipSink.emitComplete(RetryEmitFailureHandler.INSTANCE)));
 
               return Mono.fromRunnable(() -> failureDetector.start())
@@ -349,9 +349,21 @@ public final class ClusterImpl implements Cluster {
 
   private void startHandler() {
     ClusterMessageHandler handler = this.handler.apply(this);
-    actionsDisposables.add(listenMessage().subscribe(handler::onMessage, this::onError));
-    actionsDisposables.add(listenMembership().subscribe(handler::onMembershipEvent, this::onError));
-    actionsDisposables.add(listenGossip().subscribe(handler::onGossip, this::onError));
+    actionsDisposables.add(
+        listenMessage()
+            .subscribe(
+                handler::onMessage,
+                ex -> LOGGER.error("[{}][onMessage][error] cause:", localMember, ex)));
+    actionsDisposables.add(
+        listenMembership()
+            .subscribe(
+                handler::onMembershipEvent,
+                ex -> LOGGER.error("[{}][onMembershipEvent][error] cause:", localMember, ex)));
+    actionsDisposables.add(
+        listenGossip()
+            .subscribe(
+                handler::onGossip,
+                ex -> LOGGER.error("[{}][onGossip][error] cause:", localMember, ex)));
   }
 
   private void startJmxMonitor() {
@@ -366,10 +378,6 @@ public final class ClusterImpl implements Cluster {
     } catch (Exception ex) {
       throw Exceptions.propagate(ex);
     }
-  }
-
-  private void onError(Throwable th) {
-    LOGGER.error("[{}] Received unexpected error:", localMember, th);
   }
 
   private Flux<Message> listenMessage() {
