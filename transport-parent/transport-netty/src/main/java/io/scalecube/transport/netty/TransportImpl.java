@@ -329,6 +329,12 @@ public final class TransportImpl implements Transport {
       return loopResources;
     }
 
+    /**
+     * Inbound message handler method. Filters out junk byteBufs, decodes accepted byteBufs into
+     * messages, and then publishing messages on sink instance.
+     *
+     * @param byteBuf byteBuf
+     */
     public void onMessage(ByteBuf byteBuf) {
       try {
         if (byteBuf == Unpooled.EMPTY_BUFFER) {
