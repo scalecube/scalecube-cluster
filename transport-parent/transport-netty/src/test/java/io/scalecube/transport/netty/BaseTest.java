@@ -7,10 +7,7 @@ import io.scalecube.cluster.utils.NetworkEmulatorTransport;
 import io.scalecube.net.Address;
 import io.scalecube.transport.netty.tcp.TcpTransportFactory;
 import io.scalecube.transport.netty.websocket.WebsocketTransportFactory;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.time.Duration;
-import java.util.Arrays;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInfo;
@@ -24,14 +21,8 @@ public class BaseTest {
   protected static final Logger LOGGER = LoggerFactory.getLogger(BaseTest.class);
 
   @BeforeEach
-  public final void baseSetUp(TestInfo testInfo) throws UnknownHostException {
-    final InetAddress localHost = InetAddress.getLocalHost();
-    final InetAddress[] addresses = InetAddress.getAllByName(localHost.getHostName());
-
-    LOGGER.info(
-        "***** Test started  : {}, addresses : {} *****",
-        testInfo.getDisplayName(),
-        Arrays.toString(addresses));
+  public final void baseSetUp(TestInfo testInfo) {
+    LOGGER.info("***** Test started  : " + testInfo.getDisplayName() + " *****");
   }
 
   @AfterEach
