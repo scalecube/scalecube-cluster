@@ -34,10 +34,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.ORGANIZATION_TOKEN }}
       - name: Maven Verify
         run: |
+          sudo echo "127.0.0.1 $(eval hostname)" | sudo tee -a /etc/hosts
           echo '#### /etc/hosts:'
           cat /etc/hosts
           echo '#### ip addr:'
           ip -c addr
           echo '#### hostname:'
           hostname
+          echo '#### /etc/resolv.conf:'
+          cat /etc/resolv.conf
           mvn verify -B
