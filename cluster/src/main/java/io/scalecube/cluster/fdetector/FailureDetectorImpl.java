@@ -1,6 +1,6 @@
 package io.scalecube.cluster.fdetector;
 
-import static reactor.core.publisher.Sinks.EmitResult.FAIL_NON_SERIALIZED;
+import static io.scalecube.cluster.RetryNotSerializedEmitFailureHandler.RETRY_NOT_SERIALIZED;
 
 import io.scalecube.cluster.CorrelationIdGenerator;
 import io.scalecube.cluster.Member;
@@ -23,10 +23,7 @@ import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.SignalType;
 import reactor.core.publisher.Sinks;
-import reactor.core.publisher.Sinks.EmitFailureHandler;
-import reactor.core.publisher.Sinks.EmitResult;
 import reactor.core.scheduler.Scheduler;
 
 public final class FailureDetectorImpl implements FailureDetector {
@@ -124,7 +121,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     actionsDisposables.dispose();
 
     // Stop publishing events
-    sink.emitComplete(RetryEmitFailureHandler.INSTANCE);
+    sink.emitComplete(RETRY_NOT_SERIALIZED);
   }
 
   @Override
@@ -385,7 +382,7 @@ public final class FailureDetectorImpl implements FailureDetector {
 
   private void publishPingResult(long period, Member member, MemberStatus status) {
     LOGGER.debug("[{}][{}] Member {} detected as {}", localMember, period, member, status);
-    sink.emitNext(new FailureDetectorEvent(member, status), RetryEmitFailureHandler.INSTANCE);
+    sink.emitNext(new FailureDetectorEvent(member, status), RETRY_NOT_SERIALIZED);
   }
 
   private MemberStatus computeMemberStatus(Message message, long period) {
@@ -432,15 +429,5 @@ public final class FailureDetectorImpl implements FailureDetector {
    */
   Transport getTransport() {
     return transport;
-  }
-
-  private static class RetryEmitFailureHandler implements EmitFailureHandler {
-
-    private static final RetryEmitFailureHandler INSTANCE = new RetryEmitFailureHandler();
-
-    @Override
-    public boolean onEmitFailure(SignalType signalType, EmitResult emitResult) {
-      return emitResult == FAIL_NON_SERIALIZED;
-    }
   }
 }

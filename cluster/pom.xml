@@ -31,6 +31,11 @@
       <artifactId>scalecube-cluster-api</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>scalecube-cluster-utils</artifactId>
+      <version>${project.version}</version>
+    </dependency>
 
     <!-- Test dependencies -->
     <dependency>

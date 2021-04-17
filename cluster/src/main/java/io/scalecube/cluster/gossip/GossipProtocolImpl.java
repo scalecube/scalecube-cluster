@@ -1,6 +1,6 @@
 package io.scalecube.cluster.gossip;
 
-import static reactor.core.publisher.Sinks.EmitResult.FAIL_NON_SERIALIZED;
+import static io.scalecube.cluster.RetryNotSerializedEmitFailureHandler.RETRY_NOT_SERIALIZED;
 
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.Member;
@@ -26,10 +26,7 @@ import reactor.core.Disposables;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
-import reactor.core.publisher.SignalType;
 import reactor.core.publisher.Sinks;
-import reactor.core.publisher.Sinks.EmitFailureHandler;
-import reactor.core.publisher.Sinks.EmitResult;
 import reactor.core.scheduler.Scheduler;
 
 public final class GossipProtocolImpl implements GossipProtocol {
@@ -123,7 +120,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
     actionsDisposables.dispose();
 
     // Stop publishing events
-    sink.emitComplete(RetryEmitFailureHandler.INSTANCE);
+    sink.emitComplete(RETRY_NOT_SERIALIZED);
   }
 
   @Override
@@ -211,7 +208,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
         if (gossipState == null) { // new gossip
           gossipState = new GossipState(gossip, period);
           gossips.put(gossip.gossipId(), gossipState);
-          sink.emitNext(gossip.message(), RetryEmitFailureHandler.INSTANCE);
+          sink.emitNext(gossip.message(), RETRY_NOT_SERIALIZED);
         }
         gossipState.addToInfected(gossipRequest.from());
       }
@@ -383,15 +380,5 @@ public final class GossipProtocolImpl implements GossipProtocol {
    */
   Member getMember() {
     return localMember;
-  }
-
-  private static class RetryEmitFailureHandler implements EmitFailureHandler {
-
-    private static final RetryEmitFailureHandler INSTANCE = new RetryEmitFailureHandler();
-
-    @Override
-    public boolean onEmitFailure(SignalType signalType, EmitResult emitResult) {
-      return emitResult == FAIL_NON_SERIALIZED;
-    }
   }
 }

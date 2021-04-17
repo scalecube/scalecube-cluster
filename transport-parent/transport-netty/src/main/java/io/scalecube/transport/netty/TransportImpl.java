@@ -1,6 +1,6 @@
 package io.scalecube.transport.netty;
 
-import static reactor.core.publisher.Sinks.EmitResult.FAIL_NON_SERIALIZED;
+import static io.scalecube.cluster.RetryNotSerializedEmitFailureHandler.RETRY_NOT_SERIALIZED;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -28,10 +28,7 @@ import reactor.core.Disposables;
 import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.core.publisher.SignalType;
 import reactor.core.publisher.Sinks;
-import reactor.core.publisher.Sinks.EmitFailureHandler;
-import reactor.core.publisher.Sinks.EmitResult;
 import reactor.netty.Connection;
 import reactor.netty.DisposableServer;
 import reactor.netty.resources.LoopResources;
@@ -89,7 +86,7 @@ public final class TransportImpl implements Transport {
     // Setup cleanup
     stop.asMono()
         .then(doStop())
-        .doFinally(s -> onStop.emitEmpty(RetryEmitFailureHandler.INSTANCE))
+        .doFinally(s -> onStop.emitEmpty(RETRY_NOT_SERIALIZED))
         .subscribe(
             null, ex -> LOGGER.warn("[{}][doStop] Exception occurred: {}", address, ex.toString()));
   }
@@ -174,7 +171,7 @@ public final class TransportImpl implements Transport {
   public final Mono<Void> stop() {
     return Mono.defer(
         () -> {
-          stop.emitEmpty(RetryEmitFailureHandler.INSTANCE);
+          stop.emitEmpty(RETRY_NOT_SERIALIZED);
           return onStop.asMono();
         });
   }
@@ -184,7 +181,7 @@ public final class TransportImpl implements Transport {
         () -> {
           LOGGER.info("[{}][doStop] Stopping", address);
           // Complete incoming messages observable
-          sink.emitComplete(RetryEmitFailureHandler.INSTANCE);
+          sink.emitComplete(RETRY_NOT_SERIALIZED);
           return Flux.concatDelayError(closeServer(), shutdownLoopResources())
               .then()
               .doFinally(s -> connections.clear())
@@ -345,7 +342,7 @@ public final class TransportImpl implements Transport {
           return;
         }
         final Message message = messageDecoder.apply(byteBuf);
-        sink.emitNext(message, RetryEmitFailureHandler.INSTANCE);
+        sink.emitNext(message, RETRY_NOT_SERIALIZED);
       } catch (Exception e) {
         LOGGER.error("[{}][onMessage] Exception occurred:", address, e);
       }
@@ -368,16 +365,6 @@ public final class TransportImpl implements Transport {
 
     public Function<Message, ByteBuf> messageEncoder() {
       return messageEncoder;
-    }
-  }
-
-  private static class RetryEmitFailureHandler implements EmitFailureHandler {
-
-    private static final RetryEmitFailureHandler INSTANCE = new RetryEmitFailureHandler();
-
-    @Override
-    public boolean onEmitFailure(SignalType signalType, EmitResult emitResult) {
-      return emitResult == FAIL_NON_SERIALIZED;
     }
   }
 }

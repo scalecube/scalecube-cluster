@@ -17,6 +17,11 @@
       <artifactId>scalecube-transport-api</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>scalecube-cluster-utils</artifactId>
+      <version>${project.version}</version>
+    </dependency>
 
     <dependency>
       <groupId>io.projectreactor.netty</groupId>
