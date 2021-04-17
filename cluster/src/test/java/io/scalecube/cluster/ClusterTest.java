@@ -3,6 +3,7 @@ package io.scalecube.cluster;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static reactor.core.publisher.Sinks.EmitFailureHandler.FAIL_FAST;
 
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipEvent.Type;
@@ -484,7 +485,7 @@ public class ClusterTest extends BaseTest {
                     new ClusterMessageHandler() {
                       @Override
                       public void onMembershipEvent(MembershipEvent event) {
-                        seedEvents.tryEmitNext(event);
+                        seedEvents.emitNext(event, FAIL_FAST);
                       }
                     })
             .startAwait();
@@ -504,7 +505,7 @@ public class ClusterTest extends BaseTest {
                     new ClusterMessageHandler() {
                       @Override
                       public void onMembershipEvent(MembershipEvent event) {
-                        node1Events.tryEmitNext(event);
+                        node1Events.emitNext(event, FAIL_FAST);
                       }
                     })
             .startAwait();

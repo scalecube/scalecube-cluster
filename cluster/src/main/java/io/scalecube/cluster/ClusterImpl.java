@@ -1,6 +1,6 @@
 package io.scalecube.cluster;
 
-import static reactor.core.publisher.Sinks.EmitResult.FAIL_NON_SERIALIZED;
+import static io.scalecube.cluster.RetryNotSerializedEmitFailureHandler.RETRY_NOT_SERIALIZED;
 
 import io.scalecube.cluster.fdetector.FailureDetectorConfig;
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
@@ -47,10 +47,7 @@ import reactor.core.Disposables;
 import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.core.publisher.SignalType;
 import reactor.core.publisher.Sinks;
-import reactor.core.publisher.Sinks.EmitFailureHandler;
-import reactor.core.publisher.Sinks.EmitResult;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
@@ -124,14 +121,14 @@ public final class ClusterImpl implements Cluster {
     start
         .asMono()
         .then(doStart())
-        .doOnSuccess(avoid -> onStart.emitEmpty(RetryEmitFailureHandler.INSTANCE))
-        .doOnError(th -> onStart.emitError(th, RetryEmitFailureHandler.INSTANCE))
+        .doOnSuccess(avoid -> onStart.emitEmpty(RETRY_NOT_SERIALIZED))
+        .doOnError(th -> onStart.emitError(th, RETRY_NOT_SERIALIZED))
         .subscribe(null, th -> LOGGER.error("[{}][doStart] Exception occurred:", localMember, th));
 
     shutdown
         .asMono()
         .then(doShutdown())
-        .doFinally(s -> onShutdown.emitEmpty(RetryEmitFailureHandler.INSTANCE))
+        .doFinally(s -> onShutdown.emitEmpty(RETRY_NOT_SERIALIZED))
         .subscribe(
             null,
             th ->
@@ -237,7 +234,7 @@ public final class ClusterImpl implements Cluster {
   public Mono<Cluster> start() {
     return Mono.defer(
         () -> {
-          start.emitEmpty(RetryEmitFailureHandler.INSTANCE);
+          start.emitEmpty(RETRY_NOT_SERIALIZED);
           return onStart.asMono().thenReturn(this);
         });
   }
@@ -301,9 +298,9 @@ public final class ClusterImpl implements Cluster {
                       /*.publishOn(scheduler)*/
                       // Dont uncomment, already beign executed inside scalecube-cluster thread
                       .subscribe(
-                          event -> membershipSink.emitNext(event, RetryEmitFailureHandler.INSTANCE),
+                          event -> membershipSink.emitNext(event, RETRY_NOT_SERIALIZED),
                           ex -> LOGGER.error("[{}][membership][error] cause:", localMember, ex),
-                          () -> membershipSink.emitComplete(RetryEmitFailureHandler.INSTANCE)));
+                          () -> membershipSink.emitComplete(RETRY_NOT_SERIALIZED)));
 
               return Mono.fromRunnable(() -> failureDetector.start())
                   .then(Mono.fromRunnable(() -> gossip.start()))
@@ -500,7 +497,7 @@ public final class ClusterImpl implements Cluster {
 
   @Override
   public void shutdown() {
-    shutdown.emitEmpty(RetryEmitFailureHandler.INSTANCE);
+    shutdown.emitEmpty(RETRY_NOT_SERIALIZED);
   }
 
   private Mono<Void> doShutdown() {
@@ -598,16 +595,6 @@ public final class ClusterImpl implements Cluster {
 
     private Message enhanceWithSender(Message message) {
       return Message.with(message).sender(address).build();
-    }
-  }
-
-  private static class RetryEmitFailureHandler implements EmitFailureHandler {
-
-    private static final RetryEmitFailureHandler INSTANCE = new RetryEmitFailureHandler();
-
-    @Override
-    public boolean onEmitFailure(SignalType signalType, EmitResult emitResult) {
-      return emitResult == FAIL_NON_SERIALIZED;
     }
   }
 }

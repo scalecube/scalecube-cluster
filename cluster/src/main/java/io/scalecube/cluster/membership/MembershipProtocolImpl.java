@@ -1,9 +1,9 @@
 package io.scalecube.cluster.membership;
 
+import static io.scalecube.cluster.RetryNotSerializedEmitFailureHandler.RETRY_NOT_SERIALIZED;
 import static io.scalecube.cluster.membership.MemberStatus.ALIVE;
 import static io.scalecube.cluster.membership.MemberStatus.DEAD;
 import static io.scalecube.cluster.membership.MemberStatus.LEAVING;
-import static reactor.core.publisher.Sinks.EmitResult.FAIL_NON_SERIALIZED;
 
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterMath;
@@ -48,10 +48,7 @@ import reactor.core.Disposables;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
-import reactor.core.publisher.SignalType;
 import reactor.core.publisher.Sinks;
-import reactor.core.publisher.Sinks.EmitFailureHandler;
-import reactor.core.publisher.Sinks.EmitResult;
 import reactor.core.scheduler.Scheduler;
 
 public final class MembershipProtocolImpl implements MembershipProtocol {
@@ -324,7 +321,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     suspicionTimeoutTasks.clear();
 
     // Stop publishing events
-    sink.emitComplete(RetryEmitFailureHandler.INSTANCE);
+    sink.emitComplete(RETRY_NOT_SERIALIZED);
   }
 
   @Override
@@ -750,7 +747,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   private void publishEvent(MembershipEvent event) {
     LOGGER.info("[{}][publishEvent] {}", localMember, event);
-    sink.emitNext(event, RetryEmitFailureHandler.INSTANCE);
+    sink.emitNext(event, RETRY_NOT_SERIALIZED);
   }
 
   private Mono<Void> onDeadMemberDetected(MembershipRecord r1) {
@@ -964,16 +961,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     removedMembersHistory.add(event);
     if (removedMembersHistory.size() > s) {
       removedMembersHistory.remove(0);
-    }
-  }
-
-  private static class RetryEmitFailureHandler implements EmitFailureHandler {
-
-    private static final RetryEmitFailureHandler INSTANCE = new RetryEmitFailureHandler();
-
-    @Override
-    public boolean onEmitFailure(SignalType signalType, EmitResult emitResult) {
-      return emitResult == FAIL_NON_SERIALIZED;
     }
   }
 }

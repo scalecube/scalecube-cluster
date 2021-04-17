@@ -49,6 +49,7 @@
     <module>cluster</module>
     <module>cluster-api</module>
     <module>examples</module>
+    <module>cluster-utils</module>
     <module>cluster-testlib</module>
     <module>transport-parent</module>
     <module>codec-parent</module>
