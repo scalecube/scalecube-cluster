@@ -5,7 +5,6 @@ import io.scalecube.cluster.membership.MembershipProtocolTest;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.cluster.utils.NetworkEmulatorTransport;
-import io.scalecube.transport.netty.TransportImpl;
 import io.scalecube.transport.netty.tcp.TcpTransportFactory;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
@@ -53,7 +52,7 @@ public class BaseTest {
 
   protected NetworkEmulatorTransport createTransport(TransportConfig transportConfig) {
     return new NetworkEmulatorTransport(
-        TransportImpl.bindAwait(transportConfig.transportFactory(new TcpTransportFactory())));
+        Transport.bindAwait(transportConfig.transportFactory(new TcpTransportFactory())));
   }
 
   protected void destroyTransport(Transport transport) {

@@ -13,7 +13,6 @@ import io.netty.util.ReferenceCountUtil;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.MessageCodec;
 import io.scalecube.cluster.transport.api.Transport;
-import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.net.Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -25,7 +24,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
-import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
@@ -89,52 +87,6 @@ public final class TransportImpl implements Transport {
         .doFinally(s -> onStop.emitEmpty(RETRY_NOT_SERIALIZED))
         .subscribe(
             null, ex -> LOGGER.warn("[{}][doStop] Exception occurred: {}", address, ex.toString()));
-  }
-
-  /**
-   * Init transport with the default configuration synchronously. Starts to accept connections on
-   * local address.
-   *
-   * @return transport
-   */
-  public static Transport bindAwait() {
-    return bindAwait(TransportConfig.defaultConfig());
-  }
-
-  /**
-   * Init transport with the given configuration synchronously. Starts to accept connections on
-   * local address.
-   *
-   * @return transport
-   */
-  public static Transport bindAwait(TransportConfig config) {
-    try {
-      return bind(config).block();
-    } catch (Exception e) {
-      throw Exceptions.propagate(e.getCause() != null ? e.getCause() : e);
-    }
-  }
-
-  /**
-   * Init transport with the default configuration asynchronously. Starts to accept connections on
-   * local address.
-   *
-   * @return promise for bind operation
-   */
-  public static Mono<Transport> bind() {
-    return bind(TransportConfig.defaultConfig());
-  }
-
-  /**
-   * Init transport with the given configuration asynchronously. Starts to accept connections on
-   * local address.
-   *
-   * @param config transport config
-   * @return promise for bind operation
-   */
-  public static Mono<Transport> bind(TransportConfig config) {
-    Objects.requireNonNull(config.transportFactory(), "[bind] transportFactory");
-    return config.transportFactory().createTransport(config).start();
   }
 
   /**
