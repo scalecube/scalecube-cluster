@@ -74,7 +74,7 @@ public final class ClusterImpl implements Cluster {
   private static final Set<String> SYSTEM_GOSSIPS =
       Collections.singleton(MembershipProtocolImpl.MEMBERSHIP_GOSSIP);
 
-  private volatile String jmxBeanNameRef = null;
+  private volatile String jmxBeanName = null;
 
   private ClusterConfig config;
   private Function<Cluster, ? extends ClusterMessageHandler> handler =
@@ -372,7 +372,7 @@ public final class ClusterImpl implements Cluster {
       StandardMBean standardMBean = new StandardMBean(monitorMBean, ClusterMonitorMBean.class);
       MBeanServer server = ManagementFactory.getPlatformMBeanServer();
       String beanName = "io.scalecube.cluster:name=" + member().id() + "@" + System.nanoTime();
-      jmxBeanNameRef = beanName;
+      jmxBeanName = beanName;
       ObjectName objectName = new ObjectName(beanName);
       server.registerMBean(standardMBean, objectName);
     } catch (Exception ex) {
@@ -381,7 +381,7 @@ public final class ClusterImpl implements Cluster {
   }
 
   private void stopJmxMonitor() {
-    String beanName = jmxBeanNameRef;
+    String beanName = jmxBeanName;
     if (beanName != null) {
       try {
         MBeanServer server = ManagementFactory.getPlatformMBeanServer();
