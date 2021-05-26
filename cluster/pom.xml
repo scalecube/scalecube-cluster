@@ -23,11 +23,6 @@
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>scalecube-transport-netty</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
       <artifactId>scalecube-cluster-api</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -38,6 +33,12 @@
     </dependency>
 
     <!-- Test dependencies -->
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>scalecube-transport-netty</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>scalecube-cluster-testlib</artifactId>

@@ -20,7 +20,6 @@ import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.cluster.transport.api.TransportFactory;
 import io.scalecube.net.Address;
-import io.scalecube.transport.netty.TransportImpl;
 import io.scalecube.utils.ServiceLoaderUtil;
 import java.io.Serializable;
 import java.lang.management.ManagementFactory;
@@ -248,7 +247,7 @@ public final class ClusterImpl implements Cluster {
   }
 
   private Mono<Cluster> doStart0() {
-    return TransportImpl.bind(config.transportConfig())
+    return Transport.bind(config.transportConfig())
         .flatMap(
             boundTransport -> {
               localMember = createLocalMember(boundTransport.address());

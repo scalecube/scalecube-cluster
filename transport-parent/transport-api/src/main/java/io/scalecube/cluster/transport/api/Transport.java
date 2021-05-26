@@ -1,6 +1,8 @@
 package io.scalecube.cluster.transport.api;
 
 import io.scalecube.net.Address;
+import java.util.Objects;
+import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -76,4 +78,50 @@ public interface Transport {
    * @return Observable which emit received messages or complete event when transport is closed
    */
   Flux<Message> listen();
+
+  /**
+   * Init transport with the default configuration synchronously. Starts to accept connections on
+   * local address.
+   *
+   * @return transport
+   */
+  static Transport bindAwait() {
+    return bindAwait(TransportConfig.defaultConfig());
+  }
+
+  /**
+   * Init transport with the given configuration synchronously. Starts to accept connections on
+   * local address.
+   *
+   * @return transport
+   */
+  static Transport bindAwait(TransportConfig config) {
+    try {
+      return bind(config).block();
+    } catch (Exception e) {
+      throw Exceptions.propagate(e.getCause() != null ? e.getCause() : e);
+    }
+  }
+
+  /**
+   * Init transport with the default configuration asynchronously. Starts to accept connections on
+   * local address.
+   *
+   * @return promise for bind operation
+   */
+  static Mono<Transport> bind() {
+    return bind(TransportConfig.defaultConfig());
+  }
+
+  /**
+   * Init transport with the given configuration asynchronously. Starts to accept connections on
+   * local address.
+   *
+   * @param config transport config
+   * @return promise for bind operation
+   */
+  static Mono<Transport> bind(TransportConfig config) {
+    Objects.requireNonNull(config.transportFactory(), "[bind] transportFactory");
+    return config.transportFactory().createTransport(config).start();
+  }
 }

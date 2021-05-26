@@ -72,7 +72,7 @@ public class BaseTest {
    */
   protected NetworkEmulatorTransport createTcpTransport() {
     return new NetworkEmulatorTransport(
-        TransportImpl.bindAwait(
+        Transport.bindAwait(
             TransportConfig.defaultConfig().transportFactory(new TcpTransportFactory())));
   }
 
@@ -83,7 +83,7 @@ public class BaseTest {
    */
   protected NetworkEmulatorTransport createWebsocketTransport() {
     return new NetworkEmulatorTransport(
-        TransportImpl.bindAwait(
+        Transport.bindAwait(
             TransportConfig.defaultConfig().transportFactory(new WebsocketTransportFactory())));
   }
 }
