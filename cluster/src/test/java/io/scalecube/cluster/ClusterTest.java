@@ -13,6 +13,7 @@ import io.scalecube.transport.netty.tcp.TcpTransportFactory;
 import java.net.InetAddress;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -81,6 +82,8 @@ public class ClusterTest extends BaseTest {
       assertEquals(2, seedNode.members().size());
       assertEquals(2, otherNode.members().size());
     }
+
+    shutdown(Arrays.asList(seedNode, otherNode));
   }
 
   @Test
@@ -103,6 +106,8 @@ public class ClusterTest extends BaseTest {
 
     assertEquals(otherNode.member(), otherNodeOnSeedNode.orElse(null));
     assertEquals(seedNode.member(), seedNodeOnOtherNode.orElse(null));
+
+    shutdown(Arrays.asList(seedNode, otherNode));
   }
 
   @Test
@@ -130,6 +135,8 @@ public class ClusterTest extends BaseTest {
 
     Collection<Member> otherMembers = seedNode.otherMembers();
     assertEquals(0, otherMembers.size(), "otherMembers: " + otherMembers);
+
+    shutdown(Collections.singletonList(seedNode));
   }
 
   @Test
@@ -157,6 +164,8 @@ public class ClusterTest extends BaseTest {
 
     Collection<Member> otherMembers = seedNode.otherMembers();
     assertEquals(0, otherMembers.size(), "otherMembers: " + otherMembers);
+
+    shutdown(Collections.singletonList(seedNode));
   }
 
   @Test
@@ -467,7 +476,7 @@ public class ClusterTest extends BaseTest {
     assertTrue(leavingLatch.await(TIMEOUT.getSeconds(), TimeUnit.SECONDS));
     assertTrue(removedLatch.await(TIMEOUT.getSeconds(), TimeUnit.SECONDS));
 
-    shutdown(Stream.of(seedNode, node1, node3).collect(Collectors.toList()));
+    shutdown(Arrays.asList(seedNode, node1, node3));
   }
 
   @Test
@@ -542,6 +551,8 @@ public class ClusterTest extends BaseTest {
 
     assertTrue(latch.await(TIMEOUT.getSeconds(), TimeUnit.SECONDS));
     assertEquals(removedMetadata.get(), node1Metadata);
+
+    shutdown(Collections.singletonList(seedNode));
   }
 
   @Test
@@ -561,6 +572,8 @@ public class ClusterTest extends BaseTest {
 
     assertEquals(otherNode.member(), seedNode.otherMembers().iterator().next());
     assertEquals(seedNode.member(), otherNode.otherMembers().iterator().next());
+
+    shutdown(Arrays.asList(seedNode, otherNode));
   }
 
   private void shutdown(List<Cluster> nodes) {

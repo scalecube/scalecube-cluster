@@ -73,6 +73,8 @@ public final class ClusterImpl implements Cluster {
   private static final Set<String> SYSTEM_GOSSIPS =
       Collections.singleton(MembershipProtocolImpl.MEMBERSHIP_GOSSIP);
 
+  private volatile String jmxBeanName = null;
+
   private ClusterConfig config;
   private Function<Cluster, ? extends ClusterMessageHandler> handler =
       cluster -> new ClusterMessageHandler() {};
@@ -368,11 +370,24 @@ public final class ClusterImpl implements Cluster {
     try {
       StandardMBean standardMBean = new StandardMBean(monitorMBean, ClusterMonitorMBean.class);
       MBeanServer server = ManagementFactory.getPlatformMBeanServer();
-      ObjectName objectName =
-          new ObjectName("io.scalecube.cluster:name=" + member().id() + "@" + System.nanoTime());
+      String beanName = "io.scalecube.cluster:name=" + member().id() + "@" + System.nanoTime();
+      jmxBeanName = beanName;
+      ObjectName objectName = new ObjectName(beanName);
       server.registerMBean(standardMBean, objectName);
     } catch (Exception ex) {
       throw Exceptions.propagate(ex);
+    }
+  }
+
+  private void stopJmxMonitor() {
+    String beanName = jmxBeanName;
+    if (beanName != null) {
+      try {
+        MBeanServer server = ManagementFactory.getPlatformMBeanServer();
+        server.unregisterMBean(new ObjectName(beanName));
+      } catch (Exception ex) {
+        throw Exceptions.propagate(ex);
+      }
     }
   }
 
@@ -504,6 +519,7 @@ public final class ClusterImpl implements Cluster {
         () -> {
           LOGGER.info("[{}][doShutdown] Shutting down", localMember);
           return Flux.concatDelayError(leaveCluster(), dispose(), transport.stop())
+              .then(Mono.fromRunnable(this::stopJmxMonitor))
               .then()
               .doFinally(s -> scheduler.dispose())
               .doOnSuccess(avoid -> LOGGER.info("[{}][doShutdown] Shutdown", localMember));
