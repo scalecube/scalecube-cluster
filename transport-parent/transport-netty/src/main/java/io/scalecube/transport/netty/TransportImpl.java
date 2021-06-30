@@ -13,9 +13,11 @@ import io.netty.util.ReferenceCountUtil;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.MessageCodec;
 import io.scalecube.cluster.transport.api.Transport;
+import io.scalecube.errors.DistinctErrorLog;
 import io.scalecube.net.Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -34,6 +36,7 @@ import reactor.netty.resources.LoopResources;
 public final class TransportImpl implements Transport {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Transport.class);
+  private static final DistinctErrorLog log = new DistinctErrorLog(Duration.ofMinutes(1));
 
   private final MessageCodec messageCodec;
 
@@ -190,7 +193,9 @@ public final class TransportImpl implements Transport {
     try (ByteBufInputStream stream = new ByteBufInputStream(byteBuf, true)) {
       return messageCodec.deserialize(stream);
     } catch (Exception e) {
-      LOGGER.warn("[{}][decodeMessage] Exception occurred: {}", address, e.toString());
+      if (!log.contains(e)) {
+        LOGGER.warn("[{}][decodeMessage] Exception occurred: {}", address, e.toString());
+      }
       throw new DecoderException(e);
     }
   }
@@ -202,7 +207,9 @@ public final class TransportImpl implements Transport {
       messageCodec.serialize(message, stream);
     } catch (Exception e) {
       byteBuf.release();
-      LOGGER.warn("[{}][encodeMessage] Exception occurred: {}", address, e.toString());
+      if (!log.contains(e)) {
+        LOGGER.warn("[{}][encodeMessage] Exception occurred: {}", address, e.toString());
+      }
       throw new EncoderException(e);
     }
     return byteBuf;
@@ -225,11 +232,13 @@ public final class TransportImpl implements Transport {
             })
         .doOnError(
             th -> {
-              LOGGER.warn(
-                  "[{}][connect][error] remoteAddress: {}, cause: {}",
-                  address,
-                  remoteAddress,
-                  th.toString());
+              if (!log.contains(th)) {
+                LOGGER.warn(
+                    "[{}][connect][error] remoteAddress: {}, cause: {}",
+                    address,
+                    remoteAddress,
+                    th.toString());
+              }
               connections.remove(remoteAddress);
             })
         .cache();
