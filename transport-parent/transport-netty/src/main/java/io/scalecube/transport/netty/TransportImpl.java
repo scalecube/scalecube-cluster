@@ -13,7 +13,7 @@ import io.netty.util.ReferenceCountUtil;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.MessageCodec;
 import io.scalecube.cluster.transport.api.Transport;
-import io.scalecube.errors.DistinctErrorLog;
+import io.scalecube.errors.DistinctErrors;
 import io.scalecube.net.Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -36,7 +36,7 @@ import reactor.netty.resources.LoopResources;
 public final class TransportImpl implements Transport {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Transport.class);
-  private static final DistinctErrorLog log = new DistinctErrorLog(Duration.ofMinutes(1));
+  private static final DistinctErrors DISTINCT_ERRORS = new DistinctErrors(Duration.ofMinutes(1));
 
   private final MessageCodec messageCodec;
 
@@ -193,7 +193,7 @@ public final class TransportImpl implements Transport {
     try (ByteBufInputStream stream = new ByteBufInputStream(byteBuf, true)) {
       return messageCodec.deserialize(stream);
     } catch (Exception e) {
-      if (!log.contains(e)) {
+      if (!DISTINCT_ERRORS.contains(e)) {
         LOGGER.warn("[{}][decodeMessage] Exception occurred: {}", address, e.toString());
       }
       throw new DecoderException(e);
@@ -207,7 +207,7 @@ public final class TransportImpl implements Transport {
       messageCodec.serialize(message, stream);
     } catch (Exception e) {
       byteBuf.release();
-      if (!log.contains(e)) {
+      if (!DISTINCT_ERRORS.contains(e)) {
         LOGGER.warn("[{}][encodeMessage] Exception occurred: {}", address, e.toString());
       }
       throw new EncoderException(e);
@@ -232,7 +232,7 @@ public final class TransportImpl implements Transport {
             })
         .doOnError(
             th -> {
-              if (!log.contains(th)) {
+              if (!DISTINCT_ERRORS.contains(th)) {
                 LOGGER.warn(
                     "[{}][connect][error] remoteAddress: {}, cause: {}",
                     address,
