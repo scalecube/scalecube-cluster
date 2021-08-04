@@ -1,6 +1,6 @@
 package io.scalecube.cluster.fdetector;
 
-import static io.scalecube.cluster.RetryNotSerializedEmitFailureHandler.RETRY_NOT_SERIALIZED;
+import static io.scalecube.reactor.RetryNonSerializedEmitFailureHandler.RETRY_NON_SERIALIZED;
 
 import io.scalecube.cluster.CorrelationIdGenerator;
 import io.scalecube.cluster.Member;
@@ -121,7 +121,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     actionsDisposables.dispose();
 
     // Stop publishing events
-    sink.emitComplete(RETRY_NOT_SERIALIZED);
+    sink.emitComplete(RETRY_NON_SERIALIZED);
   }
 
   @Override
@@ -382,7 +382,7 @@ public final class FailureDetectorImpl implements FailureDetector {
 
   private void publishPingResult(long period, Member member, MemberStatus status) {
     LOGGER.debug("[{}][{}] Member {} detected as {}", localMember, period, member, status);
-    sink.emitNext(new FailureDetectorEvent(member, status), RETRY_NOT_SERIALIZED);
+    sink.emitNext(new FailureDetectorEvent(member, status), RETRY_NON_SERIALIZED);
   }
 
   private MemberStatus computeMemberStatus(Message message, long period) {

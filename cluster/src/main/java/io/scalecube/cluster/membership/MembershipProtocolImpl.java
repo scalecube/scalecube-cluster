@@ -1,9 +1,9 @@
 package io.scalecube.cluster.membership;
 
-import static io.scalecube.cluster.RetryNotSerializedEmitFailureHandler.RETRY_NOT_SERIALIZED;
 import static io.scalecube.cluster.membership.MemberStatus.ALIVE;
 import static io.scalecube.cluster.membership.MemberStatus.DEAD;
 import static io.scalecube.cluster.membership.MemberStatus.LEAVING;
+import static io.scalecube.reactor.RetryNonSerializedEmitFailureHandler.RETRY_NON_SERIALIZED;
 
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterMath;
@@ -321,7 +321,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     suspicionTimeoutTasks.clear();
 
     // Stop publishing events
-    sink.emitComplete(RETRY_NOT_SERIALIZED);
+    sink.emitComplete(RETRY_NON_SERIALIZED);
   }
 
   @Override
@@ -747,7 +747,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   private void publishEvent(MembershipEvent event) {
     LOGGER.info("[{}][publishEvent] {}", localMember, event);
-    sink.emitNext(event, RETRY_NOT_SERIALIZED);
+    sink.emitNext(event, RETRY_NON_SERIALIZED);
   }
 
   private Mono<Void> onDeadMemberDetected(MembershipRecord r1) {

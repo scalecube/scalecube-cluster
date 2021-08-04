@@ -1,6 +1,6 @@
 package io.scalecube.transport.netty;
 
-import static io.scalecube.cluster.RetryNotSerializedEmitFailureHandler.RETRY_NOT_SERIALIZED;
+import static io.scalecube.reactor.RetryNonSerializedEmitFailureHandler.RETRY_NON_SERIALIZED;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -87,7 +87,7 @@ public final class TransportImpl implements Transport {
     // Setup cleanup
     stop.asMono()
         .then(doStop())
-        .doFinally(s -> onStop.emitEmpty(RETRY_NOT_SERIALIZED))
+        .doFinally(s -> onStop.emitEmpty(RETRY_NON_SERIALIZED))
         .subscribe(
             null, ex -> LOGGER.warn("[{}][doStop] Exception occurred: {}", address, ex.toString()));
   }
@@ -126,7 +126,7 @@ public final class TransportImpl implements Transport {
   public final Mono<Void> stop() {
     return Mono.defer(
         () -> {
-          stop.emitEmpty(RETRY_NOT_SERIALIZED);
+          stop.emitEmpty(RETRY_NON_SERIALIZED);
           return onStop.asMono();
         });
   }
@@ -136,7 +136,7 @@ public final class TransportImpl implements Transport {
         () -> {
           LOGGER.info("[{}][doStop] Stopping", address);
           // Complete incoming messages observable
-          sink.emitComplete(RETRY_NOT_SERIALIZED);
+          sink.emitComplete(RETRY_NON_SERIALIZED);
           return Flux.concatDelayError(closeServer(), shutdownLoopResources())
               .then()
               .doFinally(s -> connections.clear())
@@ -303,7 +303,7 @@ public final class TransportImpl implements Transport {
           return;
         }
         final Message message = messageDecoder.apply(byteBuf);
-        sink.emitNext(message, RETRY_NOT_SERIALIZED);
+        sink.emitNext(message, RETRY_NON_SERIALIZED);
       } catch (Exception e) {
         LOGGER.error("[{}][onMessage] Exception occurred:", address, e);
       }
