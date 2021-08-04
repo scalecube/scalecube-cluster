@@ -1,6 +1,6 @@
 package io.scalecube.cluster;
 
-import static io.scalecube.cluster.RetryNotSerializedEmitFailureHandler.RETRY_NOT_SERIALIZED;
+import static io.scalecube.reactor.RetryNonSerializedEmitFailureHandler.RETRY_NON_SERIALIZED;
 
 import io.scalecube.cluster.fdetector.FailureDetectorConfig;
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
@@ -122,14 +122,14 @@ public final class ClusterImpl implements Cluster {
     start
         .asMono()
         .then(doStart())
-        .doOnSuccess(avoid -> onStart.emitEmpty(RETRY_NOT_SERIALIZED))
-        .doOnError(th -> onStart.emitError(th, RETRY_NOT_SERIALIZED))
+        .doOnSuccess(avoid -> onStart.emitEmpty(RETRY_NON_SERIALIZED))
+        .doOnError(th -> onStart.emitError(th, RETRY_NON_SERIALIZED))
         .subscribe(null, th -> LOGGER.error("[{}][doStart] Exception occurred:", localMember, th));
 
     shutdown
         .asMono()
         .then(doShutdown())
-        .doFinally(s -> onShutdown.emitEmpty(RETRY_NOT_SERIALIZED))
+        .doFinally(s -> onShutdown.emitEmpty(RETRY_NON_SERIALIZED))
         .subscribe(
             null,
             th ->
@@ -235,7 +235,7 @@ public final class ClusterImpl implements Cluster {
   public Mono<Cluster> start() {
     return Mono.defer(
         () -> {
-          start.emitEmpty(RETRY_NOT_SERIALIZED);
+          start.emitEmpty(RETRY_NON_SERIALIZED);
           return onStart.asMono().thenReturn(this);
         });
   }
@@ -299,9 +299,9 @@ public final class ClusterImpl implements Cluster {
                       /*.publishOn(scheduler)*/
                       // Dont uncomment, already beign executed inside scalecube-cluster thread
                       .subscribe(
-                          event -> membershipSink.emitNext(event, RETRY_NOT_SERIALIZED),
+                          event -> membershipSink.emitNext(event, RETRY_NON_SERIALIZED),
                           ex -> LOGGER.error("[{}][membership][error] cause:", localMember, ex),
-                          () -> membershipSink.emitComplete(RETRY_NOT_SERIALIZED)));
+                          () -> membershipSink.emitComplete(RETRY_NON_SERIALIZED)));
 
               return Mono.fromRunnable(() -> failureDetector.start())
                   .then(Mono.fromRunnable(() -> gossip.start()))
@@ -511,7 +511,7 @@ public final class ClusterImpl implements Cluster {
 
   @Override
   public void shutdown() {
-    shutdown.emitEmpty(RETRY_NOT_SERIALIZED);
+    shutdown.emitEmpty(RETRY_NON_SERIALIZED);
   }
 
   private Mono<Void> doShutdown() {
