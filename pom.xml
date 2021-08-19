@@ -37,7 +37,7 @@
 
     <slf4j.version>1.7.30</slf4j.version>
     <log4j.version>2.13.2</log4j.version>
-    <reactor.version>2020.0.8</reactor.version>
+    <reactor.version>2020.0.10</reactor.version>
     <jackson.version>2.11.0</jackson.version>
 
     <mockito-junit-jupiter.version>2.27.0</mockito-junit-jupiter.version>
