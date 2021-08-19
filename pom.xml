@@ -33,7 +33,7 @@
   </scm>
 
   <properties>
-    <scalecube-commons.version>1.0.15</scalecube-commons.version>
+    <scalecube-commons.version>1.0.17</scalecube-commons.version>
 
     <slf4j.version>1.7.30</slf4j.version>
     <log4j.version>2.13.2</log4j.version>
@@ -49,7 +49,6 @@
     <module>cluster</module>
     <module>cluster-api</module>
     <module>examples</module>
-    <module>cluster-utils</module>
     <module>cluster-testlib</module>
     <module>transport-parent</module>
     <module>codec-parent</module>

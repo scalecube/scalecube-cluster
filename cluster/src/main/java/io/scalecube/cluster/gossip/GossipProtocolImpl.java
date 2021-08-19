@@ -1,6 +1,6 @@
 package io.scalecube.cluster.gossip;
 
-import static io.scalecube.cluster.RetryNotSerializedEmitFailureHandler.RETRY_NOT_SERIALIZED;
+import static io.scalecube.reactor.RetryNonSerializedEmitFailureHandler.RETRY_NON_SERIALIZED;
 
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.Member;
@@ -120,7 +120,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
     actionsDisposables.dispose();
 
     // Stop publishing events
-    sink.emitComplete(RETRY_NOT_SERIALIZED);
+    sink.emitComplete(RETRY_NON_SERIALIZED);
   }
 
   @Override
@@ -208,7 +208,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
         if (gossipState == null) { // new gossip
           gossipState = new GossipState(gossip, period);
           gossips.put(gossip.gossipId(), gossipState);
-          sink.emitNext(gossip.message(), RETRY_NOT_SERIALIZED);
+          sink.emitNext(gossip.message(), RETRY_NON_SERIALIZED);
         }
         gossipState.addToInfected(gossipRequest.from());
       }
