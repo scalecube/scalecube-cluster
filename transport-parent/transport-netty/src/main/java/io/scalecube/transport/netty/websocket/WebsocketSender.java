@@ -12,11 +12,11 @@ import reactor.netty.Connection;
 import reactor.netty.http.client.HttpClient;
 import reactor.netty.http.client.WebsocketClientSpec;
 
-final class WebsocketSender implements Sender {
+public final class WebsocketSender implements Sender {
 
   private final TransportConfig config;
 
-  WebsocketSender(TransportConfig config) {
+  public WebsocketSender(TransportConfig config) {
     this.config = config;
   }
 
