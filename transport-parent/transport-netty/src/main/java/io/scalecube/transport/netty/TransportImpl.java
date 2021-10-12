@@ -56,6 +56,7 @@ public final class TransportImpl implements Transport {
   // Transport factory
   private final Receiver receiver;
   private final Sender sender;
+  private final Function<Address, Address> addressMapper;
 
   /**
    * Constructor with cofig as parameter.
@@ -65,9 +66,28 @@ public final class TransportImpl implements Transport {
    * @param sender transport sender part
    */
   public TransportImpl(MessageCodec messageCodec, Receiver receiver, Sender sender) {
+    this(messageCodec, receiver, sender, Function.identity());
+  }
+
+  /**
+   * Constructor with cofig as parameter.
+   *
+   * @param messageCodec message codec
+   * @param receiver transport receiver part
+   * @param sender transport sender part
+   * @param addressMapper function to map addresses. Useful when running against NAT-ed
+   *     environments. Used during connection setup so that the actual connection is established
+   *     against <code>addressMapper.apply(origAddress) destination</code>
+   */
+  public TransportImpl(
+      MessageCodec messageCodec,
+      Receiver receiver,
+      Sender sender,
+      Function<Address, Address> addressMapper) {
     this.messageCodec = messageCodec;
     this.receiver = receiver;
     this.sender = sender;
+    this.addressMapper = addressMapper;
   }
 
   private static Address prepareAddress(DisposableServer server) {
@@ -216,8 +236,9 @@ public final class TransportImpl implements Transport {
   }
 
   private Mono<? extends Connection> connect(Address remoteAddress) {
+    final Address mappedAddr = addressMapper.apply(remoteAddress);
     return sender
-        .connect(remoteAddress)
+        .connect(mappedAddr)
         .doOnSuccess(
             connection -> {
               connection
