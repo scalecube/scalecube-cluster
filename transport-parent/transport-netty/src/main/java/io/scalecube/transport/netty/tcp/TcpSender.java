@@ -10,7 +10,7 @@ import reactor.core.publisher.Mono;
 import reactor.netty.Connection;
 import reactor.netty.tcp.TcpClient;
 
-final class TcpSender implements Sender {
+public final class TcpSender implements Sender {
 
   private final TransportConfig config;
 

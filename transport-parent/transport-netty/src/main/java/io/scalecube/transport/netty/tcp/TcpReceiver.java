@@ -8,7 +8,7 @@ import reactor.core.publisher.Mono;
 import reactor.netty.DisposableServer;
 import reactor.netty.tcp.TcpServer;
 
-final class TcpReceiver implements Receiver {
+public final class TcpReceiver implements Receiver {
 
   private final TransportConfig config;
 
