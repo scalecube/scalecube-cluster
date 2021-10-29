@@ -59,18 +59,7 @@ public final class TransportImpl implements Transport {
   private final Function<Address, Address> addressMapper;
 
   /**
-   * Constructor with cofig as parameter.
-   *
-   * @param messageCodec message codec
-   * @param receiver transport receiver part
-   * @param sender transport sender part
-   */
-  public TransportImpl(MessageCodec messageCodec, Receiver receiver, Sender sender) {
-    this(messageCodec, receiver, sender, Function.identity());
-  }
-
-  /**
-   * Constructor with cofig as parameter.
+   * Constructor with config as parameter.
    *
    * @param messageCodec message codec
    * @param receiver transport receiver part
