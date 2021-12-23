@@ -92,6 +92,8 @@ public final class ClusterImpl implements Cluster {
   private final Sinks.One<Void> shutdown = Sinks.one();
   private final Sinks.One<Void> onShutdown = Sinks.one();
 
+  private volatile boolean isShutdown = false;
+
   // Cluster components
   private Transport transport;
   private Member localMember;
@@ -129,7 +131,10 @@ public final class ClusterImpl implements Cluster {
     shutdown
         .asMono()
         .then(doShutdown())
-        .doFinally(s -> onShutdown.emitEmpty(RETRY_NON_SERIALIZED))
+        .doFinally(s -> {
+          onShutdown.emitEmpty(RETRY_NON_SERIALIZED);
+          isShutdown = true;
+        })
         .subscribe(
             null,
             th ->
@@ -560,7 +565,7 @@ public final class ClusterImpl implements Cluster {
 
   @Override
   public boolean isShutdown() {
-    return onShutdown.asMono().toFuture().isDone();
+    return isShutdown;
   }
 
   private static class SenderAwareTransport implements Transport {
