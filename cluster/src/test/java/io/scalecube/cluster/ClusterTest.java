@@ -471,7 +471,6 @@ public class ClusterTest extends BaseTest {
 
     node2.shutdown();
     node2.onShutdown().block(TIMEOUT);
-    assertTrue(node2.isShutdown());
 
     assertTrue(leavingLatch.await(TIMEOUT.getSeconds(), TimeUnit.SECONDS));
     assertTrue(removedLatch.await(TIMEOUT.getSeconds(), TimeUnit.SECONDS));

@@ -558,11 +558,6 @@ public final class ClusterImpl implements Cluster {
     return onShutdown.asMono();
   }
 
-  @Override
-  public boolean isShutdown() {
-    return onShutdown.asMono().toFuture().isDone();
-  }
-
   private static class SenderAwareTransport implements Transport {
 
     private final Transport transport;

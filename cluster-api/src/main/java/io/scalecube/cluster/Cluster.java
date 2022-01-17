@@ -141,11 +141,4 @@ public interface Cluster {
    * @return promise which is completed once graceful shutdown is finished.
    */
   Mono<Void> onShutdown();
-
-  /**
-   * Check if cluster instance has been shut down.
-   *
-   * @return returns true if cluster instance has been shut down; false otherwise.
-   */
-  boolean isShutdown();
 }
