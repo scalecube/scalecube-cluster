@@ -1,8 +1,0 @@
-# To disable 4800
-sudo iptables -A INPUT -p tcp --dport 4800 -j DROP
-
-# To list existing table
-sudo iptables -L --line-numbers
-
-# To remove rule 3 of the INPUT chain
-sudo iptables -D INPUT 3
