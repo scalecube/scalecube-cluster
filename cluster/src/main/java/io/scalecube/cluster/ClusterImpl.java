@@ -100,7 +100,6 @@ public final class ClusterImpl implements Cluster {
   private MembershipProtocolImpl membership;
   private MetadataStore metadataStore;
   private Scheduler scheduler;
-  private CorrelationIdGenerator cidGenerator;
   private ClusterMonitorModel.Builder monitorModelBuilder;
 
   public ClusterImpl() {
@@ -255,7 +254,6 @@ public final class ClusterImpl implements Cluster {
               localMember = createLocalMember(boundTransport.address());
               transport = new SenderAwareTransport(boundTransport, localMember.address());
 
-              cidGenerator = new CorrelationIdGenerator(localMember.id());
               scheduler = Schedulers.newSingle("sc-cluster-" + localMember.address().port(), true);
               monitorModelBuilder = new ClusterMonitorModel.Builder();
 
@@ -265,8 +263,7 @@ public final class ClusterImpl implements Cluster {
                       transport,
                       membershipSink.asFlux().onBackpressureBuffer(),
                       config.failureDetectorConfig(),
-                      scheduler,
-                      cidGenerator);
+                      scheduler);
 
               gossip =
                   new GossipProtocolImpl(
@@ -278,7 +275,7 @@ public final class ClusterImpl implements Cluster {
 
               metadataStore =
                   new MetadataStoreImpl(
-                      localMember, transport, config.metadata(), config, scheduler, cidGenerator);
+                      localMember, transport, config.metadata(), config, scheduler);
 
               membership =
                   new MembershipProtocolImpl(
@@ -289,7 +286,6 @@ public final class ClusterImpl implements Cluster {
                       metadataStore,
                       config,
                       scheduler,
-                      cidGenerator,
                       monitorModelBuilder);
 
               actionsDisposables.add(

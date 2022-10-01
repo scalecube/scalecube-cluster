@@ -1,7 +1,6 @@
 package io.scalecube.cluster.metadata;
 
 import io.scalecube.cluster.ClusterConfig;
-import io.scalecube.cluster.CorrelationIdGenerator;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
@@ -12,6 +11,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
@@ -36,7 +36,6 @@ public class MetadataStoreImpl implements MetadataStore {
   private final Member localMember;
   private final Transport transport;
   private final ClusterConfig config;
-  private final CorrelationIdGenerator cidGenerator;
 
   // State
 
@@ -58,20 +57,17 @@ public class MetadataStoreImpl implements MetadataStore {
    * @param localMetadata local metadata (optional)
    * @param config config
    * @param scheduler scheduler
-   * @param cidGenerator correlationId generator
    */
   public MetadataStoreImpl(
       Member localMember,
       Transport transport,
       Object localMetadata,
       ClusterConfig config,
-      Scheduler scheduler,
-      CorrelationIdGenerator cidGenerator) {
+      Scheduler scheduler) {
     this.localMember = Objects.requireNonNull(localMember);
     this.transport = Objects.requireNonNull(transport);
     this.config = Objects.requireNonNull(config);
     this.scheduler = Objects.requireNonNull(scheduler);
-    this.cidGenerator = Objects.requireNonNull(cidGenerator);
     this.localMetadata = localMetadata; // optional
   }
 
@@ -151,7 +147,7 @@ public class MetadataStoreImpl implements MetadataStore {
   public Mono<ByteBuffer> fetchMetadata(Member member) {
     return Mono.defer(
         () -> {
-          final String cid = cidGenerator.nextCid();
+          final String cid = UUID.randomUUID().toString();
           final Address targetAddress = member.address();
 
           LOGGER.debug("[{}][{}] Getting metadata for member {}", localMember, cid, member);
