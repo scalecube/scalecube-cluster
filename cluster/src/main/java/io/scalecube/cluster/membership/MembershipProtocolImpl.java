@@ -7,7 +7,6 @@ import static io.scalecube.reactor.RetryNonSerializedEmitFailureHandler.RETRY_NO
 
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterMath;
-import io.scalecube.cluster.CorrelationIdGenerator;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.fdetector.FailureDetector;
 import io.scalecube.cluster.fdetector.FailureDetectorConfig;
@@ -35,6 +34,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -80,7 +80,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private final FailureDetector failureDetector;
   private final GossipProtocol gossipProtocol;
   private final MetadataStore metadataStore;
-  private final CorrelationIdGenerator cidGenerator;
   private final ClusterMonitorModel.Builder monitorModelBuilder;
 
   // State
@@ -112,7 +111,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
    * @param metadataStore metadata store
    * @param config cluster config parameters
    * @param scheduler scheduler
-   * @param cidGenerator correlation id generator
    * @param monitorModelBuilder monitor model builder
    */
   public MembershipProtocolImpl(
@@ -123,7 +121,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       MetadataStore metadataStore,
       ClusterConfig config,
       Scheduler scheduler,
-      CorrelationIdGenerator cidGenerator,
       ClusterMonitorModel.Builder monitorModelBuilder) {
 
     this.transport = Objects.requireNonNull(transport);
@@ -132,7 +129,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     this.metadataStore = Objects.requireNonNull(metadataStore);
     this.localMember = Objects.requireNonNull(localMember);
     this.scheduler = Objects.requireNonNull(scheduler);
-    this.cidGenerator = Objects.requireNonNull(cidGenerator);
     this.monitorModelBuilder = Objects.requireNonNull(monitorModelBuilder);
     this.membershipConfig = Objects.requireNonNull(config).membershipConfig();
     this.failureDetectorConfig = Objects.requireNonNull(config).failureDetectorConfig();
@@ -277,7 +273,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
             .map(
                 address ->
                     transport
-                        .requestResponse(address, prepareSyncDataMsg(SYNC, cidGenerator.nextCid()))
+                        .requestResponse(
+                            address, prepareSyncDataMsg(SYNC, UUID.randomUUID().toString()))
                         .doOnError(
                             ex ->
                                 LOGGER.warn(

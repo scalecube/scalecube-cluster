@@ -2,7 +2,6 @@ package io.scalecube.cluster.fdetector;
 
 import static io.scalecube.reactor.RetryNonSerializedEmitFailureHandler.RETRY_NON_SERIALIZED;
 
-import io.scalecube.cluster.CorrelationIdGenerator;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.fdetector.PingData.AckType;
 import io.scalecube.cluster.membership.MemberStatus;
@@ -16,6 +15,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
@@ -41,7 +41,6 @@ public final class FailureDetectorImpl implements FailureDetector {
   private final Member localMember;
   private final Transport transport;
   private final FailureDetectorConfig config;
-  private final CorrelationIdGenerator cidGenerator;
 
   // State
 
@@ -69,21 +68,18 @@ public final class FailureDetectorImpl implements FailureDetector {
    * @param membershipProcessor membership event processor
    * @param config failure detector settings
    * @param scheduler scheduler
-   * @param cidGenerator correlationId generator
    */
   public FailureDetectorImpl(
       Member localMember,
       Transport transport,
       Flux<MembershipEvent> membershipProcessor,
       FailureDetectorConfig config,
-      Scheduler scheduler,
-      CorrelationIdGenerator cidGenerator) {
+      Scheduler scheduler) {
 
     this.localMember = Objects.requireNonNull(localMember);
     this.transport = Objects.requireNonNull(transport);
     this.config = Objects.requireNonNull(config);
     this.scheduler = Objects.requireNonNull(scheduler);
-    this.cidGenerator = Objects.requireNonNull(cidGenerator);
 
     // Subscribe
     actionsDisposables.addAll(
@@ -144,7 +140,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     }
 
     // Send ping
-    String cid = cidGenerator.nextCid();
+    String cid = UUID.randomUUID().toString();
     PingData pingData = new PingData(localMember, pingMember);
     Message pingMsg = Message.withData(pingData).qualifier(PING).correlationId(cid).build();
 

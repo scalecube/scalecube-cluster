@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.scalecube.cluster.BaseTest;
 import io.scalecube.cluster.ClusterConfig;
-import io.scalecube.cluster.CorrelationIdGenerator;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
@@ -1129,16 +1128,13 @@ public class MembershipProtocolTest extends BaseTest {
 
     Sinks.Many<MembershipEvent> membershipProcessor = Sinks.many().multicast().directBestEffort();
 
-    CorrelationIdGenerator cidGenerator = new CorrelationIdGenerator(localMember.id());
-
     FailureDetectorImpl failureDetector =
         new FailureDetectorImpl(
             localMember,
             transport,
             membershipProcessor.asFlux().onBackpressureBuffer(),
             config.failureDetectorConfig(),
-            scheduler,
-            cidGenerator);
+            scheduler);
 
     GossipProtocolImpl gossipProtocol =
         new GossipProtocolImpl(
@@ -1149,7 +1145,7 @@ public class MembershipProtocolTest extends BaseTest {
             scheduler);
 
     MetadataStoreImpl metadataStore =
-        new MetadataStoreImpl(localMember, transport, null, config, scheduler, cidGenerator);
+        new MetadataStoreImpl(localMember, transport, null, config, scheduler);
 
     MembershipProtocolImpl membership =
         new MembershipProtocolImpl(
@@ -1160,7 +1156,6 @@ public class MembershipProtocolTest extends BaseTest {
             metadataStore,
             config,
             scheduler,
-            cidGenerator,
             new ClusterMonitorModel.Builder());
 
     membership

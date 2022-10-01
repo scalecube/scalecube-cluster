@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.scalecube.cluster.BaseTest;
-import io.scalecube.cluster.CorrelationIdGenerator;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.membership.MemberStatus;
 import io.scalecube.cluster.membership.MembershipEvent;
@@ -419,10 +418,7 @@ public class FailureDetectorTest extends BaseTest {
             .map(address -> new Member("member-" + address.port(), null, address, NAMESPACE))
             .map(member -> MembershipEvent.createAdded(member, null, 0));
 
-    CorrelationIdGenerator cidGenerator = new CorrelationIdGenerator(localMember.id());
-
-    return new FailureDetectorImpl(
-        localMember, transport, membershipFlux, config, scheduler, cidGenerator);
+    return new FailureDetectorImpl(localMember, transport, membershipFlux, config, scheduler);
   }
 
   private void start(List<FailureDetectorImpl> fdetectors) {

@@ -8,6 +8,7 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.util.Objects;
 import java.util.StringJoiner;
+import java.util.UUID;
 
 /**
  * Cluster member which represents node in the cluster and contains its id and address. This class
@@ -73,8 +74,6 @@ public final class Member implements Externalizable {
    * from other cluster members.
    *
    * @see io.scalecube.cluster.transport.api.TransportConfig#port(int)
-   * @see ClusterConfig#containerHost(String)
-   * @see ClusterConfig#containerPort(Integer)
    * @return member address
    */
   public Address address() {
@@ -131,13 +130,22 @@ public final class Member implements Externalizable {
     this.namespace = in.readUTF();
   }
 
+  private static String stringifyId(String id) {
+    try {
+      final UUID uuid = UUID.fromString(id);
+      return Long.toHexString(uuid.getMostSignificantBits() & Long.MAX_VALUE);
+    } catch (Exception ex) {
+      return id;
+    }
+  }
+
   @Override
   public String toString() {
     StringJoiner stringJoiner = new StringJoiner(":");
     if (alias == null) {
-      return stringJoiner.add(namespace).add(id + "@" + address).toString();
+      return stringJoiner.add(namespace).add(stringifyId(id) + "@" + address).toString();
     } else {
-      return stringJoiner.add(namespace).add(alias).add(id + "@" + address).toString();
+      return stringJoiner.add(namespace).add(alias).add(stringifyId(id) + "@" + address).toString();
     }
   }
 }
