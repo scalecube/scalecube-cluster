@@ -764,11 +764,11 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           final ByteBuffer metadata = metadataStore.removeMetadata(member);
           aliveEmittedSet.remove(member.id());
 
-          // Log that member leaved gracefully or without notification
+          // Log that member left gracefully or without notification
           if (r0.isLeaving()) {
-            LOGGER.info("[{}] Member leaved gracefully: {}", localMember, member);
+            LOGGER.info("[{}] Member left gracefully: {}", localMember, member);
           } else {
-            LOGGER.info("[{}] Member leaved without notification: {}", localMember, member);
+            LOGGER.info("[{}] Member left without notification: {}", localMember, member);
           }
 
           final long timestamp = System.currentTimeMillis();
