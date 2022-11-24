@@ -203,13 +203,15 @@ public final class GossipProtocolImpl implements GossipProtocol {
     final long period = this.currentPeriod;
     final GossipRequest gossipRequest = message.data();
     for (Gossip gossip : gossipRequest.gossips()) {
+      GossipState gossipState = gossips.get(gossip.gossipId());
       if (ensureSequence(gossip.gossiperId()).add(gossip.sequenceId())) {
-        GossipState gossipState = gossips.get(gossip.gossipId());
         if (gossipState == null) { // new gossip
           gossipState = new GossipState(gossip, period);
           gossips.put(gossip.gossipId(), gossipState);
           sink.emitNext(gossip.message(), RETRY_NON_SERIALIZED);
         }
+      }
+      if (gossipState != null) {
         gossipState.addToInfected(gossipRequest.from());
       }
     }
