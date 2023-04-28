@@ -33,6 +33,7 @@ public final class ClusterConfig implements Cloneable {
   private int metadataTimeout = DEFAULT_METADATA_TIMEOUT;
   private MetadataCodec metadataCodec = MetadataCodec.INSTANCE;
 
+  private String memberId;
   private String memberAlias;
   private String externalHost;
   private Integer externalPort;
@@ -156,6 +157,28 @@ public final class ClusterConfig implements Cloneable {
   public ClusterConfig externalHost(String externalHost) {
     ClusterConfig c = clone();
     c.externalHost = externalHost;
+    return c;
+  }
+
+  /**
+   * Returns ID to use for the local member. If {@code null}, the ID will be generated
+   * automatically.
+   *
+   * @return local member ID.
+   */
+  public String memberId() {
+    return memberId;
+  }
+
+  /**
+   * Sets ID to use for the local member. If {@code null}, the ID will be generated automatically.
+   *
+   * @param memberId local member ID
+   * @return new {@code ClusterConfig} instance
+   */
+  public ClusterConfig memberId(String memberId) {
+    ClusterConfig c = clone();
+    c.memberId = memberId;
     return c;
   }
 
@@ -291,6 +314,7 @@ public final class ClusterConfig implements Cloneable {
         .add("metadata=" + metadataAsString())
         .add("metadataTimeout=" + metadataTimeout)
         .add("metadataCodec=" + metadataCodec)
+        .add("memberId='" + memberId + "'")
         .add("memberAlias='" + memberAlias + "'")
         .add("externalHost='" + externalHost + "'")
         .add("externalPort=" + externalPort)
