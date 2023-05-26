@@ -587,4 +587,23 @@ public class ClusterTest extends BaseTest {
       LOGGER.error("Exception on cluster shutdown", ex);
     }
   }
+
+  @Test
+  public void testExplicitLocalMemberId() {
+    ClusterConfig config = ClusterConfig.defaultConfig()
+      .memberId("test-member");
+
+    ClusterImpl cluster = null;
+    try {
+      cluster = (ClusterImpl) new ClusterImpl(config)
+        .transportFactory(TcpTransportFactory::new)
+        .startAwait();
+
+      assertEquals("test-member", cluster.member().id());
+    } finally {
+      if (cluster != null) {
+        shutdown(Arrays.asList(cluster));
+      }
+    }
+  }
 }
