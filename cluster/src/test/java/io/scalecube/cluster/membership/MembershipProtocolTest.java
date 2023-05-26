@@ -10,7 +10,6 @@ import io.scalecube.cluster.fdetector.FailureDetectorImpl;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
 import io.scalecube.cluster.membership.MembershipEvent.Type;
 import io.scalecube.cluster.metadata.MetadataStoreImpl;
-import io.scalecube.cluster.monitor.ClusterMonitorModel;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.transport.api.TransportConfig;
@@ -1155,8 +1154,7 @@ public class MembershipProtocolTest extends BaseTest {
             gossipProtocol,
             metadataStore,
             config,
-            scheduler,
-            new ClusterMonitorModel.Builder());
+            scheduler);
 
     membership
         .listen()

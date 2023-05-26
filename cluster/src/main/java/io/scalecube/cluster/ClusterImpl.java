@@ -12,9 +12,6 @@ import io.scalecube.cluster.membership.MembershipProtocolImpl;
 import io.scalecube.cluster.metadata.MetadataCodec;
 import io.scalecube.cluster.metadata.MetadataStore;
 import io.scalecube.cluster.metadata.MetadataStoreImpl;
-import io.scalecube.cluster.monitor.ClusterMonitorMBean;
-import io.scalecube.cluster.monitor.ClusterMonitorModel;
-import io.scalecube.cluster.monitor.JmxClusterMonitorMBean;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.transport.api.TransportConfig;
@@ -22,7 +19,6 @@ import io.scalecube.cluster.transport.api.TransportFactory;
 import io.scalecube.net.Address;
 import io.scalecube.utils.ServiceLoaderUtil;
 import java.io.Serializable;
-import java.lang.management.ManagementFactory;
 import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Collections;
@@ -36,14 +32,10 @@ import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import javax.management.MBeanServer;
-import javax.management.ObjectName;
-import javax.management.StandardMBean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
-import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
@@ -73,8 +65,6 @@ public final class ClusterImpl implements Cluster {
   private static final Set<String> SYSTEM_GOSSIPS =
       Collections.singleton(MembershipProtocolImpl.MEMBERSHIP_GOSSIP);
 
-  private volatile String jmxBeanName = null;
-
   private ClusterConfig config;
   private Function<Cluster, ? extends ClusterMessageHandler> handler =
       cluster -> new ClusterMessageHandler() {};
@@ -100,7 +90,6 @@ public final class ClusterImpl implements Cluster {
   private MembershipProtocolImpl membership;
   private MetadataStore metadataStore;
   private Scheduler scheduler;
-  private ClusterMonitorModel.Builder monitorModelBuilder;
 
   public ClusterImpl() {
     this(ClusterConfig.defaultConfig());
@@ -255,7 +244,6 @@ public final class ClusterImpl implements Cluster {
               transport = new SenderAwareTransport(boundTransport, localMember.address());
 
               scheduler = Schedulers.newSingle("sc-cluster-" + localMember.address().port(), true);
-              monitorModelBuilder = new ClusterMonitorModel.Builder();
 
               failureDetector =
                   new FailureDetectorImpl(
@@ -285,8 +273,7 @@ public final class ClusterImpl implements Cluster {
                       gossip,
                       metadataStore,
                       config,
-                      scheduler,
-                      monitorModelBuilder);
+                      scheduler);
 
               actionsDisposables.add(
                   // Retransmit inner membership events to public api layer
@@ -304,7 +291,6 @@ public final class ClusterImpl implements Cluster {
                   .then(Mono.fromRunnable(() -> metadataStore.start()))
                   .then(Mono.fromRunnable(this::startHandler))
                   .then(membership.start())
-                  .then(Mono.fromRunnable(this::startJmxMonitor))
                   .then();
             })
         .doOnSubscribe(s -> LOGGER.info("[{}][doStart] Starting, config: {}", localMember, config))
@@ -358,33 +344,6 @@ public final class ClusterImpl implements Cluster {
             .subscribe(
                 handler::onGossip,
                 ex -> LOGGER.error("[{}][onGossip][error] cause:", localMember, ex)));
-  }
-
-  private void startJmxMonitor() {
-    ClusterMonitorModel monitorModel = monitorModelBuilder.config(config).cluster(this).build();
-    JmxClusterMonitorMBean monitorMBean = new JmxClusterMonitorMBean(monitorModel);
-    try {
-      StandardMBean standardMBean = new StandardMBean(monitorMBean, ClusterMonitorMBean.class);
-      MBeanServer server = ManagementFactory.getPlatformMBeanServer();
-      String beanName = "io.scalecube.cluster:name=" + member().id() + "@" + System.nanoTime();
-      jmxBeanName = beanName;
-      ObjectName objectName = new ObjectName(beanName);
-      server.registerMBean(standardMBean, objectName);
-    } catch (Exception ex) {
-      throw Exceptions.propagate(ex);
-    }
-  }
-
-  private void stopJmxMonitor() {
-    String beanName = jmxBeanName;
-    if (beanName != null) {
-      try {
-        MBeanServer server = ManagementFactory.getPlatformMBeanServer();
-        server.unregisterMBean(new ObjectName(beanName));
-      } catch (Exception ex) {
-        throw Exceptions.propagate(ex);
-      }
-    }
   }
 
   private Flux<Message> listenMessage() {
@@ -515,7 +474,6 @@ public final class ClusterImpl implements Cluster {
         () -> {
           LOGGER.info("[{}][doShutdown] Shutting down", localMember);
           return Flux.concatDelayError(leaveCluster(), dispose(), transport.stop())
-              .then(Mono.fromRunnable(this::stopJmxMonitor))
               .then()
               .doFinally(s -> scheduler.dispose())
               .doOnSuccess(avoid -> LOGGER.info("[{}][doShutdown] Shutdown", localMember));

@@ -13,7 +13,6 @@ import io.scalecube.cluster.fdetector.FailureDetectorConfig;
 import io.scalecube.cluster.fdetector.FailureDetectorEvent;
 import io.scalecube.cluster.gossip.GossipProtocol;
 import io.scalecube.cluster.metadata.MetadataStore;
-import io.scalecube.cluster.monitor.ClusterMonitorModel;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.net.Address;
@@ -80,7 +79,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private final FailureDetector failureDetector;
   private final GossipProtocol gossipProtocol;
   private final MetadataStore metadataStore;
-  private final ClusterMonitorModel.Builder monitorModelBuilder;
 
   // State
 
@@ -111,7 +109,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
    * @param metadataStore metadata store
    * @param config cluster config parameters
    * @param scheduler scheduler
-   * @param monitorModelBuilder monitor model builder
    */
   public MembershipProtocolImpl(
       Member localMember,
@@ -120,16 +117,13 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       GossipProtocol gossipProtocol,
       MetadataStore metadataStore,
       ClusterConfig config,
-      Scheduler scheduler,
-      ClusterMonitorModel.Builder monitorModelBuilder) {
-
+      Scheduler scheduler) {
     this.transport = Objects.requireNonNull(transport);
     this.failureDetector = Objects.requireNonNull(failureDetector);
     this.gossipProtocol = Objects.requireNonNull(gossipProtocol);
     this.metadataStore = Objects.requireNonNull(metadataStore);
     this.localMember = Objects.requireNonNull(localMember);
     this.scheduler = Objects.requireNonNull(scheduler);
-    this.monitorModelBuilder = Objects.requireNonNull(monitorModelBuilder);
     this.membershipConfig = Objects.requireNonNull(config).membershipConfig();
     this.failureDetectorConfig = Objects.requireNonNull(config).failureDetectorConfig();
 
@@ -250,14 +244,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   }
 
   private void start0(MonoSink<Object> sink) {
-    // Prepare monitor model
-    monitorModelBuilder
-        .seedMembers(seedMembers)
-        .incarnationSupplier(this::getIncarnation)
-        .aliveMembersSupplier(this::getAliveMembers)
-        .suspectedMembersSupplier(this::getSuspectedMembers)
-        .removedMembersSupplier(this::getRemovedMembers);
-
     // In case no members at the moment just schedule periodic sync
     if (seedMembers.isEmpty()) {
       schedulePeriodicSync();
