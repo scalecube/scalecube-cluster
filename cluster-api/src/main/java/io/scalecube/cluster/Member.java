@@ -6,6 +6,8 @@ import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.StringJoiner;
 import java.util.UUID;
@@ -20,7 +22,7 @@ public final class Member implements Externalizable {
 
   private String id;
   private String alias;
-  private Address address;
+  private List<Address> addresses;
   private String namespace;
 
   public Member() {}
@@ -28,16 +30,16 @@ public final class Member implements Externalizable {
   /**
    * Constructor.
    *
-   * @param id member id; not null
+   * @param id member id
    * @param alias member alias (optional)
-   * @param address member address; not null
-   * @param namespace namespace; not null
+   * @param addresses member addresses
+   * @param namespace namespace
    */
-  public Member(String id, String alias, Address address, String namespace) {
-    this.id = Objects.requireNonNull(id, "member id");
-    this.alias = alias; // optional
-    this.address = Objects.requireNonNull(address, "member address");
-    this.namespace = Objects.requireNonNull(namespace, "member namespace");
+  public Member(String id, String alias, List<Address> addresses, String namespace) {
+    this.id = Objects.requireNonNull(id, "id");
+    this.alias = alias;
+    this.addresses = Objects.requireNonNull(addresses, "addresses");
+    this.namespace = Objects.requireNonNull(namespace, "namespace");
   }
 
   /**
@@ -70,14 +72,14 @@ public final class Member implements Externalizable {
   }
 
   /**
-   * Returns cluster member address, an address on which this cluster member listens connections
-   * from other cluster members.
+   * Returns cluster member addresses, those are addresses on which this cluster member listens
+   * connections from other cluster members.
    *
    * @see io.scalecube.cluster.transport.api.TransportConfig#port(int)
    * @return member address
    */
-  public Address address() {
-    return address;
+  public List<Address> addresses() {
+    return addresses;
   }
 
   @Override
@@ -90,13 +92,13 @@ public final class Member implements Externalizable {
     }
     Member member = (Member) that;
     return Objects.equals(id, member.id)
-        && Objects.equals(address, member.address)
+        && Objects.equals(addresses, member.addresses)
         && Objects.equals(namespace, member.namespace);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, address, namespace);
+    return Objects.hash(id, addresses, namespace);
   }
 
   @Override
@@ -110,7 +112,10 @@ public final class Member implements Externalizable {
       out.writeUTF(alias);
     }
     // address
-    out.writeUTF(address.toString());
+    out.writeInt(addresses.size());
+    for (Address address : addresses) {
+      out.writeUTF(address.toString());
+    }
     // namespace
     out.writeUTF(namespace);
   }
@@ -124,8 +129,12 @@ public final class Member implements Externalizable {
     if (aliasNotNull) {
       alias = in.readUTF();
     }
-    // address
-    address = Address.from(in.readUTF());
+    // addresses
+    final int addressesSize = in.readInt();
+    addresses = new ArrayList<>(addressesSize);
+    for (int i = 0; i < addressesSize; i++) {
+      addresses.add(Address.from(in.readUTF()));
+    }
     // namespace
     this.namespace = in.readUTF();
   }
@@ -143,9 +152,9 @@ public final class Member implements Externalizable {
   public String toString() {
     StringJoiner stringJoiner = new StringJoiner(":");
     if (alias == null) {
-      return stringJoiner.add(namespace).add(stringifyId(id) + "@" + address).toString();
+      return stringJoiner.add(namespace).add(stringifyId(id)).toString();
     } else {
-      return stringJoiner.add(namespace).add(alias).add(stringifyId(id) + "@" + address).toString();
+      return stringJoiner.add(namespace).add(alias).add(stringifyId(id)).toString();
     }
   }
 }

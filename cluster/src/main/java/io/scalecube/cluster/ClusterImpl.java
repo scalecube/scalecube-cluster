@@ -20,8 +20,10 @@ import io.scalecube.net.Address;
 import io.scalecube.utils.ServiceLoaderUtil;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -243,7 +245,9 @@ public final class ClusterImpl implements Cluster {
               localMember = createLocalMember(boundTransport.address());
               transport = new SenderAwareTransport(boundTransport, localMember.address());
 
-              scheduler = Schedulers.newSingle("sc-cluster-" + localMember.address().port(), true);
+              final String name =
+                  "sc-cluster-" + Integer.toHexString(System.identityHashCode(this));
+              scheduler = Schedulers.newSingle(name, true);
 
               failureDetector =
                   new FailureDetectorImpl(
@@ -369,19 +373,26 @@ public final class ClusterImpl implements Cluster {
    * @return local cluster member with cluster address and cluster member id
    */
   private Member createLocalMember(Address address) {
-    int port = Optional.ofNullable(config.externalPort()).orElse(address.port());
+    final int port = address.port();
+    final List<Address> memberAddresses = new ArrayList<>();
 
-    // calculate local member cluster address
-    Address memberAddress =
-        Optional.ofNullable(config.externalHost())
-            .map(host -> Address.create(host, port))
-            .orElseGet(() -> Address.create(address.host(), port));
+    // First address comes as "fair" listen address
+    memberAddresses.add(address);
 
-    return new Member(
-        config.memberId() != null ? config.memberId() : UUID.randomUUID().toString(),
-        config.memberAlias(),
-        memberAddress,
-        config.membershipConfig().namespace());
+    // Tail goes as externalHosts, if the exist
+    final List<String> externalHosts = config.externalHosts();
+    if (externalHosts != null) {
+      for (String externalHost : externalHosts) {
+        memberAddresses.add(Address.create(externalHost, port));
+      }
+    }
+
+    final String memberId =
+        config.memberId() != null ? config.memberId() : UUID.randomUUID().toString();
+    final String memberAlias = config.memberAlias();
+    final String namespace = config.membershipConfig().namespace();
+
+    return new Member(memberId, memberAlias, memberAddresses, namespace);
   }
 
   @Override

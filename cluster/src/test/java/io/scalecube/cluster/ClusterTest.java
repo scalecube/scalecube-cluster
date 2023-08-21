@@ -154,7 +154,7 @@ public class ClusterTest extends BaseTest {
 
     // Start seed node
     Cluster seedNode =
-        new ClusterImpl(new ClusterConfig().externalHost("localhost").externalPort(7878))
+        new ClusterImpl(new ClusterConfig().externalHosts("localhost"))
             .transport(opts -> opts.port(7878).connectTimeout(CONNECT_TIMEOUT))
             .membership(opts -> opts.seedMembers(addresses))
             .transportFactory(TcpTransportFactory::new)
@@ -590,14 +590,13 @@ public class ClusterTest extends BaseTest {
 
   @Test
   public void testExplicitLocalMemberId() {
-    ClusterConfig config = ClusterConfig.defaultConfig()
-      .memberId("test-member");
+    ClusterConfig config = ClusterConfig.defaultConfig().memberId("test-member");
 
     ClusterImpl cluster = null;
     try {
-      cluster = (ClusterImpl) new ClusterImpl(config)
-        .transportFactory(TcpTransportFactory::new)
-        .startAwait();
+      cluster =
+          (ClusterImpl)
+              new ClusterImpl(config).transportFactory(TcpTransportFactory::new).startAwait();
 
       assertEquals("test-member", cluster.member().id());
     } finally {

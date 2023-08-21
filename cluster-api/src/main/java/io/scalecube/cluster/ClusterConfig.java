@@ -5,6 +5,9 @@ import io.scalecube.cluster.gossip.GossipConfig;
 import io.scalecube.cluster.membership.MembershipConfig;
 import io.scalecube.cluster.metadata.MetadataCodec;
 import io.scalecube.cluster.transport.api.TransportConfig;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import java.util.StringJoiner;
 import java.util.function.UnaryOperator;
@@ -35,8 +38,7 @@ public final class ClusterConfig implements Cloneable {
 
   private String memberId;
   private String memberAlias;
-  private String externalHost;
-  private Integer externalPort;
+  private List<String> externalHosts;
 
   private TransportConfig transportConfig = TransportConfig.defaultConfig();
   private FailureDetectorConfig failureDetectorConfig = FailureDetectorConfig.defaultConfig();
@@ -136,27 +138,39 @@ public final class ClusterConfig implements Cloneable {
   }
 
   /**
-   * Returns externalHost. {@code externalHost} is a config property for container environments,
-   * it's being set for advertising to scalecube cluster some connectable hostname which maps to
+   * Returns externalHosts. {@code externalHosts} is a config property for container environments,
+   * it's being set for advertising to scalecube cluster some connectable hostnames which maps to
    * scalecube transport's hostname on which scalecube transport is listening.
    *
-   * @return external host
+   * @return external hosts
    */
-  public String externalHost() {
-    return externalHost;
+  public List<String> externalHosts() {
+    return externalHosts;
   }
 
   /**
-   * Setter for externalHost. {@code externalHost} is a config property for container environments,
-   * it's being set for advertising to scalecube cluster some connectable hostname which maps to
-   * scalecube transport's hostname on which scalecube transport is listening.
+   * Setter for externalHosts. {@code externalHosts} is a config property for container
+   * environments, it's being set for advertising to scalecube cluster some connectable hostnames
+   * which maps to scalecube transport's hostname on which scalecube transport is listening.
    *
-   * @param externalHost external host
+   * @param externalHosts external hosts
    * @return new {@code ClusterConfig} instance
    */
-  public ClusterConfig externalHost(String externalHost) {
+  public ClusterConfig externalHosts(String... externalHosts) {
+    return externalHosts(Arrays.asList(externalHosts));
+  }
+
+  /**
+   * Setter for externalHosts. {@code externalHosts} is a config property for container
+   * environments, it's being set for advertising to scalecube cluster some connectable hostnames
+   * which maps to scalecube transport's hostname on which scalecube transport is listening.
+   *
+   * @param externalHosts external hosts
+   * @return new {@code ClusterConfig} instance
+   */
+  public ClusterConfig externalHosts(List<String> externalHosts) {
     ClusterConfig c = clone();
-    c.externalHost = externalHost;
+    c.externalHosts = new ArrayList<>(externalHosts);
     return c;
   }
 
@@ -202,31 +216,6 @@ public final class ClusterConfig implements Cloneable {
   public ClusterConfig memberAlias(String memberAlias) {
     ClusterConfig c = clone();
     c.memberAlias = memberAlias;
-    return c;
-  }
-
-  /**
-   * Returns externalPort. {@code externalPort} is a config property for container environments,
-   * it's being set for advertising to scalecube cluster a port which mapped to scalecube
-   * transport's listening port.
-   *
-   * @return external port
-   */
-  public Integer externalPort() {
-    return externalPort;
-  }
-
-  /**
-   * Setter for externalPort. {@code externalPort} is a config property for container environments,
-   * it's being set for advertising to scalecube cluster a port which mapped to scalecube
-   * transport's listening port.
-   *
-   * @param externalPort external port
-   * @return new {@code ClusterConfig} instance
-   */
-  public ClusterConfig externalPort(Integer externalPort) {
-    ClusterConfig c = clone();
-    c.externalPort = externalPort;
     return c;
   }
 
@@ -316,8 +305,7 @@ public final class ClusterConfig implements Cloneable {
         .add("metadataCodec=" + metadataCodec)
         .add("memberId='" + memberId + "'")
         .add("memberAlias='" + memberAlias + "'")
-        .add("externalHost='" + externalHost + "'")
-        .add("externalPort=" + externalPort)
+        .add("externalHosts=" + externalHosts)
         .add("transportConfig=" + transportConfig)
         .add("failureDetectorConfig=" + failureDetectorConfig)
         .add("gossipConfig=" + gossipConfig)
