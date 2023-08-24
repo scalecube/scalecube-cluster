@@ -3,6 +3,7 @@ package io.scalecube.cluster;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.net.Address;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import reactor.core.publisher.Mono;
 
@@ -14,7 +15,7 @@ public interface Cluster {
    *
    * @return cluster address
    */
-  Address address();
+  List<Address> addresses();
 
   /**
    * Send a msg from this member (src) to target member (specified in parameters).
@@ -33,6 +34,15 @@ public interface Cluster {
    * @return promise telling success or failure
    */
   Mono<Void> send(Address address, Message message);
+
+  /**
+   * Send a msg from this member (src) to target member (specified in parameters).
+   *
+   * @param addresses target addresses
+   * @param message msg
+   * @return promise telling success or failure
+   */
+  Mono<Void> send(List<Address> addresses, Message message);
 
   /**
    * Sends message to the given address. It will issue connect in case if no transport channel by

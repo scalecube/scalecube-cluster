@@ -30,7 +30,7 @@ public class ClusterJoinExamples {
     Cluster bob =
         new ClusterImpl()
             .config(opts -> opts.memberAlias("Bob"))
-            .membership(opts -> opts.seedMembers(alice.address()))
+            .membership(opts -> opts.seedMembers(alice.addresses()))
             .transportFactory(TcpTransportFactory::new)
             .startAwait();
 
@@ -39,7 +39,7 @@ public class ClusterJoinExamples {
     Cluster carol =
         new ClusterImpl()
             .config(opts -> opts.memberAlias("Carol").metadata(metadata))
-            .membership(opts -> opts.seedMembers(alice.address()))
+            .membership(opts -> opts.seedMembers(alice.addresses()))
             .transportFactory(TcpTransportFactory::new)
             .startAwait();
 
@@ -47,7 +47,7 @@ public class ClusterJoinExamples {
     ClusterConfig configWithFixedPort =
         new ClusterConfig()
             .memberAlias("Dan")
-            .membership(opts -> opts.seedMembers(alice.address()))
+            .membership(opts -> opts.seedMembers(alice.addresses()))
             .transport(opts -> opts.port(3000));
     Cluster dan =
         new ClusterImpl(configWithFixedPort)
@@ -61,10 +61,10 @@ public class ClusterJoinExamples {
             .membership(
                 opts ->
                     opts.seedMembers(
-                            alice.address(),
-                            bob.address(),
-                            carol.address(),
-                            dan.address()) // won't join anyway
+                            alice.addresses().get(0),
+                            bob.addresses().get(0),
+                            carol.addresses().get(0),
+                            dan.addresses().get(0)) // won't join anyway
                         .namespace("another-cluster"));
     Cluster eve =
         new ClusterImpl(configWithSyncGroup)
@@ -75,31 +75,31 @@ public class ClusterJoinExamples {
 
     System.out.println(
         "Alice ("
-            + alice.address()
+            + alice.addresses()
             + ") cluster: "
             + alice.members().stream().map(Member::toString).collect(joining("\n", "\n", "\n")));
 
     System.out.println(
         "Bob ("
-            + bob.address()
+            + bob.addresses()
             + ") cluster: "
             + bob.members().stream().map(Member::toString).collect(joining("\n", "\n", "\n")));
 
     System.out.println(
         "Carol ("
-            + carol.address()
+            + carol.addresses()
             + ") cluster: "
             + carol.members().stream().map(Member::toString).collect(joining("\n", "\n", "\n")));
 
     System.out.println(
         "Dan ("
-            + dan.address()
+            + dan.addresses()
             + ") cluster: "
             + dan.members().stream().map(Member::toString).collect(joining("\n", "\n", "\n")));
 
     System.out.println(
         "Eve ("
-            + eve.address()
+            + eve.addresses()
             + ") cluster: " // alone in cluster
             + eve.members().stream().map(Member::toString).collect(joining("\n", "\n", "\n")));
   }

@@ -34,7 +34,7 @@ public class GossipExample {
     //noinspection unused
     Cluster bob =
         new ClusterImpl()
-            .membership(opts -> opts.seedMembers(alice.address()))
+            .membership(opts -> opts.seedMembers(alice.addresses()))
             .transportFactory(TcpTransportFactory::new)
             .handler(
                 cluster -> {
@@ -50,7 +50,7 @@ public class GossipExample {
     //noinspection unused
     Cluster carol =
         new ClusterImpl()
-            .membership(opts -> opts.seedMembers(alice.address()))
+            .membership(opts -> opts.seedMembers(alice.addresses()))
             .transportFactory(TcpTransportFactory::new)
             .handler(
                 cluster -> {
@@ -66,7 +66,7 @@ public class GossipExample {
     //noinspection unused
     Cluster dan =
         new ClusterImpl()
-            .membership(opts -> opts.seedMembers(alice.address()))
+            .membership(opts -> opts.seedMembers(alice.addresses()))
             .transportFactory(TcpTransportFactory::new)
             .handler(
                 cluster -> {
@@ -82,7 +82,7 @@ public class GossipExample {
     // Start cluster node Eve that joins cluster and spreads gossip
     Cluster eve =
         new ClusterImpl()
-            .membership(opts -> opts.seedMembers(alice.address()))
+            .membership(opts -> opts.seedMembers(alice.addresses()))
             .transportFactory(TcpTransportFactory::new)
             .startAwait();
     eve.spreadGossip(Message.fromData("Gossip from Eve"))

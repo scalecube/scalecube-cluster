@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.StringJoiner;
@@ -40,6 +41,18 @@ public final class Member implements Externalizable {
     this.alias = alias;
     this.addresses = Objects.requireNonNull(addresses, "addresses");
     this.namespace = Objects.requireNonNull(namespace, "namespace");
+  }
+
+  /**
+   * Constructor.
+   *
+   * @param id member id
+   * @param alias member alias (optional)
+   * @param address member address
+   * @param namespace namespace
+   */
+  public Member(String id, String alias, Address address, String namespace) {
+    this(id, alias, Collections.singletonList(address), namespace);
   }
 
   /**

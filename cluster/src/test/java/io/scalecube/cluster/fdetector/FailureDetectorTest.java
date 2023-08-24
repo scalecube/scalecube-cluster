@@ -445,7 +445,8 @@ public class FailureDetectorTest extends BaseTest {
         events.stream()
             .filter(event -> event.status() == status)
             .map(FailureDetectorEvent::member)
-            .map(Member::address)
+            .map(Member::addresses)
+            .flatMap(Collection::stream)
             .collect(Collectors.toList());
 
     String msg1 =
@@ -472,7 +473,8 @@ public class FailureDetectorTest extends BaseTest {
     List<CompletableFuture<FailureDetectorEvent>> resultFuture = new ArrayList<>();
     for (final Address member : addresses) {
       final CompletableFuture<FailureDetectorEvent> future = new CompletableFuture<>();
-      fd.listen().filter(event -> event.member().address() == member).subscribe(future::complete);
+      fd.listen()
+        .filter(event -> event.member().addresses().contains(member)).subscribe(future::complete);
       resultFuture.add(future);
     }
 

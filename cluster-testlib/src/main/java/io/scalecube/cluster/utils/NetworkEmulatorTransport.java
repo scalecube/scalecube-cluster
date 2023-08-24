@@ -3,6 +3,7 @@ package io.scalecube.cluster.utils;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.net.Address;
+import java.util.Collections;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -83,6 +84,6 @@ public final class NetworkEmulatorTransport implements Transport {
   }
 
   private Message enhanceWithSender(Message message) {
-    return Message.with(message).sender(transport.address()).build();
+    return Message.with(message).sender(Collections.singletonList(transport.address())).build();
   }
 }

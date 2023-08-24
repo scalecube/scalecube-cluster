@@ -16,6 +16,7 @@ import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.cluster.transport.api.TransportFactory;
+import io.scalecube.cluster.transport.api.TransportWrapper;
 import io.scalecube.net.Address;
 import io.scalecube.utils.ServiceLoaderUtil;
 import java.io.Serializable;
@@ -243,7 +244,8 @@ public final class ClusterImpl implements Cluster {
         .flatMap(
             boundTransport -> {
               localMember = createLocalMember(boundTransport.address());
-              transport = new SenderAwareTransport(boundTransport, localMember.address());
+
+              transport = new SenderAwareTransport(boundTransport, localMember.addresses());
 
               final String name =
                   "sc-cluster-" + Integer.toHexString(System.identityHashCode(this));
@@ -379,7 +381,7 @@ public final class ClusterImpl implements Cluster {
     // First address comes as "fair" listen address
     memberAddresses.add(address);
 
-    // Tail goes as externalHosts, if the exist
+    // Tail goes as externalHosts, if exists
     final List<String> externalHosts = config.externalHosts();
     if (externalHosts != null) {
       for (String externalHost : externalHosts) {
@@ -396,18 +398,23 @@ public final class ClusterImpl implements Cluster {
   }
 
   @Override
-  public Address address() {
-    return member().address();
+  public List<Address> addresses() {
+    return member().addresses();
   }
 
   @Override
   public Mono<Void> send(Member member, Message message) {
-    return send(member.address(), message);
+    return TransportWrapper.send(transport, member.addresses(), message);
   }
 
   @Override
   public Mono<Void> send(Address address, Message message) {
     return transport.send(address, message);
+  }
+
+  @Override
+  public Mono<Void> send(List<Address> addresses, Message message) {
+    return TransportWrapper.send(transport, addresses, message);
   }
 
   @Override
@@ -417,7 +424,7 @@ public final class ClusterImpl implements Cluster {
 
   @Override
   public Mono<Message> requestResponse(Member member, Message request) {
-    return transport.requestResponse(member.address(), request);
+    return TransportWrapper.requestResponse(transport, member.addresses(), request);
   }
 
   @Override
@@ -526,11 +533,11 @@ public final class ClusterImpl implements Cluster {
   private static class SenderAwareTransport implements Transport {
 
     private final Transport transport;
-    private final Address address;
+    private final List<Address> addresses;
 
-    private SenderAwareTransport(Transport transport, Address address) {
+    private SenderAwareTransport(Transport transport, List<Address> addresses) {
       this.transport = Objects.requireNonNull(transport);
-      this.address = Objects.requireNonNull(address);
+      this.addresses = Objects.requireNonNull(addresses);
     }
 
     @Override
@@ -569,7 +576,7 @@ public final class ClusterImpl implements Cluster {
     }
 
     private Message enhanceWithSender(Message message) {
-      return Message.with(message).sender(address).build();
+      return Message.with(message).sender(addresses).build();
     }
   }
 }

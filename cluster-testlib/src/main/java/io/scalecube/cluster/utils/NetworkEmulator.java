@@ -5,6 +5,7 @@ import io.scalecube.net.Address;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
 import java.util.concurrent.ConcurrentHashMap;
@@ -214,14 +215,39 @@ public final class NetworkEmulator {
   }
 
   /**
+   * Returns network inbound settings applied to the given destination.
+   *
+   * @param destinations addresses of target endpoint
+   * @return network inbound settings
+   */
+  public InboundSettings inboundSettings(List<Address> destinations) {
+    if (destinations.isEmpty()) {
+      return defaultInboundSettings;
+    }
+
+    for (Address destination : destinations) {
+      InboundSettings inboundSettings = this.inboundSettings.get(destination);
+
+      if (inboundSettings != null) {
+        return inboundSettings;
+      }
+    }
+
+    return defaultInboundSettings;
+  }
+
+  /**
    * Setter for network emulator inbound settings for specific destination.
    *
    * @param shallPass shallPass inbound flag
    */
-  public void inboundSettings(Address destination, boolean shallPass) {
+  public void inboundSettings(List<Address> destinations, boolean shallPass) {
     InboundSettings settings = new InboundSettings(shallPass);
-    inboundSettings.put(destination, settings);
-    LOGGER.debug("[{}] Set inbound settings {} to {}", address, settings, destination);
+
+    destinations.forEach(destination -> {
+      inboundSettings.put(destination, settings);
+      LOGGER.debug("[{}] Set inbound settings {} to {}", address, settings, destination);
+    });
   }
 
   /**

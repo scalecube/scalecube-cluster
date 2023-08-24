@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import io.scalecube.cluster.transport.api.Message;
+import io.scalecube.cluster.transport.api.TransportWrapper;
 import io.scalecube.cluster.utils.NetworkEmulatorTransport;
 import io.scalecube.net.Address;
 import io.scalecube.transport.netty.BaseTest;
@@ -94,9 +95,11 @@ public class WebsocketTransportTest extends BaseTest {
         .listen()
         .subscribe(
             message -> {
-              Address address = message.sender();
-              assertEquals(client.address(), address, "Expected clientAddress");
-              send(server, address, Message.fromQualifier("hi client")).subscribe();
+              List<Address> addresses = message.sender();
+              assertTrue(
+                  addresses.stream().anyMatch(a -> client.address().equals(a)),
+                  "Expected clientAddress");
+              send(server, addresses, Message.fromQualifier("hi client")).subscribe();
             });
 
     CompletableFuture<Message> messageFuture = new CompletableFuture<>();
@@ -145,8 +148,7 @@ public class WebsocketTransportTest extends BaseTest {
             messages -> {
               for (Message message : messages) {
                 Message echo = Message.withData("echo/" + message.qualifier()).build();
-                server
-                    .send(message.sender(), echo)
+                TransportWrapper.send(server, message.sender(), echo)
                     .subscribe(null, th -> LOGGER.error("Failed to send message", th));
               }
             });
@@ -215,8 +217,7 @@ public class WebsocketTransportTest extends BaseTest {
             messages -> {
               for (Message message : messages) {
                 Message echo = Message.withData("echo/" + message.qualifier()).build();
-                server
-                    .send(message.sender(), echo)
+                TransportWrapper.send(server, message.sender(), echo)
                     .subscribe(null, th -> LOGGER.error("Failed to send message", th));
               }
             });
@@ -280,8 +281,7 @@ public class WebsocketTransportTest extends BaseTest {
               }
               if (qualifier.startsWith("q")) {
                 Message echo = Message.withData("echo/" + message.qualifier()).build();
-                server
-                    .send(message.sender(), echo)
+                TransportWrapper.send(server, message.sender(), echo)
                     .subscribe(null, th -> LOGGER.error("Failed to send message", th));
               }
             },
@@ -320,7 +320,9 @@ public class WebsocketTransportTest extends BaseTest {
     client = createWebsocketTransport();
     server = createWebsocketTransport();
 
-    server.listen().subscribe(message -> server.send(message.sender(), message).subscribe());
+    server
+        .listen()
+        .subscribe(message -> TransportWrapper.send(server, message.sender(), message).subscribe());
 
     Sinks.Many<Message> responses = Sinks.many().replay().all();
     client

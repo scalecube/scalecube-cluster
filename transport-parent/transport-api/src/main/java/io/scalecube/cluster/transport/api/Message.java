@@ -5,13 +5,15 @@ import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.StringJoiner;
+import java.util.stream.Collectors;
 
 /**
  * The Class Message introduces generic protocol used for point to point communication by transport.
@@ -36,7 +38,8 @@ public final class Message implements Externalizable {
    * This header represents sender address of type {@link Address}. It's an address of message
    * originator. This header is optional.
    */
-  public static final String HEADER_SENDER = "sender";
+  public static final String HEADER_SENDER =
+      "sender"; // TODO. Value should be list of addresses (comma separated)
 
   private Map<String, String> headers = Collections.emptyMap();
   private Object data;
@@ -190,8 +193,17 @@ public final class Message implements Externalizable {
    *
    * @return address
    */
-  public Address sender() {
-    return Optional.ofNullable(header(HEADER_SENDER)).map(Address::from).orElse(null);
+  public List<Address> sender() {
+    String headerValue = header(HEADER_SENDER);
+
+    if (headerValue == null) {
+      return Collections.emptyList();
+    }
+
+    return Arrays.stream(headerValue.split(","))
+        .map(String::trim) // Removes leading and trailing spaces.
+        .map(Address::from)
+        .collect(Collectors.toList());
   }
 
   @Override
@@ -281,8 +293,16 @@ public final class Message implements Externalizable {
       return header(HEADER_CORRELATION_ID, correlationId);
     }
 
-    public Builder sender(Address sender) {
-      return header(HEADER_SENDER, sender.toString());
+    /**
+     * Setter for header.
+     *
+     * @param addresses addresses
+     * @return builder
+     */
+    public Builder sender(List<Address> addresses) {
+      return header(
+        HEADER_SENDER,
+        addresses.stream().map(Address::toString).collect(Collectors.joining(",")));
     }
 
     public Message build() {

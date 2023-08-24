@@ -3,17 +3,22 @@ package io.scalecube.transport.netty;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.transport.api.TransportConfig;
+import io.scalecube.cluster.transport.api.TransportWrapper;
 import io.scalecube.cluster.utils.NetworkEmulatorTransport;
 import io.scalecube.net.Address;
 import io.scalecube.transport.netty.tcp.TcpTransportFactory;
 import io.scalecube.transport.netty.websocket.WebsocketTransportFactory;
 import java.time.Duration;
+import java.util.List;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
+
+import javax.sql.rowset.spi.TransactionalWriter;
 
 /** Base test class. */
 public class BaseTest {
@@ -48,6 +53,25 @@ public class BaseTest {
                     to,
                     transport,
                     th.toString()));
+  }
+
+  /**
+   * Sending message from src to destination.
+   *
+   * @param transport src
+   * @param to destinations
+   * @param msg request
+   */
+  protected Mono<Void> send(Transport transport, List<Address> to, Message msg) {
+    return TransportWrapper.send(transport, to, msg)
+      .doOnError(
+        th ->
+          LOGGER.error(
+            "Failed to send {} to {} from transport: {}, cause: {}",
+            msg,
+            to,
+            transport,
+            th.toString()));
   }
 
   /**

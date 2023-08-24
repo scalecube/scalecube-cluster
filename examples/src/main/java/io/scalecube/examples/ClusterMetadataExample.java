@@ -30,7 +30,7 @@ public class ClusterMetadataExample {
     Cluster joe =
         new ClusterImpl()
             .config(opts -> opts.metadata(Collections.singletonMap("name", "Joe")))
-            .membership(opts -> opts.seedMembers(alice.address()))
+            .membership(opts -> opts.seedMembers(alice.addresses()))
             .transportFactory(TcpTransportFactory::new)
             .handler(
                 cluster -> {

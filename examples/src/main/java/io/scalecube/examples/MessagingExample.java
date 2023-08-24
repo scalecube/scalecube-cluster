@@ -39,7 +39,7 @@ public class MessagingExample {
     // messages
     Cluster bob =
         new ClusterImpl()
-            .membership(opts -> opts.seedMembers(alice.address()))
+            .membership(opts -> opts.seedMembers(alice.addresses()))
             .transportFactory(TcpTransportFactory::new)
             .handler(
                 cluster -> {
@@ -58,7 +58,7 @@ public class MessagingExample {
     // Join cluster node Carol to cluster with Alice and Bob
     Cluster carol =
         new ClusterImpl()
-            .membership(opts -> opts.seedMembers(alice.address(), bob.address()))
+            .membership(opts -> opts.seedMembers(alice.addresses().get(0), bob.addresses().get(0)))
             .transportFactory(TcpTransportFactory::new)
             .handler(
                 cluster -> {

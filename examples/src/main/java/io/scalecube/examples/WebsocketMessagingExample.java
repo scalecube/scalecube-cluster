@@ -40,7 +40,7 @@ public class WebsocketMessagingExample {
     Cluster bob =
         new ClusterImpl()
             .transportFactory(WebsocketTransportFactory::new)
-            .membership(opts -> opts.seedMembers(alice.address()))
+            .membership(opts -> opts.seedMembers(alice.addresses()))
             .handler(
                 cluster -> {
                   return new ClusterMessageHandler() {
@@ -59,15 +59,13 @@ public class WebsocketMessagingExample {
     Cluster carol =
         new ClusterImpl()
             .transportFactory(WebsocketTransportFactory::new)
-            .membership(opts -> opts.seedMembers(alice.address(), bob.address()))
+            .membership(opts -> opts.seedMembers(alice.addresses().get(0), bob.addresses().get(0)))
             .handler(
-                cluster -> {
-                  return new ClusterMessageHandler() {
-                    @Override
-                    public void onMessage(Message msg) {
-                      System.out.println("Carol received: " + msg.data());
-                    }
-                  };
+                cluster -> new ClusterMessageHandler() {
+                  @Override
+                  public void onMessage(Message msg) {
+                    System.out.println("Carol received: " + msg.data());
+                  }
                 })
             .startAwait();
 

@@ -92,7 +92,7 @@ public class ClusterTest extends BaseTest {
     Cluster seedNode = new ClusterImpl().transportFactory(TcpTransportFactory::new).startAwait();
     Cluster otherNode =
         new ClusterImpl()
-            .membership(opts -> opts.seedMembers(seedNode.address()))
+            .membership(opts -> opts.seedMembers(seedNode.addresses()))
             .transportFactory(TcpTransportFactory::new)
             .startAwait();
 
@@ -101,8 +101,8 @@ public class ClusterTest extends BaseTest {
 
     // Members by address
 
-    Optional<Member> otherNodeOnSeedNode = seedNode.member(otherNode.address());
-    Optional<Member> seedNodeOnOtherNode = otherNode.member(seedNode.address());
+    Optional<Member> otherNodeOnSeedNode = seedNode.member(otherNode.addresses().get(0));
+    Optional<Member> seedNodeOnOtherNode = otherNode.member(seedNode.addresses().get(0));
 
     assertEquals(otherNode.member(), otherNodeOnSeedNode.orElse(null));
     assertEquals(seedNode.member(), seedNodeOnOtherNode.orElse(null));
@@ -181,7 +181,7 @@ public class ClusterTest extends BaseTest {
       for (int i = 0; i < membersNum; i++) {
         otherNodes.add(
             new ClusterImpl()
-                .membership(opts -> opts.seedMembers(seedNode.address()))
+                .membership(opts -> opts.seedMembers(seedNode.addresses()))
                 .transportFactory(TcpTransportFactory::new)
                 .startAwait());
       }
@@ -212,7 +212,7 @@ public class ClusterTest extends BaseTest {
       metadataNode =
           new ClusterImpl()
               .config(opts -> opts.metadata(metadata))
-              .membership(opts -> opts.seedMembers(seedNode.address()))
+              .membership(opts -> opts.seedMembers(seedNode.addresses()))
               .transportFactory(TcpTransportFactory::new)
               .startAwait();
 
@@ -221,7 +221,7 @@ public class ClusterTest extends BaseTest {
           .flatMap(
               integer ->
                   new ClusterImpl()
-                      .membership(opts -> opts.seedMembers(seedNode.address()))
+                      .membership(opts -> opts.seedMembers(seedNode.addresses()))
                       .transportFactory(TcpTransportFactory::new)
                       .handler(
                           cluster ->
@@ -285,7 +285,7 @@ public class ClusterTest extends BaseTest {
       metadataNode =
           new ClusterImpl()
               .config(opts -> opts.metadata(metadata))
-              .membership(opts -> opts.seedMembers(seedNode.address()))
+              .membership(opts -> opts.seedMembers(seedNode.addresses()))
               .transportFactory(TcpTransportFactory::new)
               .startAwait();
 
@@ -294,7 +294,7 @@ public class ClusterTest extends BaseTest {
           .flatMap(
               integer ->
                   new ClusterImpl()
-                      .membership(opts -> opts.seedMembers(seedNode.address()))
+                      .membership(opts -> opts.seedMembers(seedNode.addresses()))
                       .transportFactory(TcpTransportFactory::new)
                       .handler(
                           cluster ->
@@ -363,7 +363,7 @@ public class ClusterTest extends BaseTest {
       metadataNode =
           new ClusterImpl()
               .config(opts -> opts.metadata(metadata))
-              .membership(opts -> opts.seedMembers(seedNode.address()))
+              .membership(opts -> opts.seedMembers(seedNode.addresses()))
               .transportFactory(TcpTransportFactory::new)
               .startAwait();
 
@@ -372,7 +372,7 @@ public class ClusterTest extends BaseTest {
           .flatMap(
               integer ->
                   new ClusterImpl()
-                      .membership(opts -> opts.seedMembers(seedNode.address()))
+                      .membership(opts -> opts.seedMembers(seedNode.addresses()))
                       .transportFactory(TcpTransportFactory::new)
                       .handler(
                           cluster ->
@@ -452,19 +452,19 @@ public class ClusterTest extends BaseTest {
     // Start nodes
     final Cluster node1 =
         new ClusterImpl()
-            .membership(opts -> opts.seedMembers(seedNode.address()))
+            .membership(opts -> opts.seedMembers(seedNode.addresses()))
             .transportFactory(TcpTransportFactory::new)
             .handler(cluster -> listener)
             .startAwait();
     final Cluster node2 =
         new ClusterImpl()
-            .membership(opts -> opts.seedMembers(seedNode.address()))
+            .membership(opts -> opts.seedMembers(seedNode.addresses()))
             .transportFactory(TcpTransportFactory::new)
             .handler(cluster -> listener)
             .startAwait();
     final Cluster node3 =
         new ClusterImpl()
-            .membership(opts -> opts.seedMembers(seedNode.address()))
+            .membership(opts -> opts.seedMembers(seedNode.addresses()))
             .transportFactory(TcpTransportFactory::new)
             .handler(cluster -> listener)
             .startAwait();
@@ -506,7 +506,7 @@ public class ClusterTest extends BaseTest {
     final Cluster node1 =
         new ClusterImpl()
             .config(opts -> opts.metadata(node1Metadata))
-            .membership(opts -> opts.seedMembers(seedNode.address()))
+            .membership(opts -> opts.seedMembers(seedNode.addresses()))
             .transportFactory(TcpTransportFactory::new)
             .handler(
                 cluster ->
@@ -559,9 +559,11 @@ public class ClusterTest extends BaseTest {
     // Start seed node
     Cluster seedNode = new ClusterImpl().transportFactory(TcpTransportFactory::new).startAwait();
 
-    Address nonExistingSeed1 = Address.from("localhost:1234");
-    Address nonExistingSeed2 = Address.from("localhost:5678");
-    Address[] seeds = new Address[] {nonExistingSeed1, nonExistingSeed2, seedNode.address()};
+    List<Address> seeds = new ArrayList<>();
+
+    seeds.add(Address.from("localhost:1234")); // Not existent
+    seeds.add(Address.from("localhost:5678"));  // Not existent
+    seeds.addAll(seedNode.addresses());
 
     Cluster otherNode =
         new ClusterImpl()

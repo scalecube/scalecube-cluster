@@ -750,19 +750,19 @@ public class MembershipProtocolTest extends BaseTest {
     NetworkEmulatorTransport e = createTransport();
 
     MembershipProtocolImpl cmA =
-        createMembership(a, testConfig(Collections.emptyList()).externalHost(localAddress));
+        createMembership(a, testConfig(Collections.emptyList()).externalHosts(localAddress));
     MembershipProtocolImpl cmB =
         createMembership(
-            b, testConfig(Collections.singletonList(a.address())).externalHost(localAddress));
+            b, testConfig(Collections.singletonList(a.address())).externalHosts(localAddress));
     MembershipProtocolImpl cmC =
         createMembership(
-            c, testConfig(Collections.singletonList(a.address())).externalHost(localAddress));
+            c, testConfig(Collections.singletonList(a.address())).externalHosts(localAddress));
     MembershipProtocolImpl cmD =
         createMembership(
-            d, testConfig(Collections.singletonList(b.address())).externalHost(localAddress));
+            d, testConfig(Collections.singletonList(b.address())).externalHosts(localAddress));
     MembershipProtocolImpl cmE =
         createMembership(
-            e, testConfig(Collections.singletonList(b.address())).externalHost(localAddress));
+            e, testConfig(Collections.singletonList(b.address())).externalHosts(localAddress));
 
     try {
       awaitSeconds(3);
