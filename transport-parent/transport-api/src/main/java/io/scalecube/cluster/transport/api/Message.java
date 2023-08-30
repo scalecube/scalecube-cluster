@@ -201,7 +201,6 @@ public final class Message implements Externalizable {
     }
 
     return Arrays.stream(headerValue.split(","))
-        .map(String::trim) // Removes leading and trailing spaces.
         .map(Address::from)
         .collect(Collectors.toList());
   }

@@ -80,8 +80,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private final GossipProtocol gossipProtocol;
   private final MetadataStore metadataStore;
 
-  private final TransportWrapper transportWrapper;
-
   // State
 
   private final Map<String, MembershipRecord> membershipTable = new HashMap<>();
@@ -128,8 +126,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     this.scheduler = Objects.requireNonNull(scheduler);
     this.membershipConfig = Objects.requireNonNull(config).membershipConfig();
     this.failureDetectorConfig = Objects.requireNonNull(config).failureDetectorConfig();
-
-    this.transportWrapper = new TransportWrapper(this.transport);
 
     // Prepare seeds
     seedMembers = cleanUpSeedMembers(membershipConfig.seedMembers());
@@ -355,8 +351,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
     Message message = prepareSyncDataMsg(SYNC, null);
     LOGGER.debug("[{}][doSync] Send Sync to {}", localMember, addresses);
-    transportWrapper
-        .send(addresses, message)
+    TransportWrapper.send(transport, addresses, message)
         .subscribe(
             null,
             ex ->
@@ -413,8 +408,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
               .doOnSuccess(
                   avoid -> {
                     Message message = prepareSyncDataMsg(SYNC_ACK, syncMsg.correlationId());
-                    transportWrapper
-                        .send(sender, message)
+                    TransportWrapper.send(transport, sender, message)
                         .subscribe(
                             null,
                             ex ->
@@ -443,8 +437,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       // alive with inc + 1
       Message syncMsg = prepareSyncDataMsg(SYNC, null);
       List<Address> addresses = fdEvent.member().addresses();
-      transportWrapper
-          .send(addresses, syncMsg)
+      TransportWrapper.send(transport, addresses, syncMsg)
           .subscribe(
               null,
               ex ->
@@ -532,11 +525,11 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                           updateMembership(r1, reason)
                               .doOnError(
                                   ex ->
-                                      LOGGER.warn(
+                                      LOGGER.error(
                                           "[{}][syncMembership][{}][error] cause: {}",
                                           localMember,
                                           reason,
-                                          ex.toString()))
+                                          ex))
                               .onErrorResume(ex -> Mono.empty()))
                   .toArray(Mono[]::new);
 

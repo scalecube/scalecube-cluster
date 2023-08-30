@@ -39,8 +39,6 @@ public class MetadataStoreImpl implements MetadataStore {
   private final Transport transport;
   private final ClusterConfig config;
 
-  private final TransportWrapper transportWrapper;
-
   // State
 
   private final Map<Member, ByteBuffer> membersMetadata = new HashMap<>();
@@ -73,8 +71,6 @@ public class MetadataStoreImpl implements MetadataStore {
     this.config = Objects.requireNonNull(config);
     this.scheduler = Objects.requireNonNull(scheduler);
     this.localMetadata = localMetadata; // optional
-
-    this.transportWrapper = new TransportWrapper(this.transport);
   }
 
   @Override
@@ -164,12 +160,9 @@ public class MetadataStoreImpl implements MetadataStore {
                   .data(new GetMetadataRequest(member))
                   .build();
 
-          // TODO. Make transport abstraction around this logic
-
           List<Address> addresses = member.addresses();
 
-          return transportWrapper
-              .requestResponse(addresses, request)
+          return TransportWrapper.requestResponse(transport, addresses, request)
               .timeout(Duration.ofMillis(config.metadataTimeout()), scheduler)
               .publishOn(scheduler)
               .doOnSuccess(
@@ -230,8 +223,7 @@ public class MetadataStoreImpl implements MetadataStore {
             .build();
 
     LOGGER.debug("[{}] Send GetMetadataResp to {}", localMember, sender);
-    transportWrapper
-        .send(sender, response)
+    TransportWrapper.send(transport, sender, response)
         .subscribe(
             null,
             ex ->

@@ -43,8 +43,6 @@ public final class FailureDetectorImpl implements FailureDetector {
   private final Transport transport;
   private final FailureDetectorConfig config;
 
-  private final TransportWrapper transportWrapper;
-
   // State
 
   private final List<Member> pingMembers = new ArrayList<>();
@@ -83,8 +81,6 @@ public final class FailureDetectorImpl implements FailureDetector {
     this.transport = Objects.requireNonNull(transport);
     this.config = Objects.requireNonNull(config);
     this.scheduler = Objects.requireNonNull(scheduler);
-
-    this.transportWrapper = new TransportWrapper(this.transport);
 
     // Subscribe
     actionsDisposables.addAll(
@@ -151,8 +147,7 @@ public final class FailureDetectorImpl implements FailureDetector {
 
     LOGGER.debug("[{}][{}] Send Ping to {}", localMember, period, pingMember);
     List<Address> addresses = pingMember.addresses();
-    transportWrapper
-        .requestResponse(addresses, pingMsg)
+    TransportWrapper.requestResponse(transport, addresses, pingMsg)
         .timeout(Duration.ofMillis(config.pingTimeout()), scheduler)
         .publishOn(scheduler)
         .subscribe(
@@ -194,8 +189,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     Duration timeout = Duration.ofMillis(config.pingInterval() - config.pingTimeout());
     pingReqMembers.forEach(
         member ->
-            transportWrapper
-                .requestResponse(member.addresses(), pingReqMsg)
+            TransportWrapper.requestResponse(transport, member.addresses(), pingReqMsg)
                 .timeout(timeout, scheduler)
                 .publishOn(scheduler)
                 .subscribe(
@@ -256,8 +250,7 @@ public final class FailureDetectorImpl implements FailureDetector {
         Message.withData(data).qualifier(PING_ACK).correlationId(correlationId).build();
     List<Address> addresses = data.getFrom().addresses();
     LOGGER.debug("[{}][{}] Send PingAck to {}", localMember, period, addresses);
-    transportWrapper
-        .send(addresses, ackMessage)
+    TransportWrapper.send(transport, addresses, ackMessage)
         .subscribe(
             null,
             ex ->
@@ -282,8 +275,7 @@ public final class FailureDetectorImpl implements FailureDetector {
         Message.withData(pingReqData).qualifier(PING).correlationId(correlationId).build();
     List<Address> addresses = target.addresses();
     LOGGER.debug("[{}][{}] Send transit Ping to {}", localMember, period, addresses);
-    transportWrapper
-        .send(addresses, pingMessage)
+    TransportWrapper.send(transport, addresses, pingMessage)
         .subscribe(
             null,
             ex ->
@@ -312,8 +304,7 @@ public final class FailureDetectorImpl implements FailureDetector {
         Message.withData(originalAckData).qualifier(PING_ACK).correlationId(correlationId).build();
     List<Address> addresses = target.addresses();
     LOGGER.debug("[{}][{}] Resend transit PingAck to {}", localMember, period, addresses);
-    transportWrapper
-        .send(addresses, originalAckMessage)
+    TransportWrapper.send(transport, addresses, originalAckMessage)
         .subscribe(
             null,
             ex ->
