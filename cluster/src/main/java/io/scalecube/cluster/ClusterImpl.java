@@ -403,31 +403,6 @@ public final class ClusterImpl implements Cluster {
   }
 
   @Override
-  public Mono<Void> send(Member member, Message message) {
-    return TransportWrapper.send(transport, member.addresses(), message);
-  }
-
-  @Override
-  public Mono<Void> send(Address address, Message message) {
-    return transport.send(address, message);
-  }
-
-  @Override
-  public Mono<Void> send(List<Address> addresses, Message message) {
-    return TransportWrapper.send(transport, addresses, message);
-  }
-
-  @Override
-  public Mono<Message> requestResponse(Address address, Message request) {
-    return transport.requestResponse(address, request);
-  }
-
-  @Override
-  public Mono<Message> requestResponse(Member member, Message request) {
-    return TransportWrapper.requestResponse(transport, member.addresses(), request);
-  }
-
-  @Override
   public Mono<String> spreadGossip(Message message) {
     return gossip.spread(message);
   }

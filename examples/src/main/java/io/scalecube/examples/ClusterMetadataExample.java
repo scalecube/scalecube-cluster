@@ -8,7 +8,6 @@ import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.transport.netty.tcp.TcpTransportFactory;
 import java.util.Collections;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Using Cluster metadata: metadata is set of custom parameters that may be used by application
@@ -49,18 +48,5 @@ public class ClusterMetadataExample {
 
     System.err.println("### joeMemberOptional: " + joeMemberOptional);
     System.err.println("### joeMetadata: " + alice.metadata(joeMemberOptional.get()));
-
-    // Send hello to Joe
-    joeMemberOptional.ifPresent(
-        member ->
-            alice
-                .send(member, Message.withData("Hello Joe").build())
-                .subscribe(
-                    null,
-                    ex -> {
-                      // no-op
-                    }));
-
-    TimeUnit.SECONDS.sleep(3);
   }
 }
