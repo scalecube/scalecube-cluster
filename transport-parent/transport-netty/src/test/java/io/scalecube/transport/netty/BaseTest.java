@@ -18,8 +18,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 
-import javax.sql.rowset.spi.TransactionalWriter;
-
 /** Base test class. */
 public class BaseTest {
 

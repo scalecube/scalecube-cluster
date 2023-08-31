@@ -8,7 +8,7 @@ import io.scalecube.cluster.membership.MemberStatus;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
-import io.scalecube.cluster.transport.api.TransportWrapper;
+import io.scalecube.cluster.TransportWrapper;
 import io.scalecube.net.Address;
 import java.time.Duration;
 import java.util.ArrayList;

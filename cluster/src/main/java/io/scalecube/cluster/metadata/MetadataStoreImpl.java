@@ -4,7 +4,7 @@ import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
-import io.scalecube.cluster.transport.api.TransportWrapper;
+import io.scalecube.cluster.TransportWrapper;
 import io.scalecube.net.Address;
 import java.nio.ByteBuffer;
 import java.time.Duration;

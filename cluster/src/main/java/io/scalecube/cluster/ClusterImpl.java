@@ -16,7 +16,6 @@ import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.cluster.transport.api.TransportFactory;
-import io.scalecube.cluster.transport.api.TransportWrapper;
 import io.scalecube.net.Address;
 import io.scalecube.utils.ServiceLoaderUtil;
 import java.io.Serializable;
