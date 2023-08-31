@@ -562,7 +562,7 @@ public class ClusterTest extends BaseTest {
     List<Address> seeds = new ArrayList<>();
 
     seeds.add(Address.from("localhost:1234")); // Not existent
-    seeds.add(Address.from("localhost:5678"));  // Not existent
+    seeds.add(Address.from("localhost:5678")); // Not existent
     seeds.addAll(seedNode.addresses());
 
     Cluster otherNode =

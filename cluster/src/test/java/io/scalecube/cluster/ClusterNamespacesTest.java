@@ -117,7 +117,10 @@ public class ClusterNamespacesTest extends BaseTest {
             .membership(
                 opts ->
                     opts.seedMembers(
-                        root.addresses().get(0), root2.addresses().get(0), bob.addresses().get(0), carol.addresses().get(0)))
+                        root.addresses().get(0),
+                        root2.addresses().get(0),
+                        bob.addresses().get(0),
+                        carol.addresses().get(0)))
             .startAwait();
 
     Cluster eve =
@@ -162,7 +165,8 @@ public class ClusterNamespacesTest extends BaseTest {
         new ClusterImpl()
             .transportFactory(WebsocketTransportFactory::new)
             .membership(opts -> opts.namespace("develop/develop"))
-            .membership(opts -> opts.seedMembers(rootDevelop.addresses().get(0), bob.addresses().get(0)))
+            .membership(
+                opts -> opts.seedMembers(rootDevelop.addresses().get(0), bob.addresses().get(0)))
             .startAwait();
 
     Cluster dan =
@@ -170,7 +174,11 @@ public class ClusterNamespacesTest extends BaseTest {
             .transportFactory(WebsocketTransportFactory::new)
             .membership(opts -> opts.namespace("develop/develop-2"))
             .membership(
-                opts -> opts.seedMembers(rootDevelop.addresses().get(0), bob.addresses().get(0), carol.addresses().get(0)))
+                opts ->
+                    opts.seedMembers(
+                        rootDevelop.addresses().get(0),
+                        bob.addresses().get(0),
+                        carol.addresses().get(0)))
             .startAwait();
 
     Cluster eve =
@@ -180,7 +188,10 @@ public class ClusterNamespacesTest extends BaseTest {
             .membership(
                 opts ->
                     opts.seedMembers(
-                        rootDevelop.addresses().get(0), bob.addresses().get(0), carol.addresses().get(0), dan.addresses().get(0)))
+                        rootDevelop.addresses().get(0),
+                        bob.addresses().get(0),
+                        carol.addresses().get(0),
+                        dan.addresses().get(0)))
             .startAwait();
 
     assertThat(
@@ -213,7 +224,8 @@ public class ClusterNamespacesTest extends BaseTest {
         new ClusterImpl()
             .transportFactory(WebsocketTransportFactory::new)
             .membership(opts -> opts.namespace("a/1/c"))
-            .membership(opts -> opts.seedMembers(parent1.addresses().get(0), bob.addresses().get(0)))
+            .membership(
+                opts -> opts.seedMembers(parent1.addresses().get(0), bob.addresses().get(0)))
             .startAwait();
 
     Cluster parent2 =
@@ -229,7 +241,10 @@ public class ClusterNamespacesTest extends BaseTest {
             .membership(
                 opts ->
                     opts.seedMembers(
-                        parent1.addresses().get(0), parent2.addresses().get(0), bob.addresses().get(0), carol.addresses().get(0)))
+                        parent1.addresses().get(0),
+                        parent2.addresses().get(0),
+                        bob.addresses().get(0),
+                        carol.addresses().get(0)))
             .startAwait();
 
     //noinspection unused

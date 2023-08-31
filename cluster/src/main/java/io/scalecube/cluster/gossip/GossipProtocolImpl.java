@@ -4,10 +4,10 @@ import static io.scalecube.reactor.RetryNonSerializedEmitFailureHandler.RETRY_NO
 
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.Member;
+import io.scalecube.cluster.TransportWrapper;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
-import io.scalecube.cluster.TransportWrapper;
 import io.scalecube.net.Address;
 import java.util.ArrayList;
 import java.util.Arrays;

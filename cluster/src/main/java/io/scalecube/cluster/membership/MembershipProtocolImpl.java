@@ -8,6 +8,7 @@ import static io.scalecube.reactor.RetryNonSerializedEmitFailureHandler.RETRY_NO
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.Member;
+import io.scalecube.cluster.TransportWrapper;
 import io.scalecube.cluster.fdetector.FailureDetector;
 import io.scalecube.cluster.fdetector.FailureDetectorConfig;
 import io.scalecube.cluster.fdetector.FailureDetectorEvent;
@@ -15,7 +16,6 @@ import io.scalecube.cluster.gossip.GossipProtocol;
 import io.scalecube.cluster.metadata.MetadataStore;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
-import io.scalecube.cluster.TransportWrapper;
 import io.scalecube.net.Address;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;

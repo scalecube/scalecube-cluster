@@ -10,7 +10,6 @@ import io.scalecube.transport.netty.tcp.TcpTransportFactory;
 import io.scalecube.transport.netty.websocket.WebsocketTransportFactory;
 import java.time.Duration;
 import java.util.List;
-
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInfo;
@@ -62,14 +61,14 @@ public class BaseTest {
    */
   protected Mono<Void> send(Transport transport, List<Address> to, Message msg) {
     return TransportWrapper.send(transport, to, msg)
-      .doOnError(
-        th ->
-          LOGGER.error(
-            "Failed to send {} to {} from transport: {}, cause: {}",
-            msg,
-            to,
-            transport,
-            th.toString()));
+        .doOnError(
+            th ->
+                LOGGER.error(
+                    "Failed to send {} to {} from transport: {}, cause: {}",
+                    msg,
+                    to,
+                    transport,
+                    th.toString()));
   }
 
   /**

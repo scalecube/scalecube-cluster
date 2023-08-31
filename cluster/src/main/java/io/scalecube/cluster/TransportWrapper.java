@@ -19,6 +19,13 @@ public class TransportWrapper {
     this.transport = transport;
   }
 
+  /**
+   * Execute request response call.
+   *
+   * @param member member
+   * @param request request
+   * @return mono result
+   */
   public Mono<Message> requestResponse(Member member, Message request) {
     return connections
         .compute(
@@ -36,6 +43,28 @@ public class TransportWrapper {
         .map(result -> result.message);
   }
 
+  private Mono<Result> requestResponse(List<Address> addresses, Message request) {
+    final AtomicInteger currentIndex = new AtomicInteger();
+    return Mono.defer(
+            () -> {
+              final int index = currentIndex.getAndIncrement();
+              return transport.requestResponse(addresses.get(index), request);
+            })
+        .retry(addresses.size() - 1)
+        .map(
+            message -> {
+              final int index = currentIndex.get();
+              return new Result(addresses.get(index), message);
+            });
+  }
+
+  /**
+   * Execute send call.
+   *
+   * @param member member
+   * @param request request
+   * @return mono result
+   */
   public Mono<Void> send(Member member, Message request) {
     return connections
         .compute(
@@ -51,21 +80,6 @@ public class TransportWrapper {
                           .thenReturn(new Result(result.address)));
             })
         .then();
-  }
-
-  private Mono<Result> requestResponse(List<Address> addresses, Message request) {
-    final AtomicInteger currentIndex = new AtomicInteger();
-    return Mono.defer(
-            () -> {
-              final int index = currentIndex.getAndIncrement();
-              return transport.requestResponse(addresses.get(index), request);
-            })
-        .retry(addresses.size() - 1)
-        .map(
-            message -> {
-              final int index = currentIndex.get();
-              return new Result(addresses.get(index), message);
-            });
   }
 
   private Mono<Result> send(List<Address> addresses, Message request) {

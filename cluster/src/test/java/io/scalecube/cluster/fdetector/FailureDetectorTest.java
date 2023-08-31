@@ -474,7 +474,8 @@ public class FailureDetectorTest extends BaseTest {
     for (final Address member : addresses) {
       final CompletableFuture<FailureDetectorEvent> future = new CompletableFuture<>();
       fd.listen()
-        .filter(event -> event.member().addresses().contains(member)).subscribe(future::complete);
+          .filter(event -> event.member().addresses().contains(member))
+          .subscribe(future::complete);
       resultFuture.add(future);
     }
 

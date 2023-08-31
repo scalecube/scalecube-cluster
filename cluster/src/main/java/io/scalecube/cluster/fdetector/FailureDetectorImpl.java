@@ -3,12 +3,12 @@ package io.scalecube.cluster.fdetector;
 import static io.scalecube.reactor.RetryNonSerializedEmitFailureHandler.RETRY_NON_SERIALIZED;
 
 import io.scalecube.cluster.Member;
+import io.scalecube.cluster.TransportWrapper;
 import io.scalecube.cluster.fdetector.PingData.AckType;
 import io.scalecube.cluster.membership.MemberStatus;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
-import io.scalecube.cluster.TransportWrapper;
 import io.scalecube.net.Address;
 import java.time.Duration;
 import java.util.ArrayList;

@@ -200,9 +200,7 @@ public final class Message implements Externalizable {
       return Collections.emptyList();
     }
 
-    return Arrays.stream(headerValue.split(","))
-        .map(Address::from)
-        .collect(Collectors.toList());
+    return Arrays.stream(headerValue.split(",")).map(Address::from).collect(Collectors.toList());
   }
 
   @Override
@@ -300,8 +298,8 @@ public final class Message implements Externalizable {
      */
     public Builder sender(List<Address> addresses) {
       return header(
-        HEADER_SENDER,
-        addresses.stream().map(Address::toString).collect(Collectors.joining(",")));
+          HEADER_SENDER,
+          addresses.stream().map(Address::toString).collect(Collectors.joining(",")));
     }
 
     public Message build() {

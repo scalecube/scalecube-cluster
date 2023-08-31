@@ -244,10 +244,11 @@ public final class NetworkEmulator {
   public void inboundSettings(List<Address> destinations, boolean shallPass) {
     InboundSettings settings = new InboundSettings(shallPass);
 
-    destinations.forEach(destination -> {
-      inboundSettings.put(destination, settings);
-      LOGGER.debug("[{}] Set inbound settings {} to {}", address, settings, destination);
-    });
+    destinations.forEach(
+        destination -> {
+          inboundSettings.put(destination, settings);
+          LOGGER.debug("[{}] Set inbound settings {} to {}", address, settings, destination);
+        });
   }
 
   /**
