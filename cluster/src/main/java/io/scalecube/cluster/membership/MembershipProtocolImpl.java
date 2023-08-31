@@ -53,7 +53,6 @@ import reactor.core.scheduler.Scheduler;
 public final class MembershipProtocolImpl implements MembershipProtocol {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MembershipProtocol.class);
-  private final TransportWrapper transportWrapper;
 
   private enum MembershipUpdateReason {
     FAILURE_DETECTOR_EVENT,
@@ -80,6 +79,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private final FailureDetector failureDetector;
   private final GossipProtocol gossipProtocol;
   private final MetadataStore metadataStore;
+  private final TransportWrapper transportWrapper;
 
   // State
 

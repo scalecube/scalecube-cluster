@@ -42,11 +42,11 @@ public final class FailureDetectorImpl implements FailureDetector {
   private final Member localMember;
   private final Transport transport;
   private final FailureDetectorConfig config;
+  private final TransportWrapper transportWrapper;
 
   // State
 
   private final List<Member> pingMembers = new ArrayList<>();
-  private final TransportWrapper transportWrapper;
   private long currentPeriod = 0;
   private int pingMemberIndex = 0; // index for sequential ping member selection
 
