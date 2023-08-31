@@ -32,6 +32,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
+import reactor.test.StepVerifier;
 
 public class TransportTests {
 
@@ -108,14 +109,44 @@ public class TransportTests {
 
   @ParameterizedTest
   @MethodSource("transportContexts")
-  public void testConnect() {
-    // TODO
-  }
+  public void testConnect(Context context) {
+    this.context = context;
 
-  @ParameterizedTest
-  @MethodSource("transportContexts")
-  public void testConnectWithTransportWrapper() {
-    // TODO
+    // Create client and try send msg to not-yet existing server
+
+    final int serverPort = 4801;
+    final Transport client = context.createTransport();
+    final Member clientMember =
+        new Member("client", null, Collections.singletonList(client.address()), NS);
+    final Member serverMember =
+        new Member(
+            "server", null, Collections.singletonList(Address.create("localhost", serverPort)), NS);
+
+    // Verify error
+
+    StepVerifier.create(
+            new TransportWrapper(client)
+                .send(serverMember, Message.builder().sender(clientMember).data("Hola!").build())
+                .retry(2))
+        .verifyError();
+
+    // Start server
+
+    final Transport server =
+        Transport.bindAwait(
+            TransportConfig.defaultConfig()
+                .port(serverPort)
+                .transportFactory(context.transportFactory));
+
+    // Verify success
+
+    StepVerifier.create(
+            new TransportWrapper(client)
+                .send(serverMember, Message.builder().sender(clientMember).data("Hola!").build()))
+        .verifyComplete();
+
+    client.stop().block(TIMEOUT);
+    server.stop().block(TIMEOUT);
   }
 
   @ParameterizedTest
