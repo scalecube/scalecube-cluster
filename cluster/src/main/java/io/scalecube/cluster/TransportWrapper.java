@@ -44,18 +44,21 @@ public class TransportWrapper {
   }
 
   private Mono<Result> requestResponse(List<Address> addresses, Message request) {
-    final AtomicInteger currentIndex = new AtomicInteger();
     return Mono.defer(
-            () -> {
-              final int index = currentIndex.getAndIncrement();
-              return transport.requestResponse(addresses.get(index), request);
-            })
-        .retry(addresses.size() - 1)
-        .map(
-            message -> {
-              final int index = currentIndex.get();
-              return new Result(addresses.get(index), message);
-            });
+        () -> {
+          final AtomicInteger currentIndex = new AtomicInteger();
+          return Mono.defer(
+                  () -> {
+                    final int index = currentIndex.getAndIncrement();
+                    return transport.requestResponse(addresses.get(index), request);
+                  })
+              .retry(addresses.size() - 1)
+              .map(
+                  message -> {
+                    final int index = currentIndex.get() - 1;
+                    return new Result(addresses.get(index), message);
+                  });
+        });
   }
 
   /**
@@ -83,19 +86,22 @@ public class TransportWrapper {
   }
 
   private Mono<Result> send(List<Address> addresses, Message request) {
-    final AtomicInteger currentIndex = new AtomicInteger();
     return Mono.defer(
-            () -> {
-              final int index = currentIndex.getAndIncrement();
-              return transport.send(addresses.get(index), request);
-            })
-        .retry(addresses.size() - 1)
-        .then(
-            Mono.fromCallable(
-                () -> {
-                  final int index = currentIndex.get();
-                  return new Result(addresses.get(index));
-                }));
+        () -> {
+          final AtomicInteger currentIndex = new AtomicInteger();
+          return Mono.defer(
+                  () -> {
+                    final int index = currentIndex.getAndIncrement();
+                    return transport.send(addresses.get(index), request);
+                  })
+              .retry(addresses.size() - 1)
+              .then(
+                  Mono.fromCallable(
+                      () -> {
+                        final int index = currentIndex.get() - 1;
+                        return new Result(addresses.get(index));
+                      }));
+        });
   }
 
   private static class Result {

@@ -27,6 +27,7 @@ public class GossipRequestTest extends BaseTest {
 
   private TestData testData;
   private MessageCodec messageCodec;
+  private Member sender;
 
   @BeforeEach
   public void init() {
@@ -35,14 +36,18 @@ public class GossipRequestTest extends BaseTest {
     testData = new TestData();
     testData.setProperties(properties);
     messageCodec = MessageCodec.INSTANCE;
+    sender = new Member("0", null, Address.from("localhost:1234"), NAMESPACE);
   }
 
   @Test
   public void testSerializationAndDeserialization() throws Exception {
-    Member from = new Member("0", null, Address.from("localhost:1234"), NAMESPACE);
     List<Gossip> gossips = getGossips();
     Message message =
-        Message.withData(new GossipRequest(gossips, from.id())).correlationId("CORR_ID").build();
+        Message.builder()
+            .sender(sender)
+            .data(new GossipRequest(gossips, sender.id()))
+            .correlationId("CORR_ID")
+            .build();
 
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     messageCodec.serialize(message, out);
@@ -68,10 +73,10 @@ public class GossipRequestTest extends BaseTest {
   }
 
   private List<Gossip> getGossips() {
-    Gossip request =
-        new Gossip("idGossip", Message.withData(testData).qualifier(testDataQualifier).build(), 0);
-    Gossip request2 =
-        new Gossip("idGossip2", Message.withData(testData).qualifier(testDataQualifier).build(), 1);
+    final Message message =
+        Message.builder().sender(sender).data(testData).qualifier(testDataQualifier).build();
+    Gossip request = new Gossip("idGossip", message, 0);
+    Gossip request2 = new Gossip("idGossip2", message, 1);
     List<Gossip> gossips = new ArrayList<>(2);
     gossips.add(request);
     gossips.add(request2);

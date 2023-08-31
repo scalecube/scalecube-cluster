@@ -157,6 +157,7 @@ public class MetadataStoreImpl implements MetadataStore {
               Message.builder()
                   .qualifier(GET_METADATA_REQ)
                   .correlationId(cid)
+                  .sender(localMember)
                   .data(new GetMetadataRequest(member))
                   .build();
 
@@ -197,7 +198,7 @@ public class MetadataStoreImpl implements MetadataStore {
   }
 
   private void onMetadataRequest(Message message) {
-    final Member sender = (Member) message.sender();
+    final Member sender = message.sender();
     LOGGER.debug("[{}] Received GetMetadataReq from {}", localMember, sender);
 
     GetMetadataRequest reqData = message.data();
@@ -221,6 +222,7 @@ public class MetadataStoreImpl implements MetadataStore {
         Message.builder()
             .qualifier(GET_METADATA_RESP)
             .correlationId(message.correlationId())
+            .sender(localMember)
             .data(respData)
             .build();
 

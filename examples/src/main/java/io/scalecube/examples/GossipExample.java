@@ -3,6 +3,7 @@ package io.scalecube.examples;
 import io.scalecube.cluster.Cluster;
 import io.scalecube.cluster.ClusterImpl;
 import io.scalecube.cluster.ClusterMessageHandler;
+import io.scalecube.cluster.Member;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.transport.netty.tcp.TcpTransportFactory;
 
@@ -85,7 +86,11 @@ public class GossipExample {
             .membership(opts -> opts.seedMembers(alice.addresses()))
             .transportFactory(TcpTransportFactory::new)
             .startAwait();
-    eve.spreadGossip(Message.fromData("Gossip from Eve"))
+
+    final Member member = eve.member();
+    final Message message = Message.builder().sender(member).data("Gossip from Eve").build();
+
+    eve.spreadGossip(message)
         .doOnError(System.err::println)
         .subscribe(null, Throwable::printStackTrace);
 
