@@ -17,48 +17,6 @@ public interface Cluster {
   Address address();
 
   /**
-   * Send a msg from this member (src) to target member (specified in parameters).
-   *
-   * @param member target member
-   * @param message msg
-   * @return promise telling success or failure
-   */
-  Mono<Void> send(Member member, Message message);
-
-  /**
-   * Send a msg from this member (src) to target member (specified in parameters).
-   *
-   * @param address target address
-   * @param message msg
-   * @return promise telling success or failure
-   */
-  Mono<Void> send(Address address, Message message);
-
-  /**
-   * Sends message to the given address. It will issue connect in case if no transport channel by
-   * given transport {@code address} exists already. Send is an async operation and expecting a
-   * response by a provided correlationId and sender address of the caller.
-   *
-   * @param address address where message will be sent
-   * @param request to send message must contain correlctionId and sender to handle reply.
-   * @return promise which will be completed with result of sending (message or exception)
-   * @throws IllegalArgumentException if {@code message} or {@code address} is null
-   */
-  Mono<Message> requestResponse(Address address, Message request);
-
-  /**
-   * Sends message to the given address. It will issue connect in case if no transport channel by
-   * given transport {@code address} exists already. Send is an async operation and expecting a
-   * response by a provided correlationId and sender address of the caller.
-   *
-   * @param member where message will be sent
-   * @param request to send message must contain correlctionId and sender to handle reply.
-   * @return promise which will be completed with result of sending (message or exception)
-   * @throws IllegalArgumentException if {@code message} or {@code address} is null
-   */
-  Mono<Message> requestResponse(Member member, Message request);
-
-  /**
    * Spreads given message between cluster members using gossiping protocol.
    *
    * @param message message to disseminate.
