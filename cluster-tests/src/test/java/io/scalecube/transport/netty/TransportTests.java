@@ -142,7 +142,8 @@ public class TransportTests {
 
     StepVerifier.create(
             new TransportWrapper(client)
-                .send(serverMember, Message.builder().sender(clientMember).data("Hola!").build()))
+                .send(serverMember, Message.builder().sender(clientMember).data("Hola!").build())
+                .repeat(2))
         .verifyComplete();
 
     client.stop().block(TIMEOUT);
