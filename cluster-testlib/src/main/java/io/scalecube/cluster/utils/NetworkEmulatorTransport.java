@@ -4,7 +4,6 @@ import io.scalecube.cluster.Member;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.net.Address;
-import java.util.Collections;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -51,7 +50,7 @@ public final class NetworkEmulatorTransport implements Transport {
   public Mono<Void> send(Address address, Message message) {
     return Mono.defer(
         () ->
-            Mono.just(enhanceWithSender(message))
+            Mono.just(Message.with(message).build())
                 .flatMap(msg -> networkEmulator.tryFailOutbound(msg, address))
                 .flatMap(msg -> networkEmulator.tryDelayOutbound(msg, address))
                 .flatMap(msg -> transport.send(address, msg)));
@@ -61,7 +60,7 @@ public final class NetworkEmulatorTransport implements Transport {
   public Mono<Message> requestResponse(Address address, Message request) {
     return Mono.defer(
         () ->
-            Mono.just(enhanceWithSender(request))
+            Mono.just(Message.with(request).build())
                 .flatMap(msg -> networkEmulator.tryFailOutbound(msg, address))
                 .flatMap(msg -> networkEmulator.tryDelayOutbound(msg, address))
                 .flatMap(
@@ -84,9 +83,5 @@ public final class NetworkEmulatorTransport implements Transport {
         .listen()
         .filter(message -> networkEmulator.inboundSettings((Member) message.sender()).shallPass())
         .onBackpressureBuffer();
-  }
-
-  private Message enhanceWithSender(Message message) {
-    return Message.with(message).sender(Collections.singletonList(transport.address())).build();
   }
 }
