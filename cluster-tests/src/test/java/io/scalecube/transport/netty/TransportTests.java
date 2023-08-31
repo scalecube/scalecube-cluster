@@ -45,8 +45,8 @@ public class TransportTests {
   private Context context;
 
   @BeforeEach
-  public final void baseSetUp(TestInfo testInfo) {
-    LOGGER.info("***** Test started  : " + testInfo.getDisplayName() + " *****");
+  void beforeEach(TestInfo testInfo) {
+    LOGGER.info("***** Test started - " + testInfo.getDisplayName() + " *****");
   }
 
   @AfterEach
@@ -55,7 +55,7 @@ public class TransportTests {
       context.close();
     }
 
-    LOGGER.info("***** Test finished : " + testInfo.getDisplayName() + " *****");
+    LOGGER.info("***** Test finished - " + testInfo.getDisplayName() + " *****");
   }
 
   @ParameterizedTest
@@ -122,7 +122,7 @@ public class TransportTests {
         new Member(
             "server", null, Collections.singletonList(Address.create("localhost", serverPort)), NS);
 
-    // Verify error
+    // Verify send-error on client
 
     StepVerifier.create(
             new TransportWrapper(client)
@@ -138,7 +138,7 @@ public class TransportTests {
                 .port(serverPort)
                 .transportFactory(context.transportFactory));
 
-    // Verify success
+    // Verify send-success on client
 
     StepVerifier.create(
             new TransportWrapper(client)
