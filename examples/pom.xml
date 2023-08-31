@@ -23,11 +23,6 @@
     </dependency>
     <dependency>
       <groupId>io.scalecube</groupId>
-      <artifactId>scalecube-cluster-testlib</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>io.scalecube</groupId>
       <artifactId>scalecube-codec-jackson-smile</artifactId>
       <version>${project.version}</version>
     </dependency>
