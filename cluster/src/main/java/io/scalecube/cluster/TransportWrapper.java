@@ -36,6 +36,23 @@ public class TransportWrapper {
         .map(result -> result.message);
   }
 
+  public Mono<Void> send(Member member, Message request) {
+    return connections
+        .compute(
+            member,
+            (m, resultMono) -> {
+              if (resultMono == null) {
+                return send(member.addresses(), request);
+              }
+              return resultMono.flatMap(
+                  result ->
+                      transport
+                          .send(result.address, request)
+                          .thenReturn(new Result(result.address)));
+            })
+        .then();
+  }
+
   private Mono<Result> requestResponse(List<Address> addresses, Message request) {
     final AtomicInteger currentIndex = new AtomicInteger();
     return Mono.defer(
@@ -51,19 +68,20 @@ public class TransportWrapper {
             });
   }
 
-  public static Mono<Void> send(Transport transport, List<Address> addresses, Message request) {
-    return send(transport, addresses, 0, request);
-  }
-
-  private static Mono<Void> send(
-      Transport transport, List<Address> addresses, int currentIndex, Message request) {
-    if (currentIndex >= addresses.size()) {
-      return Mono.error(new RuntimeException("All addresses have been tried and failed."));
-    }
-
-    return transport
-        .send(addresses.get(currentIndex), request)
-        .onErrorResume(th -> send(transport, addresses, currentIndex + 1, request));
+  private Mono<Result> send(List<Address> addresses, Message request) {
+    final AtomicInteger currentIndex = new AtomicInteger();
+    return Mono.defer(
+            () -> {
+              final int index = currentIndex.getAndIncrement();
+              return transport.send(addresses.get(index), request);
+            })
+        .retry(addresses.size() - 1)
+        .then(
+            Mono.fromCallable(
+                () -> {
+                  final int index = currentIndex.get();
+                  return new Result(addresses.get(index));
+                }));
   }
 
   private static class Result {
