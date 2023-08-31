@@ -1,5 +1,6 @@
 package io.scalecube.cluster.utils;
 
+import io.scalecube.cluster.Member;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.net.Address;
 import java.time.Duration;
@@ -217,10 +218,12 @@ public final class NetworkEmulator {
   /**
    * Returns network inbound settings applied to the given destination.
    *
-   * @param destinations addresses of target endpoint
+   * @param member target member
    * @return network inbound settings
    */
-  public InboundSettings inboundSettings(List<Address> destinations) {
+  public InboundSettings inboundSettings(Member member) {
+    final List<Address> destinations = member.addresses();
+
     if (destinations.isEmpty()) {
       return defaultInboundSettings;
     }
@@ -241,7 +244,8 @@ public final class NetworkEmulator {
    *
    * @param shallPass shallPass inbound flag
    */
-  public void inboundSettings(List<Address> destinations, boolean shallPass) {
+  public void inboundSettings(Member member, boolean shallPass) {
+    final List<Address> destinations = member.addresses();
     InboundSettings settings = new InboundSettings(shallPass);
 
     destinations.forEach(

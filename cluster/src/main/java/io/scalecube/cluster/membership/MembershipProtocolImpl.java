@@ -53,6 +53,7 @@ import reactor.core.scheduler.Scheduler;
 public final class MembershipProtocolImpl implements MembershipProtocol {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MembershipProtocol.class);
+  private final TransportWrapper transportWrapper;
 
   private enum MembershipUpdateReason {
     FAILURE_DETECTOR_EVENT,
@@ -126,6 +127,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     this.scheduler = Objects.requireNonNull(scheduler);
     this.membershipConfig = Objects.requireNonNull(config).membershipConfig();
     this.failureDetectorConfig = Objects.requireNonNull(config).failureDetectorConfig();
+    transportWrapper = new TransportWrapper(transport);
 
     // Prepare seeds
     seedMembers = cleanUpSeedMembers(membershipConfig.seedMembers());
@@ -402,13 +404,14 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private Mono<Void> onSync(Message syncMsg) {
     return Mono.defer(
         () -> {
-          final List<Address> sender = syncMsg.sender();
+          final Member sender = syncMsg.sender();
           LOGGER.debug("[{}] Received Sync from {}", localMember, sender);
           return syncMembership(syncMsg.data(), false)
               .doOnSuccess(
                   avoid -> {
-                    Message message = prepareSyncDataMsg(SYNC_ACK, syncMsg.correlationId());
-                    TransportWrapper.send(transport, sender, message)
+                    final Message message = prepareSyncDataMsg(SYNC_ACK, syncMsg.correlationId());
+                    transportWrapper
+                        .send(sender, message)
                         .subscribe(
                             null,
                             ex ->
@@ -423,7 +426,10 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   /** Merges FD updates and processes them. */
   private void onFailureDetectorEvent(FailureDetectorEvent fdEvent) {
-    MembershipRecord r0 = membershipTable.get(fdEvent.member().id());
+    final Member member = fdEvent.member();
+    final List<Address> addresses = member.addresses();
+
+    MembershipRecord r0 = membershipTable.get(member.id());
     if (r0 == null) { // member already removed
       return;
     }
@@ -436,8 +442,9 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       // Alive won't override SUSPECT so issue instead extra sync with member to force it spread
       // alive with inc + 1
       Message syncMsg = prepareSyncDataMsg(SYNC, null);
-      List<Address> addresses = fdEvent.member().addresses();
-      TransportWrapper.send(transport, addresses, syncMsg)
+
+      transportWrapper
+          .send(member, syncMsg)
           .subscribe(
               null,
               ex ->
@@ -506,9 +513,12 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   }
 
   private Message prepareSyncDataMsg(String qualifier, String cid) {
-    List<MembershipRecord> membershipRecords = new ArrayList<>(membershipTable.values());
-    SyncData syncData = new SyncData(membershipRecords);
-    return Message.withData(syncData).qualifier(qualifier).correlationId(cid).build();
+    return Message.builder()
+        .sender(localMember)
+        .data(new SyncData(new ArrayList<>(membershipTable.values())))
+        .qualifier(qualifier)
+        .correlationId(cid)
+        .build();
   }
 
   private Mono<Void> syncMembership(SyncData syncData, boolean onStart) {
@@ -860,13 +870,20 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     }
   }
 
-  private Mono<Void> spreadMembershipGossip(MembershipRecord r) {
+  private Mono<Void> spreadMembershipGossip(MembershipRecord record) {
     return Mono.defer(
         () -> {
-          Message msg = Message.withData(r).qualifier(MEMBERSHIP_GOSSIP).build();
-          LOGGER.debug("[{}] Send membership with gossip", localMember);
+          final Message message =
+              Message.builder()
+                  .sender(localMember)
+                  .data(record)
+                  .qualifier(MEMBERSHIP_GOSSIP)
+                  .build();
+
           return gossipProtocol
-              .spread(msg)
+              .spread(message)
+              .doOnSubscribe(
+                  subscription -> LOGGER.debug("[{}] Send membership with gossip", localMember))
               .doOnError(
                   ex ->
                       LOGGER.debug(

@@ -1,5 +1,6 @@
 package io.scalecube.cluster.utils;
 
+import io.scalecube.cluster.Member;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.net.Address;
@@ -70,7 +71,9 @@ public final class NetworkEmulatorTransport implements Transport {
                             .flatMap(
                                 message -> {
                                   boolean shallPass =
-                                      networkEmulator.inboundSettings(message.sender()).shallPass();
+                                      networkEmulator
+                                          .inboundSettings((Member) message.sender())
+                                          .shallPass();
                                   return shallPass ? Mono.just(message) : Mono.never();
                                 })));
   }
@@ -79,7 +82,7 @@ public final class NetworkEmulatorTransport implements Transport {
   public Flux<Message> listen() {
     return transport
         .listen()
-        .filter(message -> networkEmulator.inboundSettings(message.sender()).shallPass())
+        .filter(message -> networkEmulator.inboundSettings((Member) message.sender()).shallPass())
         .onBackpressureBuffer();
   }
 

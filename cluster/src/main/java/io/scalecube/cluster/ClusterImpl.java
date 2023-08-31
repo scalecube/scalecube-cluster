@@ -243,8 +243,7 @@ public final class ClusterImpl implements Cluster {
         .flatMap(
             boundTransport -> {
               localMember = createLocalMember(boundTransport.address());
-
-              transport = new SenderAwareTransport(boundTransport, localMember.addresses());
+              transport = boundTransport;
 
               final String name =
                   "sc-cluster-" + Integer.toHexString(System.identityHashCode(this));
@@ -502,55 +501,5 @@ public final class ClusterImpl implements Cluster {
   @Override
   public Mono<Void> onShutdown() {
     return onShutdown.asMono();
-  }
-
-  private static class SenderAwareTransport implements Transport {
-
-    private final Transport transport;
-    private final List<Address> addresses;
-
-    private SenderAwareTransport(Transport transport, List<Address> addresses) {
-      this.transport = Objects.requireNonNull(transport);
-      this.addresses = Objects.requireNonNull(addresses);
-    }
-
-    @Override
-    public Address address() {
-      return transport.address();
-    }
-
-    @Override
-    public Mono<Transport> start() {
-      return transport.start();
-    }
-
-    @Override
-    public Mono<Void> stop() {
-      return transport.stop();
-    }
-
-    @Override
-    public boolean isStopped() {
-      return transport.isStopped();
-    }
-
-    @Override
-    public Mono<Void> send(Address address, Message message) {
-      return Mono.defer(() -> transport.send(address, enhanceWithSender(message)));
-    }
-
-    @Override
-    public Mono<Message> requestResponse(Address address, Message request) {
-      return Mono.defer(() -> transport.requestResponse(address, enhanceWithSender(request)));
-    }
-
-    @Override
-    public Flux<Message> listen() {
-      return transport.listen();
-    }
-
-    private Message enhanceWithSender(Message message) {
-      return Message.with(message).sender(addresses).build();
-    }
   }
 }

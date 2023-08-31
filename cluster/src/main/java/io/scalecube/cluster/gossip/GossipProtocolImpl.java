@@ -43,6 +43,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
   private final Member localMember;
   private final Transport transport;
   private final GossipConfig config;
+  private final TransportWrapper transportWrapper;
 
   // Local State
 
@@ -87,6 +88,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
     this.config = Objects.requireNonNull(config);
     this.localMember = Objects.requireNonNull(localMember);
     this.scheduler = Objects.requireNonNull(scheduler);
+    transportWrapper = new TransportWrapper(transport);
 
     // Subscribe
     actionsDisposables.addAll(
@@ -294,7 +296,8 @@ public final class GossipProtocolImpl implements GossipProtocol {
         .map(this::buildGossipRequestMessage)
         .forEach(
             message ->
-                TransportWrapper.send(transport, addresses, message)
+                transportWrapper
+                    .send(member, message)
                     .subscribe(
                         null,
                         ex ->
@@ -342,8 +345,11 @@ public final class GossipProtocolImpl implements GossipProtocol {
   }
 
   private Message buildGossipRequestMessage(Gossip gossip) {
-    GossipRequest gossipRequest = new GossipRequest(gossip, localMember.id());
-    return Message.withData(gossipRequest).qualifier(GOSSIP_REQ).build();
+    return Message.builder()
+        .sender(localMember)
+        .data(new GossipRequest(gossip, localMember.id()))
+        .qualifier(GOSSIP_REQ)
+        .build();
   }
 
   private Set<String> getGossipsToRemove(long period) {
