@@ -3,8 +3,10 @@ package io.scalecube.cluster.codec.jackson;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import io.scalecube.cluster.Member;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.MessageCodec;
+import io.scalecube.net.Address;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
@@ -17,12 +19,13 @@ class JacksonMessageCodecTest {
 
   private static final MessageCodec messageCodec = MessageCodec.INSTANCE;
   private static final Random random = new Random();
+  private static final Member member = new Member("0", null, Address.NULL_ADDRESS, "NAMESPACE");
 
   @Test
   void serializeAndDeserializeByteBuffer() throws Exception {
     byte[] bytes = "hello".getBytes();
 
-    Message to = Message.builder().data(new Entity(ByteBuffer.wrap(bytes))).build();
+    Message to = Message.builder().sender(member).data(new Entity(ByteBuffer.wrap(bytes))).build();
     ByteArrayOutputStream output = new ByteArrayOutputStream();
 
     messageCodec.serialize(to, output);
@@ -42,7 +45,7 @@ class JacksonMessageCodecTest {
     byteBuffer.put(bytes);
     byteBuffer.flip();
 
-    Message to = Message.builder().data(new Entity(byteBuffer)).build();
+    Message to = Message.builder().sender(member).data(new Entity(byteBuffer)).build();
     ByteArrayOutputStream output = new ByteArrayOutputStream();
 
     messageCodec.serialize(to, output);
@@ -57,7 +60,7 @@ class JacksonMessageCodecTest {
   void serializeAndDeserializeEmptyByteBuffer() throws Exception {
     byte[] bytes = new byte[0];
 
-    Message to = Message.builder().data(new Entity(ByteBuffer.wrap(bytes))).build();
+    Message to = Message.builder().sender(member).data(new Entity(ByteBuffer.wrap(bytes))).build();
     ByteArrayOutputStream output = new ByteArrayOutputStream();
 
     messageCodec.serialize(to, output);
@@ -82,7 +85,7 @@ class JacksonMessageCodecTest {
     assertEquals(offset, byteBuffer.position());
     assertEquals(bytes.length - offset, byteBuffer.remaining());
 
-    Message to = Message.builder().data(new Entity(byteBuffer)).build();
+    Message to = Message.builder().sender(member).data(new Entity(byteBuffer)).build();
     ByteArrayOutputStream output = new ByteArrayOutputStream();
 
     messageCodec.serialize(to, output);
@@ -106,7 +109,7 @@ class JacksonMessageCodecTest {
     assertEquals(0, byteBuffer.position());
     assertEquals(bytes.length - offset, byteBuffer.remaining());
 
-    Message to = Message.builder().data(new Entity(byteBuffer)).build();
+    Message to = Message.builder().sender(member).data(new Entity(byteBuffer)).build();
     ByteArrayOutputStream output = new ByteArrayOutputStream();
 
     messageCodec.serialize(to, output);
@@ -134,7 +137,7 @@ class JacksonMessageCodecTest {
     assertEquals(offset, byteBuffer.position());
     assertEquals(bytes.length - offset, byteBuffer.remaining());
 
-    Message to = Message.builder().data(new Entity(byteBuffer)).build();
+    Message to = Message.builder().sender(member).data(new Entity(byteBuffer)).build();
     ByteArrayOutputStream output = new ByteArrayOutputStream();
 
     messageCodec.serialize(to, output);
@@ -162,7 +165,7 @@ class JacksonMessageCodecTest {
     assertEquals(0, slice.position());
     assertEquals(bytes.length - offset, slice.remaining());
 
-    Message to = Message.builder().data(new Entity(slice)).build();
+    Message to = Message.builder().sender(member).data(new Entity(slice)).build();
     ByteArrayOutputStream output = new ByteArrayOutputStream();
 
     messageCodec.serialize(to, output);
@@ -178,7 +181,7 @@ class JacksonMessageCodecTest {
   void serializeAndDeserializeByteBufferWithoutEntity() throws Exception {
     byte[] bytes = "hello".getBytes();
 
-    Message to = Message.builder().data(ByteBuffer.wrap(bytes)).build();
+    Message to = Message.builder().sender(member).data(ByteBuffer.wrap(bytes)).build();
     ByteArrayOutputStream output = new ByteArrayOutputStream();
 
     messageCodec.serialize(to, output);
