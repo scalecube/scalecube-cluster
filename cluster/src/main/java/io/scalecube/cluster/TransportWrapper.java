@@ -7,13 +7,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiFunction;
 import reactor.core.publisher.Mono;
 
 public class TransportWrapper {
 
   private final Transport transport;
 
-  private final Map<Member, AtomicInteger> addressIndexByMember = new ConcurrentHashMap<>();
+  private final Map<Member, Integer> addressIndexByMember = new ConcurrentHashMap<>();
 
   public TransportWrapper(Transport transport) {
     this.transport = transport;
@@ -27,21 +28,7 @@ public class TransportWrapper {
    * @return mono result
    */
   public Mono<Message> requestResponse(Member member, Message request) {
-    final List<Address> addresses = member.addresses();
-    final AtomicInteger currentIndex =
-        addressIndexByMember.computeIfAbsent(member, m -> new AtomicInteger());
-    return Mono.defer(
-            () -> {
-              synchronized (this) {
-                if (currentIndex.get() == addresses.size()) {
-                  currentIndex.set(0);
-                }
-                final Address address = addresses.get(currentIndex.getAndIncrement());
-                return transport.requestResponse(address, request);
-              }
-            })
-        .retry(addresses.size() - 1)
-        .doOnError(throwable -> addressIndexByMember.remove(member, currentIndex));
+    return invokeWithRetry(member, request, transport::requestResponse);
   }
 
   /**
@@ -52,20 +39,28 @@ public class TransportWrapper {
    * @return mono result
    */
   public Mono<Void> send(Member member, Message request) {
-    final List<Address> addresses = member.addresses();
-    final AtomicInteger currentIndex =
-        addressIndexByMember.computeIfAbsent(member, m -> new AtomicInteger());
+    return invokeWithRetry(member, request, transport::send);
+  }
+
+  private <T> Mono<T> invokeWithRetry(
+      Member member, Message request, BiFunction<Address, Message, Mono<T>> function) {
     return Mono.defer(
-            () -> {
-              synchronized (this) {
-                if (currentIndex.get() == addresses.size()) {
-                  currentIndex.set(0);
-                }
-                final Address address = addresses.get(currentIndex.getAndIncrement());
-                return transport.send(address, request);
-              }
-            })
-        .retry(addresses.size() - 1)
-        .doOnError(throwable -> addressIndexByMember.remove(member, currentIndex));
+        () -> {
+          final List<Address> addresses = member.addresses();
+          final Integer index = addressIndexByMember.computeIfAbsent(member, m -> 0);
+          final AtomicInteger currentIndex = new AtomicInteger(index);
+
+          return Mono.defer(
+                  () -> {
+                    if (currentIndex.get() == addresses.size()) {
+                      currentIndex.set(0);
+                    }
+                    final Address address = addresses.get(currentIndex.get());
+                    return function.apply(address, request);
+                  })
+              .doOnSuccess(s -> addressIndexByMember.put(member, currentIndex.get()))
+              .doOnError(ex -> currentIndex.incrementAndGet())
+              .retry(addresses.size() - 1);
+        });
   }
 }

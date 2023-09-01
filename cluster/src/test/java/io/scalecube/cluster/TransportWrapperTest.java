@@ -1,5 +1,7 @@
 package io.scalecube.cluster;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -11,10 +13,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import java.util.stream.Stream.Builder;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -76,12 +76,12 @@ class TransportWrapperTest {
     }
   }
 
-  private Map<Member, AtomicInteger> addressIndexByMember()
+  private Map<Member, Integer> addressIndexByMember()
       throws NoSuchFieldException, IllegalAccessException {
     final Field field = TransportWrapper.class.getDeclaredField("addressIndexByMember");
     field.setAccessible(true);
     //noinspection unchecked
-    return (Map<Member, AtomicInteger>) field.get(transportWrapper);
+    return (Map<Member, Integer>) field.get(transportWrapper);
   }
 
   @ParameterizedTest
@@ -95,7 +95,7 @@ class TransportWrapperTest {
     }
 
     if (startIndex > 0) {
-      addressIndexByMember().put(member, new AtomicInteger(startIndex));
+      addressIndexByMember().put(member, startIndex);
     }
 
     for (int i = 0; i < size; i++) {
@@ -109,9 +109,11 @@ class TransportWrapperTest {
     }
 
     StepVerifier.create(transportWrapper.requestResponse(member, request))
-        .assertNext(message -> Assertions.assertSame(response, message, "response"))
+        .assertNext(message -> assertSame(response, message, "response"))
         .thenCancel()
         .verify();
+
+    assertEquals(successIndex, addressIndexByMember().get(member), "successIndex");
   }
 
   @Test
@@ -124,13 +126,12 @@ class TransportWrapperTest {
         .thenReturn(Mono.error(new RuntimeException("Error")));
 
     StepVerifier.create(transportWrapper.requestResponse(member, request))
-        .assertNext(message -> Assertions.assertSame(response, message, "response"))
+        .assertNext(message -> assertSame(response, message, "response"))
         .thenCancel()
         .verify();
 
     StepVerifier.create(transportWrapper.requestResponse(member, request))
-        .verifyErrorSatisfies(
-            throwable -> Assertions.assertEquals("Error", throwable.getMessage()));
+        .verifyErrorSatisfies(throwable -> assertEquals("Error", throwable.getMessage()));
   }
 
   @Test
@@ -143,11 +144,10 @@ class TransportWrapperTest {
         .thenReturn(Mono.just(response));
 
     StepVerifier.create(transportWrapper.requestResponse(member, request))
-        .verifyErrorSatisfies(
-            throwable -> Assertions.assertEquals("Error", throwable.getMessage()));
+        .verifyErrorSatisfies(throwable -> assertEquals("Error", throwable.getMessage()));
 
     StepVerifier.create(transportWrapper.requestResponse(member, request))
-        .assertNext(message -> Assertions.assertSame(response, message, "response"))
+        .assertNext(message -> assertSame(response, message, "response"))
         .thenCancel()
         .verify();
   }
@@ -163,7 +163,7 @@ class TransportWrapperTest {
     }
 
     if (startIndex > 0) {
-      addressIndexByMember().put(member, new AtomicInteger(startIndex));
+      addressIndexByMember().put(member, startIndex);
     }
 
     for (int i = 0; i < size; i++) {
@@ -173,8 +173,9 @@ class TransportWrapperTest {
     }
 
     StepVerifier.create(transportWrapper.requestResponse(member, request))
-        .verifyErrorSatisfies(
-            throwable -> Assertions.assertEquals("Error", throwable.getMessage()));
+        .verifyErrorSatisfies(throwable -> assertEquals("Error", throwable.getMessage()));
+
+    assertEquals(startIndex, addressIndexByMember().get(member), "startIndex");
   }
 
   @ParameterizedTest
@@ -187,7 +188,7 @@ class TransportWrapperTest {
     }
 
     if (startIndex > 0) {
-      addressIndexByMember().put(member, new AtomicInteger(startIndex));
+      addressIndexByMember().put(member, startIndex);
     }
 
     for (int i = 0; i < size; i++) {
@@ -201,6 +202,8 @@ class TransportWrapperTest {
     }
 
     StepVerifier.create(transportWrapper.send(member, request)).verifyComplete();
+
+    assertEquals(successIndex, addressIndexByMember().get(member), "successIndex");
   }
 
   @ParameterizedTest
@@ -213,7 +216,7 @@ class TransportWrapperTest {
     }
 
     if (startIndex > 0) {
-      addressIndexByMember().put(member, new AtomicInteger(startIndex));
+      addressIndexByMember().put(member, startIndex);
     }
 
     for (int i = 0; i < size; i++) {
@@ -222,8 +225,9 @@ class TransportWrapperTest {
     }
 
     StepVerifier.create(transportWrapper.send(member, request))
-        .verifyErrorSatisfies(
-            throwable -> Assertions.assertEquals("Error", throwable.getMessage()));
+        .verifyErrorSatisfies(throwable -> assertEquals("Error", throwable.getMessage()));
+
+    assertEquals(startIndex, addressIndexByMember().get(member), "startIndex");
   }
 
   @Test
@@ -237,8 +241,7 @@ class TransportWrapperTest {
 
     StepVerifier.create(transportWrapper.send(member, request)).verifyComplete();
     StepVerifier.create(transportWrapper.send(member, request))
-        .verifyErrorSatisfies(
-            throwable -> Assertions.assertEquals("Error", throwable.getMessage()));
+        .verifyErrorSatisfies(throwable -> assertEquals("Error", throwable.getMessage()));
   }
 
   @Test
@@ -251,8 +254,7 @@ class TransportWrapperTest {
         .thenReturn(Mono.empty());
 
     StepVerifier.create(transportWrapper.send(member, request))
-        .verifyErrorSatisfies(
-            throwable -> Assertions.assertEquals("Error", throwable.getMessage()));
+        .verifyErrorSatisfies(throwable -> assertEquals("Error", throwable.getMessage()));
     StepVerifier.create(transportWrapper.send(member, request)).verifyComplete();
   }
 }
