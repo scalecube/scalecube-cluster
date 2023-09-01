@@ -39,6 +39,14 @@ class TransportWrapperTest {
           .data("" + System.currentTimeMillis())
           .build();
 
+  private final Transport transport;
+  private final TransportWrapper transportWrapper;
+
+  public TransportWrapperTest() {
+    transport = mock(Transport.class);
+    transportWrapper = new TransportWrapper(transport);
+  }
+
   @Nested
   class RequestResponseTests {
 
@@ -46,8 +54,6 @@ class TransportWrapperTest {
     void requestResponseShouldWork() {
       final List<Address> addresses = Collections.singletonList(Address.from("test:0"));
       final Member member = new Member("test", null, addresses, "namespace");
-      final Transport transport = mock(Transport.class);
-      final TransportWrapper transportWrapper = new TransportWrapper(transport);
 
       when(transport.requestResponse(addresses.get(0), request)).thenReturn(Mono.just(response));
 
@@ -58,11 +64,28 @@ class TransportWrapperTest {
     }
 
     @Test
+    void requestResponseShouldWorkThenFail() {
+      final List<Address> addresses = Collections.singletonList(Address.from("test:0"));
+      final Member member = new Member("test", null, addresses, "namespace");
+
+      when(transport.requestResponse(addresses.get(0), request))
+          .thenReturn(Mono.just(response))
+          .thenReturn(Mono.error(new RuntimeException("Error")));
+
+      StepVerifier.create(transportWrapper.requestResponse(member, request))
+          .assertNext(message -> Assertions.assertSame(response, message, "response"))
+          .thenCancel()
+          .verify();
+
+      StepVerifier.create(transportWrapper.requestResponse(member, request))
+          .verifyErrorSatisfies(
+              throwable -> Assertions.assertEquals("Error", throwable.getMessage()));
+    }
+
+    @Test
     void requestResponseShouldWorkMemberSingleAddress() {
       final List<Address> addresses = Collections.singletonList(Address.from("test:0"));
       final Member member = new Member("test", null, addresses, "namespace");
-      final Transport transport = mock(Transport.class);
-      final TransportWrapper transportWrapper = new TransportWrapper(transport);
 
       when(transport.requestResponse(addresses.get(0), request)).thenReturn(Mono.just(response));
 
@@ -76,8 +99,6 @@ class TransportWrapperTest {
     void requestResponseShouldWorkMemberTwoAddresses() {
       final List<Address> addresses = Arrays.asList(Address.from("test:0"), Address.from("test:1"));
       final Member member = new Member("test", null, addresses, "namespace");
-      final Transport transport = mock(Transport.class);
-      final TransportWrapper transportWrapper = new TransportWrapper(transport);
 
       when(transport.requestResponse(addresses.get(0), request))
           .thenReturn(Mono.error(new RuntimeException("Error")));
@@ -94,8 +115,6 @@ class TransportWrapperTest {
       final List<Address> addresses =
           Arrays.asList(Address.from("test:0"), Address.from("test:1"), Address.from("test:2"));
       final Member member = new Member("test", null, addresses, "namespace");
-      final Transport transport = mock(Transport.class);
-      final TransportWrapper transportWrapper = new TransportWrapper(transport);
 
       when(transport.requestResponse(addresses.get(0), request))
           .thenReturn(Mono.error(new RuntimeException("Error")));
@@ -113,8 +132,6 @@ class TransportWrapperTest {
     void requestResponseShouldFailMemberSingleAddress() {
       final List<Address> addresses = Collections.singletonList(Address.from("test:0"));
       final Member member = new Member("test", null, addresses, "namespace");
-      final Transport transport = mock(Transport.class);
-      final TransportWrapper transportWrapper = new TransportWrapper(transport);
 
       when(transport.requestResponse(addresses.get(0), request))
           .thenReturn(Mono.error(new RuntimeException("Error")));
@@ -128,8 +145,6 @@ class TransportWrapperTest {
     void requestResponseShouldFailMemberTwoAddresses() {
       final List<Address> addresses = Arrays.asList(Address.from("test:0"), Address.from("test:1"));
       final Member member = new Member("test", null, addresses, "namespace");
-      final Transport transport = mock(Transport.class);
-      final TransportWrapper transportWrapper = new TransportWrapper(transport);
 
       when(transport.requestResponse(addresses.get(0), request))
           .thenReturn(Mono.error(new RuntimeException("Error - 0")));
@@ -146,8 +161,6 @@ class TransportWrapperTest {
       final List<Address> addresses =
           Arrays.asList(Address.from("test:0"), Address.from("test:1"), Address.from("test:2"));
       final Member member = new Member("test", null, addresses, "namespace");
-      final Transport transport = mock(Transport.class);
-      final TransportWrapper transportWrapper = new TransportWrapper(transport);
 
       when(transport.requestResponse(addresses.get(0), request))
           .thenReturn(Mono.error(new RuntimeException("Error - 0")));
@@ -169,8 +182,6 @@ class TransportWrapperTest {
     void sendShouldWork() {
       final List<Address> addresses = Collections.singletonList(Address.from("test:0"));
       final Member member = new Member("test", null, addresses, "namespace");
-      final Transport transport = mock(Transport.class);
-      final TransportWrapper transportWrapper = new TransportWrapper(transport);
 
       when(transport.send(addresses.get(0), request)).thenReturn(Mono.empty());
 
@@ -178,11 +189,24 @@ class TransportWrapperTest {
     }
 
     @Test
+    void sendShouldWorkThenFail() {
+      final List<Address> addresses = Collections.singletonList(Address.from("test:0"));
+      final Member member = new Member("test", null, addresses, "namespace");
+
+      when(transport.send(addresses.get(0), request))
+          .thenReturn(Mono.empty())
+          .thenReturn(Mono.error(new RuntimeException("Error")));
+
+      StepVerifier.create(transportWrapper.send(member, request)).verifyComplete();
+      StepVerifier.create(transportWrapper.send(member, request))
+          .verifyErrorSatisfies(
+              throwable -> Assertions.assertEquals("Error", throwable.getMessage()));
+    }
+
+    @Test
     void sendShouldWorkMemberSingleAddress() {
       final List<Address> addresses = Collections.singletonList(Address.from("test:0"));
       final Member member = new Member("test", null, addresses, "namespace");
-      final Transport transport = mock(Transport.class);
-      final TransportWrapper transportWrapper = new TransportWrapper(transport);
 
       when(transport.send(addresses.get(0), request)).thenReturn(Mono.empty());
 
@@ -193,8 +217,6 @@ class TransportWrapperTest {
     void sendShouldWorkMemberTwoAddresses() {
       final List<Address> addresses = Arrays.asList(Address.from("test:0"), Address.from("test:1"));
       final Member member = new Member("test", null, addresses, "namespace");
-      final Transport transport = mock(Transport.class);
-      final TransportWrapper transportWrapper = new TransportWrapper(transport);
 
       when(transport.send(addresses.get(0), request))
           .thenReturn(Mono.error(new RuntimeException("Error")));
@@ -208,8 +230,6 @@ class TransportWrapperTest {
       final List<Address> addresses =
           Arrays.asList(Address.from("test:0"), Address.from("test:1"), Address.from("test:2"));
       final Member member = new Member("test", null, addresses, "namespace");
-      final Transport transport = mock(Transport.class);
-      final TransportWrapper transportWrapper = new TransportWrapper(transport);
 
       when(transport.send(addresses.get(0), request))
           .thenReturn(Mono.error(new RuntimeException("Error")));
@@ -224,8 +244,6 @@ class TransportWrapperTest {
     void sendShouldFailMemberSingleAddress() {
       final List<Address> addresses = Collections.singletonList(Address.from("test:0"));
       final Member member = new Member("test", null, addresses, "namespace");
-      final Transport transport = mock(Transport.class);
-      final TransportWrapper transportWrapper = new TransportWrapper(transport);
 
       when(transport.send(addresses.get(0), request))
           .thenReturn(Mono.error(new RuntimeException("Error")));
@@ -239,8 +257,6 @@ class TransportWrapperTest {
     void sendShouldFailMemberTwoAddresses() {
       final List<Address> addresses = Arrays.asList(Address.from("test:0"), Address.from("test:1"));
       final Member member = new Member("test", null, addresses, "namespace");
-      final Transport transport = mock(Transport.class);
-      final TransportWrapper transportWrapper = new TransportWrapper(transport);
 
       when(transport.send(addresses.get(0), request))
           .thenReturn(Mono.error(new RuntimeException("Error - 0")));
@@ -257,8 +273,6 @@ class TransportWrapperTest {
       final List<Address> addresses =
           Arrays.asList(Address.from("test:0"), Address.from("test:1"), Address.from("test:2"));
       final Member member = new Member("test", null, addresses, "namespace");
-      final Transport transport = mock(Transport.class);
-      final TransportWrapper transportWrapper = new TransportWrapper(transport);
 
       when(transport.send(addresses.get(0), request))
           .thenReturn(Mono.error(new RuntimeException("Error - 0")));
