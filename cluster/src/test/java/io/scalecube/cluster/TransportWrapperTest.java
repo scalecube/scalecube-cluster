@@ -51,6 +51,20 @@ class TransportWrapperTest {
   class RequestResponseTests {
 
     @Test
+    void requestResponseShouldWorkIndex2() {
+      final List<Address> addresses = Collections.singletonList(Address.from("test:0"));
+      final Member member = new Member("test", null, addresses, "namespace");
+
+      when(transport.requestResponse(addresses.get(0), request)).thenReturn(Mono.just(response));
+
+      StepVerifier.create(transportWrapper.requestResponse(member, request))
+        .assertNext(message -> Assertions.assertSame(response, message, "response"))
+        .thenCancel()
+        .verify();
+
+    }
+
+    @Test
     void requestResponseShouldWork() {
       final List<Address> addresses = Collections.singletonList(Address.from("test:0"));
       final Member member = new Member("test", null, addresses, "namespace");
