@@ -39,7 +39,8 @@ public class TransportWrapper {
                     int increment = currentIndex.getAndIncrement();
 
                     if (increment == addresses.size()) {
-                      currentIndex.set(increment = 0);
+                      increment = 0;
+                      currentIndex.set(1);
                     }
 
                     final Address address = addresses.get(increment);
@@ -60,13 +61,23 @@ public class TransportWrapper {
     return Mono.defer(
         () -> {
           final List<Address> addresses = member.addresses();
-          final AtomicInteger currentIndex = new AtomicInteger();
+          final int numRetries = addresses.size() - 1;
+          final Integer index = addressIndexByMember.getOrDefault(member, 0);
+          final AtomicInteger currentIndex = new AtomicInteger(index);
+
           return Mono.defer(
                   () -> {
-                    final int index = currentIndex.getAndIncrement();
-                    return transport.send(addresses.get(index), request);
+                    int increment = currentIndex.getAndIncrement();
+
+                    if (increment == addresses.size()) {
+                      increment = 0;
+                      currentIndex.set(1);
+                    }
+
+                    final Address address = addresses.get(increment);
+                    return transport.send(address, request);
                   })
-              .retry(addresses.size() - 1);
+              .retry(numRetries);
         });
   }
 }
