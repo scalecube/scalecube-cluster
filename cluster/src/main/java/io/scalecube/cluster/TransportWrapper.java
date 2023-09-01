@@ -13,7 +13,7 @@ public class TransportWrapper {
 
   private final Transport transport;
 
-  private final Map<Member, Integer> addressIndexByMember = new ConcurrentHashMap<>();
+  private final Map<Member, AtomicInteger> addressIndexByMember = new ConcurrentHashMap<>();
 
   public TransportWrapper(Transport transport) {
     this.transport = transport;
@@ -27,27 +27,21 @@ public class TransportWrapper {
    * @return mono result
    */
   public Mono<Message> requestResponse(Member member, Message request) {
+    final List<Address> addresses = member.addresses();
+    final AtomicInteger currentIndex =
+        addressIndexByMember.computeIfAbsent(member, m -> new AtomicInteger());
     return Mono.defer(
-        () -> {
-          final List<Address> addresses = member.addresses();
-          final int numRetries = addresses.size() - 1;
-          final Integer index = addressIndexByMember.getOrDefault(member, 0);
-          final AtomicInteger currentIndex = new AtomicInteger(index);
-
-          return Mono.defer(
-                  () -> {
-                    int increment = currentIndex.getAndIncrement();
-
-                    if (increment == addresses.size()) {
-                      increment = 0;
-                      currentIndex.set(1);
-                    }
-
-                    final Address address = addresses.get(increment);
-                    return transport.requestResponse(address, request);
-                  })
-              .retry(numRetries);
-        });
+            () -> {
+              synchronized (this) {
+                if (currentIndex.get() == addresses.size()) {
+                  currentIndex.set(0);
+                }
+                final Address address = addresses.get(currentIndex.getAndIncrement());
+                return transport.requestResponse(address, request);
+              }
+            })
+        .retry(addresses.size() - 1)
+        .doOnError(throwable -> addressIndexByMember.remove(member, currentIndex));
   }
 
   /**
@@ -58,26 +52,20 @@ public class TransportWrapper {
    * @return mono result
    */
   public Mono<Void> send(Member member, Message request) {
+    final List<Address> addresses = member.addresses();
+    final AtomicInteger currentIndex =
+        addressIndexByMember.computeIfAbsent(member, m -> new AtomicInteger());
     return Mono.defer(
-        () -> {
-          final List<Address> addresses = member.addresses();
-          final int numRetries = addresses.size() - 1;
-          final Integer index = addressIndexByMember.getOrDefault(member, 0);
-          final AtomicInteger currentIndex = new AtomicInteger(index);
-
-          return Mono.defer(
-                  () -> {
-                    int increment = currentIndex.getAndIncrement();
-
-                    if (increment == addresses.size()) {
-                      increment = 0;
-                      currentIndex.set(1);
-                    }
-
-                    final Address address = addresses.get(increment);
-                    return transport.send(address, request);
-                  })
-              .retry(numRetries);
-        });
+            () -> {
+              synchronized (this) {
+                if (currentIndex.get() == addresses.size()) {
+                  currentIndex.set(0);
+                }
+                final Address address = addresses.get(currentIndex.getAndIncrement());
+                return transport.send(address, request);
+              }
+            })
+        .retry(addresses.size() - 1)
+        .doOnError(throwable -> addressIndexByMember.remove(member, currentIndex));
   }
 }

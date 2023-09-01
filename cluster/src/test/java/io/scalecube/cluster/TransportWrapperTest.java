@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import java.util.stream.Stream.Builder;
 import org.junit.jupiter.api.Assertions;
@@ -75,12 +76,12 @@ class TransportWrapperTest {
     }
   }
 
-  private Map<Member, Integer> addressIndexByMember()
+  private Map<Member, AtomicInteger> addressIndexByMember()
       throws NoSuchFieldException, IllegalAccessException {
     final Field field = TransportWrapper.class.getDeclaredField("addressIndexByMember");
     field.setAccessible(true);
     //noinspection unchecked
-    return (Map<Member, Integer>) field.get(transportWrapper);
+    return (Map<Member, AtomicInteger>) field.get(transportWrapper);
   }
 
   @ParameterizedTest
@@ -94,7 +95,7 @@ class TransportWrapperTest {
     }
 
     if (startIndex > 0) {
-      addressIndexByMember().put(member, startIndex);
+      addressIndexByMember().put(member, new AtomicInteger(startIndex));
     }
 
     for (int i = 0; i < size; i++) {
@@ -162,7 +163,7 @@ class TransportWrapperTest {
     }
 
     if (startIndex > 0) {
-      addressIndexByMember().put(member, startIndex);
+      addressIndexByMember().put(member, new AtomicInteger(startIndex));
     }
 
     for (int i = 0; i < size; i++) {
@@ -186,7 +187,7 @@ class TransportWrapperTest {
     }
 
     if (startIndex > 0) {
-      addressIndexByMember().put(member, startIndex);
+      addressIndexByMember().put(member, new AtomicInteger(startIndex));
     }
 
     for (int i = 0; i < size; i++) {
@@ -212,7 +213,7 @@ class TransportWrapperTest {
     }
 
     if (startIndex > 0) {
-      addressIndexByMember().put(member, startIndex);
+      addressIndexByMember().put(member, new AtomicInteger(startIndex));
     }
 
     for (int i = 0; i < size; i++) {
