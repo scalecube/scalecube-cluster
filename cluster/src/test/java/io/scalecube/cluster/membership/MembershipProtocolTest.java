@@ -122,6 +122,7 @@ public class MembershipProtocolTest extends BaseTest {
     final Message leavingMessage =
         Message.builder()
             .qualifier(MembershipProtocolImpl.MEMBERSHIP_GOSSIP)
+            .sender(anotherMember)
             .data(leavingRecord)
             .build();
 
@@ -131,6 +132,7 @@ public class MembershipProtocolTest extends BaseTest {
     final Message addedMessage =
         Message.builder()
             .qualifier(MembershipProtocolImpl.MEMBERSHIP_GOSSIP)
+            .sender(anotherMember)
             .data(addedRecord)
             .build();
 
@@ -165,6 +167,7 @@ public class MembershipProtocolTest extends BaseTest {
     final Message leavingMessage =
         Message.builder()
             .qualifier(MembershipProtocolImpl.MEMBERSHIP_GOSSIP)
+            .sender(anotherMember)
             .data(leavingRecord)
             .build();
 
@@ -197,6 +200,7 @@ public class MembershipProtocolTest extends BaseTest {
     final Message suspectMessage =
         Message.builder()
             .qualifier(MembershipProtocolImpl.MEMBERSHIP_GOSSIP)
+            .sender(anotherMember)
             .data(suspectedNode)
             .build();
 
@@ -208,6 +212,7 @@ public class MembershipProtocolTest extends BaseTest {
     final Message leavingMessage =
         Message.builder()
             .qualifier(MembershipProtocolImpl.MEMBERSHIP_GOSSIP)
+            .sender(anotherMember)
             .data(leavingRecord)
             .build();
 

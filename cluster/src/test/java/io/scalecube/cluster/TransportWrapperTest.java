@@ -57,7 +57,7 @@ class TransportWrapperTest {
 
       when(transport.requestResponse(addresses.get(0), request)).thenReturn(Mono.just(response));
 
-      StepVerifier.create(transportWrapper.requestResponse(member, request).retry(2))
+      StepVerifier.create(transportWrapper.requestResponse(member, request))
           .assertNext(message -> Assertions.assertSame(response, message, "response"))
           .thenCancel()
           .verify();
@@ -89,7 +89,7 @@ class TransportWrapperTest {
 
       when(transport.requestResponse(addresses.get(0), request)).thenReturn(Mono.just(response));
 
-      StepVerifier.create(transportWrapper.requestResponse(member, request).retry(2))
+      StepVerifier.create(transportWrapper.requestResponse(member, request))
           .assertNext(message -> Assertions.assertSame(response, message, "response"))
           .thenCancel()
           .verify();
@@ -104,7 +104,7 @@ class TransportWrapperTest {
           .thenReturn(Mono.error(new RuntimeException("Error")));
       when(transport.requestResponse(addresses.get(1), request)).thenReturn(Mono.just(response));
 
-      StepVerifier.create(transportWrapper.requestResponse(member, request).retry(2))
+      StepVerifier.create(transportWrapper.requestResponse(member, request))
           .assertNext(message -> Assertions.assertSame(response, message, "response"))
           .thenCancel()
           .verify();
@@ -122,7 +122,7 @@ class TransportWrapperTest {
           .thenReturn(Mono.error(new RuntimeException("Error")));
       when(transport.requestResponse(addresses.get(2), request)).thenReturn(Mono.just(response));
 
-      StepVerifier.create(transportWrapper.requestResponse(member, request).retry(2))
+      StepVerifier.create(transportWrapper.requestResponse(member, request))
           .assertNext(message -> Assertions.assertSame(response, message, "response"))
           .thenCancel()
           .verify();
@@ -136,7 +136,7 @@ class TransportWrapperTest {
       when(transport.requestResponse(addresses.get(0), request))
           .thenReturn(Mono.error(new RuntimeException("Error")));
 
-      StepVerifier.create(transportWrapper.requestResponse(member, request).retry(2))
+      StepVerifier.create(transportWrapper.requestResponse(member, request))
           .verifyErrorSatisfies(
               throwable -> Assertions.assertEquals("Error", throwable.getMessage()));
     }
@@ -151,7 +151,7 @@ class TransportWrapperTest {
       when(transport.requestResponse(addresses.get(1), request))
           .thenReturn(Mono.error(new RuntimeException("Error - 1")));
 
-      StepVerifier.create(transportWrapper.requestResponse(member, request).retry(2))
+      StepVerifier.create(transportWrapper.requestResponse(member, request))
           .verifyErrorSatisfies(
               throwable -> Assertions.assertEquals("Error - 1", throwable.getMessage()));
     }
@@ -169,7 +169,7 @@ class TransportWrapperTest {
       when(transport.requestResponse(addresses.get(2), request))
           .thenReturn(Mono.error(new RuntimeException("Error - 2")));
 
-      StepVerifier.create(transportWrapper.requestResponse(member, request).retry(2))
+      StepVerifier.create(transportWrapper.requestResponse(member, request))
           .verifyErrorSatisfies(
               throwable -> Assertions.assertEquals("Error - 2", throwable.getMessage()));
     }
@@ -185,7 +185,7 @@ class TransportWrapperTest {
 
       when(transport.send(addresses.get(0), request)).thenReturn(Mono.empty());
 
-      StepVerifier.create(transportWrapper.send(member, request).retry(2)).verifyComplete();
+      StepVerifier.create(transportWrapper.send(member, request)).verifyComplete();
     }
 
     @Test
@@ -210,7 +210,7 @@ class TransportWrapperTest {
 
       when(transport.send(addresses.get(0), request)).thenReturn(Mono.empty());
 
-      StepVerifier.create(transportWrapper.send(member, request).retry(2)).verifyComplete();
+      StepVerifier.create(transportWrapper.send(member, request)).verifyComplete();
     }
 
     @Test
@@ -222,7 +222,7 @@ class TransportWrapperTest {
           .thenReturn(Mono.error(new RuntimeException("Error")));
       when(transport.send(addresses.get(1), request)).thenReturn(Mono.empty());
 
-      StepVerifier.create(transportWrapper.send(member, request).retry(2)).verifyComplete();
+      StepVerifier.create(transportWrapper.send(member, request)).verifyComplete();
     }
 
     @Test
@@ -237,7 +237,7 @@ class TransportWrapperTest {
           .thenReturn(Mono.error(new RuntimeException("Error")));
       when(transport.send(addresses.get(2), request)).thenReturn(Mono.empty());
 
-      StepVerifier.create(transportWrapper.send(member, request).retry(2)).verifyComplete();
+      StepVerifier.create(transportWrapper.send(member, request)).verifyComplete();
     }
 
     @Test
@@ -248,7 +248,7 @@ class TransportWrapperTest {
       when(transport.send(addresses.get(0), request))
           .thenReturn(Mono.error(new RuntimeException("Error")));
 
-      StepVerifier.create(transportWrapper.send(member, request).retry(2))
+      StepVerifier.create(transportWrapper.send(member, request))
           .verifyErrorSatisfies(
               throwable -> Assertions.assertEquals("Error", throwable.getMessage()));
     }
@@ -263,7 +263,7 @@ class TransportWrapperTest {
       when(transport.send(addresses.get(1), request))
           .thenReturn(Mono.error(new RuntimeException("Error - 1")));
 
-      StepVerifier.create(transportWrapper.send(member, request).retry(2))
+      StepVerifier.create(transportWrapper.send(member, request))
           .verifyErrorSatisfies(
               throwable -> Assertions.assertEquals("Error - 1", throwable.getMessage()));
     }
@@ -281,7 +281,7 @@ class TransportWrapperTest {
       when(transport.send(addresses.get(2), request))
           .thenReturn(Mono.error(new RuntimeException("Error - 2")));
 
-      StepVerifier.create(transportWrapper.send(member, request).retry(2))
+      StepVerifier.create(transportWrapper.send(member, request))
           .verifyErrorSatisfies(
               throwable -> Assertions.assertEquals("Error - 2", throwable.getMessage()));
     }
