@@ -34,10 +34,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
@@ -50,6 +48,7 @@ import reactor.core.publisher.MonoSink;
 import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Scheduler;
 
+@SuppressWarnings({"FieldCanBeLocal", "unused"})
 public final class MembershipProtocolImpl implements MembershipProtocol {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MembershipProtocol.class);
@@ -84,7 +83,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   private final Map<String, MembershipRecord> membershipTable = new HashMap<>();
   private final Map<String, Member> members = new HashMap<>();
-  private final List<MembershipEvent> removedMembersHistory = new CopyOnWriteArrayList<>();
   private final Set<String> aliveEmittedSet = new HashSet<>();
 
   // Subject
@@ -157,10 +155,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                 .publishOn(scheduler)
                 .subscribe(
                     this::onMembershipGossip,
-                    ex -> LOGGER.error("[{}][onMembershipGossip][error] cause:", localMember, ex)),
-            listen() // Listen removed members for monitoring
-                .filter(MembershipEvent::isRemoved)
-                .subscribe(this::onMemberRemoved)));
+                    ex ->
+                        LOGGER.error("[{}][onMembershipGossip][error] cause:", localMember, ex))));
   }
 
   // Remove duplicates and local address(es)
@@ -862,88 +858,5 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                           ex.toString()))
               .then();
         });
-  }
-
-  /**
-   * <b>NOTE:</b> this method is for testing purpose only.
-   *
-   * @return failure detector
-   */
-  FailureDetector getFailureDetector() {
-    return failureDetector;
-  }
-
-  /**
-   * <b>NOTE:</b> this method is for testing purpose only.
-   *
-   * @return gossip
-   */
-  GossipProtocol getGossipProtocol() {
-    return gossipProtocol;
-  }
-
-  /**
-   * <b>NOTE:</b> this method is for testing purpose only.
-   *
-   * @return transport
-   */
-  Transport getTransport() {
-    return transport;
-  }
-
-  /**
-   * <b>NOTE:</b> this method is for testing purpose only.
-   *
-   * @return metadataStore
-   */
-  MetadataStore getMetadataStore() {
-    return metadataStore;
-  }
-
-  /**
-   * <b>NOTE:</b> this method is for testing purpose only.
-   *
-   * @return transport
-   */
-  List<MembershipRecord> getMembershipRecords() {
-    return Collections.unmodifiableList(new ArrayList<>(membershipTable.values()));
-  }
-
-  // ===============================================================
-  // ============== Helper Methods for Monitoring ==================
-  // ===============================================================
-
-  private int getIncarnation() {
-    return membershipTable.get(localMember.id()).incarnation();
-  }
-
-  private List<Member> getAliveMembers() {
-    return findRecordsByCondition(MembershipRecord::isAlive);
-  }
-
-  private List<Member> getSuspectedMembers() {
-    return findRecordsByCondition(MembershipRecord::isSuspect);
-  }
-
-  private List<Member> getRemovedMembers() {
-    return removedMembersHistory.stream().map(MembershipEvent::member).collect(Collectors.toList());
-  }
-
-  private List<Member> findRecordsByCondition(Predicate<MembershipRecord> condition) {
-    return getMembershipRecords().stream()
-        .filter(condition)
-        .map(MembershipRecord::member)
-        .collect(Collectors.toList());
-  }
-
-  private void onMemberRemoved(MembershipEvent event) {
-    int s = membershipConfig.removedMembersHistorySize();
-    if (s <= 0) {
-      return;
-    }
-    removedMembersHistory.add(event);
-    if (removedMembersHistory.size() > s) {
-      removedMembersHistory.remove(0);
-    }
   }
 }
