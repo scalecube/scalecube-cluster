@@ -28,7 +28,6 @@ public final class MembershipConfig implements Cloneable {
   private int syncInterval = DEFAULT_SYNC_INTERVAL;
   private int syncTimeout = DEFAULT_SYNC_TIMEOUT;
   private int suspicionMult = DEFAULT_SUSPICION_MULT;
-  private int removedMembersHistorySize = 42;
   private String namespace = "default";
 
   public MembershipConfig() {}
@@ -158,22 +157,6 @@ public final class MembershipConfig implements Cloneable {
     return m;
   }
 
-  public int removedMembersHistorySize() {
-    return removedMembersHistorySize;
-  }
-
-  /**
-   * Setter for {@code removedMembersHistorySize}.
-   *
-   * @param removedMembersHistorySize history size for remove members
-   * @return new {@code MembershipConfig} instance
-   */
-  public MembershipConfig removedMembersHistorySize(int removedMembersHistorySize) {
-    MembershipConfig m = clone();
-    m.removedMembersHistorySize = removedMembersHistorySize;
-    return m;
-  }
-
   @Override
   public MembershipConfig clone() {
     try {
@@ -191,7 +174,6 @@ public final class MembershipConfig implements Cloneable {
         .add("syncTimeout=" + syncTimeout)
         .add("suspicionMult=" + suspicionMult)
         .add("namespace='" + namespace + "'")
-        .add("removedMembersHistorySize=" + removedMembersHistorySize)
         .toString();
   }
 }

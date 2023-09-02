@@ -125,19 +125,20 @@ class GossipProtocolTest extends BaseTest {
       final CountDownLatch latch = new CountDownLatch(membersNum - 1);
       final Map<Member, Member> receivers = new ConcurrentHashMap<>();
       final AtomicBoolean doubleDelivery = new AtomicBoolean(false);
-      for (final GossipProtocolImpl protocol : gossipProtocols) {
-        protocol
+      for (final GossipProtocolImpl gossipProtocol : gossipProtocols) {
+        gossipProtocol
             .listen()
             .subscribe(
                 gossip -> {
+                  final Member localMember = BaseTest.getField(gossipProtocol, "localMember");
+                  final Transport transport = BaseTest.getField(gossipProtocol, "transport");
+
                   if (gossipData.equals(gossip.data())) {
-                    boolean firstTimeAdded =
-                        receivers.put(protocol.getMember(), protocol.getMember()) == null;
+                    boolean firstTimeAdded = receivers.put(localMember, localMember) == null;
                     if (firstTimeAdded) {
                       latch.countDown();
                     } else {
-                      LOGGER.error(
-                          "Delivered gossip twice to: {}", protocol.getTransport().address());
+                      LOGGER.error("Delivered gossip twice to: {}", transport.address());
                       doubleDelivery.set(true);
                     }
                   }
@@ -214,7 +215,7 @@ class GossipProtocolTest extends BaseTest {
   private LongSummaryStatistics computeMessageSentStats(List<GossipProtocolImpl> gossipProtocols) {
     List<Long> messageSentPerNode = new ArrayList<>(gossipProtocols.size());
     for (GossipProtocolImpl gossipProtocol : gossipProtocols) {
-      NetworkEmulatorTransport transport = (NetworkEmulatorTransport) gossipProtocol.getTransport();
+      final NetworkEmulatorTransport transport = BaseTest.getField(gossipProtocol, "transport");
       messageSentPerNode.add(transport.networkEmulator().totalMessageSentCount());
     }
     return messageSentPerNode.stream().mapToLong(v -> v).summaryStatistics();
@@ -223,7 +224,7 @@ class GossipProtocolTest extends BaseTest {
   private LongSummaryStatistics computeMessageLostStats(List<GossipProtocolImpl> gossipProtocols) {
     List<Long> messageLostPerNode = new ArrayList<>(gossipProtocols.size());
     for (GossipProtocolImpl gossipProtocol : gossipProtocols) {
-      NetworkEmulatorTransport transport = (NetworkEmulatorTransport) gossipProtocol.getTransport();
+      final NetworkEmulatorTransport transport = BaseTest.getField(gossipProtocol, "transport");
       messageLostPerNode.add(transport.networkEmulator().totalOutboundMessageLostCount());
     }
     return messageLostPerNode.stream().mapToLong(v -> v).summaryStatistics();
@@ -274,7 +275,7 @@ class GossipProtocolTest extends BaseTest {
     return gossipProtocol;
   }
 
-  private void destroyGossipProtocols(List<GossipProtocolImpl> gossipProtocols) {
+  private static void destroyGossipProtocols(List<GossipProtocolImpl> gossipProtocols) {
     // Stop all gossip protocols
     for (GossipProtocolImpl gossipProtocol : gossipProtocols) {
       gossipProtocol.stop();
@@ -283,7 +284,7 @@ class GossipProtocolTest extends BaseTest {
     // Stop all transports
     List<Mono<Void>> futures = new ArrayList<>();
     for (GossipProtocolImpl gossipProtocol : gossipProtocols) {
-      futures.add(gossipProtocol.getTransport().stop());
+      futures.add(BaseTest.<Transport>getField(gossipProtocol, "transport").stop());
     }
 
     try {

@@ -6,9 +6,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.scalecube.cluster.BaseTest;
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.Member;
+import io.scalecube.cluster.fdetector.FailureDetector;
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
+import io.scalecube.cluster.gossip.GossipProtocol;
 import io.scalecube.cluster.gossip.GossipProtocolImpl;
 import io.scalecube.cluster.membership.MembershipEvent.Type;
+import io.scalecube.cluster.metadata.MetadataStore;
 import io.scalecube.cluster.metadata.MetadataStoreImpl;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
@@ -23,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -126,7 +130,9 @@ public class MembershipProtocolTest extends BaseTest {
             .data(leavingRecord)
             .build();
 
-    cmB.getGossipProtocol().spread(leavingMessage).block(TIMEOUT);
+    final GossipProtocol gossipProtocol = getField(cmB, "gossipProtocol");
+
+    gossipProtocol.spread(leavingMessage).block(TIMEOUT);
 
     final MembershipRecord addedRecord = new MembershipRecord(anotherMember, MemberStatus.ALIVE, 4);
     final Message addedMessage =
@@ -136,7 +142,7 @@ public class MembershipProtocolTest extends BaseTest {
             .data(addedRecord)
             .build();
 
-    cmB.getGossipProtocol().spread(addedMessage).block(TIMEOUT);
+    gossipProtocol.spread(addedMessage).block(TIMEOUT);
 
     awaitSeconds(1);
     awaitSuspicion(3);
@@ -171,7 +177,9 @@ public class MembershipProtocolTest extends BaseTest {
             .data(leavingRecord)
             .build();
 
-    cmB.getGossipProtocol().spread(leavingMessage).block(TIMEOUT);
+    final GossipProtocol gossipProtocol = getField(cmB, "gossipProtocol");
+
+    gossipProtocol.spread(leavingMessage).block(TIMEOUT);
 
     awaitSeconds(1);
     awaitSuspicion(3);
@@ -204,7 +212,10 @@ public class MembershipProtocolTest extends BaseTest {
             .data(suspectedNode)
             .build();
 
-    cmB.getGossipProtocol().spread(suspectMessage).block(TIMEOUT);
+    final GossipProtocol gossipProtocol = getField(cmB, "gossipProtocol");
+
+    gossipProtocol.spread(suspectMessage).block(TIMEOUT);
+
     awaitSeconds(3);
 
     final MembershipRecord leavingRecord =
@@ -216,7 +227,8 @@ public class MembershipProtocolTest extends BaseTest {
             .data(leavingRecord)
             .build();
 
-    cmB.getGossipProtocol().spread(leavingMessage).block(TIMEOUT);
+    gossipProtocol.spread(leavingMessage).block(TIMEOUT);
+
     awaitSeconds(2);
     awaitSuspicion(3);
 
@@ -1110,7 +1122,7 @@ public class MembershipProtocolTest extends BaseTest {
     }
   }
 
-  private ClusterConfig testConfig(List<Address> seedAddresses) {
+  private static ClusterConfig testConfig(List<Address> seedAddresses) {
     // Create faster config for local testing
     return new ClusterConfig()
         .membership(opts -> opts.seedMembers(seedAddresses))
@@ -1181,33 +1193,34 @@ public class MembershipProtocolTest extends BaseTest {
     return membership;
   }
 
-  private String newMemberId() {
+  private static String newMemberId() {
     return Long.toHexString(UUID.randomUUID().getMostSignificantBits() & Long.MAX_VALUE);
   }
 
-  private void stopAll(MembershipProtocolImpl... memberships) {
+  private static void stopAll(MembershipProtocolImpl... memberships) {
     for (MembershipProtocolImpl membership : memberships) {
       stop(membership);
     }
   }
 
-  private void stop(MembershipProtocolImpl membership) {
+  private static void stop(MembershipProtocolImpl membership) {
     if (membership == null) {
       return;
     }
-    membership.getMetadataStore().stop();
+
+    BaseTest.<MetadataStore>getField(membership, "metadataStore").stop();
     membership.stop();
-    membership.getGossipProtocol().stop();
-    membership.getFailureDetector().stop();
-    membership.getTransport().stop().block();
+    BaseTest.<GossipProtocol>getField(membership, "gossipProtocol").stop();
+    BaseTest.<FailureDetector>getField(membership, "failureDetector").stop();
+    BaseTest.<Transport>getField(membership, "transport").stop().block();
   }
 
-  private Mono<Void> awaitUntil(Runnable assertAction) {
+  private static Mono<Void> awaitUntil(Runnable assertAction) {
     return Mono.<Void>fromRunnable(assertAction)
         .retryWhen(Retry.backoff(Long.MAX_VALUE, Duration.ofMillis(100)));
   }
 
-  private void assertTrusted(MembershipProtocolImpl membership, Member... expected) {
+  private static void assertTrusted(MembershipProtocolImpl membership, Member... expected) {
     List<Member> actual = membersByStatus(membership, MemberStatus.ALIVE);
     List<Member> expectedList = new ArrayList<>(Arrays.asList(expected));
     expectedList.add(membership.member()); // add local since he always trusted (alive)
@@ -1226,7 +1239,7 @@ public class MembershipProtocolTest extends BaseTest {
     }
   }
 
-  private void assertSuspected(MembershipProtocolImpl membership, Member... expected) {
+  private static void assertSuspected(MembershipProtocolImpl membership, Member... expected) {
     List<Member> actual = membersByStatus(membership, MemberStatus.SUSPECT);
     assertEquals(
         expected.length,
@@ -1243,7 +1256,7 @@ public class MembershipProtocolTest extends BaseTest {
     }
   }
 
-  private void assertRemoved(Sinks.Many<MembershipEvent> recording, Member... expected) {
+  private static void assertRemoved(Sinks.Many<MembershipEvent> recording, Member... expected) {
     List<Member> actual = new ArrayList<>();
     recording.asFlux().map(MembershipEvent::member).subscribe(actual::add);
     assertEquals(
@@ -1261,29 +1274,36 @@ public class MembershipProtocolTest extends BaseTest {
     }
   }
 
-  private void assertSelfTrusted(MembershipProtocolImpl membership) {
+  private static void assertSelfTrusted(MembershipProtocolImpl membership) {
     assertTrusted(membership);
   }
 
-  private void assertMemberAndType(
+  private static void assertMemberAndType(
       MembershipEvent membershipEvent, String expectedMemberId, MembershipEvent.Type expectedType) {
-
     assertEquals(expectedMemberId, membershipEvent.member().id());
     assertEquals(expectedType, membershipEvent.type());
   }
 
-  private void assertNoSuspected(MembershipProtocolImpl membership) {
+  private static void assertNoSuspected(MembershipProtocolImpl membership) {
     assertSuspected(membership);
   }
 
-  private List<Member> membersByStatus(MembershipProtocolImpl membership, MemberStatus status) {
-    return membership.getMembershipRecords().stream()
+  private static List<Member> membersByStatus(
+      MembershipProtocolImpl membership, MemberStatus status) {
+    final Map<String, MembershipRecord> membershipTable =
+        BaseTest.getField(membership, "membershipTable");
+
+    final List<MembershipRecord> membershipRecords =
+        Collections.unmodifiableList(new ArrayList<>(membershipTable.values()));
+
+    return membershipRecords.stream()
         .filter(member -> member.status() == status)
         .map(MembershipRecord::member)
         .collect(Collectors.toList());
   }
 
-  private Sinks.Many<MembershipEvent> startRecordingRemoved(MembershipProtocolImpl membership) {
+  private static Sinks.Many<MembershipEvent> startRecordingRemoved(
+      MembershipProtocolImpl membership) {
     Sinks.Many<MembershipEvent> recording = Sinks.many().replay().all();
     membership
         .listen()

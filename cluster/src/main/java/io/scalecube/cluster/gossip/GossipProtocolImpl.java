@@ -371,22 +371,4 @@ public final class GossipProtocolImpl implements GossipProtocol {
         .map(gossipState -> gossipState.gossip().gossipId())
         .collect(Collectors.toSet());
   }
-
-  /**
-   * <b>NOTE:</b> this method is for testing purpose only.
-   *
-   * @return transport
-   */
-  Transport getTransport() {
-    return transport;
-  }
-
-  /**
-   * <b>NOTE:</b> this method is for testing purpose only.
-   *
-   * @return local member
-   */
-  Member getMember() {
-    return localMember;
-  }
 }
