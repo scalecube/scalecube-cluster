@@ -349,7 +349,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
     Message message = prepareSyncDataMsg(SYNC, null);
     LOGGER.debug("[{}][doSync] Send Sync to {}", localMember, addresses);
-    send(transport, addresses, message)
+    send(transport, addresses, 0, message)
         .subscribe(
             null,
             ex ->
@@ -888,5 +888,16 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                           ex.toString()))
               .then();
         });
+  }
+
+  private static Mono<Void> send(
+      Transport transport, List<Address> addresses, int currentIndex, Message request) {
+    if (currentIndex >= addresses.size()) {
+      return Mono.error(new RuntimeException("All addresses have been tried and failed"));
+    }
+
+    return transport
+        .send(addresses.get(currentIndex), request)
+        .onErrorResume(th -> send(transport, addresses, currentIndex + 1, request));
   }
 }

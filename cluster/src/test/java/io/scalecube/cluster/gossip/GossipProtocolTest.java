@@ -148,7 +148,7 @@ class GossipProtocolTest extends BaseTest {
       // Spread gossip, measure and verify delivery metrics
       long start = System.currentTimeMillis();
       final GossipProtocolImpl gossipProtocol = gossipProtocols.get(0);
-      final Member member = gossipProtocol.getMember();
+      final Member member = BaseTest.getField(gossipProtocol, "localMember");
       gossipProtocol.spread(Message.builder().sender(member).data(gossipData).build()).subscribe();
       latch.await(2 * gossipTimeout, TimeUnit.MILLISECONDS); // Await for double gossip timeout
       disseminationTime = System.currentTimeMillis() - start;

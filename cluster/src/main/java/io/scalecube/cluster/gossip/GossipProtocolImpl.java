@@ -30,6 +30,7 @@ import reactor.core.publisher.MonoSink;
 import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Scheduler;
 
+@SuppressWarnings({"FieldCanBeLocal", "unused"})
 public final class GossipProtocolImpl implements GossipProtocol {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GossipProtocol.class);

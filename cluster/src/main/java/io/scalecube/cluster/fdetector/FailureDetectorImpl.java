@@ -27,6 +27,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Scheduler;
 
+@SuppressWarnings({"FieldCanBeLocal", "unused"})
 public final class FailureDetectorImpl implements FailureDetector {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FailureDetector.class);

@@ -57,7 +57,7 @@ public class GossipDelayTest extends BaseTest {
     gossipProtocol3.listen().subscribe(message -> protocol3GossipCounter.incrementAndGet());
 
     for (int i = 0; i < 3; i++) {
-      final Member member = gossipProtocol1.getMember();
+      final Member member = BaseTest.getField(gossipProtocol1, "localMember");
       gossipProtocol1
           .spread(Message.builder().sender(member).data("message: " + i).build())
           .subscribe();
