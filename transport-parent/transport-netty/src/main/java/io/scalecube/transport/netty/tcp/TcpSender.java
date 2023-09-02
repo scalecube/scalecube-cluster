@@ -52,6 +52,6 @@ public final class TcpSender implements Sender {
                 (connectionObserver, channel, remoteAddress) ->
                     new TcpChannelInitializer(config.maxFrameLength())
                         .accept(connectionObserver, channel));
-    return config.isClientSecured() ? tcpClient.secure() : tcpClient;
+    return config.clientSecured() ? tcpClient.secure() : tcpClient;
   }
 }

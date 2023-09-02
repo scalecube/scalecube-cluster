@@ -376,15 +376,19 @@ public final class ClusterImpl implements Cluster {
     final int port = address.port();
     final List<Address> memberAddresses = new ArrayList<>();
 
-    // First address comes as "fair" listen address
-    memberAddresses.add(address);
+    if (config.transportConfig().exposeAddress()) {
+      memberAddresses.add(address);
+    }
 
-    // Tail goes as externalHosts, if exists
     final List<String> externalHosts = config.externalHosts();
     if (externalHosts != null) {
       for (String externalHost : externalHosts) {
         memberAddresses.add(Address.create(externalHost, port));
       }
+    }
+
+    if (memberAddresses.isEmpty()) {
+      throw new IllegalArgumentException("Member addresses must not be empty");
     }
 
     final String memberId =
