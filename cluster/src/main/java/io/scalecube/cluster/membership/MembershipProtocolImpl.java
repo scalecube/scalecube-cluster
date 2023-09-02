@@ -37,6 +37,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -349,7 +350,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
     Message message = prepareSyncDataMsg(SYNC, null);
     LOGGER.debug("[{}][doSync] Send Sync to {}", localMember, addresses);
-    send(transport, addresses, 0, message)
+    send(transport, addresses, message)
         .subscribe(
             null,
             ex ->
@@ -890,14 +891,14 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
         });
   }
 
-  private static Mono<Void> send(
-      Transport transport, List<Address> addresses, int currentIndex, Message request) {
-    if (currentIndex >= addresses.size()) {
-      return Mono.error(new RuntimeException("All addresses have been tried and failed"));
-    }
-
-    return transport
-        .send(addresses.get(currentIndex), request)
-        .onErrorResume(th -> send(transport, addresses, currentIndex + 1, request));
+  private static Mono<Void> send(Transport transport, List<Address> addresses, Message request) {
+    final AtomicInteger currentIndex = new AtomicInteger();
+    return Mono.defer(
+            () -> {
+              final Address address = addresses.get(currentIndex.get());
+              return transport.send(address, request);
+            })
+        .doOnError(ex -> currentIndex.incrementAndGet())
+        .retry(addresses.size() - 1);
   }
 }
