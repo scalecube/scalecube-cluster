@@ -417,13 +417,4 @@ public final class FailureDetectorImpl implements FailureDetector {
     return PING_ACK.equals(message.qualifier())
         && message.<PingData>data().getOriginalIssuer() != null;
   }
-
-  /**
-   * <b>NOTE:</b> this method is for testing purpose only.
-   *
-   * @return transport
-   */
-  Transport getTransport() {
-    return transport;
-  }
 }

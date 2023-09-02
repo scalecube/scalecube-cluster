@@ -6,6 +6,7 @@ import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.cluster.utils.NetworkEmulatorTransport;
 import io.scalecube.transport.netty.tcp.TcpTransportFactory;
+import java.lang.reflect.Field;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
@@ -30,7 +31,18 @@ public class BaseTest {
     LOGGER.info("***** Test finished : " + testInfo.getDisplayName() + " *****");
   }
 
-  protected void awaitSeconds(long seconds) {
+  public static <T> T getField(Object obj, String fieldName) {
+    try {
+      final Field field = obj.getClass().getDeclaredField(fieldName);
+      field.setAccessible(true);
+      //noinspection unchecked
+      return (T) field.get(obj);
+    } catch (Exception ex) {
+      throw new RuntimeException(ex);
+    }
+  }
+
+  public static void awaitSeconds(long seconds) {
     try {
       TimeUnit.SECONDS.sleep(seconds);
     } catch (InterruptedException e) {
@@ -38,7 +50,7 @@ public class BaseTest {
     }
   }
 
-  protected void awaitSuspicion(int clusterSize) {
+  public static void awaitSuspicion(int clusterSize) {
     int defaultSuspicionMult = MembershipConfig.DEFAULT_SUSPICION_MULT;
     int pingInterval = MembershipProtocolTest.PING_INTERVAL;
     long suspicionTimeoutSec =
@@ -46,16 +58,16 @@ public class BaseTest {
     awaitSeconds(suspicionTimeoutSec + 2);
   }
 
-  protected NetworkEmulatorTransport createTransport() {
+  public static NetworkEmulatorTransport createTransport() {
     return createTransport(TransportConfig.defaultConfig());
   }
 
-  protected NetworkEmulatorTransport createTransport(TransportConfig transportConfig) {
+  public static NetworkEmulatorTransport createTransport(TransportConfig transportConfig) {
     return new NetworkEmulatorTransport(
         Transport.bindAwait(transportConfig.transportFactory(new TcpTransportFactory())));
   }
 
-  protected void destroyTransport(Transport transport) {
+  public static void destroyTransport(Transport transport) {
     if (transport == null || transport.isStopped()) {
       return;
     }

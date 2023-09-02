@@ -421,22 +421,22 @@ public class FailureDetectorTest extends BaseTest {
     return new FailureDetectorImpl(localMember, transport, membershipFlux, config, scheduler);
   }
 
-  private void start(List<FailureDetectorImpl> fdetectors) {
+  private static void start(List<FailureDetectorImpl> fdetectors) {
     for (FailureDetectorImpl fd : fdetectors) {
       fd.start();
     }
   }
 
-  private void stop(List<FailureDetectorImpl> fdetectors) {
+  private static void stop(List<FailureDetectorImpl> fdetectors) {
     for (FailureDetectorImpl fd : fdetectors) {
       fd.stop();
     }
     for (FailureDetectorImpl fd : fdetectors) {
-      destroyTransport(fd.getTransport());
+      destroyTransport(BaseTest.getField(fd, "transport"));
     }
   }
 
-  private void assertStatus(
+  private static void assertStatus(
       Address address,
       MemberStatus status,
       Collection<FailureDetectorEvent> events,
@@ -461,10 +461,11 @@ public class FailureDetectorTest extends BaseTest {
     }
   }
 
-  private Future<List<FailureDetectorEvent>> listenNextEventFor(
+  private static Future<List<FailureDetectorEvent>> listenNextEventFor(
       FailureDetectorImpl fd, List<Address> addresses) {
+    final Transport transport = BaseTest.getField(fd, "transport");
     addresses = new ArrayList<>(addresses);
-    addresses.remove(fd.getTransport().address()); // exclude self
+    addresses.remove(transport.address()); // exclude self
     if (addresses.isEmpty()) {
       throw new IllegalArgumentException();
     }
@@ -479,7 +480,8 @@ public class FailureDetectorTest extends BaseTest {
     return allOf(resultFuture);
   }
 
-  private Collection<FailureDetectorEvent> awaitEvents(Future<List<FailureDetectorEvent>> events) {
+  private static Collection<FailureDetectorEvent> awaitEvents(
+      Future<List<FailureDetectorEvent>> events) {
     try {
       return events.get(10, TimeUnit.SECONDS);
     } catch (Exception e) {
@@ -487,7 +489,7 @@ public class FailureDetectorTest extends BaseTest {
     }
   }
 
-  private <T> CompletableFuture<List<T>> allOf(List<CompletableFuture<T>> futuresList) {
+  private static <T> CompletableFuture<List<T>> allOf(List<CompletableFuture<T>> futuresList) {
     CompletableFuture<Void> allFuturesResult =
         CompletableFuture.allOf(futuresList.toArray(new CompletableFuture[0]));
     return allFuturesResult.thenApply(
