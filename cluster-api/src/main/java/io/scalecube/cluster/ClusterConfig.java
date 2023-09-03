@@ -5,7 +5,6 @@ import io.scalecube.cluster.gossip.GossipConfig;
 import io.scalecube.cluster.membership.MembershipConfig;
 import io.scalecube.cluster.metadata.MetadataCodec;
 import io.scalecube.cluster.transport.api.TransportConfig;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -170,7 +169,7 @@ public final class ClusterConfig implements Cloneable {
    */
   public ClusterConfig externalHosts(List<String> externalHosts) {
     ClusterConfig c = clone();
-    c.externalHosts = new ArrayList<>(externalHosts);
+    c.externalHosts = externalHosts;
     return c;
   }
 
