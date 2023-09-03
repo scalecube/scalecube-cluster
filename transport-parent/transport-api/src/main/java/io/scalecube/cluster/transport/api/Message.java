@@ -1,6 +1,5 @@
 package io.scalecube.cluster.transport.api;
 
-import io.scalecube.net.Address;
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
@@ -10,7 +9,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.StringJoiner;
 
 /**
@@ -32,40 +30,16 @@ public final class Message implements Externalizable {
    */
   public static final String HEADER_CORRELATION_ID = "cid";
 
-  /**
-   * This header represents sender address of type {@link Address}. It's an address of message
-   * originator. This header is optional.
-   */
-  public static final String HEADER_SENDER = "sender";
-
   private Map<String, String> headers = Collections.emptyMap();
-  private Object data;
+  private Object sender; // Member
+  private Object data; // GossipReq|SyncData|SyncAckData|PingReqData|...
 
   public Message() {}
 
   private Message(Builder builder) {
+    this.sender = Objects.requireNonNull(builder.sender, "sender");
     this.data = builder.data;
     this.headers = Collections.unmodifiableMap(Objects.requireNonNull(builder.headers));
-  }
-
-  /**
-   * Instantiates a new message with the given data and without headers.
-   *
-   * @param data the data to build a message from
-   * @return the built message
-   */
-  public static Message fromData(Object data) {
-    return withData(data).build();
-  }
-
-  /**
-   * Instantiates a new message builder with the given data and without headers.
-   *
-   * @param data the initial data for the builder
-   * @return a builder with initial data
-   */
-  public static Builder withData(Object data) {
-    return builder().data(data);
   }
 
   /**
@@ -125,7 +99,7 @@ public final class Message implements Externalizable {
    * @return a builder with initial data and headers from the message
    */
   public static Builder with(Message message) {
-    return withData(message.data).headers(message.headers);
+    return builder().sender(message.sender).data(message.data).headers(message.headers);
   }
 
   /**
@@ -175,6 +149,16 @@ public final class Message implements Externalizable {
   }
 
   /**
+   * Returns {@code Member} of the sender of this message.
+   *
+   * @return address
+   */
+  public <T> T sender() {
+    //noinspection unchecked
+    return (T) sender;
+  }
+
+  /**
    * Return the message data, which can be byte array, string or any type.
    *
    * @param <T> data type
@@ -185,19 +169,11 @@ public final class Message implements Externalizable {
     return (T) data;
   }
 
-  /**
-   * Returns {@link Address} of the sender of this message.
-   *
-   * @return address
-   */
-  public Address sender() {
-    return Optional.ofNullable(header(HEADER_SENDER)).map(Address::from).orElse(null);
-  }
-
   @Override
   public String toString() {
     return new StringJoiner(", ", Message.class.getSimpleName() + "[", "]")
         .add("headers=" + headers)
+        .add("sender=" + sender)
         .add("data=" + data)
         .toString();
   }
@@ -210,6 +186,8 @@ public final class Message implements Externalizable {
       out.writeUTF(header.getKey());
       out.writeObject(header.getValue()); // value is nullable
     }
+    // sender
+    out.writeObject(sender);
     // data
     out.writeObject(data);
   }
@@ -225,6 +203,8 @@ public final class Message implements Externalizable {
       headers.put(name, value);
     }
     this.headers = Collections.unmodifiableMap(headers);
+    // sender
+    sender = in.readObject();
     // data
     data = in.readObject();
   }
@@ -232,6 +212,7 @@ public final class Message implements Externalizable {
   public static class Builder {
 
     private final Map<String, String> headers = new HashMap<>();
+    private Object sender;
     private Object data;
 
     private Builder() {}
@@ -242,6 +223,15 @@ public final class Message implements Externalizable {
 
     public Builder data(Object data) {
       this.data = data;
+      return this;
+    }
+
+    public Object sender() {
+      return sender;
+    }
+
+    public Builder sender(Object sender) {
+      this.sender = sender;
       return this;
     }
 
@@ -279,10 +269,6 @@ public final class Message implements Externalizable {
 
     public Builder correlationId(String correlationId) {
       return header(HEADER_CORRELATION_ID, correlationId);
-    }
-
-    public Builder sender(Address sender) {
-      return header(HEADER_SENDER, sender.toString());
     }
 
     public Message build() {

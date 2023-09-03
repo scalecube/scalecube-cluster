@@ -8,6 +8,7 @@ import static io.scalecube.reactor.RetryNonSerializedEmitFailureHandler.RETRY_NO
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.Member;
+import io.scalecube.cluster.TransportWrapper;
 import io.scalecube.cluster.fdetector.FailureDetector;
 import io.scalecube.cluster.fdetector.FailureDetectorConfig;
 import io.scalecube.cluster.fdetector.FailureDetectorEvent;
@@ -36,8 +37,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
@@ -78,6 +79,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private final FailureDetector failureDetector;
   private final GossipProtocol gossipProtocol;
   private final MetadataStore metadataStore;
+  private final TransportWrapper transportWrapper;
 
   // State
 
@@ -124,6 +126,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     this.scheduler = Objects.requireNonNull(scheduler);
     this.membershipConfig = Objects.requireNonNull(config).membershipConfig();
     this.failureDetectorConfig = Objects.requireNonNull(config).failureDetectorConfig();
+    transportWrapper = new TransportWrapper(transport);
 
     // Prepare seeds
     seedMembers = cleanUpSeedMembers(membershipConfig.seedMembers());
@@ -166,22 +169,29 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     String hostAddress = localIpAddress.getHostAddress();
     String hostName = localIpAddress.getHostName();
 
-    Address memberAddr = localMember.address();
     Address transportAddr = transport.address();
-    Address memberAddrByHostAddress = Address.create(hostAddress, memberAddr.port());
     Address transportAddrByHostAddress = Address.create(hostAddress, transportAddr.port());
-    Address memberAddByHostName = Address.create(hostName, memberAddr.port());
     Address transportAddrByHostName = Address.create(hostName, transportAddr.port());
 
     return new LinkedHashSet<>(seedMembers)
         .stream()
-            .filter(addr -> checkAddressesNotEqual(addr, memberAddr))
+            .filter(addr -> checkAddressesNotEqual(addr, localMember, hostAddress, hostName))
             .filter(addr -> checkAddressesNotEqual(addr, transportAddr))
-            .filter(addr -> checkAddressesNotEqual(addr, memberAddrByHostAddress))
             .filter(addr -> checkAddressesNotEqual(addr, transportAddrByHostAddress))
-            .filter(addr -> checkAddressesNotEqual(addr, memberAddByHostName))
             .filter(addr -> checkAddressesNotEqual(addr, transportAddrByHostName))
             .collect(Collectors.toList());
+  }
+
+  private boolean checkAddressesNotEqual(
+      Address smAddress, Member localMember, String hostAddress, String hostName) {
+    return localMember.addresses().stream()
+        .allMatch(
+            memberAddress ->
+                checkAddressesNotEqual(smAddress, memberAddress)
+                    && checkAddressesNotEqual(
+                        smAddress, Address.create(hostAddress, memberAddress.port()))
+                    && checkAddressesNotEqual(
+                        smAddress, Address.create(hostName, memberAddress.port())));
   }
 
   private boolean checkAddressesNotEqual(Address address0, Address address1) {
@@ -326,27 +336,28 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   @Override
   public Optional<Member> member(Address address) {
-    return new ArrayList<>(members.values())
-        .stream().filter(member -> member.address().equals(address)).findFirst();
+    return members.values().stream()
+        .filter(member -> member.addresses().stream().anyMatch(address::equals))
+        .findFirst();
   }
 
   private void doSync() {
-    Address address = selectSyncAddress().orElse(null);
-    if (address == null) {
+    List<Address> addresses = selectSyncAddress();
+
+    if (addresses.isEmpty()) {
       return;
     }
 
     Message message = prepareSyncDataMsg(SYNC, null);
-    LOGGER.debug("[{}][doSync] Send Sync to {}", localMember, address);
-    transport
-        .send(address, message)
+    LOGGER.debug("[{}][doSync] Send Sync to {}", localMember, addresses);
+    send(transport, addresses, message)
         .subscribe(
             null,
             ex ->
                 LOGGER.debug(
                     "[{}][doSync] Failed to send Sync to {}, cause: {}",
                     localMember,
-                    address,
+                    addresses,
                     ex.toString()));
   }
 
@@ -390,13 +401,13 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private Mono<Void> onSync(Message syncMsg) {
     return Mono.defer(
         () -> {
-          final Address sender = syncMsg.sender();
+          final Member sender = syncMsg.sender();
           LOGGER.debug("[{}] Received Sync from {}", localMember, sender);
           return syncMembership(syncMsg.data(), false)
               .doOnSuccess(
                   avoid -> {
-                    Message message = prepareSyncDataMsg(SYNC_ACK, syncMsg.correlationId());
-                    transport
+                    final Message message = prepareSyncDataMsg(SYNC_ACK, syncMsg.correlationId());
+                    transportWrapper
                         .send(sender, message)
                         .subscribe(
                             null,
@@ -412,7 +423,10 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   /** Merges FD updates and processes them. */
   private void onFailureDetectorEvent(FailureDetectorEvent fdEvent) {
-    MembershipRecord r0 = membershipTable.get(fdEvent.member().id());
+    final Member member = fdEvent.member();
+    final List<Address> addresses = member.addresses();
+
+    MembershipRecord r0 = membershipTable.get(member.id());
     if (r0 == null) { // member already removed
       return;
     }
@@ -425,16 +439,16 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       // Alive won't override SUSPECT so issue instead extra sync with member to force it spread
       // alive with inc + 1
       Message syncMsg = prepareSyncDataMsg(SYNC, null);
-      Address address = fdEvent.member().address();
-      transport
-          .send(address, syncMsg)
+
+      transportWrapper
+          .send(member, syncMsg)
           .subscribe(
               null,
               ex ->
                   LOGGER.debug(
                       "[{}][onFailureDetectorEvent] Failed to send Sync to {}, cause: {}",
                       localMember,
-                      address,
+                      addresses,
                       ex.toString()));
     } else {
       MembershipRecord record =
@@ -464,17 +478,24 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     }
   }
 
-  private Optional<Address> selectSyncAddress() {
-    List<Address> addresses =
-        Stream.concat(seedMembers.stream(), otherMembers().stream().map(Member::address))
-            .collect(Collectors.collectingAndThen(Collectors.toSet(), ArrayList::new));
-    Collections.shuffle(addresses);
-    if (addresses.isEmpty()) {
-      return Optional.empty();
-    } else {
-      int i = ThreadLocalRandom.current().nextInt(addresses.size());
-      return Optional.of(addresses.get(i));
+  private List<Address> selectSyncAddress() {
+    Collection<Member> otherMembers = otherMembers();
+
+    if (seedMembers.isEmpty() && otherMembers.isEmpty()) {
+      return Collections.emptyList();
     }
+
+    int totalSize = seedMembers.size() + otherMembers.size();
+    int randomIndex = ThreadLocalRandom.current().nextInt(totalSize);
+
+    if (randomIndex < seedMembers.size()) {
+      return Collections.singletonList(seedMembers.get(randomIndex));
+    }
+
+    List<Member> otherMembersList = new ArrayList<>(otherMembers);
+    Member member = otherMembersList.get(randomIndex - seedMembers.size());
+
+    return member.addresses();
   }
 
   // ================================================
@@ -489,9 +510,12 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   }
 
   private Message prepareSyncDataMsg(String qualifier, String cid) {
-    List<MembershipRecord> membershipRecords = new ArrayList<>(membershipTable.values());
-    SyncData syncData = new SyncData(membershipRecords);
-    return Message.withData(syncData).qualifier(qualifier).correlationId(cid).build();
+    return Message.builder()
+        .sender(localMember)
+        .data(new SyncData(new ArrayList<>(membershipTable.values())))
+        .qualifier(qualifier)
+        .correlationId(cid)
+        .build();
   }
 
   private Mono<Void> syncMembership(SyncData syncData, boolean onStart) {
@@ -508,11 +532,11 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                           updateMembership(r1, reason)
                               .doOnError(
                                   ex ->
-                                      LOGGER.warn(
+                                      LOGGER.error(
                                           "[{}][syncMembership][{}][error] cause: {}",
                                           localMember,
                                           reason,
-                                          ex.toString()))
+                                          ex))
                               .onErrorResume(ex -> Mono.empty()))
                   .toArray(Mono[]::new);
 
@@ -589,7 +613,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           }
 
           // If received updated for local member then increase incarnation and spread Alive gossip
-          if (r1.member().address().equals(localMember.address())) {
+          if (r1.member().addresses().equals(localMember.addresses())) {
             if (r1.member().id().equals(localMember.id())) {
               return onSelfMemberDetected(r0, r1, reason);
             } else {
@@ -843,13 +867,20 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     }
   }
 
-  private Mono<Void> spreadMembershipGossip(MembershipRecord r) {
+  private Mono<Void> spreadMembershipGossip(MembershipRecord record) {
     return Mono.defer(
         () -> {
-          Message msg = Message.withData(r).qualifier(MEMBERSHIP_GOSSIP).build();
-          LOGGER.debug("[{}] Send membership with gossip", localMember);
+          final Message message =
+              Message.builder()
+                  .sender(localMember)
+                  .data(record)
+                  .qualifier(MEMBERSHIP_GOSSIP)
+                  .build();
+
           return gossipProtocol
-              .spread(msg)
+              .spread(message)
+              .doOnSubscribe(
+                  subscription -> LOGGER.debug("[{}] Send membership with gossip", localMember))
               .doOnError(
                   ex ->
                       LOGGER.debug(
@@ -858,5 +889,16 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                           ex.toString()))
               .then();
         });
+  }
+
+  private static Mono<Void> send(Transport transport, List<Address> addresses, Message request) {
+    final AtomicInteger currentIndex = new AtomicInteger();
+    return Mono.defer(
+            () -> {
+              final Address address = addresses.get(currentIndex.get());
+              return transport.send(address, request);
+            })
+        .doOnError(ex -> currentIndex.incrementAndGet())
+        .retry(addresses.size() - 1);
   }
 }

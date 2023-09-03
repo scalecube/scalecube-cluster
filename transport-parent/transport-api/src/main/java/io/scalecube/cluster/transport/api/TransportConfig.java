@@ -23,6 +23,7 @@ public final class TransportConfig implements Cloneable {
   private int maxFrameLength = 2 * 1024 * 1024; // 2 MB
   private TransportFactory transportFactory;
   private Function<Address, Address> addressMapper = Function.identity();
+  private boolean exposeAddress = true;
 
   public TransportConfig() {}
 
@@ -73,7 +74,7 @@ public final class TransportConfig implements Cloneable {
     return t;
   }
 
-  public boolean isClientSecured() {
+  public boolean clientSecured() {
     return clientSecured;
   }
 
@@ -137,22 +138,6 @@ public final class TransportConfig implements Cloneable {
     return t;
   }
 
-  /**
-   * Setter for {@code addressMapper}.
-   *
-   * @param addressMapper address mapper
-   * @return new {@code TransportConfig} instance
-   */
-  public TransportConfig addressMapper(Function<Address, Address> addressMapper) {
-    TransportConfig t = clone();
-    t.addressMapper = addressMapper;
-    return t;
-  }
-
-  public Function<Address, Address> addressMapper() {
-    return addressMapper;
-  }
-
   public TransportFactory transportFactory() {
     return transportFactory;
   }
@@ -166,6 +151,39 @@ public final class TransportConfig implements Cloneable {
   public TransportConfig transportFactory(TransportFactory transportFactory) {
     TransportConfig t = clone();
     t.transportFactory = transportFactory;
+    return t;
+  }
+
+  public Function<Address, Address> addressMapper() {
+    return addressMapper;
+  }
+
+  /**
+   * Setter for {@code addressMapper}.
+   *
+   * @param addressMapper address mapper
+   * @return new {@code TransportConfig} instance
+   */
+  public TransportConfig addressMapper(Function<Address, Address> addressMapper) {
+    TransportConfig t = clone();
+    t.addressMapper = addressMapper;
+    return t;
+  }
+
+  public boolean exposeAddress() {
+    return exposeAddress;
+  }
+
+  /**
+   * Setter for {@code exposeAddress}. When set to {@code true} - will make transport listening
+   * address be advertised to cluster. By default set to {@code true}.
+   *
+   * @param exposeAddress exposeAddress flag
+   * @return new {@code TransportConfig} instance
+   */
+  public TransportConfig exposeAddress(boolean exposeAddress) {
+    TransportConfig t = clone();
+    t.exposeAddress = exposeAddress;
     return t;
   }
 
@@ -188,6 +206,7 @@ public final class TransportConfig implements Cloneable {
         .add("maxFrameLength=" + maxFrameLength)
         .add("transportFactory=" + transportFactory)
         .add("addressMapper=" + addressMapper)
+        .add("exposeAddress=" + exposeAddress)
         .toString();
   }
 }

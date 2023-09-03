@@ -1,4 +1,7 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
@@ -7,23 +10,22 @@
     <version>2.6.18-SNAPSHOT</version>
   </parent>
 
-  <artifactId>scalecube-cluster-examples</artifactId>
-  <name>ScaleCube/Examples</name>
+  <artifactId>cluster-tests</artifactId>
 
   <dependencies>
     <dependency>
-      <groupId>io.scalecube</groupId>
+      <groupId>${project.groupId}</groupId>
       <artifactId>scalecube-cluster</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>scalecube-transport-netty</artifactId>
+      <artifactId>scalecube-cluster-testlib</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>io.scalecube</groupId>
-      <artifactId>scalecube-codec-jackson-smile</artifactId>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>scalecube-transport-netty</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>

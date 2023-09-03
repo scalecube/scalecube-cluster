@@ -2,9 +2,9 @@ package io.scalecube.cluster.metadata;
 
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.Member;
+import io.scalecube.cluster.TransportWrapper;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
-import io.scalecube.net.Address;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.HashMap;
@@ -36,6 +36,7 @@ public class MetadataStoreImpl implements MetadataStore {
   private final Member localMember;
   private final Transport transport;
   private final ClusterConfig config;
+  private final TransportWrapper transportWrapper;
 
   // State
 
@@ -69,6 +70,7 @@ public class MetadataStoreImpl implements MetadataStore {
     this.config = Objects.requireNonNull(config);
     this.scheduler = Objects.requireNonNull(scheduler);
     this.localMetadata = localMetadata; // optional
+    transportWrapper = new TransportWrapper(transport);
   }
 
   @Override
@@ -148,7 +150,6 @@ public class MetadataStoreImpl implements MetadataStore {
     return Mono.defer(
         () -> {
           final String cid = UUID.randomUUID().toString();
-          final Address targetAddress = member.address();
 
           LOGGER.debug("[{}][{}] Getting metadata for member {}", localMember, cid, member);
 
@@ -156,11 +157,12 @@ public class MetadataStoreImpl implements MetadataStore {
               Message.builder()
                   .qualifier(GET_METADATA_REQ)
                   .correlationId(cid)
+                  .sender(localMember)
                   .data(new GetMetadataRequest(member))
                   .build();
 
-          return transport
-              .requestResponse(targetAddress, request)
+          return transportWrapper
+              .requestResponse(member, request)
               .timeout(Duration.ofMillis(config.metadataTimeout()), scheduler)
               .publishOn(scheduler)
               .doOnSuccess(
@@ -169,7 +171,7 @@ public class MetadataStoreImpl implements MetadataStore {
                           "[{}][{}] Received GetMetadataResp from {}",
                           localMember,
                           cid,
-                          targetAddress))
+                          member.addresses()))
               .map(Message::<GetMetadataResponse>data)
               .map(GetMetadataResponse::getMetadata)
               .doOnError(
@@ -179,7 +181,7 @@ public class MetadataStoreImpl implements MetadataStore {
                               + "from {} within {} ms, cause: {}",
                           localMember,
                           cid,
-                          targetAddress,
+                          member.addresses(),
                           config.metadataTimeout(),
                           th.toString()));
         });
@@ -196,7 +198,7 @@ public class MetadataStoreImpl implements MetadataStore {
   }
 
   private void onMetadataRequest(Message message) {
-    final Address sender = message.sender();
+    final Member sender = message.sender();
     LOGGER.debug("[{}] Received GetMetadataReq from {}", localMember, sender);
 
     GetMetadataRequest reqData = message.data();
@@ -220,11 +222,13 @@ public class MetadataStoreImpl implements MetadataStore {
         Message.builder()
             .qualifier(GET_METADATA_RESP)
             .correlationId(message.correlationId())
+            .sender(localMember)
             .data(respData)
             .build();
 
     LOGGER.debug("[{}] Send GetMetadataResp to {}", localMember, sender);
-    transport
+
+    transportWrapper
         .send(sender, response)
         .subscribe(
             null,
