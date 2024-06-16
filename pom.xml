@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
@@ -39,6 +41,9 @@
     <log4j.version>2.17.2</log4j.version>
     <reactor.version>2020.0.32</reactor.version>
     <jackson.version>2.15.1</jackson.version>
+    <aeron.version>1.44.1</aeron.version>
+    <agrona.version>1.21.1</agrona.version>
+    <sbe.version>1.31.1</sbe.version>
 
     <mockito-junit.version>5.3.1</mockito-junit.version>
     <junit-jupiter.version>5.9.3</junit-jupiter.version>
@@ -50,6 +55,7 @@
 
   <modules>
     <module>cluster</module>
+    <module>cluster2</module>
     <module>cluster-api</module>
     <module>examples</module>
     <module>cluster-testlib</module>
@@ -138,6 +144,25 @@
         <groupId>org.junit.jupiter</groupId>
         <artifactId>junit-jupiter-api</artifactId>
         <version>${junit-jupiter.version}</version>
+      </dependency>
+
+      <!-- Aeron -->
+      <dependency>
+        <groupId>io.aeron</groupId>
+        <artifactId>aeron-driver</artifactId>
+        <version>${aeron.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.aeron</groupId>
+        <artifactId>aeron-client</artifactId>
+        <version>${aeron.version}</version>
+      </dependency>
+
+      <!-- Agrona -->
+      <dependency>
+        <groupId>org.agrona</groupId>
+        <artifactId>agrona</artifactId>
+        <version>${agrona.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

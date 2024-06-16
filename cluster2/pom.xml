@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>io.scalecube</groupId>
+    <artifactId>scalecube-cluster-parent</artifactId>
+    <version>2.6.18-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>scalecube-cluster2</artifactId>
+
+  <dependencies>
+    <dependency>
+      <groupId>io.scalecube</groupId>
+      <artifactId>scalecube-transport-api2</artifactId>
+      <version>${project.parent.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>uk.co.real-logic</groupId>
+      <artifactId>sbe-tool</artifactId>
+      <version>${sbe.version}</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>1.6.0</version>
+        <executions>
+          <execution>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>java</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <includeProjectDependencies>false</includeProjectDependencies>
+          <includePluginDependencies>true</includePluginDependencies>
+          <mainClass>uk.co.real_logic.sbe.SbeTool</mainClass>
+          <systemProperties>
+            <systemProperty>
+              <key>sbe.output.dir</key>
+              <value>${project.build.directory}/generated-sources/java</value>
+            </systemProperty>
+            <systemProperty>
+              <key>sbe.xinclude.aware</key>
+              <value>true</value>
+            </systemProperty>
+          </systemProperties>
+          <arguments>
+            <argument>${project.build.resources[0].directory}/scalecube-cluster-codecs.xml
+            </argument>
+          </arguments>
+          <workingDirectory>${project.build.directory}/generated-sources/java</workingDirectory>
+        </configuration>
+        <dependencies>
+          <dependency>
+            <groupId>uk.co.real-logic</groupId>
+            <artifactId>sbe-tool</artifactId>
+            <version>${sbe.version}</version>
+          </dependency>
+        </dependencies>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <version>3.0.0</version>
+        <executions>
+          <execution>
+            <id>add-source</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>add-source</goal>
+            </goals>
+            <configuration>
+              <sources>
+                <source>${project.build.directory}/generated-sources/java/</source>
+              </sources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

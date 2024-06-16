@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<sbe:messageSchema xmlns:sbe="http://fixprotocol.io/2016/sbe"
+  package="io.scalecube.cluster2.sbe"
+  id="100"
+  version="1"
+  semanticVersion="5.2"
+  description="Message Codecs for messages"
+  byteOrder="littleEndian">
+
+  <types>
+    <!-- Composite -->
+
+    <composite name="messageHeader" description="Message identifiers and length of message root">
+      <type name="blockLength" primitiveType="uint16"/>
+      <type name="templateId" primitiveType="uint16"/>
+      <type name="schemaId" primitiveType="uint16"/>
+      <type name="version" primitiveType="uint16"/>
+    </composite>
+
+    <composite name="groupSizeEncoding" description="Repeating group dimensions">
+      <type name="blockLength" primitiveType="uint16"/>
+      <type name="numInGroup" primitiveType="uint16"/>
+    </composite>
+
+    <composite name="VarData">
+      <type name="length" primitiveType="uint16" semanticType="Length"/>
+      <type name="varData" length="0" primitiveType="uint8" semanticType="data"/>
+    </composite>
+
+    <composite name="String" description="Variable length ASCII String">
+      <type name="length" primitiveType="uint16" semanticType="Length"/>
+      <type name="varData" length="0" primitiveType="uint8" characterEncoding="US-ASCII"/>
+    </composite>
+
+    <composite name="UUID" description="Represents Java UUID type">
+      <type name="mostSignificantBits" primitiveType="int64"/>
+      <type name="leastSignificantBits" primitiveType="int64"/>
+    </composite>
+
+    <!-- Enums -->
+
+    <enum name="AckType" encodingType="int8">
+      <validValue name="DEST_OK" description="Destination member responded normally">1</validValue>
+      <validValue name="DEST_GONE" description="Member referenced by to is gone">2</validValue>
+    </enum>
+
+    <enum name="MemberStatus" encodingType="int8">
+      <validValue name="ALIVE" description="Member is reachable">1</validValue>
+      <validValue name="SUSPECT" description="Member cannot be reached">2</validValue>
+      <validValue name="LEAVING" description="Member is going to leave a cluster">3</validValue>
+      <validValue name="DEAD" description="Member declared as dead">4</validValue>
+    </enum>
+  </types>
+
+  <sbe:message name="Member" id="100">
+    <data name="id" id="1" type="String"/>
+    <data name="alias" id="2" type="String"/>
+    <data name="address" id="3" type="String"/>
+    <data name="namespace" id="4" type="String"/>
+  </sbe:message>
+
+  <sbe:message name="PingData" id="101">
+    <field name="ackType" id="1" type="AckType"/>
+    <data name="from" id="100" type="VarData"/>
+    <data name="to" id="101" type="VarData"/>
+    <data name="originalIssuer" id="102" type="VarData"/>
+  </sbe:message>
+
+  <sbe:message name="Gossip" id="102">
+    <field name="sequenceId" id="1" type="int64"/>
+    <data name="gossiperId" id="100" type="String"/>
+    <data name="message" id="101" type="VarData"/>
+  </sbe:message>
+
+  <sbe:message name="GossipRequest" id="103">
+    <group name="gossips" id="100">
+      <data name="gossip" id="1" type="VarData"/>
+    </group>
+    <data name="from" id="101" type="String"/>
+  </sbe:message>
+
+  <sbe:message name="SyncData" id="104">
+    <group name="membershipRecords" id="100">
+      <data name="membershipRecord" id="1" type="VarData"/>
+    </group>
+  </sbe:message>
+
+  <sbe:message name="MembershipRecord" id="105">
+    <field name="incarnation" id="1" type="int32"/>
+    <field name="status" id="2" type="MemberStatus"/>
+    <data name="member" id="100" type="VarData"/>
+  </sbe:message>
+
+</sbe:messageSchema>
