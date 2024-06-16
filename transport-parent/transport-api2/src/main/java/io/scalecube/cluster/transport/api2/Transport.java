@@ -10,6 +10,6 @@ public interface Transport extends AutoCloseable {
 
   interface MessagePoller {
 
-    void poll(MessageHandler messageHandler, int msgLimit);
+    int poll(MessageHandler messageHandler);
   }
 }
