@@ -23,8 +23,8 @@ public class FailureDetector extends AbstractAgent {
   }
 
   @Override
-  public void onMessage(int msgTypeId, MutableDirectBuffer buffer, int index, int length) {}
+  protected void onTick() {}
 
   @Override
-  protected void onTick() {}
+  public void onMessage(int msgTypeId, MutableDirectBuffer buffer, int index, int length) {}
 }
