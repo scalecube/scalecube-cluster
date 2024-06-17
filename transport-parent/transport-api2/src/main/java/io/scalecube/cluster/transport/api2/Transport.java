@@ -1,10 +1,11 @@
 package io.scalecube.cluster.transport.api2;
 
+import org.agrona.DirectBuffer;
 import org.agrona.concurrent.MessageHandler;
 
 public interface Transport extends AutoCloseable {
 
-  void send(String address, byte[] bytes, int offset, int length);
+  void send(String address, DirectBuffer bytes, int offset, int length);
 
   MessagePoller newMessagePoller();
 
