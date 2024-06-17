@@ -14,6 +14,7 @@ public class FailureDetector extends AbstractAgent {
 
   private final Member localMember;
 
+  private final FailureDetectorCodec codec = new FailureDetectorCodec();
   private final List<Member> pingMembers = new ArrayList<>();
 
   public FailureDetector(
