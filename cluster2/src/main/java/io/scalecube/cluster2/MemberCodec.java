@@ -3,6 +3,7 @@ package io.scalecube.cluster2;
 import io.scalecube.cluster2.sbe.MemberEncoder;
 import io.scalecube.cluster2.sbe.MessageHeaderEncoder;
 import java.util.function.Consumer;
+import org.agrona.DirectBuffer;
 import org.agrona.ExpandableArrayBuffer;
 
 public class MemberCodec {
@@ -10,8 +11,11 @@ public class MemberCodec {
   private final MessageHeaderEncoder headerEncoder = new MessageHeaderEncoder();
   private final MemberEncoder memberEncoder = new MemberEncoder();
   private final ExpandableArrayBuffer buffer = new ExpandableArrayBuffer();
+  private int encodedLength;
 
-  public ExpandableArrayBuffer encode(Member member) {
+  public MemberCodec() {}
+
+  public DirectBuffer encode(Member member) {
     return encode(
         encoder -> {
           UUIDCodec.encode(member.id(), memberEncoder.id());
@@ -22,7 +26,7 @@ public class MemberCodec {
         });
   }
 
-  public ExpandableArrayBuffer encodeNull() {
+  public DirectBuffer encodeNull() {
     return encode(
         encoder -> {
           UUIDCodec.encode(null, memberEncoder.id());
@@ -30,17 +34,19 @@ public class MemberCodec {
         });
   }
 
-  public ExpandableArrayBuffer encode(Consumer<MemberEncoder> consumer) {
+  public DirectBuffer encode(Consumer<MemberEncoder> consumer) {
+    encodedLength = 0;
     memberEncoder.wrapAndApplyHeader(buffer, 0, headerEncoder);
     consumer.accept(memberEncoder);
+    encodedLength = headerEncoder.encodedLength() + memberEncoder.encodedLength();
     return buffer;
   }
 
   public int encodedLength() {
-    return headerEncoder.encodedLength() + memberEncoder.encodedLength();
+    return encodedLength;
   }
 
-  public ExpandableArrayBuffer buffer() {
+  public DirectBuffer buffer() {
     return buffer;
   }
 }

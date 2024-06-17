@@ -65,8 +65,6 @@
 
   <sbe:message name="Ping" id="100">
     <field name="cid" id="1" type="UUID"/>
-    <field name="sender" id="2" type="String64"/>
-    <field name="ackType" id="3" type="AckType"/>
 
     <data name="from" id="100" type="VarData"/>
     <data name="to" id="101" type="VarData"/>
@@ -75,8 +73,6 @@
 
   <sbe:message name="PingRequest" id="101">
     <field name="cid" id="1" type="UUID"/>
-    <field name="sender" id="2" type="String64"/>
-    <field name="ackType" id="3" type="AckType"/>
 
     <data name="from" id="100" type="VarData"/>
     <data name="to" id="101" type="VarData"/>
@@ -85,8 +81,7 @@
 
   <sbe:message name="PingAck" id="102">
     <field name="cid" id="1" type="UUID"/>
-    <field name="sender" id="2" type="String64"/>
-    <field name="ackType" id="3" type="AckType"/>
+    <field name="ackType" id="2" type="AckType"/>
 
     <data name="from" id="100" type="VarData"/>
     <data name="to" id="101" type="VarData"/>
@@ -121,6 +116,7 @@
   <sbe:message name="MembershipRecord" id="301">
     <field name="incarnation" id="1" type="int32"/>
     <field name="status" id="2" type="MemberStatus"/>
+
     <data name="member" id="100" type="VarData"/>
   </sbe:message>
 

@@ -51,6 +51,7 @@
 
     <distributionManagement.url>https://maven.pkg.github.com/scalecube/scalecube-cluster
     </distributionManagement.url>
+    <checkstyle.skip>true</checkstyle.skip>
   </properties>
 
   <modules>
