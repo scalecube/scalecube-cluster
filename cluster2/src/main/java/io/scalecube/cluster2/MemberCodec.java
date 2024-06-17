@@ -18,23 +18,20 @@ public class MemberCodec {
   public DirectBuffer encode(Member member) {
     return encode(
         encoder -> {
-          UUIDCodec.encode(member.id(), memberEncoder.id());
-          memberEncoder
-              .alias(member.alias())
-              .address(member.address())
-              .namespace(member.namespace());
+          if (member != null) {
+            UUIDCodec.encode(member.id(), memberEncoder.id());
+            memberEncoder
+                .alias(member.alias())
+                .address(member.address())
+                .namespace(member.namespace());
+          } else {
+            UUIDCodec.encode(null, memberEncoder.id());
+            memberEncoder.alias(null).address(null).namespace(null);
+          }
         });
   }
 
-  public DirectBuffer encodeNull() {
-    return encode(
-        encoder -> {
-          UUIDCodec.encode(null, memberEncoder.id());
-          memberEncoder.alias(null).address(null).namespace(null);
-        });
-  }
-
-  public DirectBuffer encode(Consumer<MemberEncoder> consumer) {
+  private DirectBuffer encode(Consumer<MemberEncoder> consumer) {
     encodedLength = 0;
     memberEncoder.wrapAndApplyHeader(buffer, 0, headerEncoder);
     consumer.accept(memberEncoder);

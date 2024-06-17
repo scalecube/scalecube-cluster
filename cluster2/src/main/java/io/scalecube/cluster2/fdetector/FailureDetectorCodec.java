@@ -33,7 +33,7 @@ public class FailureDetectorCodec {
 
     pingEncoder.putFrom(memberCodec.encode(localMember), 0, memberCodec.encodedLength());
     pingEncoder.putTo(memberCodec.encode(pingMember), 0, memberCodec.encodedLength());
-    pingEncoder.putOriginalIssuer(memberCodec.encodeNull(), 0, memberCodec.encodedLength());
+    pingEncoder.putOriginalIssuer(memberCodec.encode(null), 0, memberCodec.encodedLength());
 
     encodedLength = headerEncoder.encodedLength() + pingEncoder.encodedLength();
     return buffer;
@@ -47,7 +47,7 @@ public class FailureDetectorCodec {
 
     pingRequestEncoder.putFrom(memberCodec.encode(localMember), 0, memberCodec.encodedLength());
     pingRequestEncoder.putTo(memberCodec.encode(pingMember), 0, memberCodec.encodedLength());
-    pingRequestEncoder.putOriginalIssuer(memberCodec.encodeNull(), 0, memberCodec.encodedLength());
+    pingRequestEncoder.putOriginalIssuer(memberCodec.encode(null), 0, memberCodec.encodedLength());
 
     encodedLength = headerEncoder.encodedLength() + pingRequestEncoder.encodedLength();
     return buffer;
