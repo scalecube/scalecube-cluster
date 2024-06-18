@@ -115,7 +115,9 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
       for (int n = expiredCalls.size() - 1, i = n; i >= 0; i--) {
         final long cid = expiredCalls.fastUnorderedRemove(i);
         final LongFunction<Consumer<?>> callback = callbackByCid.remove(cid);
-        callback.apply(cid).accept(null);
+        if (callback != null) {
+          callback.apply(cid).accept(null);
+        }
       }
     }
 
