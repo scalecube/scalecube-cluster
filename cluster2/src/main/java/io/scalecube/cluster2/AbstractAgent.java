@@ -32,7 +32,7 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
   protected final Long2ObjectHashMap<LongFunction<Consumer<?>>> callbackByCid =
       new Long2ObjectHashMap<>();
   protected final LongArrayList expiredCalls = new LongArrayList();
-  protected long cidCounter;
+  protected long currentCid;
 
   public AbstractAgent(
       Transport transport,
@@ -124,6 +124,6 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
   protected abstract void onTick();
 
   protected long nextCid() {
-    return ++cidCounter;
+    return ++currentCid;
   }
 }
