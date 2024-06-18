@@ -98,27 +98,25 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
   private int processExpiredCalls() {
     int workCount = 0;
 
-    if (deadlineByCid.size() > 0) {
-      final long now = epochClock.time();
+    if (deadlineByCid.isEmpty()) {
+      return workCount;
+    }
 
-      for (final EntryIterator it = deadlineByCid.entrySet().iterator(); it.hasNext(); ) {
-        it.next();
-        final long cid = it.getLongKey();
-        final long deadline = it.getLongValue();
-        if (now > deadline) {
-          it.remove();
-          expiredCalls.add(cid);
-          workCount++;
-        }
-      }
+    final long now = epochClock.time();
 
-      for (int n = expiredCalls.size() - 1, i = n; i >= 0; i--) {
-        final long cid = expiredCalls.fastUnorderedRemove(i);
-        final LongFunction<Consumer<?>> callback = callbackByCid.remove(cid);
-        if (callback != null) {
-          callback.apply(cid).accept(null);
-        }
+    for (final EntryIterator it = deadlineByCid.entrySet().iterator(); it.hasNext(); ) {
+      it.next();
+      final long cid = it.getLongKey();
+      final long deadline = it.getLongValue();
+      if (now > deadline) {
+        it.remove();
+        expiredCalls.add(cid);
+        workCount++;
       }
+    }
+
+    for (int n = expiredCalls.size() - 1, i = n; i >= 0; i--) {
+      invokeCallback(expiredCalls.fastUnorderedRemove(i), null);
     }
 
     return workCount;
