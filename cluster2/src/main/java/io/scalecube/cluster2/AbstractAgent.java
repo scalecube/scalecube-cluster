@@ -12,6 +12,7 @@ import org.agrona.collections.Long2LongHashMap.EntryIterator;
 import org.agrona.collections.Long2ObjectHashMap;
 import org.agrona.collections.LongArrayList;
 import org.agrona.concurrent.Agent;
+import org.agrona.concurrent.AgentTerminationException;
 import org.agrona.concurrent.EpochClock;
 import org.agrona.concurrent.MessageHandler;
 import org.agrona.concurrent.broadcast.BroadcastTransmitter;
@@ -125,5 +126,21 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
 
   protected long nextCid() {
     return ++currentCid;
+  }
+
+  protected LongFunction<Consumer<?>> cancelDeadline(long cid) {
+    deadlineByCid.remove(cid);
+    return callbackByCid.get(cid);
+  }
+
+  protected void addDeadline(long cid, long timeout, LongFunction<Consumer<?>> callback) {
+    final long prevDeadline = deadlineByCid.put(cid, epochClock.time() + timeout);
+    if (prevDeadline != Long.MIN_VALUE) {
+      throw new AgentTerminationException("prevDeadline exists, cid=" + cid);
+    }
+    final LongFunction<Consumer<?>> prevCallback = callbackByCid.put(cid, callback);
+    if (prevCallback != null) {
+      throw new AgentTerminationException("prevCallback exists, cid=" + cid);
+    }
   }
 }
