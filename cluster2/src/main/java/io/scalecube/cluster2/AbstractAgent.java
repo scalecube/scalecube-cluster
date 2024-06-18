@@ -4,6 +4,12 @@ import io.scalecube.cluster.transport.api2.Transport;
 import io.scalecube.cluster.transport.api2.Transport.MessagePoller;
 import java.time.Duration;
 import java.util.Random;
+import java.util.function.Consumer;
+import java.util.function.LongFunction;
+import org.agrona.collections.Long2LongHashMap;
+import org.agrona.collections.Long2LongHashMap.EntryIterator;
+import org.agrona.collections.Long2ObjectHashMap;
+import org.agrona.collections.LongArrayList;
 import org.agrona.concurrent.Agent;
 import org.agrona.concurrent.AtomicBuffer;
 import org.agrona.concurrent.EpochClock;
@@ -15,28 +21,35 @@ import org.agrona.concurrent.broadcast.CopyBroadcastReceiver;
 public abstract class AbstractAgent implements Agent, MessageHandler {
 
   protected final Transport transport;
+  protected final BroadcastTransmitter messageTx;
   protected final AtomicBuffer messageBuffer;
+  protected final EpochClock epochClock;
 
   protected MessagePoller messagePoller;
-  protected BroadcastTransmitter messageTx;
   protected CopyBroadcastReceiver messageRx;
   protected final Delay tickDelay;
   protected final Random random = new Random();
+  protected final Long2LongHashMap deadlineByCid = new Long2LongHashMap(Long.MIN_VALUE);
+  protected final Long2ObjectHashMap<LongFunction<Consumer<?>>> callbackByCid =
+      new Long2ObjectHashMap<>();
+  protected final LongArrayList expiredCalls = new LongArrayList();
 
   public AbstractAgent(
       Transport transport,
+      BroadcastTransmitter messageTx,
       AtomicBuffer messageBuffer,
       EpochClock epochClock,
       Duration tickInterval) {
     this.transport = transport;
     this.messageBuffer = messageBuffer;
+    this.messageTx = messageTx;
+    this.epochClock = epochClock;
     tickDelay = new Delay(epochClock, tickInterval.toMillis());
   }
 
   @Override
   public void onStart() {
     messagePoller = transport.newMessagePoller();
-    messageTx = new BroadcastTransmitter(messageBuffer);
     messageRx = new CopyBroadcastReceiver(new BroadcastReceiver(messageBuffer));
   }
 
@@ -46,11 +59,8 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
 
     workCount += pollMessage();
     workCount += receiveMessage();
-
-    if (tickDelay.isOverdue()) {
-      tickDelay.delay();
-      onTick();
-    }
+    workCount += processTick();
+    workCount += processCalls();
 
     return workCount;
   }
@@ -72,6 +82,42 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
     } catch (Exception ex) {
       messageRx = new CopyBroadcastReceiver(new BroadcastReceiver(messageBuffer));
     }
+    return workCount;
+  }
+
+  private int processTick() {
+    if (tickDelay.isOverdue()) {
+      tickDelay.delay();
+      onTick();
+      return 1;
+    }
+    return 0;
+  }
+
+  private int processCalls() {
+    int workCount = 0;
+
+    if (deadlineByCid.size() > 0) {
+      final long now = epochClock.time();
+
+      for (final EntryIterator it = deadlineByCid.entrySet().iterator(); it.hasNext(); ) {
+        it.next();
+        final long cid = it.getLongKey();
+        final long deadline = it.getLongValue();
+        if (now > deadline) {
+          it.remove();
+          expiredCalls.add(cid);
+          workCount++;
+        }
+      }
+
+      for (int n = expiredCalls.size() - 1, i = n; i >= 0; i--) {
+        final long cid = expiredCalls.fastUnorderedRemove(i);
+        final LongFunction<Consumer<?>> callback = callbackByCid.remove(cid);
+        callback.apply(cid).accept(null);
+      }
+    }
+
     return workCount;
   }
 

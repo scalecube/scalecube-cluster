@@ -9,6 +9,7 @@ import java.util.List;
 import org.agrona.MutableDirectBuffer;
 import org.agrona.concurrent.AtomicBuffer;
 import org.agrona.concurrent.EpochClock;
+import org.agrona.concurrent.broadcast.BroadcastTransmitter;
 
 public class FailureDetector extends AbstractAgent {
 
@@ -18,12 +19,13 @@ public class FailureDetector extends AbstractAgent {
   private final List<Member> pingMembers = new ArrayList<>();
 
   public FailureDetector(
-      Member localMember,
-      EpochClock epochClock,
       Transport transport,
+      BroadcastTransmitter messageTx,
       AtomicBuffer messageBuffer,
-      Duration tickInterval) {
-    super(transport, messageBuffer, epochClock, tickInterval);
+      EpochClock epochClock,
+      Duration tickInterval,
+      Member localMember) {
+    super(transport, messageTx, messageBuffer, epochClock, tickInterval);
     this.localMember = localMember;
   }
 
