@@ -54,7 +54,7 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
     workCount += pollMessage();
     workCount += receiveMessage();
     workCount += processTick();
-    workCount += processCalls();
+    workCount += processExpiredCalls();
 
     return workCount;
   }
@@ -94,7 +94,7 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
     return 0;
   }
 
-  private int processCalls() {
+  private int processExpiredCalls() {
     int workCount = 0;
 
     if (deadlineByCid.size() > 0) {
