@@ -79,42 +79,42 @@ public class FailureDetector extends AbstractAgent {
   private void onPing(PingDecoder decoder) {
     final long cid = decoder.cid();
     final Member from = memberCodec.member(decoder::wrapFrom);
-    final Member to = memberCodec.member(decoder::wrapTo);
-    final Member originalIssuer = memberCodec.member(decoder::wrapOriginalIssuer);
+    final Member target = memberCodec.member(decoder::wrapTarget);
+    final Member issuer = memberCodec.member(decoder::wrapIssuer);
 
-    if (!localMember.id().equals(to.id())) {
+    if (!localMember.id().equals(target.id())) {
       return;
     }
 
     transport.send(
-        from.address(),
-        codec.encodePingAck(cid, from, to, originalIssuer),
-        0,
-        codec.encodedLength());
+        from.address(), codec.encodePingAck(cid, from, target, issuer), 0, codec.encodedLength());
   }
 
   private void onPingRequest(PingRequestDecoder decoder) {
     final long cid = decoder.cid();
     final Member from = memberCodec.member(decoder::wrapFrom);
-    final Member to = memberCodec.member(decoder::wrapTo);
-    decoder.skipOriginalIssuer();
+    final Member target = memberCodec.member(decoder::wrapTarget);
+    decoder.skipIssuer();
 
     transport.send(
-        to.address(), codec.encodePing(cid, localMember, to, from), 0, codec.encodedLength());
+        target.address(),
+        codec.encodePing(cid, localMember, target, from),
+        0,
+        codec.encodedLength());
   }
 
   private void onPingAck(PingAckDecoder decoder) {
     final long cid = decoder.cid();
     final Member from = memberCodec.member(decoder::wrapFrom);
-    final Member to = memberCodec.member(decoder::wrapTo);
-    final Member originalIssuer = memberCodec.member(decoder::wrapOriginalIssuer);
+    final Member target = memberCodec.member(decoder::wrapTarget);
+    final Member issuer = memberCodec.member(decoder::wrapIssuer);
 
-    if (originalIssuer != null) {
+    if (issuer != null) {
       transport.send(
-        originalIssuer.address(),
-        codec.encodePingAck(cid, originalIssuer, to, null),
-        0,
-        codec.encodedLength());
+          issuer.address(),
+          codec.encodePingAck(cid, issuer, target, null),
+          0,
+          codec.encodedLength());
       return;
     }
 
@@ -122,6 +122,6 @@ public class FailureDetector extends AbstractAgent {
       return;
     }
 
-    invokeCallback(cid, to);
+    invokeCallback(cid, target);
   }
 }

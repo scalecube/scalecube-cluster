@@ -25,42 +25,40 @@ public class FailureDetectorCodec {
 
   public FailureDetectorCodec() {}
 
-  public DirectBuffer encodePing(long cid, Member from, Member to, Member originalIssuer) {
+  public DirectBuffer encodePing(long cid, Member from, Member target, Member issuer) {
     encodedLength = 0;
 
     pingEncoder.wrapAndApplyHeader(encodedBuffer, 0, headerEncoder);
     pingEncoder.cid(cid);
     pingEncoder.putFrom(memberCodec.encode(from), 0, memberCodec.encodedLength());
-    pingEncoder.putTo(memberCodec.encode(to), 0, memberCodec.encodedLength());
-    pingEncoder.putOriginalIssuer(
-        memberCodec.encode(originalIssuer), 0, memberCodec.encodedLength());
+    pingEncoder.putTarget(memberCodec.encode(target), 0, memberCodec.encodedLength());
+    pingEncoder.putIssuer(memberCodec.encode(issuer), 0, memberCodec.encodedLength());
 
     encodedLength = headerEncoder.encodedLength() + pingEncoder.encodedLength();
     return encodedBuffer;
   }
 
-  public DirectBuffer encodePingRequest(long cid, Member from, Member to) {
+  public DirectBuffer encodePingRequest(long cid, Member from, Member target) {
     encodedLength = 0;
 
     pingRequestEncoder.wrapAndApplyHeader(encodedBuffer, 0, headerEncoder);
     pingRequestEncoder.cid(cid);
     pingRequestEncoder.putFrom(memberCodec.encode(from), 0, memberCodec.encodedLength());
-    pingRequestEncoder.putTo(memberCodec.encode(to), 0, memberCodec.encodedLength());
-    pingRequestEncoder.putOriginalIssuer(memberCodec.encode(null), 0, memberCodec.encodedLength());
+    pingRequestEncoder.putTarget(memberCodec.encode(target), 0, memberCodec.encodedLength());
+    pingRequestEncoder.putIssuer(memberCodec.encode(null), 0, memberCodec.encodedLength());
 
     encodedLength = headerEncoder.encodedLength() + pingRequestEncoder.encodedLength();
     return encodedBuffer;
   }
 
-  public DirectBuffer encodePingAck(long cid, Member from, Member to, Member originalIssuer) {
+  public DirectBuffer encodePingAck(long cid, Member from, Member target, Member issuer) {
     encodedLength = 0;
 
     pingAckEncoder.wrapAndApplyHeader(encodedBuffer, 0, headerEncoder);
     pingAckEncoder.cid(cid);
     pingAckEncoder.putFrom(memberCodec.encode(from), 0, memberCodec.encodedLength());
-    pingAckEncoder.putTo(memberCodec.encode(to), 0, memberCodec.encodedLength());
-    pingAckEncoder.putOriginalIssuer(
-        memberCodec.encode(originalIssuer), 0, memberCodec.encodedLength());
+    pingAckEncoder.putTarget(memberCodec.encode(target), 0, memberCodec.encodedLength());
+    pingAckEncoder.putIssuer(memberCodec.encode(issuer), 0, memberCodec.encodedLength());
 
     encodedLength = headerEncoder.encodedLength() + pingAckEncoder.encodedLength();
     return encodedBuffer;
