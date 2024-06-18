@@ -41,11 +41,6 @@
 
     <!-- Enums -->
 
-    <enum name="AckType" encodingType="int8">
-      <validValue name="DEST_OK" description="Destination member responded normally">1</validValue>
-      <validValue name="DEST_GONE" description="Member referenced by to is gone">2</validValue>
-    </enum>
-
     <enum name="MemberStatus" encodingType="int8">
       <validValue name="ALIVE" description="Member is reachable">1</validValue>
       <validValue name="SUSPECT" description="Member cannot be reached">2</validValue>
@@ -64,7 +59,7 @@
   <!-- Failure Detector -->
 
   <sbe:message name="Ping" id="100">
-    <field name="cid" id="1" type="UUID"/>
+    <field name="cid" id="1" type="int64"/>
 
     <data name="from" id="100" type="VarData"/>
     <data name="to" id="101" type="VarData"/>
@@ -72,7 +67,7 @@
   </sbe:message>
 
   <sbe:message name="PingRequest" id="101">
-    <field name="cid" id="1" type="UUID"/>
+    <field name="cid" id="1" type="int64"/>
 
     <data name="from" id="100" type="VarData"/>
     <data name="to" id="101" type="VarData"/>
@@ -80,8 +75,7 @@
   </sbe:message>
 
   <sbe:message name="PingAck" id="102">
-    <field name="cid" id="1" type="UUID"/>
-    <field name="ackType" id="2" type="AckType"/>
+    <field name="cid" id="1" type="int64"/>
 
     <data name="from" id="100" type="VarData"/>
     <data name="to" id="101" type="VarData"/>
