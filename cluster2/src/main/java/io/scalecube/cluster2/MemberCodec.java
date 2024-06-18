@@ -60,6 +60,10 @@ public class MemberCodec {
     memberDecoder.wrapAndApplyHeader(unsafeBuffer, 0, headerDecoder);
 
     final UUID id = UUIDCodec.uuid(memberDecoder.id());
+    if (id == null) {
+      return null;
+    }
+
     final String alias = memberDecoder.alias();
     final String address = memberDecoder.address();
     final String namespace = memberDecoder.namespace();
