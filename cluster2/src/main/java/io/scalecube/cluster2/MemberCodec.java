@@ -1,19 +1,29 @@
 package io.scalecube.cluster2;
 
+import io.scalecube.cluster2.sbe.MemberDecoder;
 import io.scalecube.cluster2.sbe.MemberEncoder;
+import io.scalecube.cluster2.sbe.MessageHeaderDecoder;
 import io.scalecube.cluster2.sbe.MessageHeaderEncoder;
+import java.util.UUID;
 import java.util.function.Consumer;
 import org.agrona.DirectBuffer;
 import org.agrona.ExpandableArrayBuffer;
+import org.agrona.concurrent.UnsafeBuffer;
 
 public class MemberCodec {
 
+  private final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
+  private final MemberDecoder memberDecoder = new MemberDecoder();
+  private final UnsafeBuffer unsafeBuffer = new UnsafeBuffer();
+
   private final MessageHeaderEncoder headerEncoder = new MessageHeaderEncoder();
   private final MemberEncoder memberEncoder = new MemberEncoder();
-  private final ExpandableArrayBuffer buffer = new ExpandableArrayBuffer();
+  private final ExpandableArrayBuffer encodedBuffer = new ExpandableArrayBuffer();
   private int encodedLength;
 
   public MemberCodec() {}
+
+  // Encode
 
   public DirectBuffer encode(Member member) {
     return encode(
@@ -33,17 +43,27 @@ public class MemberCodec {
 
   private DirectBuffer encode(Consumer<MemberEncoder> consumer) {
     encodedLength = 0;
-    memberEncoder.wrapAndApplyHeader(buffer, 0, headerEncoder);
+    memberEncoder.wrapAndApplyHeader(encodedBuffer, 0, headerEncoder);
     consumer.accept(memberEncoder);
     encodedLength = headerEncoder.encodedLength() + memberEncoder.encodedLength();
-    return buffer;
+    return encodedBuffer;
   }
 
   public int encodedLength() {
     return encodedLength;
   }
 
-  public DirectBuffer buffer() {
-    return buffer;
+  // Decode
+
+  public Member member(Consumer<UnsafeBuffer> consumer) {
+    consumer.accept(unsafeBuffer);
+    memberDecoder.wrapAndApplyHeader(unsafeBuffer, 0, headerDecoder);
+
+    final UUID id = UUIDCodec.uuid(memberDecoder.id());
+    final String alias = memberDecoder.alias();
+    final String address = memberDecoder.address();
+    final String namespace = memberDecoder.namespace();
+
+    return new Member(id, alias, address, namespace);
   }
 }

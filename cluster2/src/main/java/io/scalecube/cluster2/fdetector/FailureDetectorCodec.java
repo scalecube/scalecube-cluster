@@ -19,57 +19,43 @@ public class FailureDetectorCodec {
   private final PingAckEncoder pingAckEncoder = new PingAckEncoder();
   private final FailureDetectorEventEncoder failureDetectorEventEncoder =
       new FailureDetectorEventEncoder();
-  private final ExpandableArrayBuffer buffer = new ExpandableArrayBuffer();
+  private final ExpandableArrayBuffer encodedBuffer = new ExpandableArrayBuffer();
   private final MemberCodec memberCodec = new MemberCodec();
   private int encodedLength;
 
   public FailureDetectorCodec() {}
 
-  public DirectBuffer encodePing(long cid, Member localMember, Member pingMember) {
+  public DirectBuffer encodePing(long cid, Member from, Member to, Member originalIssuer) {
     encodedLength = 0;
 
-    pingEncoder.wrapAndApplyHeader(buffer, 0, headerEncoder);
+    pingEncoder.wrapAndApplyHeader(encodedBuffer, 0, headerEncoder);
     pingEncoder.cid(cid);
-    pingEncoder.putFrom(memberCodec.encode(localMember), 0, memberCodec.encodedLength());
-    pingEncoder.putTo(memberCodec.encode(pingMember), 0, memberCodec.encodedLength());
-    pingEncoder.putOriginalIssuer(memberCodec.encode(null), 0, memberCodec.encodedLength());
-
-    encodedLength = headerEncoder.encodedLength() + pingEncoder.encodedLength();
-    return buffer;
-  }
-
-  public DirectBuffer encodePingRequest(long cid, Member localMember, Member pingMember) {
-    encodedLength = 0;
-
-    pingRequestEncoder.wrapAndApplyHeader(buffer, 0, headerEncoder);
-    pingRequestEncoder.cid(cid);
-    pingRequestEncoder.putFrom(memberCodec.encode(localMember), 0, memberCodec.encodedLength());
-    pingRequestEncoder.putTo(memberCodec.encode(pingMember), 0, memberCodec.encodedLength());
-    pingRequestEncoder.putOriginalIssuer(memberCodec.encode(null), 0, memberCodec.encodedLength());
-
-    encodedLength = headerEncoder.encodedLength() + pingRequestEncoder.encodedLength();
-    return buffer;
-  }
-
-  public DirectBuffer encodeTransitPing(
-      long cid, Member localMember, Member target, Member originalIssuer) {
-    encodedLength = 0;
-
-    pingEncoder.wrapAndApplyHeader(buffer, 0, headerEncoder);
-    pingEncoder.cid(cid);
-    pingEncoder.putFrom(memberCodec.encode(localMember), 0, memberCodec.encodedLength());
-    pingEncoder.putTo(memberCodec.encode(target), 0, memberCodec.encodedLength());
+    pingEncoder.putFrom(memberCodec.encode(from), 0, memberCodec.encodedLength());
+    pingEncoder.putTo(memberCodec.encode(to), 0, memberCodec.encodedLength());
     pingEncoder.putOriginalIssuer(
         memberCodec.encode(originalIssuer), 0, memberCodec.encodedLength());
 
     encodedLength = headerEncoder.encodedLength() + pingEncoder.encodedLength();
-    return buffer;
+    return encodedBuffer;
+  }
+
+  public DirectBuffer encodePingRequest(long cid, Member from, Member to) {
+    encodedLength = 0;
+
+    pingRequestEncoder.wrapAndApplyHeader(encodedBuffer, 0, headerEncoder);
+    pingRequestEncoder.cid(cid);
+    pingRequestEncoder.putFrom(memberCodec.encode(from), 0, memberCodec.encodedLength());
+    pingRequestEncoder.putTo(memberCodec.encode(to), 0, memberCodec.encodedLength());
+    pingRequestEncoder.putOriginalIssuer(memberCodec.encode(null), 0, memberCodec.encodedLength());
+
+    encodedLength = headerEncoder.encodedLength() + pingRequestEncoder.encodedLength();
+    return encodedBuffer;
   }
 
   public DirectBuffer encodePingAck(long cid, Member from, Member to, Member originalIssuer) {
     encodedLength = 0;
 
-    pingAckEncoder.wrapAndApplyHeader(buffer, 0, headerEncoder);
+    pingAckEncoder.wrapAndApplyHeader(encodedBuffer, 0, headerEncoder);
     pingAckEncoder.cid(cid);
     pingAckEncoder.putFrom(memberCodec.encode(from), 0, memberCodec.encodedLength());
     pingAckEncoder.putTo(memberCodec.encode(to), 0, memberCodec.encodedLength());
@@ -77,26 +63,22 @@ public class FailureDetectorCodec {
         memberCodec.encode(originalIssuer), 0, memberCodec.encodedLength());
 
     encodedLength = headerEncoder.encodedLength() + pingAckEncoder.encodedLength();
-    return buffer;
+    return encodedBuffer;
   }
 
   public DirectBuffer encodeFailureDetectorEvent(Member member, MemberStatus status) {
     encodedLength = 0;
 
-    failureDetectorEventEncoder.wrapAndApplyHeader(buffer, 0, headerEncoder);
+    failureDetectorEventEncoder.wrapAndApplyHeader(encodedBuffer, 0, headerEncoder);
     failureDetectorEventEncoder.status(status);
     failureDetectorEventEncoder.putMember(
         memberCodec.encode(member), 0, memberCodec.encodedLength());
 
     encodedLength = headerEncoder.encodedLength() + failureDetectorEventEncoder.encodedLength();
-    return buffer;
+    return encodedBuffer;
   }
 
   public int encodedLength() {
     return encodedLength;
-  }
-
-  public DirectBuffer buffer() {
-    return buffer;
   }
 }
