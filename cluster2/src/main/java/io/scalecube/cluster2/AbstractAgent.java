@@ -130,12 +130,16 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
     return ++currentCid;
   }
 
-  protected LongFunction<Consumer<?>> cancelDeadline(long cid) {
+  protected void invokeCallback(long cid, Object response) {
     deadlineByCid.remove(cid);
-    return callbackByCid.get(cid);
+    final LongFunction<Consumer<?>> callback = callbackByCid.remove(cid);
+    if (callback != null) {
+      //noinspection unchecked
+      ((Consumer<Object>) callback.apply(cid)).accept(response);
+    }
   }
 
-  protected void addDeadline(long cid, long timeout, LongFunction<Consumer<?>> callback) {
+  protected void addCallback(long cid, long timeout, LongFunction<Consumer<?>> callback) {
     final long prevDeadline = deadlineByCid.put(cid, epochClock.time() + timeout);
     if (prevDeadline != Long.MIN_VALUE) {
       throw new AgentTerminationException("prevDeadline exists, cid=" + cid);
