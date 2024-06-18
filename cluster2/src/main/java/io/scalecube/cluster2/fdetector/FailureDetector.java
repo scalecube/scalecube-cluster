@@ -6,10 +6,11 @@ import io.scalecube.cluster2.Member;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 import org.agrona.MutableDirectBuffer;
-import org.agrona.concurrent.AtomicBuffer;
 import org.agrona.concurrent.EpochClock;
 import org.agrona.concurrent.broadcast.BroadcastTransmitter;
+import org.agrona.concurrent.broadcast.CopyBroadcastReceiver;
 
 public class FailureDetector extends AbstractAgent {
 
@@ -21,11 +22,11 @@ public class FailureDetector extends AbstractAgent {
   public FailureDetector(
       Transport transport,
       BroadcastTransmitter messageTx,
-      AtomicBuffer messageBuffer,
+      Supplier<CopyBroadcastReceiver> messageRxSupplier,
       EpochClock epochClock,
       Duration tickInterval,
       Member localMember) {
-    super(transport, messageTx, messageBuffer, epochClock, tickInterval);
+    super(transport, messageTx, messageRxSupplier, epochClock, tickInterval);
     this.localMember = localMember;
   }
 

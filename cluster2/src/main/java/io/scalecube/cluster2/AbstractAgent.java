@@ -6,15 +6,14 @@ import java.time.Duration;
 import java.util.Random;
 import java.util.function.Consumer;
 import java.util.function.LongFunction;
+import java.util.function.Supplier;
 import org.agrona.collections.Long2LongHashMap;
 import org.agrona.collections.Long2LongHashMap.EntryIterator;
 import org.agrona.collections.Long2ObjectHashMap;
 import org.agrona.collections.LongArrayList;
 import org.agrona.concurrent.Agent;
-import org.agrona.concurrent.AtomicBuffer;
 import org.agrona.concurrent.EpochClock;
 import org.agrona.concurrent.MessageHandler;
-import org.agrona.concurrent.broadcast.BroadcastReceiver;
 import org.agrona.concurrent.broadcast.BroadcastTransmitter;
 import org.agrona.concurrent.broadcast.CopyBroadcastReceiver;
 
@@ -22,7 +21,7 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
 
   protected final Transport transport;
   protected final BroadcastTransmitter messageTx;
-  protected final AtomicBuffer messageBuffer;
+  protected final Supplier<CopyBroadcastReceiver> messageRxSupplier;
   protected final EpochClock epochClock;
 
   protected MessagePoller messagePoller;
@@ -37,20 +36,14 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
   public AbstractAgent(
       Transport transport,
       BroadcastTransmitter messageTx,
-      AtomicBuffer messageBuffer,
+      Supplier<CopyBroadcastReceiver> messageRxSupplier,
       EpochClock epochClock,
       Duration tickInterval) {
     this.transport = transport;
-    this.messageBuffer = messageBuffer;
     this.messageTx = messageTx;
+    this.messageRxSupplier = messageRxSupplier;
     this.epochClock = epochClock;
     tickDelay = new Delay(epochClock, tickInterval.toMillis());
-  }
-
-  @Override
-  public void onStart() {
-    messagePoller = transport.newMessagePoller();
-    messageRx = new CopyBroadcastReceiver(new BroadcastReceiver(messageBuffer));
   }
 
   @Override
@@ -67,6 +60,9 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
 
   private int pollMessage() {
     int workCount = 0;
+    if (messagePoller == null) {
+      messagePoller = transport.newMessagePoller();
+    }
     try {
       workCount = messagePoller.poll(this);
     } catch (Exception ex) {
@@ -77,10 +73,13 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
 
   private int receiveMessage() {
     int workCount = 0;
+    if (messageRx == null) {
+      messageRx = messageRxSupplier.get();
+    }
     try {
       workCount = messageRx.receive(this);
     } catch (Exception ex) {
-      messageRx = new CopyBroadcastReceiver(new BroadcastReceiver(messageBuffer));
+      messageRx = messageRxSupplier.get();
     }
     return workCount;
   }
