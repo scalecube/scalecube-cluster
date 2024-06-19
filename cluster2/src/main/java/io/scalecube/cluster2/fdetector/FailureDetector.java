@@ -59,13 +59,13 @@ public class FailureDetector extends AbstractAgent {
       return;
     }
 
-    final long cidPing = nextCid();
+    final long pingCid = nextCid();
     transport.send(
         pingMember.address(),
-        codec.encodePing(cidPing, localMember, pingMember, null),
+        codec.encodePing(pingCid, localMember, pingMember, null),
         0,
         codec.encodedLength());
-    addCallback(cidPing, config.pingTimeout(), null);
+    addCallback(pingCid, config.pingTimeout(), null);
   }
 
   private Member nextPingMember() {
