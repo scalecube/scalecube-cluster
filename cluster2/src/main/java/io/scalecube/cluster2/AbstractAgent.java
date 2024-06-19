@@ -5,7 +5,6 @@ import io.scalecube.cluster.transport.api2.Transport.MessagePoller;
 import java.time.Duration;
 import java.util.Random;
 import java.util.function.Consumer;
-import java.util.function.LongFunction;
 import java.util.function.Supplier;
 import org.agrona.collections.Long2LongHashMap;
 import org.agrona.collections.Long2LongHashMap.EntryIterator;
@@ -30,8 +29,7 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
   protected final Delay tickDelay;
   protected final Random random = new Random();
   protected final Long2LongHashMap deadlineByCid = new Long2LongHashMap(Long.MIN_VALUE);
-  protected final Long2ObjectHashMap<LongFunction<Consumer<?>>> callbackByCid =
-      new Long2ObjectHashMap<>();
+  protected final Long2ObjectHashMap<Consumer<?>> callbackByCid = new Long2ObjectHashMap<>();
   protected final LongArrayList expiredCalls = new LongArrayList();
   protected long currentCid;
 
@@ -130,19 +128,19 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
 
   protected void invokeCallback(long cid, Object response) {
     deadlineByCid.remove(cid);
-    final LongFunction<Consumer<?>> callback = callbackByCid.remove(cid);
+    //noinspection unchecked
+    final Consumer<Object> callback = (Consumer<Object>) callbackByCid.remove(cid);
     if (callback != null) {
-      //noinspection unchecked
-      ((Consumer<Object>) callback.apply(cid)).accept(response);
+      callback.accept(response);
     }
   }
 
-  protected void addCallback(long cid, long timeout, LongFunction<Consumer<?>> callback) {
+  protected <T> void addCallback(long cid, long timeout, Consumer<T> callback) {
     final long prevDeadline = deadlineByCid.put(cid, epochClock.time() + timeout);
     if (prevDeadline != Long.MIN_VALUE) {
       throw new AgentTerminationException("prevDeadline exists, cid=" + cid);
     }
-    final LongFunction<Consumer<?>> prevCallback = callbackByCid.put(cid, callback);
+    final Consumer<?> prevCallback = callbackByCid.put(cid, callback);
     if (prevCallback != null) {
       throw new AgentTerminationException("prevCallback exists, cid=" + cid);
     }

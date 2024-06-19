@@ -4,6 +4,7 @@ import io.scalecube.cluster.transport.api2.Transport;
 import io.scalecube.cluster2.AbstractAgent;
 import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.MemberCodec;
+import io.scalecube.cluster2.sbe.MemberStatus;
 import io.scalecube.cluster2.sbe.MessageHeaderDecoder;
 import io.scalecube.cluster2.sbe.PingAckDecoder;
 import io.scalecube.cluster2.sbe.PingDecoder;
@@ -29,6 +30,7 @@ public class FailureDetector extends AbstractAgent {
   private final FailureDetectorCodec codec = new FailureDetectorCodec();
   private final MemberCodec memberCodec = new MemberCodec();
   private final List<Member> pingMembers = new ArrayList<>();
+  private final List<Member> pingReqMembers = new ArrayList<>();
 
   public FailureDetector(
       Transport transport,
@@ -54,22 +56,84 @@ public class FailureDetector extends AbstractAgent {
 
   @Override
   protected void onTick() {
-    Member pingMember = nextPingMember();
+    final Member pingMember = nextPingMember();
     if (pingMember == null) {
       return;
     }
 
-    final long pingCid = nextCid();
+    final long cid = nextCid();
+
     transport.send(
         pingMember.address(),
-        codec.encodePing(pingCid, localMember, pingMember, null),
+        codec.encodePing(cid, localMember, pingMember, null),
         0,
         codec.encodedLength());
-    addCallback(pingCid, config.pingTimeout(), null);
+
+    addCallback(
+        cid,
+        config.pingTimeout(),
+        (Member target) -> {
+          if (target != null) {
+            emitMemberStatus(target, MemberStatus.ALIVE);
+          } else {
+            nextPingReqMembers(pingMember);
+            if (pingReqMembers.isEmpty()) {
+              emitMemberStatus(pingMember, MemberStatus.SUSPECT);
+            } else {
+              doPingRequest(pingMember);
+            }
+          }
+        });
+  }
+
+  private void emitMemberStatus(Member target, final MemberStatus memberStatus) {
+    messageTx.transmit(
+        1, codec.encodeFailureDetectorEvent(target, memberStatus), 0, codec.encodedLength());
   }
 
   private Member nextPingMember() {
     return pingMembers.size() > 0 ? pingMembers.get(random.nextInt(pingMembers.size())) : null;
+  }
+
+  private void nextPingReqMembers(Member pingMember) {
+    pingReqMembers.clear();
+
+    final int demand = config.pingReqMembers();
+    final int size = pingMembers.size();
+    if (demand == 0 || size <= 1) {
+      return;
+    }
+
+    for (int i = 0, limit = Math.min(demand, size); i < limit; ) {
+      final Member member = nextPingMember();
+      if (member != pingMember && !pingReqMembers.contains(member)) {
+        pingReqMembers.add(member);
+        i++;
+      }
+    }
+  }
+
+  private void doPingRequest(Member pingMember) {
+    //noinspection ForLoopReplaceableByForEach
+    for (int i = 0, n = pingReqMembers.size(); i < n; i++) {
+      final Member member = pingReqMembers.get(i);
+      final long cid = nextCid();
+      transport.send(
+          member.address(),
+          codec.encodePingRequest(cid, localMember, pingMember),
+          0,
+          codec.encodedLength());
+      addCallback(
+          cid,
+          config.pingTimeout(),
+          (Member target) -> {
+            if (target != null) {
+              emitMemberStatus(target, MemberStatus.ALIVE);
+            } else {
+              emitMemberStatus(pingMember, MemberStatus.SUSPECT);
+            }
+          });
+    }
   }
 
   @Override
