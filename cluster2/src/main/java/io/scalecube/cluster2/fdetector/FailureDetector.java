@@ -114,7 +114,6 @@ public class FailureDetector extends AbstractAgent {
   }
 
   private void doPingRequest(Member pingMember) {
-    //noinspection ForLoopReplaceableByForEach
     for (int i = 0, n = pingReqMembers.size(); i < n; i++) {
       final Member member = pingReqMembers.get(i);
       final long cid = nextCid();
