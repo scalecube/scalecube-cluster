@@ -19,6 +19,7 @@ import org.agrona.concurrent.broadcast.CopyBroadcastReceiver;
 
 public class FailureDetector extends AbstractAgent {
 
+  private final FailureDetectorConfig config;
   private final Member localMember;
 
   private final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
@@ -34,10 +35,16 @@ public class FailureDetector extends AbstractAgent {
       BroadcastTransmitter messageTx,
       Supplier<CopyBroadcastReceiver> messageRxSupplier,
       EpochClock epochClock,
-      Duration tickInterval,
+      FailureDetectorConfig config,
       Member localMember) {
-    super(transport, messageTx, messageRxSupplier, epochClock, tickInterval);
+    super(
+        transport,
+        messageTx,
+        messageRxSupplier,
+        epochClock,
+        Duration.ofMillis(config.pingInterval()));
     this.localMember = localMember;
+    this.config = config;
   }
 
   @Override
@@ -51,6 +58,14 @@ public class FailureDetector extends AbstractAgent {
     if (pingMember == null) {
       return;
     }
+
+    final long cidPing = nextCid();
+    transport.send(
+        pingMember.address(),
+        codec.encodePing(cidPing, localMember, pingMember, null),
+        0,
+        codec.encodedLength());
+    addCallback(cidPing, config.pingTimeout(), null);
   }
 
   private Member nextPingMember() {
