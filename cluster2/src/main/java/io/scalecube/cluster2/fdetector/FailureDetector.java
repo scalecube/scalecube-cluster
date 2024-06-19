@@ -42,7 +42,7 @@ public class FailureDetector extends AbstractAgent {
 
   @Override
   public String roleName() {
-    return null;
+    return null; // TODO
   }
 
   @Override
