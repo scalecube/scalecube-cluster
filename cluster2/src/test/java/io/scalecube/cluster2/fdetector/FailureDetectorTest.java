@@ -34,6 +34,8 @@ import org.agrona.concurrent.broadcast.BroadcastTransmitter;
 import org.agrona.concurrent.broadcast.CopyBroadcastReceiver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class FailureDetectorTest {
 
@@ -167,40 +169,9 @@ class FailureDetectorTest {
         });
   }
 
-  @Test
-  void testPingRequestMembersLessThenDemand() {
-    final int demand = 100;
-    config = new FailureDetectorConfig().pingReqMembers(demand);
-    failureDetector =
-        new FailureDetector(
-            transport, messageTx, messageRxSupplier, epochClock, config, localMember);
-
-    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
-    emitMembershipEvent(MembershipEventType.ADDED, barMember);
-    emitMembershipEvent(MembershipEventType.ADDED, aliceMember);
-    emitMembershipEvent(MembershipEventType.ADDED, bobMember);
-    failureDetector.doWork();
-    failureDetector.doWork();
-    failureDetector.doWork();
-    failureDetector.doWork();
-
-    final int size = failureDetector.pingMembers().size();
-    assertEquals(4, size, "pingMembers");
-
-    epochClock.advance(1);
-    failureDetector.doWork();
-    verify(transport).send(any(), any(), anyInt(), anyInt());
-
-    epochClock.advance(config.pingTimeout() + 1);
-    failureDetector.doWork();
-
-    assertEquals(
-        Math.min(size, demand) - 1, failureDetector.pingReqMembers().size(), "pingReqMembers");
-  }
-
-  @Test
-  void testPingRequestMembersMoreThenDemand() {
-    final int demand = 3;
+  @ParameterizedTest(name = "demand: {0}, size: 4")
+  @ValueSource(ints = {100, 3})
+  void testPingRequestMembersLessThenDemand(int demand) {
     config = new FailureDetectorConfig().pingReqMembers(demand);
     failureDetector =
         new FailureDetector(
