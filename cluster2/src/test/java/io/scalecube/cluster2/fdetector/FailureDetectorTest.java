@@ -14,11 +14,12 @@ import io.scalecube.cluster.transport.api2.Transport.MessagePoller;
 import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.membership.MembershipEventCodec;
 import io.scalecube.cluster2.sbe.MembershipEventType;
-import java.lang.reflect.Method;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.agrona.ExpandableDirectByteBuffer;
 import org.agrona.concurrent.CachedEpochClock;
+import org.agrona.concurrent.MessageHandler;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.agrona.concurrent.broadcast.BroadcastReceiver;
 import org.agrona.concurrent.broadcast.BroadcastTransmitter;
@@ -46,6 +47,7 @@ class FailureDetectorTest {
   private final FailureDetector failureDetector =
       new FailureDetector(transport, messageTx, messageRxSupplier, epochClock, config, localMember);
   private final MembershipEventCodec membershipEventCodec = new MembershipEventCodec();
+  private final FailureDetectorCodec failureDetectorCodec = new FailureDetectorCodec();
   private final MessagePoller messagePoller = mock(MessagePoller.class);
 
   @BeforeEach
@@ -53,14 +55,12 @@ class FailureDetectorTest {
     when(transport.newMessagePoller()).thenReturn(messagePoller);
   }
 
-  private void doOnMessagePoller(Runnable runnable) {
+  private void doOnMessagePoller(Consumer<MessageHandler> consumer) {
     doAnswer(
             invocation -> {
-              runnable.run();
-              final Method method = invocation.getMethod();
-              final Object mock = invocation.getMock();
               final Object[] arguments = invocation.getArguments();
-              return method.invoke(mock, arguments);
+              consumer.accept((MessageHandler) arguments[0]);
+              return 1;
             })
         .when(messagePoller)
         .poll(any());
@@ -124,4 +124,26 @@ class FailureDetectorTest {
     failureDetector.doWork();
     verify(transport, never()).send(any(), any(), anyInt(), anyInt());
   }
+
+  @Test
+  void testPingThenAckThenAlive() {
+    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
+    failureDetector.doWork();
+
+    epochClock.advance(1);
+    failureDetector.doWork();
+    verify(transport).send(any(), any(), anyInt(), anyInt());
+
+    doOnMessagePoller(
+        messageHandler ->
+            messageHandler.onMessage(
+                1,
+                failureDetectorCodec.encodePingAck(100, localMember, fooMember, null),
+                0,
+                failureDetectorCodec.encodedLength()));
+    failureDetector.doWork();
+  }
+
+  @Test
+  void testPingThenTimeoutThenSuspected() {}
 }

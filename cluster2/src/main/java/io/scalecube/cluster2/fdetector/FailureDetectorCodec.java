@@ -8,7 +8,7 @@ import io.scalecube.cluster2.sbe.MemberStatus;
 import io.scalecube.cluster2.sbe.PingAckEncoder;
 import io.scalecube.cluster2.sbe.PingEncoder;
 import io.scalecube.cluster2.sbe.PingRequestEncoder;
-import org.agrona.DirectBuffer;
+import org.agrona.MutableDirectBuffer;
 
 public class FailureDetectorCodec extends AbstractCodec {
 
@@ -21,7 +21,7 @@ public class FailureDetectorCodec extends AbstractCodec {
 
   public FailureDetectorCodec() {}
 
-  public DirectBuffer encodePing(long cid, Member from, Member target, Member issuer) {
+  public MutableDirectBuffer encodePing(long cid, Member from, Member target, Member issuer) {
     encodedLength = 0;
 
     pingEncoder.wrapAndApplyHeader(encodedBuffer, 0, headerEncoder);
@@ -34,7 +34,7 @@ public class FailureDetectorCodec extends AbstractCodec {
     return encodedBuffer;
   }
 
-  public DirectBuffer encodePingRequest(long cid, Member from, Member target) {
+  public MutableDirectBuffer encodePingRequest(long cid, Member from, Member target) {
     encodedLength = 0;
 
     pingRequestEncoder.wrapAndApplyHeader(encodedBuffer, 0, headerEncoder);
@@ -47,7 +47,7 @@ public class FailureDetectorCodec extends AbstractCodec {
     return encodedBuffer;
   }
 
-  public DirectBuffer encodePingAck(long cid, Member from, Member target, Member issuer) {
+  public MutableDirectBuffer encodePingAck(long cid, Member from, Member target, Member issuer) {
     encodedLength = 0;
 
     pingAckEncoder.wrapAndApplyHeader(encodedBuffer, 0, headerEncoder);
@@ -60,7 +60,7 @@ public class FailureDetectorCodec extends AbstractCodec {
     return encodedBuffer;
   }
 
-  public DirectBuffer encodeFailureDetectorEvent(Member member, MemberStatus status) {
+  public MutableDirectBuffer encodeFailureDetectorEvent(Member member, MemberStatus status) {
     encodedLength = 0;
 
     failureDetectorEventEncoder.wrapAndApplyHeader(encodedBuffer, 0, headerEncoder);

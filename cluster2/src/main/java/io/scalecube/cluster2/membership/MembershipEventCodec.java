@@ -5,7 +5,7 @@ import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.MemberCodec;
 import io.scalecube.cluster2.sbe.MembershipEventEncoder;
 import io.scalecube.cluster2.sbe.MembershipEventType;
-import org.agrona.DirectBuffer;
+import org.agrona.MutableDirectBuffer;
 
 public class MembershipEventCodec extends AbstractCodec {
 
@@ -14,7 +14,7 @@ public class MembershipEventCodec extends AbstractCodec {
 
   public MembershipEventCodec() {}
 
-  public DirectBuffer encodeMembershipEvent(
+  public MutableDirectBuffer encodeMembershipEvent(
       MembershipEventType type, long timestamp, Member member) {
     encodedLength = 0;
 

@@ -4,7 +4,7 @@ import io.scalecube.cluster2.sbe.MemberDecoder;
 import io.scalecube.cluster2.sbe.MemberEncoder;
 import java.util.UUID;
 import java.util.function.Consumer;
-import org.agrona.DirectBuffer;
+import org.agrona.MutableDirectBuffer;
 import org.agrona.concurrent.UnsafeBuffer;
 
 public class MemberCodec extends AbstractCodec {
@@ -16,7 +16,7 @@ public class MemberCodec extends AbstractCodec {
 
   // Encode
 
-  public DirectBuffer encode(Member member) {
+  public MutableDirectBuffer encode(Member member) {
     return encode(
         encoder -> {
           if (member != null) {
@@ -32,7 +32,7 @@ public class MemberCodec extends AbstractCodec {
         });
   }
 
-  private DirectBuffer encode(Consumer<MemberEncoder> consumer) {
+  private MutableDirectBuffer encode(Consumer<MemberEncoder> consumer) {
     encodedLength = 0;
     memberEncoder.wrapAndApplyHeader(encodedBuffer, 0, headerEncoder);
     consumer.accept(memberEncoder);
