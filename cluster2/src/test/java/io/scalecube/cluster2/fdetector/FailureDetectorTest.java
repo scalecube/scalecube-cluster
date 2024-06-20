@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -135,7 +136,7 @@ class FailureDetectorTest {
     failureDetector.doWork();
     verify(transport).send(any(), any(), anyInt(), anyInt());
 
-    emitMessageFromTrasnport(
+    emitMessageFromTransport(
         codec -> codec.encodePingAck(failureDetector.currentCid(), localMember, fooMember, null));
     final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
     failureDetector.doWork();
@@ -170,7 +171,7 @@ class FailureDetectorTest {
   }
 
   @ParameterizedTest(name = "demand: {0}, size: 4")
-  @ValueSource(ints = {100, 3})
+  @ValueSource(ints = {10, 4, 3, 2, 1})
   void testPingRequestMembersLessThenDemand(int demand) {
     config = new FailureDetectorConfig().pingReqMembers(demand);
     failureDetector =
@@ -196,12 +197,42 @@ class FailureDetectorTest {
     epochClock.advance(config.pingTimeout() + 1);
     failureDetector.doWork();
 
-    assertEquals(
-        Math.min(size, demand) - 1, failureDetector.pingReqMembers().size(), "pingReqMembers");
+    final int limit = demand < size ? demand : size - 1;
+    assertEquals(limit, failureDetector.pingReqMembers().size(), "pingReqMembers");
   }
 
   @Test
-  void testPingThenTimeoutThenPingRequestThenAck() {}
+  void testPingThenTimeoutThenPingRequestThenAck() {
+    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
+    emitMembershipEvent(MembershipEventType.ADDED, barMember);
+    failureDetector.doWork();
+    failureDetector.doWork();
+
+    epochClock.advance(1);
+    failureDetector.doWork();
+    verify(transport).send(any(), any(), anyInt(), anyInt());
+
+    reset(transport);
+    epochClock.advance(config.pingTimeout() + 1);
+    failureDetector.doWork();
+
+    verify(transport).send(any(), any(), anyInt(), anyInt());
+
+    emitMessageFromTransport(
+        codec -> codec.encodePingAck(failureDetector.currentCid(), localMember, fooMember, null));
+    final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
+    failureDetector.doWork();
+
+    assertMessageRx(
+        messageRx,
+        (memberStatus, member) -> {
+          assertEquals(MemberStatus.ALIVE, memberStatus, "memberStatus");
+          assertEquals(fooMember, member, "member");
+        });
+  }
+
+  @Test
+  void testPingThenTimeoutThenPingRequestThenTimeout() {}
 
   private void emitMembershipEvent(MembershipEventType eventType, Member member) {
     messageTx.transmit(
@@ -211,7 +242,7 @@ class FailureDetectorTest {
         membershipEventCodec.encodedLength());
   }
 
-  private void emitMessageFromTrasnport(
+  private void emitMessageFromTransport(
       Function<FailureDetectorCodec, MutableDirectBuffer> function) {
     doAnswer(
             invocation -> {
