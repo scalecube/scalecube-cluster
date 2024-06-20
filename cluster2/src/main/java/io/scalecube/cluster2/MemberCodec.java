@@ -2,24 +2,15 @@ package io.scalecube.cluster2;
 
 import io.scalecube.cluster2.sbe.MemberDecoder;
 import io.scalecube.cluster2.sbe.MemberEncoder;
-import io.scalecube.cluster2.sbe.MessageHeaderDecoder;
-import io.scalecube.cluster2.sbe.MessageHeaderEncoder;
 import java.util.UUID;
 import java.util.function.Consumer;
 import org.agrona.DirectBuffer;
-import org.agrona.ExpandableArrayBuffer;
 import org.agrona.concurrent.UnsafeBuffer;
 
-public class MemberCodec {
+public class MemberCodec extends AbstractCodec {
 
-  private final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
   private final MemberDecoder memberDecoder = new MemberDecoder();
-  private final UnsafeBuffer unsafeBuffer = new UnsafeBuffer();
-
-  private final MessageHeaderEncoder headerEncoder = new MessageHeaderEncoder();
   private final MemberEncoder memberEncoder = new MemberEncoder();
-  private final ExpandableArrayBuffer encodedBuffer = new ExpandableArrayBuffer();
-  private int encodedLength;
 
   public MemberCodec() {}
 
@@ -47,10 +38,6 @@ public class MemberCodec {
     consumer.accept(memberEncoder);
     encodedLength = headerEncoder.encodedLength() + memberEncoder.encodedLength();
     return encodedBuffer;
-  }
-
-  public int encodedLength() {
-    return encodedLength;
   }
 
   // Decode

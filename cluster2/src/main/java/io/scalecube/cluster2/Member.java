@@ -47,14 +47,12 @@ public class Member {
       return false;
     }
     Member member = (Member) that;
-    return Objects.equals(id, member.id)
-        && Objects.equals(address, member.address)
-        && Objects.equals(namespace, member.namespace);
+    return Objects.equals(id, member.id);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, address, namespace);
+    return Objects.hash(id);
   }
 
   @Override

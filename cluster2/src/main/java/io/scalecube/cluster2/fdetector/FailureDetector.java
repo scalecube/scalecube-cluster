@@ -166,7 +166,7 @@ public class FailureDetector extends AbstractAgent {
     final Member target = memberCodec.member(decoder::wrapTarget);
     final Member issuer = memberCodec.member(decoder::wrapIssuer);
 
-    if (!localMember.id().equals(target.id())) {
+    if (!localMember.equals(target)) {
       return;
     }
 
@@ -202,7 +202,7 @@ public class FailureDetector extends AbstractAgent {
       return;
     }
 
-    if (!localMember.id().equals(from.id())) {
+    if (!localMember.equals(from)) {
       return;
     }
 
@@ -214,12 +214,19 @@ public class FailureDetector extends AbstractAgent {
     final Member member = memberCodec.member(decoder::wrapMember);
     decoder.sbeSkip();
 
+    if (localMember.equals(member)) {
+      return;
+    }
+
     switch (type) {
       case REMOVED:
+      case LEAVING:
         pingMembers.remove(member);
         break;
       case ADDED:
-        pingMembers.add(member);
+        if (!pingMembers.contains(member)) {
+          pingMembers.add(member);
+        }
         break;
       default:
         // no-op

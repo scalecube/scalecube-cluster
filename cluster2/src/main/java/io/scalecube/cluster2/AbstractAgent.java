@@ -43,6 +43,8 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
     this.messageTx = messageTx;
     this.messageRxSupplier = messageRxSupplier;
     this.epochClock = epochClock;
+    messagePoller = transport.newMessagePoller();
+    messageRx = messageRxSupplier.get();
     tickDelay = new Delay(epochClock, tickInterval.toMillis());
   }
 
@@ -60,9 +62,6 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
 
   private int pollMessage() {
     int workCount = 0;
-    if (messagePoller == null) {
-      messagePoller = transport.newMessagePoller();
-    }
     try {
       workCount = messagePoller.poll(this);
     } catch (Exception ex) {
@@ -73,9 +72,6 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
 
   private int receiveMessage() {
     int workCount = 0;
-    if (messageRx == null) {
-      messageRx = messageRxSupplier.get();
-    }
     try {
       workCount = messageRx.receive(this);
     } catch (Exception ex) {

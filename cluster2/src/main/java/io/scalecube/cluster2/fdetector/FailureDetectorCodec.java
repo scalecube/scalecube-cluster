@@ -1,27 +1,23 @@
 package io.scalecube.cluster2.fdetector;
 
+import io.scalecube.cluster2.AbstractCodec;
 import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.MemberCodec;
 import io.scalecube.cluster2.sbe.FailureDetectorEventEncoder;
 import io.scalecube.cluster2.sbe.MemberStatus;
-import io.scalecube.cluster2.sbe.MessageHeaderEncoder;
 import io.scalecube.cluster2.sbe.PingAckEncoder;
 import io.scalecube.cluster2.sbe.PingEncoder;
 import io.scalecube.cluster2.sbe.PingRequestEncoder;
 import org.agrona.DirectBuffer;
-import org.agrona.ExpandableArrayBuffer;
 
-public class FailureDetectorCodec {
+public class FailureDetectorCodec extends AbstractCodec {
 
-  private final MessageHeaderEncoder headerEncoder = new MessageHeaderEncoder();
   private final PingEncoder pingEncoder = new PingEncoder();
   private final PingRequestEncoder pingRequestEncoder = new PingRequestEncoder();
   private final PingAckEncoder pingAckEncoder = new PingAckEncoder();
   private final FailureDetectorEventEncoder failureDetectorEventEncoder =
       new FailureDetectorEventEncoder();
-  private final ExpandableArrayBuffer encodedBuffer = new ExpandableArrayBuffer();
   private final MemberCodec memberCodec = new MemberCodec();
-  private int encodedLength;
 
   public FailureDetectorCodec() {}
 
@@ -74,9 +70,5 @@ public class FailureDetectorCodec {
 
     encodedLength = headerEncoder.encodedLength() + failureDetectorEventEncoder.encodedLength();
     return encodedBuffer;
-  }
-
-  public int encodedLength() {
-    return encodedLength;
   }
 }
