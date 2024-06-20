@@ -34,6 +34,7 @@ public class FailureDetector extends AbstractAgent {
   private final MemberCodec memberCodec = new MemberCodec();
   private final List<Member> pingMembers = new ArrayList<>();
   private final List<Member> pingReqMembers = new ArrayList<>();
+  private final String roleName;
 
   public FailureDetector(
       Transport transport,
@@ -50,11 +51,12 @@ public class FailureDetector extends AbstractAgent {
         Duration.ofMillis(config.pingInterval()));
     this.localMember = localMember;
     this.config = config;
+    roleName = "fdetector@" + localMember.address();
   }
 
   @Override
   public String roleName() {
-    return null; // TODO
+    return roleName;
   }
 
   @Override
