@@ -51,8 +51,8 @@ class FailureDetectorTest {
   private final Supplier<CopyBroadcastReceiver> messageRxSupplier =
       () -> new CopyBroadcastReceiver(new BroadcastReceiver(new UnsafeBuffer(byteBuffer)));
   private final CachedEpochClock epochClock = new CachedEpochClock();
-  private final FailureDetectorConfig config = new FailureDetectorConfig();
-  private final FailureDetector failureDetector =
+  private FailureDetectorConfig config = new FailureDetectorConfig();
+  private FailureDetector failureDetector =
       new FailureDetector(transport, messageTx, messageRxSupplier, epochClock, config, localMember);
   private final MembershipEventCodec membershipEventCodec = new MembershipEventCodec();
   private final FailureDetectorCodec failureDetectorCodec = new FailureDetectorCodec();
@@ -132,10 +132,10 @@ class FailureDetectorTest {
   @Test
   void testOnMembershipEventAddedThenRemoved() {
     emitMembershipEvent(MembershipEventType.ADDED, fooMember);
-    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
+    failureDetector.doWork();
     emitMembershipEvent(MembershipEventType.ADDED, fooMember);
     failureDetector.doWork();
-    failureDetector.doWork();
+    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
     failureDetector.doWork();
 
     assertEquals(1, failureDetector.pingMembers().size(), "failureDetector.pingMembers");
@@ -153,10 +153,10 @@ class FailureDetectorTest {
   @Test
   void testOnMembershipEventAddedThenLeaving() {
     emitMembershipEvent(MembershipEventType.ADDED, fooMember);
-    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
+    failureDetector.doWork();
     emitMembershipEvent(MembershipEventType.ADDED, fooMember);
     failureDetector.doWork();
-    failureDetector.doWork();
+    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
     failureDetector.doWork();
 
     assertEquals(1, failureDetector.pingMembers().size(), "failureDetector.pingMembers");
@@ -172,7 +172,7 @@ class FailureDetectorTest {
   }
 
   @Test
-  void testPingThenAckThenAlive() {
+  void testPingThenAck() {
     emitMembershipEvent(MembershipEventType.ADDED, fooMember);
     failureDetector.doWork();
 
@@ -194,7 +194,7 @@ class FailureDetectorTest {
   }
 
   @Test
-  void testPingThenTimeoutThenSuspected() {
+  void testPingThenTimeout() {
     emitMembershipEvent(MembershipEventType.ADDED, fooMember);
     failureDetector.doWork();
 
@@ -213,4 +213,34 @@ class FailureDetectorTest {
           assertEquals(fooMember, member, "member");
         });
   }
+
+  @Test
+  void testPingRequestMembersLessThenDemand() {
+    config = new FailureDetectorConfig().pingReqMembers(100);
+    failureDetector =
+        new FailureDetector(
+            transport, messageTx, messageRxSupplier, epochClock, config, localMember);
+
+    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
+    failureDetector.doWork();
+    emitMembershipEvent(MembershipEventType.ADDED, barMember);
+    failureDetector.doWork();
+    emitMembershipEvent(MembershipEventType.ADDED, aliceMember);
+    failureDetector.doWork();
+    emitMembershipEvent(MembershipEventType.ADDED, bobMember);
+    failureDetector.doWork();
+
+    epochClock.advance(1);
+    failureDetector.doWork();
+    verify(transport).send(any(), any(), anyInt(), anyInt());
+
+    epochClock.advance(config.pingTimeout() + 1);
+    failureDetector.doWork();
+  }
+
+  @Test
+  void testPingRequestMembersMoreThenDemand() {}
+
+  @Test
+  void testPingThenTimeoutThenPingRequestThenAck() {}
 }
