@@ -107,7 +107,7 @@ public class FailureDetector extends AbstractAgent {
       return;
     }
 
-    for (int i = 0, limit = Math.min(demand, size); i < limit; ) {
+    for (int i = 0, limit = Math.min(demand, size) - 1; i < limit; ) {
       final Member member = nextPingMember();
       if (member != pingMember && !pingReqMembers.contains(member)) {
         pingReqMembers.add(member);

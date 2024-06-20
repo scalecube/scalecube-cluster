@@ -63,53 +63,6 @@ class FailureDetectorTest {
     when(transport.newMessagePoller()).thenReturn(messagePoller);
   }
 
-  private void emitMembershipEvent(MembershipEventType eventType, Member member) {
-    messageTx.transmit(
-        1,
-        membershipEventCodec.encodeMembershipEvent(eventType, 1, member),
-        0,
-        membershipEventCodec.encodedLength());
-  }
-
-  private void emitMessageFromTrasnport(
-      Function<FailureDetectorCodec, MutableDirectBuffer> function) {
-    doAnswer(
-            invocation -> {
-              final MessageHandler messageHandler = (MessageHandler) invocation.getArguments()[0];
-              messageHandler.onMessage(
-                  1, function.apply(failureDetectorCodec), 0, failureDetectorCodec.encodedLength());
-              return 1;
-            })
-        .when(messagePoller)
-        .poll(any());
-  }
-
-  private void assertMessageRx(
-      CopyBroadcastReceiver messageRx, BiConsumer<MemberStatus, Member> consumer) {
-    final MutableReference<FailureDetectorEventDecoder> mutableReference = new MutableReference<>();
-    final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
-    final FailureDetectorEventDecoder failureDetectorEventDecoder =
-        new FailureDetectorEventDecoder();
-    final MemberCodec memberCodec = new MemberCodec();
-
-    messageRx.receive(
-        (msgTypeId, buffer, index, length) -> {
-          // no-op first time
-        });
-    messageRx.receive(
-        (msgTypeId, buffer, index, length) ->
-            mutableReference.set(
-                failureDetectorEventDecoder.wrapAndApplyHeader(buffer, index, headerDecoder)));
-
-    final FailureDetectorEventDecoder decoder = mutableReference.get();
-    if (decoder == null) {
-      consumer.accept(null, null);
-      return;
-    }
-
-    consumer.accept(decoder.status(), memberCodec.member(decoder::wrapMember));
-  }
-
   @Test
   void testTickWhenNoPingMembers() {
     epochClock.advance(1);
@@ -132,10 +85,10 @@ class FailureDetectorTest {
   @Test
   void testOnMembershipEventAddedThenRemoved() {
     emitMembershipEvent(MembershipEventType.ADDED, fooMember);
-    failureDetector.doWork();
+    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
     emitMembershipEvent(MembershipEventType.ADDED, fooMember);
     failureDetector.doWork();
-    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
+    failureDetector.doWork();
     failureDetector.doWork();
 
     assertEquals(1, failureDetector.pingMembers().size(), "failureDetector.pingMembers");
@@ -153,10 +106,10 @@ class FailureDetectorTest {
   @Test
   void testOnMembershipEventAddedThenLeaving() {
     emitMembershipEvent(MembershipEventType.ADDED, fooMember);
-    failureDetector.doWork();
+    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
     emitMembershipEvent(MembershipEventType.ADDED, fooMember);
     failureDetector.doWork();
-    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
+    failureDetector.doWork();
     failureDetector.doWork();
 
     assertEquals(1, failureDetector.pingMembers().size(), "failureDetector.pingMembers");
@@ -216,19 +169,23 @@ class FailureDetectorTest {
 
   @Test
   void testPingRequestMembersLessThenDemand() {
-    config = new FailureDetectorConfig().pingReqMembers(100);
+    final int demand = 100;
+    config = new FailureDetectorConfig().pingReqMembers(demand);
     failureDetector =
         new FailureDetector(
             transport, messageTx, messageRxSupplier, epochClock, config, localMember);
 
     emitMembershipEvent(MembershipEventType.ADDED, fooMember);
-    failureDetector.doWork();
     emitMembershipEvent(MembershipEventType.ADDED, barMember);
-    failureDetector.doWork();
     emitMembershipEvent(MembershipEventType.ADDED, aliceMember);
-    failureDetector.doWork();
     emitMembershipEvent(MembershipEventType.ADDED, bobMember);
     failureDetector.doWork();
+    failureDetector.doWork();
+    failureDetector.doWork();
+    failureDetector.doWork();
+
+    final int size = failureDetector.pingMembers().size();
+    assertEquals(4, size, "pingMembers");
 
     epochClock.advance(1);
     failureDetector.doWork();
@@ -236,11 +193,89 @@ class FailureDetectorTest {
 
     epochClock.advance(config.pingTimeout() + 1);
     failureDetector.doWork();
+
+    assertEquals(
+        Math.min(size, demand) - 1, failureDetector.pingReqMembers().size(), "pingReqMembers");
   }
 
   @Test
-  void testPingRequestMembersMoreThenDemand() {}
+  void testPingRequestMembersMoreThenDemand() {
+    final int demand = 3;
+    config = new FailureDetectorConfig().pingReqMembers(demand);
+    failureDetector =
+        new FailureDetector(
+            transport, messageTx, messageRxSupplier, epochClock, config, localMember);
+
+    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
+    emitMembershipEvent(MembershipEventType.ADDED, barMember);
+    emitMembershipEvent(MembershipEventType.ADDED, aliceMember);
+    emitMembershipEvent(MembershipEventType.ADDED, bobMember);
+    failureDetector.doWork();
+    failureDetector.doWork();
+    failureDetector.doWork();
+    failureDetector.doWork();
+
+    final int size = failureDetector.pingMembers().size();
+    assertEquals(4, size, "pingMembers");
+
+    epochClock.advance(1);
+    failureDetector.doWork();
+    verify(transport).send(any(), any(), anyInt(), anyInt());
+
+    epochClock.advance(config.pingTimeout() + 1);
+    failureDetector.doWork();
+
+    assertEquals(
+        Math.min(size, demand) - 1, failureDetector.pingReqMembers().size(), "pingReqMembers");
+  }
 
   @Test
   void testPingThenTimeoutThenPingRequestThenAck() {}
+
+  private void emitMembershipEvent(MembershipEventType eventType, Member member) {
+    messageTx.transmit(
+        1,
+        membershipEventCodec.encodeMembershipEvent(eventType, 1, member),
+        0,
+        membershipEventCodec.encodedLength());
+  }
+
+  private void emitMessageFromTrasnport(
+      Function<FailureDetectorCodec, MutableDirectBuffer> function) {
+    doAnswer(
+            invocation -> {
+              final MessageHandler messageHandler = (MessageHandler) invocation.getArguments()[0];
+              messageHandler.onMessage(
+                  1, function.apply(failureDetectorCodec), 0, failureDetectorCodec.encodedLength());
+              return 1;
+            })
+        .when(messagePoller)
+        .poll(any());
+  }
+
+  private void assertMessageRx(
+      CopyBroadcastReceiver messageRx, BiConsumer<MemberStatus, Member> consumer) {
+    final MutableReference<FailureDetectorEventDecoder> mutableReference = new MutableReference<>();
+    final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
+    final FailureDetectorEventDecoder failureDetectorEventDecoder =
+        new FailureDetectorEventDecoder();
+    final MemberCodec memberCodec = new MemberCodec();
+
+    messageRx.receive(
+        (msgTypeId, buffer, index, length) -> {
+          // no-op first time
+        });
+    messageRx.receive(
+        (msgTypeId, buffer, index, length) ->
+            mutableReference.set(
+                failureDetectorEventDecoder.wrapAndApplyHeader(buffer, index, headerDecoder)));
+
+    final FailureDetectorEventDecoder decoder = mutableReference.get();
+    if (decoder == null) {
+      consumer.accept(null, null);
+      return;
+    }
+
+    consumer.accept(decoder.status(), memberCodec.member(decoder::wrapMember));
+  }
 }
