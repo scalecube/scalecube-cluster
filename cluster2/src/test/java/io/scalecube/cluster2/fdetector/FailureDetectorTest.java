@@ -128,6 +128,26 @@ class FailureDetectorTest {
   }
 
   @Test
+  void testOnTick() {
+    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
+    failureDetector.doWork();
+
+    epochClock.advance(1);
+    failureDetector.doWork();
+    verify(transport).send(any(), any(), anyInt(), anyInt());
+
+    reset(transport);
+    epochClock.advance(config.pingInterval() + 1);
+    failureDetector.doWork();
+    verify(transport).send(any(), any(), anyInt(), anyInt());
+
+    reset(transport);
+    epochClock.advance(config.pingInterval() + 1);
+    failureDetector.doWork();
+    verify(transport).send(any(), any(), anyInt(), anyInt());
+  }
+
+  @Test
   void testPingThenAck() {
     emitMembershipEvent(MembershipEventType.ADDED, fooMember);
     failureDetector.doWork();
