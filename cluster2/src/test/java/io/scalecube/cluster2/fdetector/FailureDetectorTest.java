@@ -232,7 +232,33 @@ class FailureDetectorTest {
   }
 
   @Test
-  void testPingThenTimeoutThenPingRequestThenTimeout() {}
+  void testPingThenTimeoutThenPingRequestThenTimeout() {
+    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
+    emitMembershipEvent(MembershipEventType.ADDED, barMember);
+    failureDetector.doWork();
+    failureDetector.doWork();
+
+    epochClock.advance(1);
+    failureDetector.doWork();
+    verify(transport).send(any(), any(), anyInt(), anyInt());
+
+    reset(transport);
+    epochClock.advance(config.pingTimeout() + 1);
+    failureDetector.doWork();
+
+    verify(transport).send(any(), any(), anyInt(), anyInt());
+
+    epochClock.advance(config.pingTimeout() + 1);
+    final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
+    failureDetector.doWork();
+
+    assertMessageRx(
+        messageRx,
+        (memberStatus, member) -> {
+          assertEquals(MemberStatus.SUSPECT, memberStatus, "memberStatus");
+          // assertEquals(fooMember, member, "member");
+        });
+  }
 
   private void emitMembershipEvent(MembershipEventType eventType, Member member) {
     messageTx.transmit(
