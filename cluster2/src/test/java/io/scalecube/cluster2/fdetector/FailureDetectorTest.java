@@ -1,6 +1,7 @@
 package io.scalecube.cluster2.fdetector;
 
 import static org.agrona.concurrent.broadcast.BroadcastBufferDescriptor.TRAILER_LENGTH;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
@@ -12,12 +13,19 @@ import static org.mockito.Mockito.when;
 import io.scalecube.cluster.transport.api2.Transport;
 import io.scalecube.cluster.transport.api2.Transport.MessagePoller;
 import io.scalecube.cluster2.Member;
+import io.scalecube.cluster2.MemberCodec;
 import io.scalecube.cluster2.membership.MembershipEventCodec;
+import io.scalecube.cluster2.sbe.FailureDetectorEventDecoder;
+import io.scalecube.cluster2.sbe.MemberStatus;
 import io.scalecube.cluster2.sbe.MembershipEventType;
+import io.scalecube.cluster2.sbe.MessageHeaderDecoder;
 import java.util.UUID;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import org.agrona.ExpandableDirectByteBuffer;
+import org.agrona.MutableDirectBuffer;
+import org.agrona.collections.MutableReference;
 import org.agrona.concurrent.CachedEpochClock;
 import org.agrona.concurrent.MessageHandler;
 import org.agrona.concurrent.UnsafeBuffer;
@@ -55,23 +63,51 @@ class FailureDetectorTest {
     when(transport.newMessagePoller()).thenReturn(messagePoller);
   }
 
-  private void doOnMessagePoller(Consumer<MessageHandler> consumer) {
-    doAnswer(
-            invocation -> {
-              final Object[] arguments = invocation.getArguments();
-              consumer.accept((MessageHandler) arguments[0]);
-              return 1;
-            })
-        .when(messagePoller)
-        .poll(any());
-  }
-
   private void emitMembershipEvent(MembershipEventType eventType, Member member) {
     messageTx.transmit(
         1,
         membershipEventCodec.encodeMembershipEvent(eventType, 1, member),
         0,
         membershipEventCodec.encodedLength());
+  }
+
+  private void emitMessageFromTrasnport(
+      Function<FailureDetectorCodec, MutableDirectBuffer> function) {
+    doAnswer(
+            invocation -> {
+              final MessageHandler messageHandler = (MessageHandler) invocation.getArguments()[0];
+              messageHandler.onMessage(
+                  1, function.apply(failureDetectorCodec), 0, failureDetectorCodec.encodedLength());
+              return 1;
+            })
+        .when(messagePoller)
+        .poll(any());
+  }
+
+  private void assertMessageRx(
+      CopyBroadcastReceiver messageRx, BiConsumer<MemberStatus, Member> consumer) {
+    final MutableReference<FailureDetectorEventDecoder> mutableReference = new MutableReference<>();
+    final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
+    final FailureDetectorEventDecoder failureDetectorEventDecoder =
+        new FailureDetectorEventDecoder();
+    final MemberCodec memberCodec = new MemberCodec();
+
+    messageRx.receive(
+        (msgTypeId, buffer, index, length) -> {
+          // no-op first time
+        });
+    messageRx.receive(
+        (msgTypeId, buffer, index, length) ->
+            mutableReference.set(
+                failureDetectorEventDecoder.wrapAndApplyHeader(buffer, index, headerDecoder)));
+
+    final FailureDetectorEventDecoder decoder = mutableReference.get();
+    if (decoder == null) {
+      consumer.accept(null, null);
+      return;
+    }
+
+    consumer.accept(decoder.status(), memberCodec.member(decoder::wrapMember));
   }
 
   @Test
@@ -85,6 +121,8 @@ class FailureDetectorTest {
   void testOnMembershipEventLocalMemberWillBeFiltered() {
     emitMembershipEvent(MembershipEventType.ADDED, localMember);
     failureDetector.doWork();
+
+    assertEquals(0, failureDetector.pingMembers().size(), "failureDetector.pingMembers");
 
     epochClock.advance(1);
     failureDetector.doWork();
@@ -100,8 +138,12 @@ class FailureDetectorTest {
     failureDetector.doWork();
     failureDetector.doWork();
 
+    assertEquals(1, failureDetector.pingMembers().size(), "failureDetector.pingMembers");
+
     emitMembershipEvent(MembershipEventType.REMOVED, fooMember);
     failureDetector.doWork();
+
+    assertEquals(0, failureDetector.pingMembers().size(), "failureDetector.pingMembers");
 
     epochClock.advance(1);
     failureDetector.doWork();
@@ -117,8 +159,12 @@ class FailureDetectorTest {
     failureDetector.doWork();
     failureDetector.doWork();
 
+    assertEquals(1, failureDetector.pingMembers().size(), "failureDetector.pingMembers");
+
     emitMembershipEvent(MembershipEventType.LEAVING, fooMember);
     failureDetector.doWork();
+
+    assertEquals(0, failureDetector.pingMembers().size(), "failureDetector.pingMembers");
 
     epochClock.advance(1);
     failureDetector.doWork();
@@ -134,16 +180,37 @@ class FailureDetectorTest {
     failureDetector.doWork();
     verify(transport).send(any(), any(), anyInt(), anyInt());
 
-    doOnMessagePoller(
-        messageHandler ->
-            messageHandler.onMessage(
-                1,
-                failureDetectorCodec.encodePingAck(100, localMember, fooMember, null),
-                0,
-                failureDetectorCodec.encodedLength()));
+    emitMessageFromTrasnport(
+        codec -> codec.encodePingAck(failureDetector.currentCid(), localMember, fooMember, null));
+    final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
     failureDetector.doWork();
+
+    assertMessageRx(
+        messageRx,
+        (memberStatus, member) -> {
+          assertEquals(MemberStatus.ALIVE, memberStatus, "memberStatus");
+          assertEquals(fooMember, member, "member");
+        });
   }
 
   @Test
-  void testPingThenTimeoutThenSuspected() {}
+  void testPingThenTimeoutThenSuspected() {
+    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
+    failureDetector.doWork();
+
+    epochClock.advance(1);
+    failureDetector.doWork();
+    verify(transport).send(any(), any(), anyInt(), anyInt());
+
+    epochClock.advance(config.pingTimeout() + 1);
+    final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
+    failureDetector.doWork();
+
+    assertMessageRx(
+        messageRx,
+        (memberStatus, member) -> {
+          assertEquals(MemberStatus.SUSPECT, memberStatus, "memberStatus");
+          assertEquals(fooMember, member, "member");
+        });
+  }
 }

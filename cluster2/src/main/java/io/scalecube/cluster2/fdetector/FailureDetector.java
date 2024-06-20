@@ -116,6 +116,14 @@ public class FailureDetector extends AbstractAgent {
     }
   }
 
+  List<Member> pingMembers() {
+    return pingMembers;
+  }
+
+  List<Member> pingReqMembers() {
+    return pingReqMembers;
+  }
+
   private void doPingRequest(Member pingMember) {
     for (int i = 0, n = pingReqMembers.size(); i < n; i++) {
       final Member member = pingReqMembers.get(i);

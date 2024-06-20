@@ -122,6 +122,10 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
     return ++currentCid;
   }
 
+  public long currentCid() {
+    return currentCid;
+  }
+
   protected void invokeCallback(long cid, Object response) {
     deadlineByCid.remove(cid);
     //noinspection unchecked
