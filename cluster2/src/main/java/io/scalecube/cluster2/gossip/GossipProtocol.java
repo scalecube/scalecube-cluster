@@ -35,6 +35,7 @@ public class GossipProtocol extends AbstractAgent {
   private final MembershipEventDecoder membershipEventDecoder = new MembershipEventDecoder();
   private final GossipCodec codec = new GossipCodec();
   private final MemberCodec memberCodec = new MemberCodec();
+  private final UnsafeBuffer unsafeBuffer = new UnsafeBuffer();
   private final String roleName;
   private long currentPeriod = 0;
   private long gossipCounter = 0;
@@ -109,8 +110,7 @@ public class GossipProtocol extends AbstractAgent {
   }
 
   private void emitGossipMessage(byte[] message) {
-    // TODO
-    final UnsafeBuffer unsafeBuffer = new UnsafeBuffer(message);
+    unsafeBuffer.wrap(message);
     messageTx.transmit(1, unsafeBuffer, 0, unsafeBuffer.capacity());
   }
 
