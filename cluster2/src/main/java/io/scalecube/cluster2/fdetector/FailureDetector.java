@@ -32,9 +32,9 @@ public class FailureDetector extends AbstractAgent {
   private final MembershipEventDecoder membershipEventDecoder = new MembershipEventDecoder();
   private final FailureDetectorCodec codec = new FailureDetectorCodec();
   private final MemberCodec memberCodec = new MemberCodec();
+  private final String roleName;
   private final List<Member> pingMembers = new ArrayList<>();
   private final List<Member> pingReqMembers = new ArrayList<>();
-  private final String roleName;
 
   public FailureDetector(
       Transport transport,
