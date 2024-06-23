@@ -1,9 +1,13 @@
 package io.scalecube.cluster2.gossip;
 
+import static io.scalecube.cluster2.UUIDCodec.uuid;
+
 import io.scalecube.cluster.transport.api2.Transport;
 import io.scalecube.cluster2.AbstractAgent;
 import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.MemberCodec;
+import io.scalecube.cluster2.sbe.GossipRequestDecoder;
+import io.scalecube.cluster2.sbe.GossipRequestDecoder.GossipsDecoder;
 import io.scalecube.cluster2.sbe.MembershipEventDecoder;
 import io.scalecube.cluster2.sbe.MembershipEventType;
 import io.scalecube.cluster2.sbe.MessageHeaderDecoder;
@@ -26,6 +30,7 @@ public class GossipProtocol extends AbstractAgent {
   private final Member localMember;
 
   private final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
+  private final GossipRequestDecoder gossipRequestDecoder = new GossipRequestDecoder();
   private final MembershipEventDecoder membershipEventDecoder = new MembershipEventDecoder();
   private final GossipCodec codec = new GossipCodec();
   private final MemberCodec memberCodec = new MemberCodec();
@@ -71,12 +76,43 @@ public class GossipProtocol extends AbstractAgent {
     headerDecoder.wrap(buffer, index);
     final int templateId = headerDecoder.templateId();
     switch (templateId) {
+      case GossipRequestDecoder.TEMPLATE_ID:
+        onGossipRequest(gossipRequestDecoder.wrapAndApplyHeader(buffer, index, headerDecoder));
+        break;
       case MembershipEventDecoder.TEMPLATE_ID:
         onMembershipEvent(membershipEventDecoder.wrapAndApplyHeader(buffer, index, headerDecoder));
         break;
       default:
         // no-op
     }
+  }
+
+  private void onGossipRequest(GossipRequestDecoder decoder) {
+    final long period = this.currentPeriod;
+    final UUID from = uuid(decoder.from());
+
+    for (GossipsDecoder gossipsDecoder : decoder.gossips()) {
+      // TODO
+    }
+
+    final GossipRequest gossipRequest = message.data();
+    for (Gossip gossip : gossipRequest.gossips()) {
+      GossipState gossipState = gossips.get(gossip.gossipId());
+      if (ensureSequence(gossip.gossiperId()).add(gossip.sequenceId())) {
+        if (gossipState == null) { // new gossip
+          gossipState = new GossipState(gossip, period);
+          gossips.put(gossip.gossipId(), gossipState);
+          sink.emitNext(gossip.message(), RETRY_NON_SERIALIZED);
+        }
+      }
+      if (gossipState != null) {
+        gossipState.addToInfected(from);
+      }
+    }
+  }
+
+  private SequenceIdCollector ensureSequence(UUID key) {
+    return sequenceIdCollectors.computeIfAbsent(key, s -> new SequenceIdCollector());
   }
 
   private void onMembershipEvent(MembershipEventDecoder decoder) {

@@ -1,5 +1,7 @@
 package io.scalecube.cluster2;
 
+import static io.scalecube.cluster2.UUIDCodec.uuid;
+
 import io.scalecube.cluster2.sbe.MemberDecoder;
 import io.scalecube.cluster2.sbe.MemberEncoder;
 import java.util.UUID;
@@ -46,7 +48,7 @@ public class MemberCodec extends AbstractCodec {
     consumer.accept(unsafeBuffer);
     memberDecoder.wrapAndApplyHeader(unsafeBuffer, 0, headerDecoder);
 
-    final UUID id = UUIDCodec.uuid(memberDecoder.id());
+    final UUID id = uuid(memberDecoder.id());
     if (id == null) {
       return null;
     }
