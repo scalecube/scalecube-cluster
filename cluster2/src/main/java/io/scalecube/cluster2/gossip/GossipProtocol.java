@@ -20,6 +20,7 @@ import java.util.UUID;
 import java.util.function.Supplier;
 import org.agrona.MutableDirectBuffer;
 import org.agrona.concurrent.EpochClock;
+import org.agrona.concurrent.UnsafeBuffer;
 import org.agrona.concurrent.broadcast.BroadcastTransmitter;
 import org.agrona.concurrent.broadcast.CopyBroadcastReceiver;
 import reactor.core.publisher.MonoSink;
@@ -92,23 +93,25 @@ public class GossipProtocol extends AbstractAgent {
     final UUID from = uuid(decoder.from());
 
     for (GossipsDecoder gossipsDecoder : decoder.gossips()) {
-      // TODO
-    }
-
-    final GossipRequest gossipRequest = message.data();
-    for (Gossip gossip : gossipRequest.gossips()) {
+      final Gossip gossip = codec.gossip(gossipsDecoder::wrapGossip);
       GossipState gossipState = gossips.get(gossip.gossipId());
       if (ensureSequence(gossip.gossiperId()).add(gossip.sequenceId())) {
         if (gossipState == null) { // new gossip
           gossipState = new GossipState(gossip, period);
           gossips.put(gossip.gossipId(), gossipState);
-          sink.emitNext(gossip.message(), RETRY_NON_SERIALIZED);
+          emitGossipMessage(gossip.message());
         }
       }
       if (gossipState != null) {
         gossipState.addToInfected(from);
       }
     }
+  }
+
+  private void emitGossipMessage(byte[] message) {
+    // TODO
+    final UnsafeBuffer unsafeBuffer = new UnsafeBuffer(message);
+    messageTx.transmit(1, unsafeBuffer, 0, unsafeBuffer.capacity());
   }
 
   private SequenceIdCollector ensureSequence(UUID key) {
