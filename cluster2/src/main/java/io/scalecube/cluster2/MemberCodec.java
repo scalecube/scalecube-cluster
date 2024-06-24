@@ -46,6 +46,7 @@ public class MemberCodec extends AbstractCodec {
 
   public Member member(Consumer<UnsafeBuffer> consumer) {
     consumer.accept(unsafeBuffer);
+
     memberDecoder.wrapAndApplyHeader(unsafeBuffer, 0, headerDecoder);
 
     final UUID id = uuid(memberDecoder.id());

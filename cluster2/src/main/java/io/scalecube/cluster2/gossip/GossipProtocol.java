@@ -9,7 +9,6 @@ import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.MemberCodec;
 import io.scalecube.cluster2.sbe.GossipMessageDecoder;
 import io.scalecube.cluster2.sbe.GossipRequestDecoder;
-import io.scalecube.cluster2.sbe.GossipRequestDecoder.GossipsDecoder;
 import io.scalecube.cluster2.sbe.MembershipEventDecoder;
 import io.scalecube.cluster2.sbe.MembershipEventType;
 import io.scalecube.cluster2.sbe.MessageHeaderDecoder;
@@ -36,7 +35,8 @@ public class GossipProtocol extends AbstractAgent {
   private final GossipMessageDecoder gossipMessageDecoder = new GossipMessageDecoder();
   private final GossipRequestDecoder gossipRequestDecoder = new GossipRequestDecoder();
   private final MembershipEventDecoder membershipEventDecoder = new MembershipEventDecoder();
-  private final GossipCodec codec = new GossipCodec();
+  private final GossipRequestCodec gossipRequestCodec = new GossipRequestCodec();
+  private final GossipCodec gossipCodec = new GossipCodec();
   private final MemberCodec memberCodec = new MemberCodec();
   private final UnsafeBuffer unsafeBuffer = new UnsafeBuffer();
   private final String roleName;
@@ -46,6 +46,7 @@ public class GossipProtocol extends AbstractAgent {
   private final Map<String, GossipState> gossips = new Object2ObjectHashMap<>();
   private final List<Member> remoteMembers = new ArrayList<>();
   private final List<Member> gossipMembers = new ArrayList<>();
+  private final List<Gossip> gossipsToSend = new ArrayList<>();
   private final List<String> gossipsToRemove = new ArrayList<>();
 
   public GossipProtocol(
@@ -86,7 +87,7 @@ public class GossipProtocol extends AbstractAgent {
     nextGossipMembers();
 
     for (int i = 0, n = gossipMembers.size(); i < n; i++) {
-      spreadGossipsTo(period, gossipMembers.get(i));
+      spreadGossips(period, gossipMembers.get(i));
     }
 
     // Sweep gossips
@@ -142,6 +143,33 @@ public class GossipProtocol extends AbstractAgent {
     }
   }
 
+  private void spreadGossips(long period, Member member) {
+    nextGossipsToSend(period, member);
+
+    final String address = member.address();
+    final UUID from = localMember.id();
+
+    for (int i = 0, n = gossipsToSend.size(); i < n; i++) {
+      final Gossip gossip = gossipsToSend.get(i);
+      transport.send(
+          address, gossipRequestCodec.encode(from, gossip), 0, gossipRequestCodec.encodedLength());
+    }
+  }
+
+  private void nextGossipsToSend(long period, Member member) {
+    gossipsToSend.clear();
+
+    final int periodsToSpread =
+        ClusterMath.gossipPeriodsToSpread(config.gossipRepeatMult(), remoteMembers.size() + 1);
+
+    for (final GossipState gossipState : gossips.values()) {
+      if (gossipState.infectionPeriod() + periodsToSpread >= period
+          && !gossipState.isInfected(member.id())) {
+        gossipsToSend.add(gossipState.gossip());
+      }
+    }
+  }
+
   @Override
   public void onMessage(int msgTypeId, MutableDirectBuffer buffer, int index, int length) {
     headerDecoder.wrap(buffer, index);
@@ -180,19 +208,19 @@ public class GossipProtocol extends AbstractAgent {
     final long period = currentPeriod;
     final UUID from = uuid(decoder.from());
 
-    for (GossipsDecoder gossipsDecoder : decoder.gossips()) {
-      final Gossip gossip = codec.gossip(gossipsDecoder::wrapGossip);
-      GossipState gossipState = gossips.get(gossip.gossipId());
-      if (ensureSequence(gossip.gossiperId()).add(gossip.sequenceId())) {
-        if (gossipState == null) { // new gossip
-          gossipState = new GossipState(gossip, period);
-          gossips.put(gossip.gossipId(), gossipState);
-          emitGossipMessage(gossip.message());
-        }
+    final Gossip gossip = gossipCodec.gossip(decoder::wrapGossip);
+    GossipState gossipState = gossips.get(gossip.gossipId());
+
+    if (ensureSequence(gossip.gossiperId()).add(gossip.sequenceId())) {
+      if (gossipState == null) { // new gossip
+        gossipState = new GossipState(gossip, period);
+        gossips.put(gossip.gossipId(), gossipState);
+        emitGossipMessage(gossip.message());
       }
-      if (gossipState != null) {
-        gossipState.addToInfected(from);
-      }
+    }
+
+    if (gossipState != null) {
+      gossipState.addToInfected(from);
     }
   }
 

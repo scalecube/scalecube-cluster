@@ -103,9 +103,7 @@
 
   <sbe:message name="GossipRequest" id="202">
     <field name="from" id="1" type="UUID"/>
-    <group name="gossips" id="100">
-      <data name="gossip" id="1" type="VarData"/>
-    </group>
+    <data name="gossip" id="100" type="VarData"/>
   </sbe:message>
 
   <!-- Cluster Membership -->
