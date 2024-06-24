@@ -6,14 +6,14 @@ import java.util.UUID;
 
 public class Gossip {
 
-  private UUID gossiperId;
-  private long sequenceId; // incremented counter
-  private byte[] message;
+  private final UUID gossiperId;
+  private final long sequenceId; // incremented counter
+  private final byte[] message;
 
-  public Gossip(UUID gossiperId, byte[] message, long sequenceId) {
+  public Gossip(UUID gossiperId, long sequenceId, byte[] message) {
     this.gossiperId = gossiperId;
-    this.message = message;
     this.sequenceId = sequenceId;
+    this.message = message;
   }
 
   public String gossipId() {

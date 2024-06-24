@@ -6,6 +6,7 @@ import io.scalecube.cluster.transport.api2.Transport;
 import io.scalecube.cluster2.AbstractAgent;
 import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.MemberCodec;
+import io.scalecube.cluster2.sbe.GossipMessageDecoder;
 import io.scalecube.cluster2.sbe.GossipRequestDecoder;
 import io.scalecube.cluster2.sbe.GossipRequestDecoder.GossipsDecoder;
 import io.scalecube.cluster2.sbe.MembershipEventDecoder;
@@ -23,7 +24,6 @@ import org.agrona.concurrent.EpochClock;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.agrona.concurrent.broadcast.BroadcastTransmitter;
 import org.agrona.concurrent.broadcast.CopyBroadcastReceiver;
-import reactor.core.publisher.MonoSink;
 
 public class GossipProtocol extends AbstractAgent {
 
@@ -31,6 +31,7 @@ public class GossipProtocol extends AbstractAgent {
   private final Member localMember;
 
   private final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
+  private final GossipMessageDecoder gossipMessageDecoder = new GossipMessageDecoder();
   private final GossipRequestDecoder gossipRequestDecoder = new GossipRequestDecoder();
   private final MembershipEventDecoder membershipEventDecoder = new MembershipEventDecoder();
   private final GossipCodec codec = new GossipCodec();
@@ -41,7 +42,6 @@ public class GossipProtocol extends AbstractAgent {
   private long gossipCounter = 0;
   private final Map<UUID, SequenceIdCollector> sequenceIdCollectors = new HashMap<>();
   private final Map<String, GossipState> gossips = new HashMap<>();
-  private final Map<String, MonoSink<String>> futures = new HashMap<>();
   private final List<Member> remoteMembers = new ArrayList<>();
   private int remoteMembersIndex = -1;
 
@@ -78,6 +78,9 @@ public class GossipProtocol extends AbstractAgent {
     headerDecoder.wrap(buffer, index);
     final int templateId = headerDecoder.templateId();
     switch (templateId) {
+      case GossipMessageDecoder.TEMPLATE_ID:
+        onGossipMessage(gossipMessageDecoder.wrapAndApplyHeader(buffer, index, headerDecoder));
+        break;
       case GossipRequestDecoder.TEMPLATE_ID:
         onGossipRequest(gossipRequestDecoder.wrapAndApplyHeader(buffer, index, headerDecoder));
         break;
@@ -87,6 +90,19 @@ public class GossipProtocol extends AbstractAgent {
       default:
         // no-op
     }
+  }
+
+  private void onGossipMessage(GossipMessageDecoder decoder) {
+    final long period = this.currentPeriod;
+    final int messageLength = decoder.messageLength();
+    final byte[] message = new byte[messageLength];
+    decoder.getMessage(message, 0, messageLength);
+
+    final Gossip gossip = new Gossip(localMember.id(), gossipCounter++, message);
+    final GossipState gossipState = new GossipState(gossip, period);
+
+    gossips.put(gossip.gossipId(), gossipState);
+    ensureSequence(localMember.id()).add(gossip.sequenceId());
   }
 
   private void onGossipRequest(GossipRequestDecoder decoder) {

@@ -92,12 +92,16 @@
   <!-- Gossip -->
 
   <sbe:message name="Gossip" id="200">
-    <field name="sequenceId" id="1" type="int64"/>
-    <field name="gossiperId" id="2" type="UUID"/>
+    <field name="gossiperId" id="1" type="UUID"/>
+    <field name="sequenceId" id="2" type="int64"/>
     <data name="message" id="101" type="VarData"/>
   </sbe:message>
 
-  <sbe:message name="GossipRequest" id="201">
+  <sbe:message name="GossipMessage" id="201">
+    <data name="message" id="100" type="VarData"/>
+  </sbe:message>
+
+  <sbe:message name="GossipRequest" id="202">
     <field name="from" id="1" type="UUID"/>
     <group name="gossips" id="100">
       <data name="gossip" id="1" type="VarData"/>
