@@ -2,13 +2,18 @@ package io.scalecube.cluster2.gossip;
 
 import java.util.HashSet;
 import java.util.Set;
-import java.util.StringJoiner;
 import java.util.UUID;
 
 public class GossipState {
 
-  /** Target gossip. */
-  private final Gossip gossip;
+  /** Gossip id, local member id. */
+  private final UUID gossiperId;
+
+  /** Incremented counter */
+  private final long sequenceId;
+
+  /** Gossip message. */
+  private final byte[] message;
 
   /** Local gossip period when gossip was received for the first time. */
   private final long infectionPeriod;
@@ -16,13 +21,35 @@ public class GossipState {
   /** Set of member IDs this gossip was received from. */
   private final Set<UUID> infectedSet = new HashSet<>();
 
-  public GossipState(Gossip gossip, long infectionPeriod) {
-    this.gossip = gossip;
+  /**
+   * Constructor.
+   *
+   * @param gossiperId gossiperId.
+   * @param sequenceId sequenceId.
+   * @param message message.
+   * @param infectionPeriod infectionPeriod.
+   */
+  public GossipState(UUID gossiperId, long sequenceId, byte[] message, long infectionPeriod) {
+    this.gossiperId = gossiperId;
+    this.sequenceId = sequenceId;
+    this.message = message;
     this.infectionPeriod = infectionPeriod;
   }
 
-  public Gossip gossip() {
-    return gossip;
+  public String gossipId() {
+    return gossiperId + "-" + sequenceId;
+  }
+
+  public UUID gossiperId() {
+    return gossiperId;
+  }
+
+  public byte[] message() {
+    return message;
+  }
+
+  public long sequenceId() {
+    return sequenceId;
   }
 
   public long infectionPeriod() {
@@ -35,14 +62,5 @@ public class GossipState {
 
   public boolean isInfected(UUID memberId) {
     return infectedSet.contains(memberId);
-  }
-
-  @Override
-  public String toString() {
-    return new StringJoiner(", ", GossipState.class.getSimpleName() + "[", "]")
-        .add("gossip=" + gossip)
-        .add("infectionPeriod=" + infectionPeriod)
-        .add("infectedSet=" + infectedSet)
-        .toString();
   }
 }
