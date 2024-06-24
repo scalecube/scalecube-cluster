@@ -37,10 +37,6 @@ public class Gossip {
     this.infectionPeriod = infectionPeriod;
   }
 
-  public String gossipId() {
-    return gossiperId + "-" + sequenceId;
-  }
-
   public UUID gossiperId() {
     return gossiperId;
   }
