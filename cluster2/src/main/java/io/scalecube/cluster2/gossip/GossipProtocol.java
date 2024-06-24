@@ -93,12 +93,14 @@ public class GossipProtocol extends AbstractAgent {
   }
 
   private void onGossipMessage(GossipMessageDecoder decoder) {
-    final long period = this.currentPeriod;
+    final long period = currentPeriod;
+    final long sequenceId = gossipCounter++;
+
     final int messageLength = decoder.messageLength();
     final byte[] message = new byte[messageLength];
     decoder.getMessage(message, 0, messageLength);
 
-    final Gossip gossip = new Gossip(localMember.id(), gossipCounter++, message);
+    final Gossip gossip = new Gossip(localMember.id(), sequenceId, message);
     final GossipState gossipState = new GossipState(gossip, period);
 
     gossips.put(gossip.gossipId(), gossipState);
@@ -106,7 +108,7 @@ public class GossipProtocol extends AbstractAgent {
   }
 
   private void onGossipRequest(GossipRequestDecoder decoder) {
-    final long period = this.currentPeriod;
+    final long period = currentPeriod;
     final UUID from = uuid(decoder.from());
 
     for (GossipsDecoder gossipsDecoder : decoder.gossips()) {
