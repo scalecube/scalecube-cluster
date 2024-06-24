@@ -4,6 +4,7 @@ import static io.scalecube.cluster2.UUIDCodec.uuid;
 
 import io.scalecube.cluster.transport.api2.Transport;
 import io.scalecube.cluster2.AbstractAgent;
+import io.scalecube.cluster2.ClusterMath;
 import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.MemberCodec;
 import io.scalecube.cluster2.sbe.GossipMessageDecoder;
@@ -14,14 +15,13 @@ import io.scalecube.cluster2.sbe.MembershipEventType;
 import io.scalecube.cluster2.sbe.MessageHeaderDecoder;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 import org.agrona.MutableDirectBuffer;
+import org.agrona.collections.Object2ObjectHashMap;
 import org.agrona.concurrent.EpochClock;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.agrona.concurrent.broadcast.BroadcastTransmitter;
@@ -42,11 +42,11 @@ public class GossipProtocol extends AbstractAgent {
   private final String roleName;
   private long currentPeriod = 0;
   private long gossipCounter = 0;
-  private final Map<UUID, SequenceIdCollector> sequenceIdCollectors = new HashMap<>();
-  private final Map<String, GossipState> gossips = new HashMap<>();
+  private final Map<UUID, SequenceIdCollector> sequenceIdCollectors = new Object2ObjectHashMap<>();
+  private final Map<String, GossipState> gossips = new Object2ObjectHashMap<>();
   private final List<Member> remoteMembers = new ArrayList<>();
   private final List<Member> gossipMembers = new ArrayList<>();
-  private int remoteMembersIndex = -1;
+  private final List<String> gossipsToRemove = new ArrayList<>();
 
   public GossipProtocol(
       Transport transport,
@@ -87,7 +87,8 @@ public class GossipProtocol extends AbstractAgent {
       spreadGossipsTo(period, gossipMembers.get(i));
     }
 
-    final Set<String> gossipsToRemove = getGossipsToRemove(period);
+    nextGossipsToRemove(period);
+
     for (String gossipId : gossipsToRemove) {
       gossips.remove(gossipId);
     }
@@ -107,6 +108,19 @@ public class GossipProtocol extends AbstractAgent {
       if (!gossipMembers.contains(member)) {
         gossipMembers.add(member);
         i++;
+      }
+    }
+  }
+
+  private void nextGossipsToRemove(long period) {
+    gossipsToRemove.clear();
+
+    final int periodsToSweep =
+        ClusterMath.gossipPeriodsToSweep(config.gossipRepeatMult(), remoteMembers.size() + 1);
+
+    for (final GossipState gossipState : gossips.values()) {
+      if (period > gossipState.infectionPeriod() + periodsToSweep) {
+        gossipsToRemove.add(gossipState.gossip().gossipId());
       }
     }
   }
