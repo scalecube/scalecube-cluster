@@ -82,6 +82,7 @@ public class GossipProtocol extends AbstractAgent {
     }
 
     nextGossipMembers();
+
     for (int i = 0, n = gossipMembers.size(); i < n; i++) {
       spreadGossipsTo(period, gossipMembers.get(i));
     }
