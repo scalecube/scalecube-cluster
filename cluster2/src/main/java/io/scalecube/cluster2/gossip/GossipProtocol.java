@@ -94,7 +94,7 @@ public class GossipProtocol extends AbstractAgent {
 
   private void onGossipMessage(GossipMessageDecoder decoder) {
     final long period = currentPeriod;
-    final long sequenceId = gossipCounter++;
+    final long sequenceId = ++gossipCounter;
 
     final int messageLength = decoder.messageLength();
     final byte[] message = new byte[messageLength];
