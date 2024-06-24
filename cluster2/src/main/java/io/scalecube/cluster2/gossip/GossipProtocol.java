@@ -17,6 +17,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 import org.agrona.MutableDirectBuffer;
@@ -43,6 +45,7 @@ public class GossipProtocol extends AbstractAgent {
   private final Map<UUID, SequenceIdCollector> sequenceIdCollectors = new HashMap<>();
   private final Map<String, GossipState> gossips = new HashMap<>();
   private final List<Member> remoteMembers = new ArrayList<>();
+  private final List<Member> gossipMembers = new ArrayList<>();
   private int remoteMembersIndex = -1;
 
   public GossipProtocol(
@@ -70,7 +73,61 @@ public class GossipProtocol extends AbstractAgent {
 
   @Override
   protected void onTick() {
-    // TODO
+    long period = ++currentPeriod;
+
+    // Check segments
+
+    checkGossipSegmentation();
+
+    // Check any gossips exists
+
+    if (gossips.isEmpty()) {
+      return;
+    }
+
+    // Spread gossips to randomly selected member(s)
+
+    nextGossipMembers().forEach(member -> spreadGossipsTo(period, member));
+
+    // Sweep gossips
+
+    Set<String> gossipsToRemove = getGossipsToRemove(period);
+    if (!gossipsToRemove.isEmpty()) {
+      for (String gossipId : gossipsToRemove) {
+        gossips.remove(gossipId);
+      }
+    }
+  }
+
+  private void nextGossipMembers() {
+    gossipMembers.clear();
+
+    final int demand = config.gossipFanout();
+    final int size = remoteMembers.size();
+    if (demand == 0 || size == 0) {
+      return;
+    }
+
+    for (int i = 0, limit = Math.min(demand, size); i < limit; ) {
+      final Member member = remoteMembers.get(random.nextInt(remoteMembers.size()));
+      if (!gossipMembers.contains(member)) {
+        gossipMembers.add(member);
+        i++;
+      }
+    }
+  }
+
+  private void checkGossipSegmentation() {
+    final int intervalsThreshold = config.gossipSegmentationThreshold();
+    for (Entry<UUID, SequenceIdCollector> entry : sequenceIdCollectors.entrySet()) {
+      // Size of sequenceIdCollector could grow only if we never received some messages.
+      // Which is possible only if current node wasn't available(suspected) for some time
+      // or network issue
+      final SequenceIdCollector sequenceIdCollector = entry.getValue();
+      if (sequenceIdCollector.size() > intervalsThreshold) {
+        sequenceIdCollector.clear();
+      }
+    }
   }
 
   @Override
