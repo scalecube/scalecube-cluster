@@ -75,27 +75,20 @@ public class GossipProtocol extends AbstractAgent {
   protected void onTick() {
     long period = ++currentPeriod;
 
-    // Check segments
-
     checkGossipSegmentation();
-
-    // Check any gossips exists
 
     if (gossips.isEmpty()) {
       return;
     }
 
-    // Spread gossips to randomly selected member(s)
+    nextGossipMembers();
+    for (int i = 0, n = gossipMembers.size(); i < n; i++) {
+      spreadGossipsTo(period, gossipMembers.get(i));
+    }
 
-    nextGossipMembers().forEach(member -> spreadGossipsTo(period, member));
-
-    // Sweep gossips
-
-    Set<String> gossipsToRemove = getGossipsToRemove(period);
-    if (!gossipsToRemove.isEmpty()) {
-      for (String gossipId : gossipsToRemove) {
-        gossips.remove(gossipId);
-      }
+    final Set<String> gossipsToRemove = getGossipsToRemove(period);
+    for (String gossipId : gossipsToRemove) {
+      gossips.remove(gossipId);
     }
   }
 
