@@ -38,17 +38,16 @@ public class GossipProtocol extends AbstractAgent {
   private final GossipDecoder gossipDecoder = new GossipDecoder();
   private final MembershipEventDecoder membershipEventDecoder = new MembershipEventDecoder();
   private final GossipRequestCodec gossipRequestCodec = new GossipRequestCodec();
-  private final GossipCodec gossipCodec = new GossipCodec();
   private final MemberCodec memberCodec = new MemberCodec();
   private final UnsafeBuffer unsafeBuffer = new UnsafeBuffer();
   private final String roleName;
   private long currentPeriod = 0;
   private long gossipCounter = 0;
   private final Map<UUID, SequenceIdCollector> sequenceIdCollectors = new Object2ObjectHashMap<>();
-  private final Map<String, GossipState> gossips = new Object2ObjectHashMap<>();
+  private final Map<String, Gossip> gossips = new Object2ObjectHashMap<>();
   private final List<Member> remoteMembers = new ArrayList<>();
   private final List<Member> gossipMembers = new ArrayList<>();
-  private final List<GossipState> gossipsToSend = new ArrayList<>();
+  private final List<Gossip> gossipsToSend = new ArrayList<>();
   private final List<String> gossipsToRemove = new ArrayList<>();
 
   public GossipProtocol(
@@ -125,9 +124,9 @@ public class GossipProtocol extends AbstractAgent {
     final int periodsToSweep =
         ClusterMath.gossipPeriodsToSweep(config.gossipRepeatMult(), remoteMembers.size() + 1);
 
-    for (final GossipState gossipState : gossips.values()) {
-      if (period > gossipState.infectionPeriod() + periodsToSweep) {
-        gossipsToRemove.add(gossipState.gossipId());
+    for (final Gossip gossip : gossips.values()) {
+      if (period > gossip.infectionPeriod() + periodsToSweep) {
+        gossipsToRemove.add(gossip.gossipId());
       }
     }
   }
@@ -152,12 +151,9 @@ public class GossipProtocol extends AbstractAgent {
     final UUID from = localMember.id();
 
     for (int i = 0, n = gossipsToSend.size(); i < n; i++) {
-      final GossipState gossipState = gossipsToSend.get(i);
+      final Gossip gossip = gossipsToSend.get(i);
       transport.send(
-          address,
-          gossipRequestCodec.encode(from, gossipState),
-          0,
-          gossipRequestCodec.encodedLength());
+          address, gossipRequestCodec.encode(from, gossip), 0, gossipRequestCodec.encodedLength());
     }
   }
 
@@ -167,10 +163,9 @@ public class GossipProtocol extends AbstractAgent {
     final int periodsToSpread =
         ClusterMath.gossipPeriodsToSpread(config.gossipRepeatMult(), remoteMembers.size() + 1);
 
-    for (final GossipState gossipState : gossips.values()) {
-      if (gossipState.infectionPeriod() + periodsToSpread >= period
-          && !gossipState.isInfected(member.id())) {
-        gossipsToSend.add(gossipState);
+    for (final Gossip gossip : gossips.values()) {
+      if (gossip.infectionPeriod() + periodsToSpread >= period && !gossip.isInfected(member.id())) {
+        gossipsToSend.add(gossip);
       }
     }
   }
@@ -202,10 +197,10 @@ public class GossipProtocol extends AbstractAgent {
     final byte[] message = new byte[messageLength];
     decoder.getMessage(message, 0, messageLength);
 
-    final GossipState gossipState = new GossipState(localMember.id(), sequenceId, message, period);
+    final Gossip gossip = new Gossip(localMember.id(), sequenceId, message, period);
 
-    gossips.put(gossipState.gossipId(), gossipState);
-    ensureSequence(localMember.id()).add(gossipState.sequenceId());
+    gossips.put(gossip.gossipId(), gossip);
+    ensureSequence(localMember.id()).add(gossip.sequenceId());
   }
 
   private void onGossipRequest(GossipRequestDecoder decoder) {
@@ -223,18 +218,18 @@ public class GossipProtocol extends AbstractAgent {
     gossipDecoder.getMessage(message, 0, messageLength);
 
     final String gossipId = gossiperId + "-" + sequenceId;
-    GossipState gossipState = gossips.get(gossipId);
+    Gossip gossip = gossips.get(gossipId);
 
     if (ensureSequence(gossiperId).add(sequenceId)) {
-      if (gossipState == null) { // new gossip
-        gossipState = new GossipState(gossiperId, sequenceId, message, period);
-        gossips.put(gossipId, gossipState);
+      if (gossip == null) { // new gossip
+        gossip = new Gossip(gossiperId, sequenceId, message, period);
+        gossips.put(gossipId, gossip);
         emitGossipMessage(message);
       }
     }
 
-    if (gossipState != null) {
-      gossipState.addToInfected(from);
+    if (gossip != null) {
+      gossip.addToInfected(from);
     }
   }
 

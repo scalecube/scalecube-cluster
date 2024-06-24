@@ -11,13 +11,13 @@ public class GossipCodec extends AbstractCodec {
 
   public GossipCodec() {}
 
-  public MutableDirectBuffer encode(GossipState gossipState) {
+  public MutableDirectBuffer encode(Gossip gossip) {
     encodedLength = 0;
 
     gossipEncoder.wrapAndApplyHeader(encodedBuffer, 0, headerEncoder);
-    UUIDCodec.encode(gossipState.gossiperId(), gossipEncoder.gossiperId());
-    gossipEncoder.sequenceId(gossipState.sequenceId());
-    gossipEncoder.putMessage(gossipState.message(), 0, gossipState.message().length);
+    UUIDCodec.encode(gossip.gossiperId(), gossipEncoder.gossiperId());
+    gossipEncoder.sequenceId(gossip.sequenceId());
+    gossipEncoder.putMessage(gossip.message(), 0, gossip.message().length);
 
     encodedLength = headerEncoder.encodedLength() + gossipEncoder.encodedLength();
     return encodedBuffer;
