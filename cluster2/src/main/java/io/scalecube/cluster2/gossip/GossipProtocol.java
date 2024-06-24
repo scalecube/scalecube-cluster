@@ -81,16 +81,20 @@ public class GossipProtocol extends AbstractAgent {
       return;
     }
 
+    // Spread gossips
+
     nextGossipMembers();
 
     for (int i = 0, n = gossipMembers.size(); i < n; i++) {
       spreadGossipsTo(period, gossipMembers.get(i));
     }
 
+    // Sweep gossips
+
     nextGossipsToRemove(period);
 
-    for (String gossipId : gossipsToRemove) {
-      gossips.remove(gossipId);
+    for (int i = 0, n = gossipsToRemove.size(); i < n; i++) {
+      gossips.remove(gossipsToRemove.get(i));
     }
   }
 
