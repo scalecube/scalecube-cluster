@@ -228,7 +228,7 @@ public class GossipProtocol extends AbstractAgent {
       if (gossip == null) { // new gossip
         gossip = new Gossip(gossiperId, sequenceId, message, period);
         gossips.add(gossip);
-        emitMessage(message);
+        emitMessage(message); // TODO: why emit is happening here? is it correct?
       }
     }
 
