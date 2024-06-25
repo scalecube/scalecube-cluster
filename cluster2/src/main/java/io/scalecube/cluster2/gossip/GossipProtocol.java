@@ -212,6 +212,7 @@ public class GossipProtocol extends AbstractAgent {
     final UUID from = uuid(decoder.from());
 
     decoder.wrapGossip(unsafeBuffer);
+
     gossipDecoder.wrapAndApplyHeader(unsafeBuffer, 0, headerDecoder);
 
     final UUID gossiperId = uuid(gossipDecoder.gossiperId());
