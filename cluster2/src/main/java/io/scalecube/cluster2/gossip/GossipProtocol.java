@@ -228,7 +228,7 @@ public class GossipProtocol extends AbstractAgent {
       if (gossip == null) { // new gossip
         gossip = new Gossip(gossiperId, sequenceId, message, period);
         gossips.add(gossip);
-        emitGossipMessage(message);
+        emitMessage(message);
       }
     }
 
@@ -249,7 +249,7 @@ public class GossipProtocol extends AbstractAgent {
     return result;
   }
 
-  private void emitGossipMessage(byte[] message) {
+  private void emitMessage(byte[] message) {
     unsafeBuffer.wrap(message);
     messageTx.transmit(1, unsafeBuffer, 0, unsafeBuffer.capacity());
   }
