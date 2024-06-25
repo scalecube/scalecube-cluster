@@ -239,7 +239,7 @@ public class GossipProtocol extends AbstractAgent {
 
   private Gossip getGossip(UUID gossiperId, long sequenceId) {
     Gossip result = null;
-    for (int n = gossips.size(), i = 0; i < n; i++) {
+    for (int i = 0, n = gossips.size(); i < n; i++) {
       final Gossip gossip = gossips.get(i);
       if (gossip.gossiperId() == gossiperId && gossip.sequenceId() == sequenceId) {
         result = gossip;
