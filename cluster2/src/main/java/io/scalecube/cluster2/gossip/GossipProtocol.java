@@ -197,14 +197,15 @@ public class GossipProtocol extends AbstractAgent {
 
   private void onGossipMessage(GossipMessageDecoder decoder) {
     final long period = currentPeriod;
+    final UUID gossiperId = localMember.id();
     final long sequenceId = ++gossipCounter;
 
     final int messageLength = decoder.messageLength();
     final byte[] message = new byte[messageLength];
     decoder.getMessage(message, 0, messageLength);
 
-    gossips.add(new Gossip(localMember.id(), sequenceId, message, period));
-    ensureSequence(localMember.id()).add(sequenceId);
+    gossips.add(new Gossip(gossiperId, sequenceId, message, period));
+    ensureSequence(gossiperId).add(sequenceId);
   }
 
   private void onGossipRequest(GossipRequestDecoder decoder) {
