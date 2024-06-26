@@ -18,6 +18,7 @@ import static org.mockito.Mockito.when;
 
 import io.scalecube.cluster.transport.api2.Transport;
 import io.scalecube.cluster.transport.api2.Transport.MessagePoller;
+import io.scalecube.cluster2.ClusterMath;
 import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.membership.MembershipEventCodec;
 import io.scalecube.cluster2.sbe.GossipMessageEncoder;
@@ -253,6 +254,34 @@ class GossipProtocolTest {
     gossipProtocol.doWork();
 
     epochClock.advance(1);
+    verify(transport, never()).send(any(), any(), anyInt(), anyInt());
+  }
+
+  @Test
+  public void testSweepGossips() {
+    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
+    emitMembershipEvent(MembershipEventType.ADDED, barMember);
+    emitMembershipEvent(MembershipEventType.ADDED, aliceMember);
+    gossipProtocol.doWork();
+    gossipProtocol.doWork();
+    gossipProtocol.doWork();
+
+    emitGossipMessage(newMessage());
+    gossipProtocol.doWork();
+
+    epochClock.advance(1);
+    gossipProtocol.doWork();
+    verify(transport, times(3)).send(any(), any(), anyInt(), anyInt());
+
+    final int periodsToSweep = ClusterMath.gossipPeriodsToSweep(config.gossipRepeatMult(), 3 + 1);
+    for (int i = 0; i < periodsToSweep; i++) {
+      reset(transport);
+      epochClock.advance(config.gossipInterval() + 1);
+      gossipProtocol.doWork();
+    }
+
+    reset(transport);
+    epochClock.advance(config.gossipInterval() + 1);
     verify(transport, never()).send(any(), any(), anyInt(), anyInt());
   }
 
