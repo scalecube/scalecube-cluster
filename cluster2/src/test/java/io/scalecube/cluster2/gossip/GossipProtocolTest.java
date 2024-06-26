@@ -1,6 +1,7 @@
 package io.scalecube.cluster2.gossip;
 
 import static org.agrona.concurrent.broadcast.BroadcastBufferDescriptor.TRAILER_LENGTH;
+import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.hasItem;
@@ -133,7 +134,7 @@ class GossipProtocolTest {
   }
 
   @Test
-  void testSpreadGossipOnGossipMessage() {
+  void testOnGossipMessage() {
     emitMembershipEvent(MembershipEventType.ADDED, fooMember);
     emitMembershipEvent(MembershipEventType.ADDED, barMember);
     emitMembershipEvent(MembershipEventType.ADDED, aliceMember);
@@ -157,7 +158,7 @@ class GossipProtocolTest {
   }
 
   @Test
-  void testSpreadGossipOnGossipRequest() {
+  void testOnGossipRequest() {
     emitMembershipEvent(MembershipEventType.ADDED, fooMember);
     emitMembershipEvent(MembershipEventType.ADDED, barMember);
     emitMembershipEvent(MembershipEventType.ADDED, aliceMember);
@@ -185,6 +186,62 @@ class GossipProtocolTest {
             hasItem(fooMember.address()),
             hasItem(barMember.address()),
             hasItem(aliceMember.address())));
+  }
+
+  @Test
+  void testSpreadGossipOnlyToNonInfected() {
+    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
+    emitMembershipEvent(MembershipEventType.ADDED, barMember);
+    emitMembershipEvent(MembershipEventType.ADDED, aliceMember);
+    gossipProtocol.doWork();
+    gossipProtocol.doWork();
+    gossipProtocol.doWork();
+
+    final byte[] message = newMessage();
+    emitGossipMessage(message);
+    gossipProtocol.doWork();
+
+    emitMessageFromTransport(
+        codec -> codec.encode(fooMember.id(), new Gossip(localMember.id(), 1, message, 1)));
+    gossipProtocol.doWork();
+    emitMessageFromTransport(
+        codec -> codec.encode(barMember.id(), new Gossip(localMember.id(), 1, message, 1)));
+    gossipProtocol.doWork();
+
+    epochClock.advance(1);
+    gossipProtocol.doWork();
+
+    verify(transport).send(addressCaptor.capture(), any(), anyInt(), anyInt());
+    assertThat(addressCaptor.getValue(), is(aliceMember.address()));
+  }
+
+  @Test
+  void testShouldNotSpreadGossipToInfected() {
+    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
+    emitMembershipEvent(MembershipEventType.ADDED, barMember);
+    emitMembershipEvent(MembershipEventType.ADDED, aliceMember);
+    gossipProtocol.doWork();
+    gossipProtocol.doWork();
+    gossipProtocol.doWork();
+
+    final byte[] message = newMessage();
+    emitGossipMessage(message);
+    gossipProtocol.doWork();
+
+    emitMessageFromTransport(
+        codec -> codec.encode(fooMember.id(), new Gossip(localMember.id(), 1, message, 1)));
+    gossipProtocol.doWork();
+    emitMessageFromTransport(
+        codec -> codec.encode(barMember.id(), new Gossip(localMember.id(), 1, message, 1)));
+    gossipProtocol.doWork();
+    emitMessageFromTransport(
+        codec -> codec.encode(aliceMember.id(), new Gossip(localMember.id(), 1, message, 1)));
+    gossipProtocol.doWork();
+
+    epochClock.advance(1);
+    gossipProtocol.doWork();
+
+    verify(transport, never()).send(any(), any(), anyInt(), anyInt());
   }
 
   private static byte[] newMessage() {
