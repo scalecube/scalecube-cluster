@@ -109,7 +109,7 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
       }
     }
 
-    for (int n = expiredCalls.size() - 1, i = n; i >= 0; i--) {
+    for (int n = expiredCalls.size(), i = n - 1; i >= 0; i--) {
       invokeCallback(expiredCalls.fastUnorderedRemove(i), null);
     }
 

@@ -119,7 +119,7 @@ public class FailureDetector extends AbstractAgent {
   }
 
   private void doPingRequest(Member pingMember) {
-    for (int n = pingReqMembers.size() - 1, i = n; i >= 0; i--) {
+    for (int n = pingReqMembers.size(), i = n - 1; i >= 0; i--) {
       final Member member = pingReqMembers.get(i);
       ArrayListUtil.fastUnorderedRemove(pingReqMembers, i);
 

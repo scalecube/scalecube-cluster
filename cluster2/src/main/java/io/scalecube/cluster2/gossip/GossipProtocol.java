@@ -88,7 +88,7 @@ public class GossipProtocol extends AbstractAgent {
 
     nextGossipMembers();
 
-    for (int n = gossipMembers.size() - 1, i = n; i >= 0; i--) {
+    for (int n = gossipMembers.size(), i = n - 1; i >= 0; i--) {
       final Member member = gossipMembers.get(i);
       ArrayListUtil.fastUnorderedRemove(gossipMembers, i);
       spreadGossips(period, member);
@@ -98,7 +98,7 @@ public class GossipProtocol extends AbstractAgent {
 
     nextGossipsToRemove(period);
 
-    for (int n = gossipsToRemove.size() - 1, i = n; i >= 0; i--) {
+    for (int n = gossipsToRemove.size(), i = n - 1; i >= 0; i--) {
       final int index = gossipsToRemove.fastUnorderedRemove(i);
       ArrayListUtil.fastUnorderedRemove(gossips, index);
     }
@@ -155,7 +155,7 @@ public class GossipProtocol extends AbstractAgent {
     final String address = member.address();
     final UUID from = localMember.id();
 
-    for (int n = gossipsToSend.size() - 1, i = n; i >= 0; i--) {
+    for (int n = gossipsToSend.size(), i = n - 1; i >= 0; i--) {
       final Gossip gossip = gossips.get(gossipsToSend.fastUnorderedRemove(i));
       transport.send(
           address, gossipRequestCodec.encode(from, gossip), 0, gossipRequestCodec.encodedLength());
