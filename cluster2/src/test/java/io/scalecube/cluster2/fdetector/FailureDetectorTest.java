@@ -1,6 +1,9 @@
 package io.scalecube.cluster2.fdetector;
 
 import static org.agrona.concurrent.broadcast.BroadcastBufferDescriptor.TRAILER_LENGTH;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.anyOf;
+import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -35,6 +38,7 @@ import org.agrona.concurrent.broadcast.BroadcastTransmitter;
 import org.agrona.concurrent.broadcast.CopyBroadcastReceiver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 class FailureDetectorTest {
 
@@ -52,12 +56,13 @@ class FailureDetectorTest {
   private final Supplier<CopyBroadcastReceiver> messageRxSupplier =
       () -> new CopyBroadcastReceiver(new BroadcastReceiver(new UnsafeBuffer(byteBuffer)));
   private final CachedEpochClock epochClock = new CachedEpochClock();
-  private FailureDetectorConfig config = new FailureDetectorConfig();
-  private FailureDetector failureDetector =
+  private final FailureDetectorConfig config = new FailureDetectorConfig();
+  private final FailureDetector failureDetector =
       new FailureDetector(transport, messageTx, messageRxSupplier, epochClock, config, localMember);
   private final MembershipEventCodec membershipEventCodec = new MembershipEventCodec();
   private final FailureDetectorCodec failureDetectorCodec = new FailureDetectorCodec();
   private final MessagePoller messagePoller = mock(MessagePoller.class);
+  private final ArgumentCaptor<String> addressCaptor = ArgumentCaptor.forClass(String.class);
 
   @BeforeEach
   void beforeEach() {
@@ -122,17 +127,20 @@ class FailureDetectorTest {
 
     epochClock.advance(1);
     failureDetector.doWork();
-    verify(transport).send(any(), any(), anyInt(), anyInt());
+    verify(transport).send(addressCaptor.capture(), any(), anyInt(), anyInt());
+    assertEquals(fooMember.address(), addressCaptor.getValue(), "fooMember.address");
 
     reset(transport);
     epochClock.advance(config.pingInterval() + 1);
     failureDetector.doWork();
-    verify(transport).send(any(), any(), anyInt(), anyInt());
+    verify(transport).send(addressCaptor.capture(), any(), anyInt(), anyInt());
+    assertEquals(fooMember.address(), addressCaptor.getValue(), "fooMember.address");
 
     reset(transport);
     epochClock.advance(config.pingInterval() + 1);
     failureDetector.doWork();
-    verify(transport).send(any(), any(), anyInt(), anyInt());
+    verify(transport).send(addressCaptor.capture(), any(), anyInt(), anyInt());
+    assertEquals(fooMember.address(), addressCaptor.getValue(), "fooMember.address");
   }
 
   @Test
@@ -142,7 +150,8 @@ class FailureDetectorTest {
 
     epochClock.advance(1);
     failureDetector.doWork();
-    verify(transport).send(any(), any(), anyInt(), anyInt());
+    verify(transport).send(addressCaptor.capture(), any(), anyInt(), anyInt());
+    assertEquals(fooMember.address(), addressCaptor.getValue(), "fooMember.address");
 
     emitMessageFromTransport(
         codec -> codec.encodePingAck(failureDetector.currentCid(), localMember, fooMember, null));
@@ -164,7 +173,8 @@ class FailureDetectorTest {
 
     epochClock.advance(1);
     failureDetector.doWork();
-    verify(transport).send(any(), any(), anyInt(), anyInt());
+    verify(transport).send(addressCaptor.capture(), any(), anyInt(), anyInt());
+    assertEquals(fooMember.address(), addressCaptor.getValue(), "fooMember.address");
 
     epochClock.advance(config.pingTimeout() + 1);
     final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
@@ -187,13 +197,15 @@ class FailureDetectorTest {
 
     epochClock.advance(1);
     failureDetector.doWork();
-    verify(transport).send(any(), any(), anyInt(), anyInt());
+    verify(transport).send(addressCaptor.capture(), any(), anyInt(), anyInt());
+    assertThat(addressCaptor.getValue(), anyOf(is(fooMember.address()), is(barMember.address())));
 
     reset(transport);
     epochClock.advance(config.pingTimeout() + 1);
     failureDetector.doWork();
 
-    verify(transport).send(any(), any(), anyInt(), anyInt());
+    verify(transport).send(addressCaptor.capture(), any(), anyInt(), anyInt());
+    assertThat(addressCaptor.getValue(), anyOf(is(fooMember.address()), is(barMember.address())));
 
     emitMessageFromTransport(
         codec -> codec.encodePingAck(failureDetector.currentCid(), localMember, fooMember, null));
@@ -217,13 +229,15 @@ class FailureDetectorTest {
 
     epochClock.advance(1);
     failureDetector.doWork();
-    verify(transport).send(any(), any(), anyInt(), anyInt());
+    verify(transport).send(addressCaptor.capture(), any(), anyInt(), anyInt());
+    assertThat(addressCaptor.getValue(), anyOf(is(fooMember.address()), is(barMember.address())));
 
     reset(transport);
     epochClock.advance(config.pingTimeout() + 1);
     failureDetector.doWork();
 
-    verify(transport).send(any(), any(), anyInt(), anyInt());
+    verify(transport).send(addressCaptor.capture(), any(), anyInt(), anyInt());
+    assertThat(addressCaptor.getValue(), anyOf(is(fooMember.address()), is(barMember.address())));
 
     epochClock.advance(config.pingTimeout() + 1);
     final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
