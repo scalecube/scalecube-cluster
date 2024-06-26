@@ -244,6 +244,18 @@ class GossipProtocolTest {
     verify(transport, never()).send(any(), any(), anyInt(), anyInt());
   }
 
+  @Test
+  void testShouldNotSpreadGossipWhenNoRemoteMembers() {
+    emitGossipMessage(newMessage());
+    emitMessageFromTransport(
+        codec ->
+            codec.encode(UUID.randomUUID(), new Gossip(UUID.randomUUID(), 1, newMessage(), 1)));
+    gossipProtocol.doWork();
+
+    epochClock.advance(1);
+    verify(transport, never()).send(any(), any(), anyInt(), anyInt());
+  }
+
   private static byte[] newMessage() {
     final Random random = new Random();
     final byte[] bytes = new byte[128];
