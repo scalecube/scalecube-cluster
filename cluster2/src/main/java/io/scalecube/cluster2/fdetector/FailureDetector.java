@@ -13,9 +13,9 @@ import io.scalecube.cluster2.sbe.PingDecoder;
 import io.scalecube.cluster2.sbe.PingRequestDecoder;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.function.Supplier;
 import org.agrona.MutableDirectBuffer;
+import org.agrona.collections.ArrayListUtil;
 import org.agrona.concurrent.EpochClock;
 import org.agrona.concurrent.broadcast.BroadcastTransmitter;
 import org.agrona.concurrent.broadcast.CopyBroadcastReceiver;
@@ -33,8 +33,8 @@ public class FailureDetector extends AbstractAgent {
   private final FailureDetectorCodec codec = new FailureDetectorCodec();
   private final MemberCodec memberCodec = new MemberCodec();
   private final String roleName;
-  private final List<Member> pingMembers = new ArrayList<>();
-  private final List<Member> pingReqMembers = new ArrayList<>();
+  private final ArrayList<Member> pingMembers = new ArrayList<>();
+  private final ArrayList<Member> pingReqMembers = new ArrayList<>();
 
   public FailureDetector(
       Transport transport,
@@ -111,30 +111,26 @@ public class FailureDetector extends AbstractAgent {
 
     for (int i = 0, limit = demand < size ? demand : size - 1; i < limit; ) {
       final Member member = nextPingMember();
-      if (member != pingMember && !pingReqMembers.contains(member)) {
+      if (!pingMember.equals(member) && !pingReqMembers.contains(member)) {
         pingReqMembers.add(member);
         i++;
       }
     }
   }
 
-  List<Member> pingMembers() {
-    return pingMembers;
-  }
-
-  List<Member> pingReqMembers() {
-    return pingReqMembers;
-  }
-
   private void doPingRequest(Member pingMember) {
-    for (int i = 0, n = pingReqMembers.size(); i < n; i++) {
+    for (int n = pingReqMembers.size() - 1, i = n; i >= 0; i--) {
       final Member member = pingReqMembers.get(i);
+      ArrayListUtil.fastUnorderedRemove(pingReqMembers, i);
+
       final long cid = nextCid();
+
       transport.send(
           member.address(),
           codec.encodePingRequest(cid, localMember, pingMember),
           0,
           codec.encodedLength());
+
       addCallback(
           cid,
           config.pingTimeout(),
