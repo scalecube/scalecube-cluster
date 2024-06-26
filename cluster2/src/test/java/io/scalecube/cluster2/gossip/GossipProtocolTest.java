@@ -133,7 +133,7 @@ class GossipProtocolTest {
   }
 
   @Test
-  void testOnTickSpreadGossip() {
+  void testSpreadGossipOnGossipMessage() {
     emitMembershipEvent(MembershipEventType.ADDED, fooMember);
     emitMembershipEvent(MembershipEventType.ADDED, barMember);
     emitMembershipEvent(MembershipEventType.ADDED, aliceMember);
@@ -157,7 +157,7 @@ class GossipProtocolTest {
   }
 
   @Test
-  void testOnGossipRequest() {
+  void testSpreadGossipOnGossipRequest() {
     emitMembershipEvent(MembershipEventType.ADDED, fooMember);
     emitMembershipEvent(MembershipEventType.ADDED, barMember);
     emitMembershipEvent(MembershipEventType.ADDED, aliceMember);
