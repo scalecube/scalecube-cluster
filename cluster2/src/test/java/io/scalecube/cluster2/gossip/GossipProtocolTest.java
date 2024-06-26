@@ -167,7 +167,7 @@ class GossipProtocolTest {
     gossipProtocol.doWork();
 
     final byte[] message = newMessage();
-    emitMessageFromTransport(
+    emitGossipRequest(
         codec -> codec.encode(UUID.randomUUID(), new Gossip(UUID.randomUUID(), 1, message, 1)));
     final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
     gossipProtocol.doWork();
@@ -201,10 +201,10 @@ class GossipProtocolTest {
     emitGossipMessage(message);
     gossipProtocol.doWork();
 
-    emitMessageFromTransport(
+    emitGossipRequest(
         codec -> codec.encode(fooMember.id(), new Gossip(localMember.id(), 1, message, 1)));
     gossipProtocol.doWork();
-    emitMessageFromTransport(
+    emitGossipRequest(
         codec -> codec.encode(barMember.id(), new Gossip(localMember.id(), 1, message, 1)));
     gossipProtocol.doWork();
 
@@ -228,13 +228,13 @@ class GossipProtocolTest {
     emitGossipMessage(message);
     gossipProtocol.doWork();
 
-    emitMessageFromTransport(
+    emitGossipRequest(
         codec -> codec.encode(fooMember.id(), new Gossip(localMember.id(), 1, message, 1)));
     gossipProtocol.doWork();
-    emitMessageFromTransport(
+    emitGossipRequest(
         codec -> codec.encode(barMember.id(), new Gossip(localMember.id(), 1, message, 1)));
     gossipProtocol.doWork();
-    emitMessageFromTransport(
+    emitGossipRequest(
         codec -> codec.encode(aliceMember.id(), new Gossip(localMember.id(), 1, message, 1)));
     gossipProtocol.doWork();
 
@@ -247,7 +247,7 @@ class GossipProtocolTest {
   @Test
   void testShouldNotSpreadGossipWhenNoRemoteMembers() {
     emitGossipMessage(newMessage());
-    emitMessageFromTransport(
+    emitGossipRequest(
         codec ->
             codec.encode(UUID.randomUUID(), new Gossip(UUID.randomUUID(), 1, newMessage(), 1)));
     gossipProtocol.doWork();
@@ -282,8 +282,7 @@ class GossipProtocolTest {
     messageTx.transmit(1, buffer, 0, encodedLength);
   }
 
-  private void emitMessageFromTransport(
-      Function<GossipRequestCodec, MutableDirectBuffer> function) {
+  private void emitGossipRequest(Function<GossipRequestCodec, MutableDirectBuffer> function) {
     final GossipRequestCodec gossipRequestCodec = new GossipRequestCodec();
     doAnswer(
             invocation -> {
