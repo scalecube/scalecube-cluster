@@ -45,8 +45,6 @@ class FailureDetectorTest {
   private final Member localMember = new Member(UUID.randomUUID(), "local", "address:1180", "ns");
   private final Member fooMember = new Member(UUID.randomUUID(), "foo", "address:1181", "ns");
   private final Member barMember = new Member(UUID.randomUUID(), "bar", "address:1182", "ns");
-  private final Member aliceMember = new Member(UUID.randomUUID(), "alice", "address:1183", "ns");
-  private final Member bobMember = new Member(UUID.randomUUID(), "bob", "address:1184", "ns");
 
   private final Transport transport = mock(Transport.class);
   private final ExpandableDirectByteBuffer byteBuffer =
@@ -59,8 +57,6 @@ class FailureDetectorTest {
   private final FailureDetectorConfig config = new FailureDetectorConfig();
   private final FailureDetector failureDetector =
       new FailureDetector(transport, messageTx, messageRxSupplier, epochClock, config, localMember);
-  private final MembershipEventCodec membershipEventCodec = new MembershipEventCodec();
-  private final FailureDetectorCodec failureDetectorCodec = new FailureDetectorCodec();
   private final MessagePoller messagePoller = mock(MessagePoller.class);
   private final ArgumentCaptor<String> addressCaptor = ArgumentCaptor.forClass(String.class);
 
@@ -252,6 +248,7 @@ class FailureDetectorTest {
   }
 
   private void emitMembershipEvent(MembershipEventType eventType, Member member) {
+    final MembershipEventCodec membershipEventCodec = new MembershipEventCodec();
     messageTx.transmit(
         1,
         membershipEventCodec.encodeMembershipEvent(eventType, 1, member),
@@ -261,6 +258,7 @@ class FailureDetectorTest {
 
   private void emitMessageFromTransport(
       Function<FailureDetectorCodec, MutableDirectBuffer> function) {
+    final FailureDetectorCodec failureDetectorCodec = new FailureDetectorCodec();
     doAnswer(
             invocation -> {
               final MessageHandler messageHandler = (MessageHandler) invocation.getArguments()[0];
