@@ -104,7 +104,7 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
       final long deadline = it.getLongValue();
       if (now > deadline) {
         it.remove();
-        expiredCalls.add(cid);
+        expiredCalls.addLong(cid);
         workCount++;
       }
     }
