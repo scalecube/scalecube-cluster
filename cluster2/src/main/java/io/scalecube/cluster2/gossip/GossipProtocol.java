@@ -179,7 +179,9 @@ public class GossipProtocol extends AbstractAgent {
   @Override
   public void onMessage(int msgTypeId, MutableDirectBuffer buffer, int index, int length) {
     headerDecoder.wrap(buffer, index);
+
     final int templateId = headerDecoder.templateId();
+
     switch (templateId) {
       case GossipMessageDecoder.TEMPLATE_ID:
         onGossipMessage(gossipMessageDecoder.wrapAndApplyHeader(buffer, index, headerDecoder));

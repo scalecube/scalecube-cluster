@@ -147,7 +147,9 @@ public class FailureDetector extends AbstractAgent {
   @Override
   public void onMessage(int msgTypeId, MutableDirectBuffer buffer, int index, int length) {
     headerDecoder.wrap(buffer, index);
+
     final int templateId = headerDecoder.templateId();
+
     switch (templateId) {
       case PingDecoder.TEMPLATE_ID:
         onPing(pingDecoder.wrapAndApplyHeader(buffer, index, headerDecoder));
