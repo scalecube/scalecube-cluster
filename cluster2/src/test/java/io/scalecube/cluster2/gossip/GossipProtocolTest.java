@@ -45,10 +45,10 @@ import org.mockito.ArgumentCaptor;
 
 class GossipProtocolTest {
 
-  private final Member localMember = new Member(UUID.randomUUID(), "local", "address:1180", "ns");
-  private final Member fooMember = new Member(UUID.randomUUID(), "foo", "address:1181", "ns");
-  private final Member barMember = new Member(UUID.randomUUID(), "bar", "address:1182", "ns");
-  private final Member aliceMember = new Member(UUID.randomUUID(), "alice", "address:1183", "ns");
+  private final Member localMember = new Member(UUID.randomUUID(), "address:1180");
+  private final Member fooMember = new Member(UUID.randomUUID(), "address:1181");
+  private final Member barMember = new Member(UUID.randomUUID(), "address:1182");
+  private final Member aliceMember = new Member(UUID.randomUUID(), "address:1183");
 
   private final Transport transport = mock(Transport.class);
   private final ExpandableDirectByteBuffer byteBuffer =

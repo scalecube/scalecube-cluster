@@ -23,13 +23,10 @@ public class MemberCodec extends AbstractCodec {
         encoder -> {
           if (member != null) {
             UUIDCodec.encode(member.id(), memberEncoder.id());
-            memberEncoder
-                .alias(member.alias())
-                .address(member.address())
-                .namespace(member.namespace());
+            memberEncoder.address(member.address());
           } else {
             UUIDCodec.encode(null, memberEncoder.id());
-            memberEncoder.alias(null).address(null).namespace(null);
+            memberEncoder.address(null);
           }
         });
   }
@@ -54,10 +51,8 @@ public class MemberCodec extends AbstractCodec {
       return null;
     }
 
-    final String alias = memberDecoder.alias();
     final String address = memberDecoder.address();
-    final String namespace = memberDecoder.namespace();
 
-    return new Member(id, alias, address, namespace);
+    return new Member(id, address);
   }
 }

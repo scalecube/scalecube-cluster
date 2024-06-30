@@ -7,35 +7,19 @@ import java.util.UUID;
 public class Member {
 
   private final UUID id;
-  private final String alias;
   private final String address;
-  private final String namespace;
 
-  public Member(UUID id, String alias, String address, String namespace) {
-    this.id = Objects.requireNonNull(id, "member id");
-    this.alias = alias; // optional
-    this.address = Objects.requireNonNull(address, "member address");
-    this.namespace = Objects.requireNonNull(namespace, "member namespace");
+  public Member(UUID id, String address) {
+    this.id = id;
+    this.address = address;
   }
 
   public UUID id() {
     return id;
   }
 
-  public String alias() {
-    return alias;
-  }
-
   public String address() {
     return address;
-  }
-
-  public String namespace() {
-    return namespace;
-  }
-
-  private static String stringifyId(UUID id) {
-    return Long.toHexString(id.getMostSignificantBits() & Long.MAX_VALUE);
   }
 
   @Override
@@ -57,11 +41,9 @@ public class Member {
 
   @Override
   public String toString() {
-    StringJoiner stringJoiner = new StringJoiner(":");
-    if (alias == null) {
-      return stringJoiner.add(namespace).add(stringifyId(id) + "@" + address).toString();
-    } else {
-      return stringJoiner.add(namespace).add(alias).add(stringifyId(id) + "@" + address).toString();
-    }
+    return new StringJoiner(", ", Member.class.getSimpleName() + "[", "]")
+        .add("id=" + id)
+        .add("address='" + address + "'")
+        .toString();
   }
 }

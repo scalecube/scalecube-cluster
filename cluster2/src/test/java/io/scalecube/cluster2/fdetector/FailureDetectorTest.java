@@ -42,9 +42,9 @@ import org.mockito.ArgumentCaptor;
 
 class FailureDetectorTest {
 
-  private final Member localMember = new Member(UUID.randomUUID(), "local", "address:1180", "ns");
-  private final Member fooMember = new Member(UUID.randomUUID(), "foo", "address:1181", "ns");
-  private final Member barMember = new Member(UUID.randomUUID(), "bar", "address:1182", "ns");
+  private final Member localMember = new Member(UUID.randomUUID(), "address:1180");
+  private final Member fooMember = new Member(UUID.randomUUID(), "address:1181");
+  private final Member barMember = new Member(UUID.randomUUID(), "address:1182");
 
   private final Transport transport = mock(Transport.class);
   private final ExpandableDirectByteBuffer byteBuffer =
