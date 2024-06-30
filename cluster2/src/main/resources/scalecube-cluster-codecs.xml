@@ -112,10 +112,11 @@
 
   <sbe:message name="Sync" id="300">
     <field name="cid" id="1" type="int64"/>
-    <field name="sender" id="2" type="String64"/>
     <group name="membershipRecords" id="100">
       <data name="membershipRecord" id="1" type="VarData"/>
     </group>
+    <data name="from" id="101" type="VarData"/>
+    <data name="target" id="102" type="VarData"/>
   </sbe:message>
 
   <sbe:message name="SyncAck" id="301">
@@ -123,6 +124,8 @@
     <group name="membershipRecords" id="100">
       <data name="membershipRecord" id="1" type="VarData"/>
     </group>
+    <data name="from" id="101" type="VarData"/>
+    <data name="target" id="102" type="VarData"/>
   </sbe:message>
 
   <sbe:message name="MembershipRecord" id="302">
