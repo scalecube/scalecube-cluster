@@ -175,7 +175,7 @@ public class FailureDetector extends AbstractAgent {
     final Member issuer = memberCodec.member(decoder::wrapIssuer);
 
     if (!localMember.equals(target)) {
-      return;
+      return; // TODO: add targetStatus: ALIVE|DEAD
     }
 
     transport.send(
