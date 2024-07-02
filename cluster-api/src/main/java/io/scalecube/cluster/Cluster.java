@@ -3,6 +3,7 @@ package io.scalecube.cluster;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.net.Address;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import reactor.core.publisher.Mono;
 
@@ -14,7 +15,7 @@ public interface Cluster {
    *
    * @return cluster address
    */
-  Address address();
+  List<Address> addresses();
 
   /**
    * Spreads given message between cluster members using gossiping protocol.

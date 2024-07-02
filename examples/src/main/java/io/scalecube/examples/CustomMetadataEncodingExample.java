@@ -24,7 +24,7 @@ public class CustomMetadataEncodingExample {
         new ClusterImpl()
             .transportFactory(WebsocketTransportFactory::new)
             .config(opts -> opts.metadataCodec(new LongMetadataCodec()).metadata(123L))
-            .membership(opts -> opts.seedMembers(alice.address()))
+            .membership(opts -> opts.seedMembers(alice.addresses()))
             .startAwait();
     System.out.println(
         "[" + joe.member().id() + "] Joe's metadata: " + joe.metadata().orElse(null));
@@ -33,7 +33,7 @@ public class CustomMetadataEncodingExample {
         new ClusterImpl()
             .transportFactory(WebsocketTransportFactory::new)
             .config(opts -> opts.metadataCodec(new LongMetadataCodec()).metadata(456L))
-            .membership(opts -> opts.seedMembers(alice.address()))
+            .membership(opts -> opts.seedMembers(alice.addresses()))
             .startAwait();
     System.out.println(
         "[" + bob.member().id() + "] Bob's metadata: " + bob.metadata().orElse(null));

@@ -3,6 +3,7 @@ package io.scalecube.examples;
 import io.scalecube.cluster.Cluster;
 import io.scalecube.cluster.ClusterImpl;
 import io.scalecube.cluster.ClusterMessageHandler;
+import io.scalecube.cluster.Member;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.transport.netty.tcp.TcpTransportFactory;
 
@@ -34,7 +35,7 @@ public class GossipExample {
     //noinspection unused
     Cluster bob =
         new ClusterImpl()
-            .membership(opts -> opts.seedMembers(alice.address()))
+            .membership(opts -> opts.seedMembers(alice.addresses()))
             .transportFactory(TcpTransportFactory::new)
             .handler(
                 cluster -> {
@@ -50,7 +51,7 @@ public class GossipExample {
     //noinspection unused
     Cluster carol =
         new ClusterImpl()
-            .membership(opts -> opts.seedMembers(alice.address()))
+            .membership(opts -> opts.seedMembers(alice.addresses()))
             .transportFactory(TcpTransportFactory::new)
             .handler(
                 cluster -> {
@@ -66,7 +67,7 @@ public class GossipExample {
     //noinspection unused
     Cluster dan =
         new ClusterImpl()
-            .membership(opts -> opts.seedMembers(alice.address()))
+            .membership(opts -> opts.seedMembers(alice.addresses()))
             .transportFactory(TcpTransportFactory::new)
             .handler(
                 cluster -> {
@@ -82,10 +83,14 @@ public class GossipExample {
     // Start cluster node Eve that joins cluster and spreads gossip
     Cluster eve =
         new ClusterImpl()
-            .membership(opts -> opts.seedMembers(alice.address()))
+            .membership(opts -> opts.seedMembers(alice.addresses()))
             .transportFactory(TcpTransportFactory::new)
             .startAwait();
-    eve.spreadGossip(Message.fromData("Gossip from Eve"))
+
+    final Member member = eve.member();
+    final Message message = Message.builder().sender(member).data("Gossip from Eve").build();
+
+    eve.spreadGossip(message)
         .doOnError(System.err::println)
         .subscribe(null, Throwable::printStackTrace);
 

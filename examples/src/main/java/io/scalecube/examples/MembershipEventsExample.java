@@ -47,7 +47,7 @@ public class MembershipEventsExample {
         new ClusterImpl()
             .config(opts -> opts.memberAlias("Bob"))
             .config(opts -> opts.metadata(Collections.singletonMap("name", "Bob")))
-            .membership(opts -> opts.seedMembers(alice.address()))
+            .membership(opts -> opts.seedMembers(alice.addresses()))
             .transportFactory(TcpTransportFactory::new)
             .handler(
                 cluster -> {
@@ -66,7 +66,7 @@ public class MembershipEventsExample {
         new ClusterImpl()
             .config(opts -> opts.memberAlias("Carol"))
             .config(opts -> opts.metadata(Collections.singletonMap("name", "Carol")))
-            .membership(opts -> opts.seedMembers(bob.address()))
+            .membership(opts -> opts.seedMembers(bob.addresses()))
             .transportFactory(TcpTransportFactory::new)
             .handler(
                 cluster -> {

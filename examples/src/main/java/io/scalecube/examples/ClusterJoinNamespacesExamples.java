@@ -24,7 +24,7 @@ public class ClusterJoinNamespacesExamples {
         new ClusterImpl()
             .config(opts -> opts.memberAlias("Bob"))
             .membership(opts -> opts.namespace("alice/bob-and-carol"))
-            .membership(opts -> opts.seedMembers(alice.address()))
+            .membership(opts -> opts.seedMembers(alice.addresses()))
             .transportFactory(TcpTransportFactory::new)
             .startAwait();
 
@@ -33,7 +33,7 @@ public class ClusterJoinNamespacesExamples {
         new ClusterImpl()
             .config(opts -> opts.memberAlias("Carol"))
             .membership(opts -> opts.namespace("alice/bob-and-carol"))
-            .membership(opts -> opts.seedMembers(alice.address()))
+            .membership(opts -> opts.seedMembers(alice.addresses()))
             .transportFactory(TcpTransportFactory::new)
             .startAwait();
 
@@ -41,7 +41,7 @@ public class ClusterJoinNamespacesExamples {
         new ClusterImpl()
             .config(opts -> opts.memberAlias("Bob-and-Carol-Child-1"))
             .membership(opts -> opts.namespace("alice/bob-and-carol/child-1"))
-            .membership(opts -> opts.seedMembers(alice.address()))
+            .membership(opts -> opts.seedMembers(alice.addresses()))
             .transportFactory(TcpTransportFactory::new)
             .startAwait();
 
@@ -49,7 +49,7 @@ public class ClusterJoinNamespacesExamples {
         new ClusterImpl()
             .config(opts -> opts.memberAlias("Bob-and-Carol-Child-2"))
             .membership(opts -> opts.namespace("alice/bob-and-carol/child-2"))
-            .membership(opts -> opts.seedMembers(alice.address()))
+            .membership(opts -> opts.seedMembers(alice.addresses()))
             .transportFactory(TcpTransportFactory::new)
             .startAwait();
 
@@ -58,7 +58,7 @@ public class ClusterJoinNamespacesExamples {
         new ClusterImpl()
             .config(opts -> opts.memberAlias("Dan"))
             .membership(opts -> opts.namespace("alice/dan-and-eve"))
-            .membership(opts -> opts.seedMembers(alice.address()))
+            .membership(opts -> opts.seedMembers(alice.addresses()))
             .transportFactory(TcpTransportFactory::new)
             .startAwait();
 
@@ -67,7 +67,7 @@ public class ClusterJoinNamespacesExamples {
         new ClusterImpl()
             .config(opts -> opts.memberAlias("Eve"))
             .membership(opts -> opts.namespace("alice/dan-and-eve"))
-            .membership(opts -> opts.seedMembers(alice.address()))
+            .membership(opts -> opts.seedMembers(alice.addresses()))
             .transportFactory(TcpTransportFactory::new)
             .startAwait();
 
@@ -75,37 +75,37 @@ public class ClusterJoinNamespacesExamples {
 
     System.out.println(
         "Alice ("
-            + alice.address()
+            + alice.addresses()
             + ") cluster: "
             + alice.members().stream().map(Member::toString).collect(joining("\n", "\n", "\n")));
 
     System.out.println(
         "Bob ("
-            + bob.address()
+            + bob.addresses()
             + ") cluster: "
             + bob.members().stream().map(Member::toString).collect(joining("\n", "\n", "\n")));
 
     System.out.println(
         "Carol ("
-            + carol.address()
+            + carol.addresses()
             + ") cluster: "
             + carol.members().stream().map(Member::toString).collect(joining("\n", "\n", "\n")));
 
     System.out.println(
         "Dan ("
-            + dan.address()
+            + dan.addresses()
             + ") cluster: "
             + dan.members().stream().map(Member::toString).collect(joining("\n", "\n", "\n")));
 
     System.out.println(
         "Eve ("
-            + eve.address()
+            + eve.addresses()
             + ") cluster: " // alone in cluster
             + eve.members().stream().map(Member::toString).collect(joining("\n", "\n", "\n")));
 
     System.out.println(
         "Bob-And-Carol-Child-1 ("
-            + bobAndCarolChild1.address()
+            + bobAndCarolChild1.addresses()
             + ") cluster: " // alone in cluster
             + bobAndCarolChild1.members().stream()
                 .map(Member::toString)
@@ -113,7 +113,7 @@ public class ClusterJoinNamespacesExamples {
 
     System.out.println(
         "Bob-And-Carol-Child-2 ("
-            + carolChild2.address()
+            + carolChild2.addresses()
             + ") cluster: " // alone in cluster
             + carolChild2.members().stream()
                 .map(Member::toString)

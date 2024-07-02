@@ -4,6 +4,7 @@ import static io.scalecube.reactor.RetryNonSerializedEmitFailureHandler.RETRY_NO
 
 import io.scalecube.cluster.ClusterMath;
 import io.scalecube.cluster.Member;
+import io.scalecube.cluster.TransportWrapper;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
@@ -29,6 +30,7 @@ import reactor.core.publisher.MonoSink;
 import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Scheduler;
 
+@SuppressWarnings({"FieldCanBeLocal", "unused"})
 public final class GossipProtocolImpl implements GossipProtocol {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GossipProtocol.class);
@@ -42,6 +44,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
   private final Member localMember;
   private final Transport transport;
   private final GossipConfig config;
+  private final TransportWrapper transportWrapper;
 
   // Local State
 
@@ -86,6 +89,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
     this.config = Objects.requireNonNull(config);
     this.localMember = Objects.requireNonNull(localMember);
     this.scheduler = Objects.requireNonNull(scheduler);
+    transportWrapper = new TransportWrapper(transport);
 
     // Subscribe
     actionsDisposables.addAll(
@@ -287,14 +291,14 @@ public final class GossipProtocolImpl implements GossipProtocol {
     }
 
     // Send gossip request
-    Address address = member.address();
+    List<Address> addresses = member.addresses();
 
     gossips.stream()
         .map(this::buildGossipRequestMessage)
         .forEach(
             message ->
-                transport
-                    .send(address, message)
+                transportWrapper
+                    .send(member, message)
                     .subscribe(
                         null,
                         ex ->
@@ -303,7 +307,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
                                 localMember,
                                 period,
                                 message,
-                                address,
+                                addresses,
                                 ex.toString())));
   }
 
@@ -342,8 +346,11 @@ public final class GossipProtocolImpl implements GossipProtocol {
   }
 
   private Message buildGossipRequestMessage(Gossip gossip) {
-    GossipRequest gossipRequest = new GossipRequest(gossip, localMember.id());
-    return Message.withData(gossipRequest).qualifier(GOSSIP_REQ).build();
+    return Message.builder()
+        .sender(localMember)
+        .data(new GossipRequest(gossip, localMember.id()))
+        .qualifier(GOSSIP_REQ)
+        .build();
   }
 
   private Set<String> getGossipsToRemove(long period) {
