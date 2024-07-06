@@ -8,7 +8,9 @@ import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 
 import java.util.function.Consumer;
+import org.agrona.concurrent.AgentTerminationException;
 import org.agrona.concurrent.CachedEpochClock;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 @SuppressWarnings("unchecked")
@@ -72,5 +74,16 @@ class CallbackInvokerTest {
 
     epochClock.update(timeout + 1);
     assertEquals(0, callbackInvoker.doWork());
+  }
+
+  @Test
+  void shouldThrowOnDuplicateCid() {
+    final int cid = 100;
+
+    callbackInvoker.addCallback(cid, 10, mock(Consumer.class));
+
+    Assertions.assertThrows(
+        AgentTerminationException.class,
+        () -> callbackInvoker.addCallback(cid, 10, mock(Consumer.class)));
   }
 }
