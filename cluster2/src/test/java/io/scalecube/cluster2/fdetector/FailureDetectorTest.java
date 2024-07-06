@@ -28,6 +28,7 @@ import io.scalecube.cluster2.sbe.MemberStatus;
 import io.scalecube.cluster2.sbe.MembershipEventType;
 import io.scalecube.cluster2.sbe.MessageHeaderDecoder;
 import io.scalecube.cluster2.sbe.PingAckDecoder;
+import io.scalecube.cluster2.sbe.PingDecoder;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -253,10 +254,40 @@ class FailureDetectorTest {
   class PingRequestTests {
 
     @Test
-    void testOnPingRequest() {}
+    void testOnPingRequest() {
+      final long cid = 100;
 
-    @Test
-    void testOnPingRequestWithIssuer() {}
+      emitMessageFromTransport(codec -> codec.encodePingRequest(cid, barMember, fooMember));
+
+      verify(transport)
+          .send(
+              eq(fooMember.address()),
+              argThat(
+                  arg -> {
+                    final MutableDirectBuffer buffer = (MutableDirectBuffer) arg;
+                    final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
+                    final PingDecoder decoder = new PingDecoder();
+                    final MemberCodec memberCodec = new MemberCodec();
+
+                    headerDecoder.wrap(buffer, 0);
+                    decoder.wrapAndApplyHeader(buffer, 0, headerDecoder);
+
+                    assertEquals(PingDecoder.TEMPLATE_ID, headerDecoder.templateId());
+                    assertEquals(cid, decoder.cid());
+
+                    final Member from = memberCodec.member(decoder::wrapFrom);
+                    final Member target = memberCodec.member(decoder::wrapTarget);
+                    final Member issuer = memberCodec.member(decoder::wrapIssuer);
+
+                    assertEquals(localMember, from);
+                    assertEquals(fooMember, target);
+                    assertEquals(barMember, issuer);
+
+                    return true;
+                  }),
+              anyInt(),
+              anyInt());
+    }
   }
 
   @Nested
