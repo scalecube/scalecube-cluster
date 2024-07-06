@@ -2,6 +2,7 @@ package io.scalecube.cluster2.membership;
 
 import io.scalecube.cluster.transport.api2.Transport;
 import io.scalecube.cluster2.AbstractAgent;
+import io.scalecube.cluster2.CallbackInvoker;
 import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.MemberCodec;
 import io.scalecube.cluster2.sbe.FailureDetectorEventDecoder;
@@ -37,6 +38,7 @@ public class MembershipProtocol extends AbstractAgent {
       BroadcastTransmitter messageTx,
       Supplier<CopyBroadcastReceiver> messageRxSupplier,
       EpochClock epochClock,
+      CallbackInvoker callbackInvoker,
       MembershipConfig config,
       Member localMember) {
     super(
@@ -44,6 +46,7 @@ public class MembershipProtocol extends AbstractAgent {
         messageTx,
         messageRxSupplier,
         epochClock,
+        callbackInvoker,
         Duration.ofMillis(config.syncInterval()));
     this.config = config;
     this.localMember = localMember;

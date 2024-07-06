@@ -4,14 +4,8 @@ import io.scalecube.cluster.transport.api2.Transport;
 import io.scalecube.cluster.transport.api2.Transport.MessagePoller;
 import java.time.Duration;
 import java.util.Random;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
-import org.agrona.collections.Long2LongHashMap;
-import org.agrona.collections.Long2LongHashMap.EntryIterator;
-import org.agrona.collections.Long2ObjectHashMap;
-import org.agrona.collections.LongArrayList;
 import org.agrona.concurrent.Agent;
-import org.agrona.concurrent.AgentTerminationException;
 import org.agrona.concurrent.EpochClock;
 import org.agrona.concurrent.MessageHandler;
 import org.agrona.concurrent.broadcast.BroadcastTransmitter;
@@ -23,14 +17,12 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
   protected final BroadcastTransmitter messageTx;
   protected final Supplier<CopyBroadcastReceiver> messageRxSupplier;
   protected final EpochClock epochClock;
+  protected final CallbackInvoker callbackInvoker;
 
   protected MessagePoller messagePoller;
   protected CopyBroadcastReceiver messageRx;
   protected final Delay tickDelay;
   protected final Random random = new Random();
-  protected final Long2LongHashMap deadlineByCid = new Long2LongHashMap(Long.MIN_VALUE);
-  protected final Long2ObjectHashMap<Consumer<?>> callbackByCid = new Long2ObjectHashMap<>();
-  protected final LongArrayList expiredCalls = new LongArrayList();
   protected long currentCid;
 
   public AbstractAgent(
@@ -38,11 +30,13 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
       BroadcastTransmitter messageTx,
       Supplier<CopyBroadcastReceiver> messageRxSupplier,
       EpochClock epochClock,
+      CallbackInvoker callbackInvoker,
       Duration tickInterval) {
     this.transport = transport;
     this.messageTx = messageTx;
     this.messageRxSupplier = messageRxSupplier;
     this.epochClock = epochClock;
+    this.callbackInvoker = callbackInvoker;
     messagePoller = transport.newMessagePoller();
     messageRx = messageRxSupplier.get();
     tickDelay = new Delay(epochClock, tickInterval.toMillis());
@@ -55,7 +49,7 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
     workCount += pollMessage();
     workCount += receiveMessage();
     workCount += processTick();
-    workCount += processExpiredCalls();
+    workCount += callbackInvoker.doWork();
 
     return workCount;
   }
@@ -89,33 +83,6 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
     return 0;
   }
 
-  private int processExpiredCalls() {
-    int workCount = 0;
-
-    if (deadlineByCid.isEmpty()) {
-      return workCount;
-    }
-
-    final long now = epochClock.time();
-
-    for (final EntryIterator it = deadlineByCid.entrySet().iterator(); it.hasNext(); ) {
-      it.next();
-      final long cid = it.getLongKey();
-      final long deadline = it.getLongValue();
-      if (now > deadline) {
-        it.remove();
-        expiredCalls.addLong(cid);
-        workCount++;
-      }
-    }
-
-    for (int n = expiredCalls.size(), i = n - 1; i >= 0; i--) {
-      invokeCallback(expiredCalls.fastUnorderedRemove(i), null);
-    }
-
-    return workCount;
-  }
-
   protected abstract void onTick();
 
   protected long nextCid() {
@@ -124,25 +91,5 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
 
   public long currentCid() {
     return currentCid;
-  }
-
-  protected void invokeCallback(long cid, Object response) {
-    deadlineByCid.remove(cid);
-    //noinspection unchecked
-    final Consumer<Object> callback = (Consumer<Object>) callbackByCid.remove(cid);
-    if (callback != null) {
-      callback.accept(response);
-    }
-  }
-
-  protected <T> void addCallback(long cid, long timeout, Consumer<T> callback) {
-    final long prevDeadline = deadlineByCid.put(cid, epochClock.time() + timeout);
-    if (prevDeadline != Long.MIN_VALUE) {
-      throw new AgentTerminationException("prevDeadline exists, cid=" + cid);
-    }
-    final Consumer<?> prevCallback = callbackByCid.put(cid, callback);
-    if (prevCallback != null) {
-      throw new AgentTerminationException("prevCallback exists, cid=" + cid);
-    }
   }
 }

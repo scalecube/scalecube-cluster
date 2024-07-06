@@ -2,6 +2,7 @@ package io.scalecube.cluster2.fdetector;
 
 import io.scalecube.cluster.transport.api2.Transport;
 import io.scalecube.cluster2.AbstractAgent;
+import io.scalecube.cluster2.CallbackInvoker;
 import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.MemberCodec;
 import io.scalecube.cluster2.sbe.MemberStatus;
@@ -41,6 +42,7 @@ public class FailureDetector extends AbstractAgent {
       BroadcastTransmitter messageTx,
       Supplier<CopyBroadcastReceiver> messageRxSupplier,
       EpochClock epochClock,
+      CallbackInvoker callbackInvoker,
       FailureDetectorConfig config,
       Member localMember) {
     super(
@@ -48,6 +50,7 @@ public class FailureDetector extends AbstractAgent {
         messageTx,
         messageRxSupplier,
         epochClock,
+        callbackInvoker,
         Duration.ofMillis(config.pingInterval()));
     this.localMember = localMember;
     this.config = config;
@@ -74,7 +77,7 @@ public class FailureDetector extends AbstractAgent {
         0,
         codec.encodedLength());
 
-    addCallback(
+    callbackInvoker.addCallback(
         cid,
         config.pingTimeout(),
         (Member target) -> {
@@ -131,7 +134,7 @@ public class FailureDetector extends AbstractAgent {
           0,
           codec.encodedLength());
 
-      addCallback(
+      callbackInvoker.addCallback(
           cid,
           config.pingTimeout(),
           (Member target) -> {
@@ -211,7 +214,7 @@ public class FailureDetector extends AbstractAgent {
     }
 
     if (localMember.equals(from)) {
-      invokeCallback(cid, target);
+      callbackInvoker.invokeCallback(cid, target);
     }
   }
 
