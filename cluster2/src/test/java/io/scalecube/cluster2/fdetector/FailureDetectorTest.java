@@ -67,18 +67,17 @@ class FailureDetectorTest {
 
   @Test
   void testTickWhenNoPingMembers() {
-    epochClock.advance(1);
-    failureDetector.doWork();
+    advanceClock(1);
+
     verify(transport, never()).send(any(), any(), anyInt(), anyInt());
   }
 
   @Test
   void testOnMembershipEventLocalMemberWillBeFiltered() {
     emitMembershipEvent(MembershipEventType.ADDED, localMember);
-    failureDetector.doWork();
 
-    epochClock.advance(1);
-    failureDetector.doWork();
+    advanceClock(1);
+
     verify(transport, never()).send(any(), any(), anyInt(), anyInt());
   }
 
@@ -87,15 +86,10 @@ class FailureDetectorTest {
     emitMembershipEvent(MembershipEventType.ADDED, fooMember);
     emitMembershipEvent(MembershipEventType.ADDED, fooMember);
     emitMembershipEvent(MembershipEventType.ADDED, fooMember);
-    failureDetector.doWork();
-    failureDetector.doWork();
-    failureDetector.doWork();
-
     emitMembershipEvent(MembershipEventType.REMOVED, fooMember);
-    failureDetector.doWork();
 
-    epochClock.advance(1);
-    failureDetector.doWork();
+    advanceClock(1);
+
     verify(transport, never()).send(any(), any(), anyInt(), anyInt());
   }
 
@@ -104,37 +98,28 @@ class FailureDetectorTest {
     emitMembershipEvent(MembershipEventType.ADDED, fooMember);
     emitMembershipEvent(MembershipEventType.ADDED, fooMember);
     emitMembershipEvent(MembershipEventType.ADDED, fooMember);
-    failureDetector.doWork();
-    failureDetector.doWork();
-    failureDetector.doWork();
-
     emitMembershipEvent(MembershipEventType.LEAVING, fooMember);
-    failureDetector.doWork();
 
-    epochClock.advance(1);
-    failureDetector.doWork();
+    advanceClock(1);
+
     verify(transport, never()).send(any(), any(), anyInt(), anyInt());
   }
 
   @Test
   void testOnTick() {
     emitMembershipEvent(MembershipEventType.ADDED, fooMember);
-    failureDetector.doWork();
 
-    epochClock.advance(1);
-    failureDetector.doWork();
+    advanceClock(1);
     verify(transport).send(addressCaptor.capture(), any(), anyInt(), anyInt());
     assertEquals(fooMember.address(), addressCaptor.getValue(), "fooMember.address");
 
     reset(transport);
-    epochClock.advance(config.pingInterval() + 1);
-    failureDetector.doWork();
+    advanceClock(config.pingInterval() + 1);
     verify(transport).send(addressCaptor.capture(), any(), anyInt(), anyInt());
     assertEquals(fooMember.address(), addressCaptor.getValue(), "fooMember.address");
 
     reset(transport);
-    epochClock.advance(config.pingInterval() + 1);
-    failureDetector.doWork();
+    advanceClock(config.pingInterval() + 1);
     verify(transport).send(addressCaptor.capture(), any(), anyInt(), anyInt());
     assertEquals(fooMember.address(), addressCaptor.getValue(), "fooMember.address");
   }
@@ -142,17 +127,14 @@ class FailureDetectorTest {
   @Test
   void testPingThenAck() {
     emitMembershipEvent(MembershipEventType.ADDED, fooMember);
-    failureDetector.doWork();
 
-    epochClock.advance(1);
-    failureDetector.doWork();
+    advanceClock(1);
     verify(transport).send(addressCaptor.capture(), any(), anyInt(), anyInt());
     assertEquals(fooMember.address(), addressCaptor.getValue(), "fooMember.address");
 
+    final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
     emitMessageFromTransport(
         codec -> codec.encodePingAck(failureDetector.currentCid(), localMember, fooMember, null));
-    final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
-    failureDetector.doWork();
 
     assertMessageRx(
         messageRx,
@@ -165,16 +147,13 @@ class FailureDetectorTest {
   @Test
   void testPingThenTimeout() {
     emitMembershipEvent(MembershipEventType.ADDED, fooMember);
-    failureDetector.doWork();
 
-    epochClock.advance(1);
-    failureDetector.doWork();
+    advanceClock(1);
     verify(transport).send(addressCaptor.capture(), any(), anyInt(), anyInt());
     assertEquals(fooMember.address(), addressCaptor.getValue(), "fooMember.address");
 
-    epochClock.advance(config.pingTimeout() + 1);
     final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
-    failureDetector.doWork();
+    advanceClock(config.pingTimeout() + 1);
 
     assertMessageRx(
         messageRx,
@@ -188,25 +167,20 @@ class FailureDetectorTest {
   void testPingThenTimeoutThenPingRequestThenAck() {
     emitMembershipEvent(MembershipEventType.ADDED, fooMember);
     emitMembershipEvent(MembershipEventType.ADDED, barMember);
-    failureDetector.doWork();
-    failureDetector.doWork();
 
-    epochClock.advance(1);
-    failureDetector.doWork();
+    advanceClock(1);
     verify(transport).send(addressCaptor.capture(), any(), anyInt(), anyInt());
     assertThat(addressCaptor.getValue(), anyOf(is(fooMember.address()), is(barMember.address())));
 
     reset(transport);
-    epochClock.advance(config.pingTimeout() + 1);
-    failureDetector.doWork();
+    advanceClock(config.pingTimeout() + 1);
 
     verify(transport).send(addressCaptor.capture(), any(), anyInt(), anyInt());
     assertThat(addressCaptor.getValue(), anyOf(is(fooMember.address()), is(barMember.address())));
 
+    final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
     emitMessageFromTransport(
         codec -> codec.encodePingAck(failureDetector.currentCid(), localMember, fooMember, null));
-    final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
-    failureDetector.doWork();
 
     assertMessageRx(
         messageRx,
@@ -220,24 +194,19 @@ class FailureDetectorTest {
   void testPingThenTimeoutThenPingRequestThenTimeout() {
     emitMembershipEvent(MembershipEventType.ADDED, fooMember);
     emitMembershipEvent(MembershipEventType.ADDED, barMember);
-    failureDetector.doWork();
-    failureDetector.doWork();
 
-    epochClock.advance(1);
-    failureDetector.doWork();
+    advanceClock(1);
     verify(transport).send(addressCaptor.capture(), any(), anyInt(), anyInt());
     assertThat(addressCaptor.getValue(), anyOf(is(fooMember.address()), is(barMember.address())));
 
     reset(transport);
-    epochClock.advance(config.pingTimeout() + 1);
-    failureDetector.doWork();
+    advanceClock(config.pingTimeout() + 1);
 
     verify(transport).send(addressCaptor.capture(), any(), anyInt(), anyInt());
     assertThat(addressCaptor.getValue(), anyOf(is(fooMember.address()), is(barMember.address())));
 
-    epochClock.advance(config.pingTimeout() + 1);
     final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
-    failureDetector.doWork();
+    advanceClock(config.pingTimeout() + 1);
 
     assertMessageRx(
         messageRx,
@@ -247,6 +216,11 @@ class FailureDetectorTest {
         });
   }
 
+  private void advanceClock(final long millis) {
+    epochClock.advance(millis);
+    failureDetector.doWork();
+  }
+
   private void emitMembershipEvent(MembershipEventType eventType, Member member) {
     final MembershipEventCodec membershipEventCodec = new MembershipEventCodec();
     messageTx.transmit(
@@ -254,6 +228,7 @@ class FailureDetectorTest {
         membershipEventCodec.encodeMembershipEvent(eventType, 1, member),
         0,
         membershipEventCodec.encodedLength());
+    failureDetector.doWork();
   }
 
   private void emitMessageFromTransport(
@@ -268,6 +243,7 @@ class FailureDetectorTest {
             })
         .when(messagePoller)
         .poll(any());
+    failureDetector.doWork();
   }
 
   private void assertMessageRx(
