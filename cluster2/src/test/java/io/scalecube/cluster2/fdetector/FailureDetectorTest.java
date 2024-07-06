@@ -209,6 +209,7 @@ class FailureDetectorTest {
                     decoder.wrapAndApplyHeader(buffer, 0, headerDecoder);
 
                     assertEquals(PingAckDecoder.TEMPLATE_ID, headerDecoder.templateId());
+                    assertEquals(cid, decoder.cid());
                     assertEquals(period, decoder.period());
 
                     final Member from = memberCodec.member(decoder::wrapFrom);
@@ -247,6 +248,7 @@ class FailureDetectorTest {
                     decoder.wrapAndApplyHeader(buffer, 0, headerDecoder);
 
                     assertEquals(PingAckDecoder.TEMPLATE_ID, headerDecoder.templateId());
+                    assertEquals(cid, decoder.cid());
                     assertEquals(period, decoder.period());
 
                     final Member from = memberCodec.member(decoder::wrapFrom);
@@ -298,6 +300,7 @@ class FailureDetectorTest {
                     decoder.wrapAndApplyHeader(buffer, 0, headerDecoder);
 
                     assertEquals(PingDecoder.TEMPLATE_ID, headerDecoder.templateId());
+                    assertEquals(cid, decoder.cid());
                     assertEquals(period, decoder.period());
 
                     final Member from = memberCodec.member(decoder::wrapFrom);
