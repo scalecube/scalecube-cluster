@@ -5,8 +5,11 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -24,6 +27,7 @@ import io.scalecube.cluster2.sbe.FailureDetectorEventDecoder;
 import io.scalecube.cluster2.sbe.MemberStatus;
 import io.scalecube.cluster2.sbe.MembershipEventType;
 import io.scalecube.cluster2.sbe.MessageHeaderDecoder;
+import io.scalecube.cluster2.sbe.PingAckDecoder;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -47,6 +51,7 @@ class FailureDetectorTest {
   private final Member localMember = new Member(UUID.randomUUID(), "address:1180");
   private final Member fooMember = new Member(UUID.randomUUID(), "address:1181");
   private final Member barMember = new Member(UUID.randomUUID(), "address:1182");
+  private final Member aliceMember = new Member(UUID.randomUUID(), "address:1183");
 
   private Transport transport;
   private FailureDetector failureDetector;
@@ -259,12 +264,75 @@ class FailureDetectorTest {
 
     @Test
     void testPingAck() {
-      emitMessageFromTransport(
-          codec -> codec.encodePingAck(failureDetector.currentCid(), localMember, fooMember, null));
+      final long cid = 100;
+
+      emitMessageFromTransport(codec -> codec.encodePingAck(cid, localMember, fooMember, null));
+
+      verify(callbackInvoker)
+          .invokeCallback(
+              eq(cid),
+              argThat(
+                  arg -> {
+                    assertEquals(fooMember, arg);
+                    return true;
+                  }));
+
+      verify(transport, never()).send(any(), any(), anyInt(), anyInt());
     }
 
     @Test
-    void testPingAckWithIssuer() {}
+    void testPingAckWithIssuer() {
+      final long cid = 100;
+
+      emitMessageFromTransport(
+          codec -> codec.encodePingAck(cid, barMember, fooMember, localMember));
+
+      verify(callbackInvoker, never()).invokeCallback(anyInt(), any());
+
+      verify(transport)
+          .send(
+              eq(localMember.address()),
+              argThat(
+                  arg -> {
+                    final MutableDirectBuffer buffer = (MutableDirectBuffer) arg;
+                    final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
+                    final PingAckDecoder decoder = new PingAckDecoder();
+                    final MemberCodec memberCodec = new MemberCodec();
+
+                    headerDecoder.wrap(buffer, 0);
+                    decoder.wrapAndApplyHeader(buffer, 0, headerDecoder);
+
+                    assertEquals(PingAckDecoder.TEMPLATE_ID, headerDecoder.templateId());
+                    assertEquals(cid, decoder.cid());
+
+                    final Member from = memberCodec.member(decoder::wrapFrom);
+                    final Member target = memberCodec.member(decoder::wrapTarget);
+                    final Member issuer = memberCodec.member(decoder::wrapIssuer);
+
+                    assertEquals(localMember, from);
+                    assertEquals(fooMember, target);
+                    assertNull(issuer);
+
+                    return true;
+                  }),
+              anyInt(),
+              anyInt());
+    }
+
+    @Test
+    void testPingAckWithNonMatchingFrom() {
+      final long cid = 100;
+
+      emitMessageFromTransport(codec -> codec.encodePingAck(cid, aliceMember, fooMember, null));
+
+      verify(callbackInvoker, never()).invokeCallback(anyInt(), any());
+      verify(transport, never()).send(any(), any(), anyInt(), anyInt());
+    }
+
+    @Test
+    void testPingAckWithNonMatchingPeriod() {
+      // TODO
+    }
   }
 
   private void advanceClock(final long millis) {
