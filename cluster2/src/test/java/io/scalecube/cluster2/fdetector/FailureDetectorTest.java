@@ -66,7 +66,7 @@ class FailureDetectorTest {
   }
 
   @Test
-  void testTickWhenNoPingMembers() {
+  void testOnTickWhenNoPingMembers() {
     advanceClock(1);
 
     verify(transport, never()).send(any(), any(), anyInt(), anyInt());
