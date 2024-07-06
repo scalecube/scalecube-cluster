@@ -37,6 +37,7 @@ import org.agrona.concurrent.broadcast.BroadcastReceiver;
 import org.agrona.concurrent.broadcast.BroadcastTransmitter;
 import org.agrona.concurrent.broadcast.CopyBroadcastReceiver;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -46,7 +47,8 @@ class FailureDetectorTest {
   private final Member fooMember = new Member(UUID.randomUUID(), "address:1181");
   private final Member barMember = new Member(UUID.randomUUID(), "address:1182");
 
-  private final Transport transport = mock(Transport.class);
+  private Transport transport;
+  private FailureDetector failureDetector;
   private final ExpandableDirectByteBuffer byteBuffer =
       new ExpandableDirectByteBuffer(1024 * 1024 + TRAILER_LENGTH);
   private final BroadcastTransmitter messageTx =
@@ -55,18 +57,20 @@ class FailureDetectorTest {
       () -> new CopyBroadcastReceiver(new BroadcastReceiver(new UnsafeBuffer(byteBuffer)));
   private final CachedEpochClock epochClock = new CachedEpochClock();
   private final FailureDetectorConfig config = new FailureDetectorConfig();
-  private final FailureDetector failureDetector =
-      new FailureDetector(transport, messageTx, messageRxSupplier, epochClock, config, localMember);
   private final MessagePoller messagePoller = mock(MessagePoller.class);
   private final ArgumentCaptor<String> addressCaptor = ArgumentCaptor.forClass(String.class);
 
   @BeforeEach
   void beforeEach() {
+    transport = mock(Transport.class);
     when(transport.newMessagePoller()).thenReturn(messagePoller);
+    failureDetector =
+        new FailureDetector(
+            transport, messageTx, messageRxSupplier, epochClock, config, localMember);
   }
 
   @Test
-  void testOnTickWhenNoPingMembers() {
+  void testOnTickWithNoPingMembers() {
     advanceClock(1);
 
     verify(transport, never()).send(any(), any(), anyInt(), anyInt());
@@ -214,6 +218,42 @@ class FailureDetectorTest {
           assertEquals(MemberStatus.SUSPECT, memberStatus, "memberStatus");
           // assertEquals(fooMember, member, "member");
         });
+  }
+
+  @Nested
+  class PingTests {
+
+    @Test
+    void testOnPing() {}
+
+    @Test
+    void testOnPingWithIssuer() {}
+
+    @Test
+    void testOnPingWithNonMatchingTarget() {}
+  }
+
+  @Nested
+  class PingRequestTests {
+
+    @Test
+    void testOnPingRequest() {}
+
+    @Test
+    void testOnPingRequestWithIssuer() {}
+  }
+
+  @Nested
+  class PingAckTests {
+
+    @Test
+    void testPingAck() {
+      emitMessageFromTransport(
+          codec -> codec.encodePingAck(failureDetector.currentCid(), localMember, fooMember, null));
+    }
+
+    @Test
+    void testPingAckWithIssuer() {}
   }
 
   private void advanceClock(final long millis) {
