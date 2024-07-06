@@ -7,21 +7,17 @@ public class FailureDetectorConfig implements Cloneable {
 
   // Default settings for LAN cluster
   public static final int DEFAULT_PING_INTERVAL = 1_000;
-  public static final int DEFAULT_PING_TIMEOUT = 500;
   public static final int DEFAULT_PING_REQ_MEMBERS = 3;
 
   // Default settings for WAN cluster (overrides default/LAN settings)
-  public static final int DEFAULT_WAN_PING_TIMEOUT = 3_000;
   public static final int DEFAULT_WAN_PING_INTERVAL = 5_000;
 
   // Default settings for local cluster working via loopback interface (overrides default/LAN
   // settings)
-  public static final int DEFAULT_LOCAL_PING_TIMEOUT = 200;
   public static final int DEFAULT_LOCAL_PING_INTERVAL = 1_000;
   public static final int DEFAULT_LOCAL_PING_REQ_MEMBERS = 1;
 
   private int pingInterval = DEFAULT_PING_INTERVAL;
-  private int pingTimeout = DEFAULT_PING_TIMEOUT;
   private int pingReqMembers = DEFAULT_PING_REQ_MEMBERS;
 
   public FailureDetectorConfig() {}
@@ -45,9 +41,7 @@ public class FailureDetectorConfig implements Cloneable {
    * @return new {@code FailureDetectorConfig}
    */
   public static FailureDetectorConfig defaultWanConfig() {
-    return defaultConfig()
-        .pingTimeout(DEFAULT_WAN_PING_TIMEOUT)
-        .pingInterval(DEFAULT_WAN_PING_INTERVAL);
+    return defaultConfig().pingInterval(DEFAULT_WAN_PING_INTERVAL);
   }
 
   /**
@@ -58,7 +52,6 @@ public class FailureDetectorConfig implements Cloneable {
    */
   public static FailureDetectorConfig defaultLocalConfig() {
     return defaultConfig()
-        .pingTimeout(DEFAULT_LOCAL_PING_TIMEOUT)
         .pingInterval(DEFAULT_LOCAL_PING_INTERVAL)
         .pingReqMembers(DEFAULT_LOCAL_PING_REQ_MEMBERS);
   }
@@ -77,22 +70,6 @@ public class FailureDetectorConfig implements Cloneable {
 
   public int pingInterval() {
     return pingInterval;
-  }
-
-  /**
-   * Setter for {@code pingTimeout}.
-   *
-   * @param pingTimeout ping timeout
-   * @return new {@code FailureDetectorConfig}
-   */
-  public FailureDetectorConfig pingTimeout(int pingTimeout) {
-    FailureDetectorConfig f = clone();
-    f.pingTimeout = pingTimeout;
-    return f;
-  }
-
-  public int pingTimeout() {
-    return pingTimeout;
   }
 
   /**
@@ -124,7 +101,6 @@ public class FailureDetectorConfig implements Cloneable {
   public String toString() {
     return new StringJoiner(", ", FailureDetectorConfig.class.getSimpleName() + "[", "]")
         .add("pingInterval=" + pingInterval)
-        .add("pingTimeout=" + pingTimeout)
         .add("pingReqMembers=" + pingReqMembers)
         .toString();
   }

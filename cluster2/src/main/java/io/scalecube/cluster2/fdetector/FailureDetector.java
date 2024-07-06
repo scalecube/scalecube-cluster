@@ -14,9 +14,11 @@ import io.scalecube.cluster2.sbe.PingDecoder;
 import io.scalecube.cluster2.sbe.PingRequestDecoder;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Objects;
 import java.util.function.Supplier;
 import org.agrona.MutableDirectBuffer;
 import org.agrona.collections.ArrayListUtil;
+import org.agrona.concurrent.AgentTerminationException;
 import org.agrona.concurrent.EpochClock;
 import org.agrona.concurrent.broadcast.BroadcastTransmitter;
 import org.agrona.concurrent.broadcast.CopyBroadcastReceiver;
@@ -34,9 +36,12 @@ public class FailureDetector extends AbstractAgent {
   private final FailureDetectorCodec codec = new FailureDetectorCodec();
   private final MemberCodec memberCodec = new MemberCodec();
   private final String roleName;
-  private long period;
   private final ArrayList<Member> pingMembers = new ArrayList<>();
   private final ArrayList<Member> pingReqMembers = new ArrayList<>();
+  private long period;
+  private long cid;
+  private Member pingMember;
+  private MemberStatus memberStatus;
 
   public FailureDetector(
       Transport transport,
@@ -58,45 +63,77 @@ public class FailureDetector extends AbstractAgent {
     roleName = "fdetector@" + localMember.address();
   }
 
+  public long period() {
+    return period;
+  }
+
+  public long cid() {
+    return cid;
+  }
+
   @Override
   public String roleName() {
     return roleName;
   }
 
-  public long period() {
-    return period;
-  }
-
   @Override
   protected void onTick() {
-    final Member pingMember = nextPingMember();
+    period++;
+
+    // Conclude prev. period
+
+    if (pingMember != null && memberStatus == null) {
+      emitMemberStatus(pingMember, MemberStatus.SUSPECT);
+    }
+
+    // Init current period
+
+    memberStatus = null;
+    pingMember = nextPingMember();
     if (pingMember == null) {
       return;
     }
 
-    final long period = ++this.period;
+    // Do ping
+
+    cid++;
 
     transport.send(
         pingMember.address(),
-        codec.encodePing(period, localMember, pingMember, null),
+        codec.encodePing(cid, period, localMember, pingMember, null),
         0,
         codec.encodedLength());
 
-    callbackInvoker.addCallback(
-        period,
-        config.pingTimeout(),
-        (Member target) -> {
-          if (target != null) {
-            emitMemberStatus(target, MemberStatus.ALIVE);
-          } else {
-            nextPingReqMembers(pingMember);
-            if (pingReqMembers.isEmpty()) {
-              emitMemberStatus(pingMember, MemberStatus.SUSPECT);
-            } else {
-              doPingRequest(pingMember);
-            }
-          }
-        });
+    callbackInvoker.addCallback(cid, config.pingInterval(), this::onResponse);
+
+    // Do ping request
+
+    nextPingReqMembers(pingMember);
+
+    if (!pingReqMembers.isEmpty()) {
+      doPingRequest(pingMember);
+    }
+  }
+
+  private void onResponse(Member target) {
+    if (target == null) {
+      return;
+    }
+
+    if (!Objects.equals(pingMember, target)) {
+      throw new AgentTerminationException(
+          "PingMember mismatch -- period: "
+              + period
+              + "pingMember: "
+              + pingMember
+              + ", target: "
+              + target);
+    }
+
+    if (memberStatus == null) {
+      memberStatus = MemberStatus.ALIVE;
+      emitMemberStatus(target, memberStatus);
+    }
   }
 
   private void emitMemberStatus(Member target, final MemberStatus memberStatus) {
@@ -131,22 +168,15 @@ public class FailureDetector extends AbstractAgent {
       final Member member = pingReqMembers.get(i);
       ArrayListUtil.fastUnorderedRemove(pingReqMembers, i);
 
+      cid++;
+
       transport.send(
           member.address(),
-          codec.encodePingRequest(period, localMember, pingMember),
+          codec.encodePingRequest(cid, period, localMember, pingMember),
           0,
           codec.encodedLength());
 
-      callbackInvoker.addCallback(
-          period,
-          config.pingTimeout(),
-          (Member target) -> {
-            if (target != null) {
-              emitMemberStatus(target, MemberStatus.ALIVE);
-            } else {
-              emitMemberStatus(pingMember, MemberStatus.SUSPECT);
-            }
-          });
+      callbackInvoker.addCallback(cid, config.pingInterval(), this::onResponse);
     }
   }
 
@@ -175,6 +205,7 @@ public class FailureDetector extends AbstractAgent {
   }
 
   private void onPing(PingDecoder decoder) {
+    final long cid = decoder.cid();
     final long period = decoder.period();
     final Member from = memberCodec.member(decoder::wrapFrom);
     final Member target = memberCodec.member(decoder::wrapTarget);
@@ -186,12 +217,13 @@ public class FailureDetector extends AbstractAgent {
 
     transport.send(
         from.address(),
-        codec.encodePingAck(period, from, target, issuer),
+        codec.encodePingAck(cid, period, from, target, issuer),
         0,
         codec.encodedLength());
   }
 
   private void onPingRequest(PingRequestDecoder decoder) {
+    final long cid = decoder.cid();
     final long period = decoder.period();
     final Member from = memberCodec.member(decoder::wrapFrom);
     final Member target = memberCodec.member(decoder::wrapTarget);
@@ -199,28 +231,33 @@ public class FailureDetector extends AbstractAgent {
 
     transport.send(
         target.address(),
-        codec.encodePing(period, localMember, target, from),
+        codec.encodePing(cid, period, localMember, target, from),
         0,
         codec.encodedLength());
   }
 
   private void onPingAck(PingAckDecoder decoder) {
+    final long cid = decoder.cid();
     final long period = decoder.period();
     final Member from = memberCodec.member(decoder::wrapFrom);
     final Member target = memberCodec.member(decoder::wrapTarget);
     final Member issuer = memberCodec.member(decoder::wrapIssuer);
 
+    // Transit PingAck
+
     if (issuer != null) {
       transport.send(
           issuer.address(),
-          codec.encodePingAck(period, issuer, target, null),
+          codec.encodePingAck(cid, period, issuer, target, null),
           0,
           codec.encodedLength());
       return;
     }
 
-    if (localMember.equals(from)) {
-      callbackInvoker.invokeCallback(period, target);
+    // Normal PingAck
+
+    if (this.period == period && localMember.equals(from)) {
+      callbackInvoker.invokeCallback(cid, target);
     }
   }
 

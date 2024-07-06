@@ -50,11 +50,11 @@ public class CallbackInvoker {
   public <T> void addCallback(long cid, long timeout, Consumer<T> callback) {
     final long prevDeadline = deadlineByCid.put(cid, epochClock.time() + timeout);
     if (prevDeadline != Long.MIN_VALUE) {
-      throw new AgentTerminationException("prevDeadline exists, cid=" + cid);
+      throw new AgentTerminationException("Previous deadline exists -- cid=" + cid);
     }
     final Consumer<?> prevCallback = callbackByCid.put(cid, callback);
     if (prevCallback != null) {
-      throw new AgentTerminationException("prevCallback exists, cid=" + cid);
+      throw new AgentTerminationException("Previous callback exists -- cid=" + cid);
     }
   }
 

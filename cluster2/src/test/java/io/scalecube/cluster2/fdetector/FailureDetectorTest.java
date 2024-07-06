@@ -1,9 +1,6 @@
 package io.scalecube.cluster2.fdetector;
 
 import static org.agrona.concurrent.broadcast.BroadcastBufferDescriptor.TRAILER_LENGTH;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.anyOf;
-import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
@@ -156,7 +153,9 @@ class FailureDetectorTest {
 
     final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
     emitMessageFromTransport(
-        codec -> codec.encodePingAck(failureDetector.period(), localMember, fooMember, null));
+        codec ->
+            codec.encodePingAck(
+                failureDetector.cid(), failureDetector.period(), localMember, fooMember, null));
 
     assertMessageRx(
         messageRx,
@@ -175,66 +174,13 @@ class FailureDetectorTest {
     assertEquals(fooMember.address(), addressCaptor.getValue(), "fooMember.address");
 
     final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
-    advanceClock(config.pingTimeout() + 1);
+    advanceClock(config.pingInterval() + 1);
 
     assertMessageRx(
         messageRx,
         (memberStatus, member) -> {
           assertEquals(MemberStatus.SUSPECT, memberStatus, "memberStatus");
           assertEquals(fooMember, member, "member");
-        });
-  }
-
-  @Test
-  void testPingThenTimeoutThenPingRequestThenAck() {
-    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
-    emitMembershipEvent(MembershipEventType.ADDED, barMember);
-
-    advanceClock(1);
-    verify(transport).send(addressCaptor.capture(), any(), anyInt(), anyInt());
-    assertThat(addressCaptor.getValue(), anyOf(is(fooMember.address()), is(barMember.address())));
-
-    reset(transport);
-    advanceClock(config.pingTimeout() + 1);
-
-    verify(transport).send(addressCaptor.capture(), any(), anyInt(), anyInt());
-    assertThat(addressCaptor.getValue(), anyOf(is(fooMember.address()), is(barMember.address())));
-
-    final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
-    emitMessageFromTransport(
-        codec -> codec.encodePingAck(failureDetector.period(), localMember, fooMember, null));
-
-    assertMessageRx(
-        messageRx,
-        (memberStatus, member) -> {
-          assertEquals(MemberStatus.ALIVE, memberStatus, "memberStatus");
-          assertEquals(fooMember, member, "member");
-        });
-  }
-
-  @Test
-  void testPingThenTimeoutThenPingRequestThenTimeout() {
-    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
-    emitMembershipEvent(MembershipEventType.ADDED, barMember);
-
-    advanceClock(1);
-    verify(transport).send(addressCaptor.capture(), any(), anyInt(), anyInt());
-    assertThat(addressCaptor.getValue(), anyOf(is(fooMember.address()), is(barMember.address())));
-
-    reset(transport);
-    advanceClock(config.pingTimeout() + 1);
-
-    verify(transport).send(addressCaptor.capture(), any(), anyInt(), anyInt());
-    assertThat(addressCaptor.getValue(), anyOf(is(fooMember.address()), is(barMember.address())));
-
-    final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
-    advanceClock(config.pingTimeout() + 1);
-
-    assertMessageRx(
-        messageRx,
-        (memberStatus, member) -> {
-          assertEquals(MemberStatus.SUSPECT, memberStatus, "memberStatus");
-          // assertEquals(fooMember, member, "member");
         });
   }
 
@@ -243,9 +189,11 @@ class FailureDetectorTest {
 
     @Test
     void testOnPing() {
+      final long cid = 10;
       final long period = 100;
 
-      emitMessageFromTransport(codec -> codec.encodePing(period, aliceMember, localMember, null));
+      emitMessageFromTransport(
+          codec -> codec.encodePing(cid, period, aliceMember, localMember, null));
 
       verify(transport)
           .send(
@@ -279,10 +227,11 @@ class FailureDetectorTest {
 
     @Test
     void testOnPingWithIssuer() {
+      final long cid = 10;
       final long period = 100;
 
       emitMessageFromTransport(
-          codec -> codec.encodePing(period, aliceMember, localMember, fooMember));
+          codec -> codec.encodePing(cid, period, aliceMember, localMember, fooMember));
 
       verify(transport)
           .send(
@@ -316,9 +265,10 @@ class FailureDetectorTest {
 
     @Test
     void testOnPingWithNonMatchingTarget() {
+      final long cid = 10;
       final long period = 100;
 
-      emitMessageFromTransport(codec -> codec.encodePing(period, fooMember, barMember, null));
+      emitMessageFromTransport(codec -> codec.encodePing(cid, period, fooMember, barMember, null));
 
       verify(transport, never()).send(any(), any(), anyInt(), anyInt());
     }
@@ -329,9 +279,10 @@ class FailureDetectorTest {
 
     @Test
     void testOnPingRequest() {
+      final long cid = 10;
       final long period = 100;
 
-      emitMessageFromTransport(codec -> codec.encodePingRequest(period, barMember, fooMember));
+      emitMessageFromTransport(codec -> codec.encodePingRequest(cid, period, barMember, fooMember));
 
       verify(transport)
           .send(
@@ -369,13 +320,15 @@ class FailureDetectorTest {
 
     @Test
     void testOnPingAck() {
-      final long period = 100;
+      final long cid = 10;
+      final long period = 0;
 
-      emitMessageFromTransport(codec -> codec.encodePingAck(period, localMember, fooMember, null));
+      emitMessageFromTransport(
+          codec -> codec.encodePingAck(cid, period, localMember, fooMember, null));
 
       verify(callbackInvoker)
           .invokeCallback(
-              eq(period),
+              eq(cid),
               argThat(
                   arg -> {
                     assertEquals(fooMember, arg);
@@ -387,10 +340,11 @@ class FailureDetectorTest {
 
     @Test
     void testOnPingAckWithIssuer() {
+      final long cid = 10;
       final long period = 100;
 
       emitMessageFromTransport(
-          codec -> codec.encodePingAck(period, barMember, fooMember, localMember));
+          codec -> codec.encodePingAck(cid, period, barMember, fooMember, localMember));
 
       verify(callbackInvoker, never()).invokeCallback(anyInt(), any());
 
@@ -426,9 +380,11 @@ class FailureDetectorTest {
 
     @Test
     void testOnPingAckWithNonMatchingFrom() {
+      final long cid = 10;
       final long period = 100;
 
-      emitMessageFromTransport(codec -> codec.encodePingAck(period, aliceMember, fooMember, null));
+      emitMessageFromTransport(
+          codec -> codec.encodePingAck(cid, period, aliceMember, fooMember, null));
 
       verify(callbackInvoker, never()).invokeCallback(anyInt(), any());
       verify(transport, never()).send(any(), any(), anyInt(), anyInt());
@@ -436,7 +392,14 @@ class FailureDetectorTest {
 
     @Test
     void testOnPingAckWithNonMatchingPeriod() {
-      // TODO
+      final long cid = 10;
+      final long period = 100;
+
+      emitMessageFromTransport(
+          codec -> codec.encodePingAck(cid, period, localMember, fooMember, null));
+
+      verify(callbackInvoker, never()).invokeCallback(anyInt(), any());
+      verify(transport, never()).send(any(), any(), anyInt(), anyInt());
     }
   }
 
