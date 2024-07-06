@@ -239,7 +239,7 @@ class FailureDetectorTest {
   }
 
   @Nested
-  class PingTests {
+  class OnPingTests {
 
     @Test
     void testOnPing() {}
@@ -252,7 +252,7 @@ class FailureDetectorTest {
   }
 
   @Nested
-  class PingRequestTests {
+  class OnPingRequestTests {
 
     @Test
     void testOnPingRequest() {
@@ -292,10 +292,10 @@ class FailureDetectorTest {
   }
 
   @Nested
-  class PingAckTests {
+  class OnPingAckTests {
 
     @Test
-    void testPingAck() {
+    void testOnPingAck() {
       final long cid = 100;
 
       emitMessageFromTransport(codec -> codec.encodePingAck(cid, localMember, fooMember, null));
@@ -313,7 +313,7 @@ class FailureDetectorTest {
     }
 
     @Test
-    void testPingAckWithIssuer() {
+    void testOnPingAckWithIssuer() {
       final long cid = 100;
 
       emitMessageFromTransport(
@@ -352,7 +352,7 @@ class FailureDetectorTest {
     }
 
     @Test
-    void testPingAckWithNonMatchingFrom() {
+    void testOnPingAckWithNonMatchingFrom() {
       final long cid = 100;
 
       emitMessageFromTransport(codec -> codec.encodePingAck(cid, aliceMember, fooMember, null));
@@ -362,7 +362,7 @@ class FailureDetectorTest {
     }
 
     @Test
-    void testPingAckWithNonMatchingPeriod() {
+    void testOnPingAckWithNonMatchingPeriod() {
       // TODO
     }
   }
