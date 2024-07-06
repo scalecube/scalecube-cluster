@@ -14,6 +14,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -71,7 +72,7 @@ class FailureDetectorTest {
   @BeforeEach
   void beforeEach() {
     transport = mock(Transport.class);
-    callbackInvoker = mock(CallbackInvoker.class);
+    callbackInvoker = spy(new CallbackInvoker(epochClock));
 
     when(transport.newMessagePoller()).thenReturn(messagePoller);
 
