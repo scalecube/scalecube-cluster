@@ -242,13 +242,85 @@ class FailureDetectorTest {
   class OnPingTests {
 
     @Test
-    void testOnPing() {}
+    void testOnPing() {
+      final long cid = 100;
+
+      emitMessageFromTransport(codec -> codec.encodePing(cid, aliceMember, localMember, null));
+
+      verify(transport)
+          .send(
+              eq(aliceMember.address()),
+              argThat(
+                  arg -> {
+                    final MutableDirectBuffer buffer = (MutableDirectBuffer) arg;
+                    final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
+                    final PingAckDecoder decoder = new PingAckDecoder();
+                    final MemberCodec memberCodec = new MemberCodec();
+
+                    headerDecoder.wrap(buffer, 0);
+                    decoder.wrapAndApplyHeader(buffer, 0, headerDecoder);
+
+                    assertEquals(PingAckDecoder.TEMPLATE_ID, headerDecoder.templateId());
+                    assertEquals(cid, decoder.cid());
+
+                    final Member from = memberCodec.member(decoder::wrapFrom);
+                    final Member target = memberCodec.member(decoder::wrapTarget);
+                    final Member issuer = memberCodec.member(decoder::wrapIssuer);
+
+                    assertEquals(aliceMember, from);
+                    assertEquals(localMember, target);
+                    assertNull(issuer);
+
+                    return true;
+                  }),
+              anyInt(),
+              anyInt());
+    }
 
     @Test
-    void testOnPingWithIssuer() {}
+    void testOnPingWithIssuer() {
+      final long cid = 100;
+
+      emitMessageFromTransport(codec -> codec.encodePing(cid, aliceMember, localMember, fooMember));
+
+      verify(transport)
+          .send(
+              eq(aliceMember.address()),
+              argThat(
+                  arg -> {
+                    final MutableDirectBuffer buffer = (MutableDirectBuffer) arg;
+                    final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
+                    final PingAckDecoder decoder = new PingAckDecoder();
+                    final MemberCodec memberCodec = new MemberCodec();
+
+                    headerDecoder.wrap(buffer, 0);
+                    decoder.wrapAndApplyHeader(buffer, 0, headerDecoder);
+
+                    assertEquals(PingAckDecoder.TEMPLATE_ID, headerDecoder.templateId());
+                    assertEquals(cid, decoder.cid());
+
+                    final Member from = memberCodec.member(decoder::wrapFrom);
+                    final Member target = memberCodec.member(decoder::wrapTarget);
+                    final Member issuer = memberCodec.member(decoder::wrapIssuer);
+
+                    assertEquals(aliceMember, from);
+                    assertEquals(localMember, target);
+                    assertEquals(fooMember, issuer);
+
+                    return true;
+                  }),
+              anyInt(),
+              anyInt());
+    }
 
     @Test
-    void testOnPingWithNonMatchingTarget() {}
+    void testOnPingWithNonMatchingTarget() {
+      final long cid = 100;
+
+      emitMessageFromTransport(codec -> codec.encodePing(cid, fooMember, barMember, null));
+
+      verify(transport, never()).send(any(), any(), anyInt(), anyInt());
+    }
   }
 
   @Nested
