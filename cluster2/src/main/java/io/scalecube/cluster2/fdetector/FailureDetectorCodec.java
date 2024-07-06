@@ -21,11 +21,11 @@ public class FailureDetectorCodec extends AbstractCodec {
 
   public FailureDetectorCodec() {}
 
-  public MutableDirectBuffer encodePing(long cid, Member from, Member target, Member issuer) {
+  public MutableDirectBuffer encodePing(long period, Member from, Member target, Member issuer) {
     encodedLength = 0;
 
     pingEncoder.wrapAndApplyHeader(encodedBuffer, 0, headerEncoder);
-    pingEncoder.cid(cid);
+    pingEncoder.period(period);
     pingEncoder.putFrom(memberCodec.encode(from), 0, memberCodec.encodedLength());
     pingEncoder.putTarget(memberCodec.encode(target), 0, memberCodec.encodedLength());
     pingEncoder.putIssuer(memberCodec.encode(issuer), 0, memberCodec.encodedLength());
@@ -34,11 +34,11 @@ public class FailureDetectorCodec extends AbstractCodec {
     return encodedBuffer;
   }
 
-  public MutableDirectBuffer encodePingRequest(long cid, Member from, Member target) {
+  public MutableDirectBuffer encodePingRequest(long period, Member from, Member target) {
     encodedLength = 0;
 
     pingRequestEncoder.wrapAndApplyHeader(encodedBuffer, 0, headerEncoder);
-    pingRequestEncoder.cid(cid);
+    pingRequestEncoder.period(period);
     pingRequestEncoder.putFrom(memberCodec.encode(from), 0, memberCodec.encodedLength());
     pingRequestEncoder.putTarget(memberCodec.encode(target), 0, memberCodec.encodedLength());
     pingRequestEncoder.putIssuer(memberCodec.encode(null), 0, memberCodec.encodedLength());
@@ -47,11 +47,11 @@ public class FailureDetectorCodec extends AbstractCodec {
     return encodedBuffer;
   }
 
-  public MutableDirectBuffer encodePingAck(long cid, Member from, Member target, Member issuer) {
+  public MutableDirectBuffer encodePingAck(long period, Member from, Member target, Member issuer) {
     encodedLength = 0;
 
     pingAckEncoder.wrapAndApplyHeader(encodedBuffer, 0, headerEncoder);
-    pingAckEncoder.cid(cid);
+    pingAckEncoder.period(period);
     pingAckEncoder.putFrom(memberCodec.encode(from), 0, memberCodec.encodedLength());
     pingAckEncoder.putTarget(memberCodec.encode(target), 0, memberCodec.encodedLength());
     pingAckEncoder.putIssuer(memberCodec.encode(issuer), 0, memberCodec.encodedLength());

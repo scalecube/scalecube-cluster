@@ -23,7 +23,6 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
   protected CopyBroadcastReceiver messageRx;
   protected final Delay tickDelay;
   protected final Random random = new Random();
-  protected long currentCid;
 
   public AbstractAgent(
       Transport transport,
@@ -84,12 +83,4 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
   }
 
   protected abstract void onTick();
-
-  protected long nextCid() {
-    return ++currentCid;
-  }
-
-  public long currentCid() {
-    return currentCid;
-  }
 }

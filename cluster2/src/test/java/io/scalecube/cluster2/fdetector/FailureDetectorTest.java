@@ -156,7 +156,7 @@ class FailureDetectorTest {
 
     final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
     emitMessageFromTransport(
-        codec -> codec.encodePingAck(failureDetector.currentCid(), localMember, fooMember, null));
+        codec -> codec.encodePingAck(failureDetector.period(), localMember, fooMember, null));
 
     assertMessageRx(
         messageRx,
@@ -202,7 +202,7 @@ class FailureDetectorTest {
 
     final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
     emitMessageFromTransport(
-        codec -> codec.encodePingAck(failureDetector.currentCid(), localMember, fooMember, null));
+        codec -> codec.encodePingAck(failureDetector.period(), localMember, fooMember, null));
 
     assertMessageRx(
         messageRx,
@@ -243,9 +243,9 @@ class FailureDetectorTest {
 
     @Test
     void testOnPing() {
-      final long cid = 100;
+      final long period = 100;
 
-      emitMessageFromTransport(codec -> codec.encodePing(cid, aliceMember, localMember, null));
+      emitMessageFromTransport(codec -> codec.encodePing(period, aliceMember, localMember, null));
 
       verify(transport)
           .send(
@@ -261,7 +261,7 @@ class FailureDetectorTest {
                     decoder.wrapAndApplyHeader(buffer, 0, headerDecoder);
 
                     assertEquals(PingAckDecoder.TEMPLATE_ID, headerDecoder.templateId());
-                    assertEquals(cid, decoder.cid());
+                    assertEquals(period, decoder.period());
 
                     final Member from = memberCodec.member(decoder::wrapFrom);
                     final Member target = memberCodec.member(decoder::wrapTarget);
@@ -279,9 +279,10 @@ class FailureDetectorTest {
 
     @Test
     void testOnPingWithIssuer() {
-      final long cid = 100;
+      final long period = 100;
 
-      emitMessageFromTransport(codec -> codec.encodePing(cid, aliceMember, localMember, fooMember));
+      emitMessageFromTransport(
+          codec -> codec.encodePing(period, aliceMember, localMember, fooMember));
 
       verify(transport)
           .send(
@@ -297,7 +298,7 @@ class FailureDetectorTest {
                     decoder.wrapAndApplyHeader(buffer, 0, headerDecoder);
 
                     assertEquals(PingAckDecoder.TEMPLATE_ID, headerDecoder.templateId());
-                    assertEquals(cid, decoder.cid());
+                    assertEquals(period, decoder.period());
 
                     final Member from = memberCodec.member(decoder::wrapFrom);
                     final Member target = memberCodec.member(decoder::wrapTarget);
@@ -315,9 +316,9 @@ class FailureDetectorTest {
 
     @Test
     void testOnPingWithNonMatchingTarget() {
-      final long cid = 100;
+      final long period = 100;
 
-      emitMessageFromTransport(codec -> codec.encodePing(cid, fooMember, barMember, null));
+      emitMessageFromTransport(codec -> codec.encodePing(period, fooMember, barMember, null));
 
       verify(transport, never()).send(any(), any(), anyInt(), anyInt());
     }
@@ -328,9 +329,9 @@ class FailureDetectorTest {
 
     @Test
     void testOnPingRequest() {
-      final long cid = 100;
+      final long period = 100;
 
-      emitMessageFromTransport(codec -> codec.encodePingRequest(cid, barMember, fooMember));
+      emitMessageFromTransport(codec -> codec.encodePingRequest(period, barMember, fooMember));
 
       verify(transport)
           .send(
@@ -346,7 +347,7 @@ class FailureDetectorTest {
                     decoder.wrapAndApplyHeader(buffer, 0, headerDecoder);
 
                     assertEquals(PingDecoder.TEMPLATE_ID, headerDecoder.templateId());
-                    assertEquals(cid, decoder.cid());
+                    assertEquals(period, decoder.period());
 
                     final Member from = memberCodec.member(decoder::wrapFrom);
                     final Member target = memberCodec.member(decoder::wrapTarget);
@@ -368,13 +369,13 @@ class FailureDetectorTest {
 
     @Test
     void testOnPingAck() {
-      final long cid = 100;
+      final long period = 100;
 
-      emitMessageFromTransport(codec -> codec.encodePingAck(cid, localMember, fooMember, null));
+      emitMessageFromTransport(codec -> codec.encodePingAck(period, localMember, fooMember, null));
 
       verify(callbackInvoker)
           .invokeCallback(
-              eq(cid),
+              eq(period),
               argThat(
                   arg -> {
                     assertEquals(fooMember, arg);
@@ -386,10 +387,10 @@ class FailureDetectorTest {
 
     @Test
     void testOnPingAckWithIssuer() {
-      final long cid = 100;
+      final long period = 100;
 
       emitMessageFromTransport(
-          codec -> codec.encodePingAck(cid, barMember, fooMember, localMember));
+          codec -> codec.encodePingAck(period, barMember, fooMember, localMember));
 
       verify(callbackInvoker, never()).invokeCallback(anyInt(), any());
 
@@ -407,7 +408,7 @@ class FailureDetectorTest {
                     decoder.wrapAndApplyHeader(buffer, 0, headerDecoder);
 
                     assertEquals(PingAckDecoder.TEMPLATE_ID, headerDecoder.templateId());
-                    assertEquals(cid, decoder.cid());
+                    assertEquals(period, decoder.period());
 
                     final Member from = memberCodec.member(decoder::wrapFrom);
                     final Member target = memberCodec.member(decoder::wrapTarget);
@@ -425,9 +426,9 @@ class FailureDetectorTest {
 
     @Test
     void testOnPingAckWithNonMatchingFrom() {
-      final long cid = 100;
+      final long period = 100;
 
-      emitMessageFromTransport(codec -> codec.encodePingAck(cid, aliceMember, fooMember, null));
+      emitMessageFromTransport(codec -> codec.encodePingAck(period, aliceMember, fooMember, null));
 
       verify(callbackInvoker, never()).invokeCallback(anyInt(), any());
       verify(transport, never()).send(any(), any(), anyInt(), anyInt());
