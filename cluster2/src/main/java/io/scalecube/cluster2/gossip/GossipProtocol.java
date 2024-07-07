@@ -43,9 +43,9 @@ public class GossipProtocol extends AbstractAgent {
   private final MemberCodec memberCodec = new MemberCodec();
   private final UnsafeBuffer unsafeBuffer = new UnsafeBuffer();
   private final String roleName;
-  private long currentPeriod = 0;
+  private long period = 0;
   private long gossipCounter = 0;
-  private final Random random = new Random();
+  private final MemberSelector memberSelector;
   private final Map<UUID, SequenceIdCollector> sequenceIdCollectors = new Object2ObjectHashMap<>();
   private final ArrayList<Gossip> gossips = new ArrayList<>();
   private final ArrayList<Member> remoteMembers = new ArrayList<>();
@@ -70,6 +70,7 @@ public class GossipProtocol extends AbstractAgent {
     this.config = config;
     this.localMember = localMember;
     roleName = "gossip@" + localMember.address();
+    memberSelector = new MemberSelector(config.gossipFanout(), remoteMembers, gossipMembers);
   }
 
   @Override
@@ -79,7 +80,7 @@ public class GossipProtocol extends AbstractAgent {
 
   @Override
   protected void onTick() {
-    long period = ++currentPeriod;
+    period++;
 
     checkGossipSegmentation();
 
@@ -89,7 +90,7 @@ public class GossipProtocol extends AbstractAgent {
 
     // Spread gossips
 
-    nextGossipMembers();
+    memberSelector.nextGossipMembers();
 
     for (int n = gossipMembers.size(), i = n - 1; i >= 0; i--) {
       final Member member = gossipMembers.get(i);
@@ -104,24 +105,6 @@ public class GossipProtocol extends AbstractAgent {
     for (int n = gossipsToRemove.size(), i = n - 1; i >= 0; i--) {
       final int index = gossipsToRemove.fastUnorderedRemove(i);
       ArrayListUtil.fastUnorderedRemove(gossips, index);
-    }
-  }
-
-  private void nextGossipMembers() {
-    gossipMembers.clear();
-
-    final int demand = config.gossipFanout();
-    final int size = remoteMembers.size();
-    if (demand == 0 || size == 0) {
-      return;
-    }
-
-    for (int i = 0, limit = Math.min(demand, size); i < limit; ) {
-      final Member member = remoteMembers.get(random.nextInt(remoteMembers.size()));
-      if (!gossipMembers.contains(member)) {
-        gossipMembers.add(member);
-        i++;
-      }
     }
   }
 
@@ -201,7 +184,6 @@ public class GossipProtocol extends AbstractAgent {
   }
 
   private void onGossipMessage(GossipMessageDecoder decoder) {
-    final long period = currentPeriod;
     final UUID gossiperId = localMember.id();
     final long sequenceId = ++gossipCounter;
 
@@ -214,7 +196,6 @@ public class GossipProtocol extends AbstractAgent {
   }
 
   private void onGossipRequest(GossipRequestDecoder decoder) {
-    final long period = currentPeriod;
     final UUID from = uuid(decoder.from());
 
     decoder.wrapGossip(unsafeBuffer);
@@ -286,6 +267,52 @@ public class GossipProtocol extends AbstractAgent {
         break;
       default:
         // no-op
+    }
+  }
+
+  static class MemberSelector {
+
+    private final int gossipFanout;
+    private final ArrayList<Member> remoteMembers;
+    private final ArrayList<Member> gossipMembers;
+
+    private final Random random = new Random();
+    private int index;
+
+    MemberSelector(
+        int gossipFanout, ArrayList<Member> remoteMembers, ArrayList<Member> gossipMembers) {
+      this.gossipFanout = gossipFanout;
+      this.remoteMembers = remoteMembers;
+      this.gossipMembers = gossipMembers;
+    }
+
+    void nextGossipMembers() {
+      gossipMembers.clear();
+
+      final int size = remoteMembers.size();
+      if (size == 0) {
+        return;
+      }
+
+      for (int i = 0, limit = Math.min(gossipFanout, size); i < limit; ) {
+        final Member member = remoteMembers.get(random.nextInt(remoteMembers.size()));
+        if (!gossipMembers.contains(member)) {
+          gossipMembers.add(member);
+          i++;
+        }
+      }
+    }
+
+    void shuffle() {
+      for (int i = 0, n = remoteMembers.size(); i < n; i++) {
+        final Member current = remoteMembers.get(i);
+        final int k = random.nextInt(n);
+        final Member member = remoteMembers.get(k);
+        if (i != k) {
+          remoteMembers.set(i, member);
+          remoteMembers.set(k, current);
+        }
+      }
     }
   }
 }

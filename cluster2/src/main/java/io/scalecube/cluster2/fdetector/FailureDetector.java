@@ -285,13 +285,11 @@ public class FailureDetector extends AbstractAgent {
 
     Member nextPingMember() {
       final int size = pingMembers.size();
-
       if (size == 0) {
         return null;
       }
 
       final int i = index == size ? index = 0 : index++;
-
       if (i == 0) {
         shuffle();
       }
