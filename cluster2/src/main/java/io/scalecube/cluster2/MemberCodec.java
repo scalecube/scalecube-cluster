@@ -19,23 +19,17 @@ public class MemberCodec extends AbstractCodec {
   // Encode
 
   public MutableDirectBuffer encode(Member member) {
-    return encode(
-        encoder -> {
-          if (member != null) {
-            UUIDCodec.encode(member.id(), memberEncoder.id());
-            memberEncoder.address(member.address());
-          } else {
-            UUIDCodec.encode(null, memberEncoder.id());
-            memberEncoder.address(null);
-          }
-        });
-  }
-
-  private MutableDirectBuffer encode(Consumer<MemberEncoder> consumer) {
     encodedLength = 0;
 
     memberEncoder.wrapAndApplyHeader(encodedBuffer, 0, headerEncoder);
-    consumer.accept(memberEncoder);
+
+    if (member != null) {
+      UUIDCodec.encode(member.id(), memberEncoder.id());
+      memberEncoder.address(member.address());
+    } else {
+      UUIDCodec.encode(null, memberEncoder.id());
+      memberEncoder.address(null);
+    }
 
     encodedLength = headerEncoder.encodedLength() + memberEncoder.encodedLength();
     return encodedBuffer;
