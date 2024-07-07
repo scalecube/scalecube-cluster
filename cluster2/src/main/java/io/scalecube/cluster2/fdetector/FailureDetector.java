@@ -285,11 +285,13 @@ public class FailureDetector extends AbstractAgent {
 
     Member nextPingMember() {
       final int size = pingMembers.size();
+
       if (size == 0) {
         return null;
       }
 
       final int i = index == size ? index = 0 : index++;
+
       if (i == 0) {
         shuffle();
       }
@@ -302,12 +304,12 @@ public class FailureDetector extends AbstractAgent {
 
       final int demand = pingReqMembersNum;
       final int size = pingMembers.size();
-      if (demand == 0 || size <= 1) {
+      if (size <= 1) {
         return;
       }
 
       for (int i = 0, limit = demand < size ? demand : size - 1; i < limit; ) {
-        final Member member = pingMembers.get(random.nextInt(pingMembers.size()));
+        final Member member = pingMembers.get(random.nextInt(size));
         if (!pingMember.equals(member) && !pingReqMembers.contains(member)) {
           pingReqMembers.add(member);
           i++;
