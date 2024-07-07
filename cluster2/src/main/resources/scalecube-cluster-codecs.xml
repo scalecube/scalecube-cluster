@@ -43,7 +43,7 @@
 
     <enum name="MemberStatus" encodingType="int8">
       <validValue name="ALIVE" description="Member is reachable">1</validValue>
-      <validValue name="SUSPECT" description="Member cannot be reached">2</validValue>
+      <validValue name="SUSPECTED" description="Member is suspected">2</validValue>
       <validValue name="LEAVING" description="Member is going to leave a cluster">3</validValue>
       <validValue name="DEAD" description="Member declared as dead">4</validValue>
     </enum>

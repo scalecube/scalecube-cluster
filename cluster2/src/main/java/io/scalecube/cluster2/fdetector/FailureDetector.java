@@ -86,7 +86,7 @@ public class FailureDetector extends AbstractAgent {
     // Conclude prev. period
 
     if (pingMember != null && memberStatus == null) {
-      emitMemberStatus(pingMember, MemberStatus.SUSPECT);
+      emitMemberStatus(pingMember, MemberStatus.SUSPECTED);
     }
 
     // Init current period
