@@ -51,4 +51,19 @@ public class MemberCodec extends AbstractCodec {
 
     return new Member(id, address);
   }
+
+  public Member member(Consumer<UnsafeBuffer> consumer, Member member) {
+    consumer.accept(unsafeBuffer);
+
+    memberDecoder.wrapAndApplyHeader(unsafeBuffer, 0, headerDecoder);
+
+    final UUID id = uuid(memberDecoder.id());
+    if (id == null) {
+      return null;
+    }
+
+    final String address = memberDecoder.address();
+
+    return member.id(id).address(address);
+  }
 }
