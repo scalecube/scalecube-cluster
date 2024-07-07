@@ -177,7 +177,7 @@ class FailureDetectorTest {
     assertMessageRx(
         messageRx,
         (memberStatus, member) -> {
-          assertEquals(MemberStatus.SUSPECT, memberStatus, "memberStatus");
+          assertEquals(MemberStatus.SUSPECTED, memberStatus, "memberStatus");
           assertEquals(fooMember, member, "member");
         });
   }
