@@ -33,8 +33,10 @@ public class MemberCodec extends AbstractCodec {
 
   private MutableDirectBuffer encode(Consumer<MemberEncoder> consumer) {
     encodedLength = 0;
+
     memberEncoder.wrapAndApplyHeader(encodedBuffer, 0, headerEncoder);
     consumer.accept(memberEncoder);
+
     encodedLength = headerEncoder.encodedLength() + memberEncoder.encodedLength();
     return encodedBuffer;
   }
