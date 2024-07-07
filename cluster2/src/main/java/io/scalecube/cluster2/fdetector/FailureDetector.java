@@ -297,10 +297,6 @@ public class FailureDetector extends AbstractAgent {
       return pingMembers.get(i);
     }
 
-    void shuffle() {
-      // TODO
-    }
-
     void nextPingReqMembers(Member pingMember) {
       pingReqMembers.clear();
 
@@ -315,6 +311,18 @@ public class FailureDetector extends AbstractAgent {
         if (!pingMember.equals(member) && !pingReqMembers.contains(member)) {
           pingReqMembers.add(member);
           i++;
+        }
+      }
+    }
+
+    void shuffle() {
+      for (int i = 0, n = pingMembers.size(); i < n; i++) {
+        final Member current = pingMembers.get(i);
+        final int k = random.nextInt(n);
+        final Member member = pingMembers.get(k);
+        if (i != k) {
+          pingMembers.set(i, member);
+          pingMembers.set(k, current);
         }
       }
     }
