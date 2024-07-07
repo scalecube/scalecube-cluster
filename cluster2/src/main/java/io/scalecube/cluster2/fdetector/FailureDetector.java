@@ -43,8 +43,8 @@ public class FailureDetector extends AbstractAgent {
   private final MemberSelector memberSelector;
   private final ArrayList<Member> pingMembers = new ArrayList<>();
   private final ArrayList<Member> pingReqMembers = new ArrayList<>();
-  private long period;
-  private long cid;
+  private long period = 0;
+  private long cid = 0;
   private Member pingMember;
   private MemberStatus memberStatus;
 
