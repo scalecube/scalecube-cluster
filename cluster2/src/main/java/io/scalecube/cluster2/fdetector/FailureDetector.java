@@ -15,6 +15,7 @@ import io.scalecube.cluster2.sbe.PingRequestDecoder;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Objects;
+import java.util.Random;
 import java.util.function.Supplier;
 import org.agrona.MutableDirectBuffer;
 import org.agrona.collections.ArrayListUtil;
@@ -39,6 +40,7 @@ public class FailureDetector extends AbstractAgent {
   private final Member target = new Member();
   private final Member issuer = new Member();
   private final String roleName;
+  private final MemberSelector memberSelector;
   private final ArrayList<Member> pingMembers = new ArrayList<>();
   private final ArrayList<Member> pingReqMembers = new ArrayList<>();
   private long period;
@@ -64,6 +66,7 @@ public class FailureDetector extends AbstractAgent {
     this.localMember = localMember;
     this.config = config;
     roleName = "fdetector@" + localMember.address();
+    memberSelector = new MemberSelector(config.pingReqMembers(), pingMembers, pingReqMembers);
   }
 
   public long period() {
@@ -92,7 +95,7 @@ public class FailureDetector extends AbstractAgent {
     // Init current period
 
     memberStatus = null;
-    pingMember = nextPingMember();
+    pingMember = memberSelector.nextPingMember();
     if (pingMember == null) {
       return;
     }
@@ -111,11 +114,9 @@ public class FailureDetector extends AbstractAgent {
 
     // Do ping request
 
-    nextPingReqMembers(pingMember);
+    memberSelector.nextPingReqMembers(pingMember);
 
-    if (!pingReqMembers.isEmpty()) {
-      doPingRequest(pingMember);
-    }
+    doPingRequest(pingMember);
   }
 
   private void onResponse(Member target) {
@@ -142,28 +143,6 @@ public class FailureDetector extends AbstractAgent {
   private void emitMemberStatus(Member target, final MemberStatus memberStatus) {
     messageTx.transmit(
         1, codec.encodeFailureDetectorEvent(target, memberStatus), 0, codec.encodedLength());
-  }
-
-  private Member nextPingMember() {
-    return pingMembers.size() > 0 ? pingMembers.get(random.nextInt(pingMembers.size())) : null;
-  }
-
-  private void nextPingReqMembers(Member pingMember) {
-    pingReqMembers.clear();
-
-    final int demand = config.pingReqMembers();
-    final int size = pingMembers.size();
-    if (demand == 0 || size <= 1) {
-      return;
-    }
-
-    for (int i = 0, limit = demand < size ? demand : size - 1; i < limit; ) {
-      final Member member = nextPingMember();
-      if (!pingMember.equals(member) && !pingReqMembers.contains(member)) {
-        pingReqMembers.add(member);
-        i++;
-      }
-    }
   }
 
   private void doPingRequest(Member pingMember) {
@@ -285,6 +264,59 @@ public class FailureDetector extends AbstractAgent {
         break;
       default:
         // no-op
+    }
+  }
+
+  static class MemberSelector {
+
+    private final int pingReqMembersNum;
+    private final ArrayList<Member> pingMembers;
+    private final ArrayList<Member> pingReqMembers;
+
+    private final Random random = new Random();
+    private int index;
+
+    MemberSelector(
+        int pingReqMembersNum, ArrayList<Member> pingMembers, ArrayList<Member> pingReqMembers) {
+      this.pingReqMembersNum = pingReqMembersNum;
+      this.pingMembers = pingMembers;
+      this.pingReqMembers = pingReqMembers;
+    }
+
+    Member nextPingMember() {
+      final int size = pingMembers.size();
+      if (size == 0) {
+        return null;
+      }
+
+      final int i = index == size ? index = 0 : index++;
+      if (i == 0) {
+        shuffle();
+      }
+
+      return pingMembers.get(i);
+    }
+
+    void shuffle() {
+      // TODO
+    }
+
+    void nextPingReqMembers(Member pingMember) {
+      pingReqMembers.clear();
+
+      final int demand = pingReqMembersNum;
+      final int size = pingMembers.size();
+      if (demand == 0 || size <= 1) {
+        return;
+      }
+
+      for (int i = 0, limit = demand < size ? demand : size - 1; i < limit; ) {
+        final Member member = pingMembers.get(random.nextInt(pingMembers.size()));
+        if (!pingMember.equals(member) && !pingReqMembers.contains(member)) {
+          pingReqMembers.add(member);
+          i++;
+        }
+      }
     }
   }
 }

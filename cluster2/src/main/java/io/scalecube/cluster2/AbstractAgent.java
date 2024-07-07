@@ -3,7 +3,6 @@ package io.scalecube.cluster2;
 import io.scalecube.cluster.transport.api2.Transport;
 import io.scalecube.cluster.transport.api2.Transport.MessagePoller;
 import java.time.Duration;
-import java.util.Random;
 import java.util.function.Supplier;
 import org.agrona.concurrent.Agent;
 import org.agrona.concurrent.EpochClock;
@@ -22,7 +21,6 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
   protected MessagePoller messagePoller;
   protected CopyBroadcastReceiver messageRx;
   protected final Delay tickDelay;
-  protected final Random random = new Random();
 
   public AbstractAgent(
       Transport transport,

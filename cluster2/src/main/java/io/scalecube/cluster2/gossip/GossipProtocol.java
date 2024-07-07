@@ -17,6 +17,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Random;
 import java.util.UUID;
 import java.util.function.Supplier;
 import org.agrona.MutableDirectBuffer;
@@ -44,6 +45,7 @@ public class GossipProtocol extends AbstractAgent {
   private final String roleName;
   private long currentPeriod = 0;
   private long gossipCounter = 0;
+  private final Random random = new Random();
   private final Map<UUID, SequenceIdCollector> sequenceIdCollectors = new Object2ObjectHashMap<>();
   private final ArrayList<Gossip> gossips = new ArrayList<>();
   private final ArrayList<Member> remoteMembers = new ArrayList<>();
