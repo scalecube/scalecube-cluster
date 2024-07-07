@@ -87,7 +87,6 @@ class FailureDetectorTest {
   @Test
   void testOnTickWithNoPingMembers() {
     advanceClock(1);
-
     verify(transport, never()).send(any(), any(), anyInt(), anyInt());
   }
 
@@ -96,7 +95,6 @@ class FailureDetectorTest {
     emitMembershipEvent(MembershipEventType.ADDED, localMember);
 
     advanceClock(1);
-
     verify(transport, never()).send(any(), any(), anyInt(), anyInt());
   }
 

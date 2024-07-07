@@ -6,8 +6,10 @@ import java.util.UUID;
 
 public class Member {
 
-  private final UUID id;
-  private final String address;
+  private UUID id;
+  private String address;
+
+  public Member() {}
 
   public Member(UUID id, String address) {
     this.id = id;
@@ -18,8 +20,18 @@ public class Member {
     return id;
   }
 
+  public Member id(UUID id) {
+    this.id = id;
+    return this;
+  }
+
   public String address() {
     return address;
+  }
+
+  public Member address(String address) {
+    this.address = address;
+    return this;
   }
 
   @Override
