@@ -294,13 +294,13 @@ public class GossipProtocol extends AbstractAgent {
         return;
       }
 
-      for (int i = 0, limit = Math.min(gossipFanout, size); i < limit; ) {
-        final Member member = remoteMembers.get(random.nextInt(remoteMembers.size()));
-        if (!gossipMembers.contains(member)) {
-          gossipMembers.add(member);
-          i++;
-        }
-      }
+      //      for (int i = 0, limit = Math.min(gossipFanout, size); i < limit; ) {
+      //        final Member member = remoteMembers.get(random.nextInt(remoteMembers.size()));
+      //        if (!gossipMembers.contains(member)) {
+      //          gossipMembers.add(member);
+      //          i++;
+      //        }
+      //      }
     }
 
     void shuffle() {
