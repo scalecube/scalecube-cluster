@@ -46,7 +46,7 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
     workCount += pollMessage();
     workCount += receiveMessage();
     workCount += processTick();
-    workCount += callbackInvoker.doWork();
+    workCount += callbackInvoker != null ? callbackInvoker.doWork() : 0;
 
     return workCount;
   }
