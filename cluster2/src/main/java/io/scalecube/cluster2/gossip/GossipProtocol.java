@@ -306,7 +306,7 @@ public class GossipProtocol extends AbstractAgent {
       final int limit = step * (size / step);
       final int nextLimit = index + step;
 
-      if (nextLimit >= limit) {
+      if (nextLimit > limit) {
         index = 0;
         shuffle();
       }
