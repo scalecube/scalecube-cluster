@@ -40,7 +40,6 @@ public class FailureDetector extends AbstractAgent {
   private final ArrayList<Member> pingMembers = new ArrayList<>();
   private final ArrayList<Member> pingReqMembers = new ArrayList<>();
   private long period = 0;
-  private long cid = 0;
   private Member pingMember;
   private MemberStatus memberStatus;
 
@@ -65,10 +64,6 @@ public class FailureDetector extends AbstractAgent {
 
   public long period() {
     return period;
-  }
-
-  public long cid() {
-    return cid;
   }
 
   @Override
@@ -96,11 +91,9 @@ public class FailureDetector extends AbstractAgent {
 
     // Do ping
 
-    cid++;
-
     transport.send(
         pingMember.address(),
-        codec.encodePing(cid, period, localMember, pingMember, null),
+        codec.encodePing(period, localMember, pingMember, null),
         0,
         codec.encodedLength());
 
@@ -121,11 +114,9 @@ public class FailureDetector extends AbstractAgent {
       final Member member = pingReqMembers.get(i);
       ArrayListUtil.fastUnorderedRemove(pingReqMembers, i);
 
-      cid++;
-
       transport.send(
           member.address(),
-          codec.encodePingRequest(cid, period, localMember, pingMember),
+          codec.encodePingRequest(period, localMember, pingMember),
           0,
           codec.encodedLength());
     }
@@ -156,7 +147,6 @@ public class FailureDetector extends AbstractAgent {
   }
 
   private void onPing(PingDecoder decoder) {
-    final long cid = decoder.cid();
     final long period = decoder.period();
     final Member from = memberCodec.member(decoder::wrapFrom, this.from);
     final Member target = memberCodec.member(decoder::wrapTarget, this.target);
@@ -168,13 +158,12 @@ public class FailureDetector extends AbstractAgent {
 
     transport.send(
         from.address(),
-        codec.encodePingAck(cid, period, from, target, issuer),
+        codec.encodePingAck(period, from, target, issuer),
         0,
         codec.encodedLength());
   }
 
   private void onPingRequest(PingRequestDecoder decoder) {
-    final long cid = decoder.cid();
     final long period = decoder.period();
     final Member from = memberCodec.member(decoder::wrapFrom, this.from);
     final Member target = memberCodec.member(decoder::wrapTarget, this.target);
@@ -182,13 +171,12 @@ public class FailureDetector extends AbstractAgent {
 
     transport.send(
         target.address(),
-        codec.encodePing(cid, period, localMember, target, from),
+        codec.encodePing(period, localMember, target, from),
         0,
         codec.encodedLength());
   }
 
   private void onPingAck(PingAckDecoder decoder) {
-    final long cid = decoder.cid();
     final long period = decoder.period();
     final Member from = memberCodec.member(decoder::wrapFrom, this.from);
     final Member target = memberCodec.member(decoder::wrapTarget, this.target);
@@ -199,7 +187,7 @@ public class FailureDetector extends AbstractAgent {
     if (issuer != null) {
       transport.send(
           issuer.address(),
-          codec.encodePingAck(cid, period, issuer, target, null),
+          codec.encodePingAck(period, issuer, target, null),
           0,
           codec.encodedLength());
       return;

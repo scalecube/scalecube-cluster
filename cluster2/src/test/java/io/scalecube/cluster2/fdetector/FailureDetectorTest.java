@@ -142,9 +142,7 @@ class FailureDetectorTest {
     final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
 
     emitMessageFromTransport(
-        codec ->
-            codec.encodePingAck(
-                failureDetector.cid(), failureDetector.period(), localMember, fooMember, null));
+        codec -> codec.encodePingAck(failureDetector.period(), localMember, fooMember, null));
 
     assertMessageRxSkipLast(
         messageRx,
@@ -179,11 +177,9 @@ class FailureDetectorTest {
 
     @Test
     void testOnPing() {
-      final long cid = 10;
       final long period = 100;
 
-      emitMessageFromTransport(
-          codec -> codec.encodePing(cid, period, aliceMember, localMember, null));
+      emitMessageFromTransport(codec -> codec.encodePing(period, aliceMember, localMember, null));
 
       verify(transport)
           .send(
@@ -199,7 +195,6 @@ class FailureDetectorTest {
                     decoder.wrapAndApplyHeader(buffer, 0, headerDecoder);
 
                     assertEquals(PingAckDecoder.TEMPLATE_ID, headerDecoder.templateId());
-                    assertEquals(cid, decoder.cid());
                     assertEquals(period, decoder.period());
 
                     final Member from = memberCodec.member(decoder::wrapFrom);
@@ -218,11 +213,10 @@ class FailureDetectorTest {
 
     @Test
     void testOnPingWithIssuer() {
-      final long cid = 10;
       final long period = 100;
 
       emitMessageFromTransport(
-          codec -> codec.encodePing(cid, period, aliceMember, localMember, fooMember));
+          codec -> codec.encodePing(period, aliceMember, localMember, fooMember));
 
       verify(transport)
           .send(
@@ -238,7 +232,6 @@ class FailureDetectorTest {
                     decoder.wrapAndApplyHeader(buffer, 0, headerDecoder);
 
                     assertEquals(PingAckDecoder.TEMPLATE_ID, headerDecoder.templateId());
-                    assertEquals(cid, decoder.cid());
                     assertEquals(period, decoder.period());
 
                     final Member from = memberCodec.member(decoder::wrapFrom);
@@ -257,10 +250,9 @@ class FailureDetectorTest {
 
     @Test
     void testOnPingWithNonMatchingTarget() {
-      final long cid = 10;
       final long period = 100;
 
-      emitMessageFromTransport(codec -> codec.encodePing(cid, period, fooMember, barMember, null));
+      emitMessageFromTransport(codec -> codec.encodePing(period, fooMember, barMember, null));
 
       verify(transport, never()).send(any(), any(), anyInt(), anyInt());
     }
@@ -271,10 +263,9 @@ class FailureDetectorTest {
 
     @Test
     void testOnPingRequest() {
-      final long cid = 10;
       final long period = 100;
 
-      emitMessageFromTransport(codec -> codec.encodePingRequest(cid, period, barMember, fooMember));
+      emitMessageFromTransport(codec -> codec.encodePingRequest(period, barMember, fooMember));
 
       verify(transport)
           .send(
@@ -290,7 +281,6 @@ class FailureDetectorTest {
                     decoder.wrapAndApplyHeader(buffer, 0, headerDecoder);
 
                     assertEquals(PingDecoder.TEMPLATE_ID, headerDecoder.templateId());
-                    assertEquals(cid, decoder.cid());
                     assertEquals(period, decoder.period());
 
                     final Member from = memberCodec.member(decoder::wrapFrom);
@@ -313,13 +303,11 @@ class FailureDetectorTest {
 
     @Test
     void testOnPingAck() {
-      final long cid = 10;
       final long period = 0;
 
       final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
 
-      emitMessageFromTransport(
-          codec -> codec.encodePingAck(cid, period, localMember, fooMember, null));
+      emitMessageFromTransport(codec -> codec.encodePingAck(period, localMember, fooMember, null));
 
       assertMessageRxDontSkipLast(
           messageRx,
@@ -331,11 +319,10 @@ class FailureDetectorTest {
 
     @Test
     void testOnPingAckWithIssuer() {
-      final long cid = 10;
       final long period = 100;
 
       emitMessageFromTransport(
-          codec -> codec.encodePingAck(cid, period, barMember, fooMember, localMember));
+          codec -> codec.encodePingAck(period, barMember, fooMember, localMember));
 
       verify(transport)
           .send(
@@ -369,13 +356,11 @@ class FailureDetectorTest {
 
     @Test
     void testOnPingAckWithNonMatchingFrom() {
-      final long cid = 10;
       final long period = 100;
 
       final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
 
-      emitMessageFromTransport(
-          codec -> codec.encodePingAck(cid, period, aliceMember, fooMember, null));
+      emitMessageFromTransport(codec -> codec.encodePingAck(period, aliceMember, fooMember, null));
 
       assertMessageRxDontSkipLast(
           messageRx,
@@ -387,13 +372,11 @@ class FailureDetectorTest {
 
     @Test
     void testOnPingAckWithNonMatchingPeriod() {
-      final long cid = 10;
       final long period = 100;
 
       final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
 
-      emitMessageFromTransport(
-          codec -> codec.encodePingAck(cid, period, localMember, fooMember, null));
+      emitMessageFromTransport(codec -> codec.encodePingAck(period, localMember, fooMember, null));
 
       assertMessageRxDontSkipLast(
           messageRx,
