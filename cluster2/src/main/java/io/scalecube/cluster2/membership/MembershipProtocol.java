@@ -5,6 +5,7 @@ import io.scalecube.cluster2.AbstractAgent;
 import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.MemberCodec;
 import io.scalecube.cluster2.sbe.FailureDetectorEventDecoder;
+import io.scalecube.cluster2.sbe.MembershipRecordDecoder;
 import io.scalecube.cluster2.sbe.MessageHeaderDecoder;
 import io.scalecube.cluster2.sbe.SyncAckDecoder;
 import io.scalecube.cluster2.sbe.SyncDecoder;
@@ -26,6 +27,7 @@ public class MembershipProtocol extends AbstractAgent {
   private final SyncAckDecoder syncAckDecoder = new SyncAckDecoder();
   private final FailureDetectorEventDecoder failureDetectorEventDecoder =
       new FailureDetectorEventDecoder();
+  private final MembershipRecordDecoder membershipRecordDecoder = new MembershipRecordDecoder();
   private final MemberCodec memberCodec = new MemberCodec();
   private final String roleName;
   private List<String> seedMembers;
@@ -76,6 +78,10 @@ public class MembershipProtocol extends AbstractAgent {
         onFailureDetectorEvent(
             failureDetectorEventDecoder.wrapAndApplyHeader(buffer, index, headerDecoder));
         break;
+      case MembershipRecordDecoder.TEMPLATE_ID:
+        onMembershipRecord(
+            membershipRecordDecoder.wrapAndApplyHeader(buffer, index, headerDecoder));
+        break;
       default:
         // no-op
     }
@@ -86,4 +92,6 @@ public class MembershipProtocol extends AbstractAgent {
   private void onSyncAck(SyncAckDecoder decoder) {}
 
   private void onFailureDetectorEvent(FailureDetectorEventDecoder decoder) {}
+
+  private void onMembershipRecord(MembershipRecordDecoder decoder) {}
 }
