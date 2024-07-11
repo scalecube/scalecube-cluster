@@ -2,7 +2,6 @@ package io.scalecube.cluster2.fdetector;
 
 import io.scalecube.cluster.transport.api2.Transport;
 import io.scalecube.cluster2.AbstractAgent;
-import io.scalecube.cluster2.CallbackInvoker;
 import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.MemberCodec;
 import io.scalecube.cluster2.sbe.MemberStatus;
@@ -14,12 +13,10 @@ import io.scalecube.cluster2.sbe.PingDecoder;
 import io.scalecube.cluster2.sbe.PingRequestDecoder;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Objects;
 import java.util.Random;
 import java.util.function.Supplier;
 import org.agrona.MutableDirectBuffer;
 import org.agrona.collections.ArrayListUtil;
-import org.agrona.concurrent.AgentTerminationException;
 import org.agrona.concurrent.EpochClock;
 import org.agrona.concurrent.broadcast.BroadcastTransmitter;
 import org.agrona.concurrent.broadcast.CopyBroadcastReceiver;
@@ -52,7 +49,6 @@ public class FailureDetector extends AbstractAgent {
       BroadcastTransmitter messageTx,
       Supplier<CopyBroadcastReceiver> messageRxSupplier,
       EpochClock epochClock,
-      CallbackInvoker callbackInvoker,
       FailureDetectorConfig config,
       Member localMember) {
     super(
@@ -60,7 +56,7 @@ public class FailureDetector extends AbstractAgent {
         messageTx,
         messageRxSupplier,
         epochClock,
-        callbackInvoker,
+        null,
         Duration.ofMillis(config.pingInterval()));
     this.localMember = localMember;
     roleName = "fdetector@" + localMember.address();
@@ -217,16 +213,6 @@ public class FailureDetector extends AbstractAgent {
 
     if (!localMember.equals(from)) {
       return;
-    }
-
-    if (!Objects.equals(pingMember, target)) {
-      throw new AgentTerminationException(
-          "PingMember mismatch -- period: "
-              + period
-              + "pingMember: "
-              + pingMember
-              + ", target: "
-              + target);
     }
 
     if (memberStatus == null) {

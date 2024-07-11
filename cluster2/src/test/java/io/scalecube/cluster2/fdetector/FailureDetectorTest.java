@@ -71,7 +71,7 @@ class FailureDetectorTest {
 
     failureDetector =
         new FailureDetector(
-            transport, messageTx, messageRxSupplier, epochClock, null, config, localMember);
+            transport, messageTx, messageRxSupplier, epochClock, config, localMember);
   }
 
   @Test
@@ -140,12 +140,13 @@ class FailureDetectorTest {
     assertEquals(fooMember.address(), addressCaptor.getValue(), "fooMember.address");
 
     final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
+
     emitMessageFromTransport(
         codec ->
             codec.encodePingAck(
                 failureDetector.cid(), failureDetector.period(), localMember, fooMember, null));
 
-    assertMessageRx(
+    assertMessageRxSkipLast(
         messageRx,
         (memberStatus, member) -> {
           assertEquals(MemberStatus.ALIVE, memberStatus, "memberStatus");
@@ -162,9 +163,10 @@ class FailureDetectorTest {
     assertEquals(fooMember.address(), addressCaptor.getValue(), "fooMember.address");
 
     final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
+
     advanceClock(config.pingInterval() + 1);
 
-    assertMessageRx(
+    assertMessageRxSkipLast(
         messageRx,
         (memberStatus, member) -> {
           assertEquals(MemberStatus.SUSPECTED, memberStatus, "memberStatus");
@@ -314,10 +316,17 @@ class FailureDetectorTest {
       final long cid = 10;
       final long period = 0;
 
+      final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
+
       emitMessageFromTransport(
           codec -> codec.encodePingAck(cid, period, localMember, fooMember, null));
 
-      verify(transport, never()).send(any(), any(), anyInt(), anyInt());
+      assertMessageRxDontSkipLast(
+          messageRx,
+          (memberStatus, member) -> {
+            assertEquals(MemberStatus.ALIVE, memberStatus, "memberStatus");
+            assertEquals(fooMember, member, "member");
+          });
     }
 
     @Test
@@ -363,10 +372,17 @@ class FailureDetectorTest {
       final long cid = 10;
       final long period = 100;
 
+      final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
+
       emitMessageFromTransport(
           codec -> codec.encodePingAck(cid, period, aliceMember, fooMember, null));
 
-      verify(transport, never()).send(any(), any(), anyInt(), anyInt());
+      assertMessageRxDontSkipLast(
+          messageRx,
+          (memberStatus, member) -> {
+            assertNull(memberStatus, "memberStatus");
+            assertNull(member, "member");
+          });
     }
 
     @Test
@@ -374,10 +390,17 @@ class FailureDetectorTest {
       final long cid = 10;
       final long period = 100;
 
+      final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
+
       emitMessageFromTransport(
           codec -> codec.encodePingAck(cid, period, localMember, fooMember, null));
 
-      verify(transport, never()).send(any(), any(), anyInt(), anyInt());
+      assertMessageRxDontSkipLast(
+          messageRx,
+          (memberStatus, member) -> {
+            assertNull(memberStatus, "memberStatus");
+            assertNull(member, "member");
+          });
     }
   }
 
@@ -411,18 +434,33 @@ class FailureDetectorTest {
     failureDetector.doWork();
   }
 
-  private void assertMessageRx(
+  private void assertMessageRxSkipLast(
       CopyBroadcastReceiver messageRx, BiConsumer<MemberStatus, Member> consumer) {
+    assertMessageRx(messageRx, consumer, true);
+  }
+
+  private void assertMessageRxDontSkipLast(
+      CopyBroadcastReceiver messageRx, BiConsumer<MemberStatus, Member> consumer) {
+    assertMessageRx(messageRx, consumer, false);
+  }
+
+  private void assertMessageRx(
+      CopyBroadcastReceiver messageRx,
+      BiConsumer<MemberStatus, Member> consumer,
+      boolean skipLast) {
     final MutableReference<FailureDetectorEventDecoder> mutableReference = new MutableReference<>();
     final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
     final FailureDetectorEventDecoder failureDetectorEventDecoder =
         new FailureDetectorEventDecoder();
     final MemberCodec memberCodec = new MemberCodec();
 
-    messageRx.receive(
-        (msgTypeId, buffer, index, length) -> {
-          // no-op first time
-        });
+    if (skipLast) {
+      messageRx.receive(
+          (msgTypeId, buffer, index, length) -> {
+            // skip last
+          });
+    }
+
     messageRx.receive(
         (msgTypeId, buffer, index, length) ->
             mutableReference.set(
