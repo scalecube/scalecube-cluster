@@ -11,13 +11,11 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.scalecube.cluster.transport.api2.Transport;
 import io.scalecube.cluster.transport.api2.Transport.MessagePoller;
-import io.scalecube.cluster2.CallbackInvoker;
 import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.MemberCodec;
 import io.scalecube.cluster2.membership.MembershipEventCodec;
@@ -54,7 +52,6 @@ class FailureDetectorTest {
 
   private Transport transport;
   private FailureDetector failureDetector;
-  private CallbackInvoker callbackInvoker;
   private final ExpandableDirectByteBuffer byteBuffer =
       new ExpandableDirectByteBuffer(1024 * 1024 + TRAILER_LENGTH);
   private final BroadcastTransmitter messageTx =
@@ -69,19 +66,12 @@ class FailureDetectorTest {
   @BeforeEach
   void beforeEach() {
     transport = mock(Transport.class);
-    callbackInvoker = spy(new CallbackInvoker(epochClock));
 
     when(transport.newMessagePoller()).thenReturn(messagePoller);
 
     failureDetector =
         new FailureDetector(
-            transport,
-            messageTx,
-            messageRxSupplier,
-            epochClock,
-            callbackInvoker,
-            config,
-            localMember);
+            transport, messageTx, messageRxSupplier, epochClock, null, config, localMember);
   }
 
   @Test
@@ -327,15 +317,6 @@ class FailureDetectorTest {
       emitMessageFromTransport(
           codec -> codec.encodePingAck(cid, period, localMember, fooMember, null));
 
-      verify(callbackInvoker)
-          .invokeCallback(
-              eq(cid),
-              argThat(
-                  arg -> {
-                    assertEquals(fooMember, arg);
-                    return true;
-                  }));
-
       verify(transport, never()).send(any(), any(), anyInt(), anyInt());
     }
 
@@ -346,8 +327,6 @@ class FailureDetectorTest {
 
       emitMessageFromTransport(
           codec -> codec.encodePingAck(cid, period, barMember, fooMember, localMember));
-
-      verify(callbackInvoker, never()).invokeCallback(anyInt(), any());
 
       verify(transport)
           .send(
@@ -387,7 +366,6 @@ class FailureDetectorTest {
       emitMessageFromTransport(
           codec -> codec.encodePingAck(cid, period, aliceMember, fooMember, null));
 
-      verify(callbackInvoker, never()).invokeCallback(anyInt(), any());
       verify(transport, never()).send(any(), any(), anyInt(), anyInt());
     }
 
@@ -399,7 +377,6 @@ class FailureDetectorTest {
       emitMessageFromTransport(
           codec -> codec.encodePingAck(cid, period, localMember, fooMember, null));
 
-      verify(callbackInvoker, never()).invokeCallback(anyInt(), any());
       verify(transport, never()).send(any(), any(), anyInt(), anyInt());
     }
   }

@@ -26,7 +26,6 @@ import org.agrona.concurrent.broadcast.CopyBroadcastReceiver;
 
 public class FailureDetector extends AbstractAgent {
 
-  private final FailureDetectorConfig config;
   private final Member localMember;
 
   private final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
@@ -64,7 +63,6 @@ public class FailureDetector extends AbstractAgent {
         callbackInvoker,
         Duration.ofMillis(config.pingInterval()));
     this.localMember = localMember;
-    this.config = config;
     roleName = "fdetector@" + localMember.address();
     memberSelector = new MemberSelector(config.pingReqMembers(), pingMembers, pingReqMembers);
   }
@@ -110,34 +108,11 @@ public class FailureDetector extends AbstractAgent {
         0,
         codec.encodedLength());
 
-    callbackInvoker.addCallback(cid, config.pingInterval(), this::onResponse);
-
     // Do ping request
 
     memberSelector.nextPingReqMembers(pingMember);
 
     doPingRequest(pingMember);
-  }
-
-  private void onResponse(Member target) {
-    if (target == null) {
-      return;
-    }
-
-    if (!Objects.equals(pingMember, target)) {
-      throw new AgentTerminationException(
-          "PingMember mismatch -- period: "
-              + period
-              + "pingMember: "
-              + pingMember
-              + ", target: "
-              + target);
-    }
-
-    if (memberStatus == null) {
-      memberStatus = MemberStatus.ALIVE;
-      emitMemberStatus(target, memberStatus);
-    }
   }
 
   private void emitMemberStatus(Member target, final MemberStatus memberStatus) {
@@ -157,8 +132,6 @@ public class FailureDetector extends AbstractAgent {
           codec.encodePingRequest(cid, period, localMember, pingMember),
           0,
           codec.encodedLength());
-
-      callbackInvoker.addCallback(cid, config.pingInterval(), this::onResponse);
     }
   }
 
@@ -238,8 +211,27 @@ public class FailureDetector extends AbstractAgent {
 
     // Normal PingAck
 
-    if (this.period == period && localMember.equals(from)) {
-      callbackInvoker.invokeCallback(cid, target);
+    if (this.period != period) {
+      return;
+    }
+
+    if (!localMember.equals(from)) {
+      return;
+    }
+
+    if (!Objects.equals(pingMember, target)) {
+      throw new AgentTerminationException(
+          "PingMember mismatch -- period: "
+              + period
+              + "pingMember: "
+              + pingMember
+              + ", target: "
+              + target);
+    }
+
+    if (memberStatus == null) {
+      memberStatus = MemberStatus.ALIVE;
+      emitMemberStatus(target, memberStatus);
     }
   }
 
