@@ -304,21 +304,13 @@ public class GossipProtocol extends AbstractAgent {
 
       final int step = gossipFanout;
       final int limit = step * (size / step);
-      final int nextLimit;
 
       if (index >= limit) {
         index = 0;
-        nextLimit = step;
         shuffle();
-      } else {
-        nextLimit = index + step;
-        if (nextLimit > limit) {
-          index = 0;
-          shuffle();
-        }
       }
 
-      for (; index < nextLimit; index++) {
+      for (int n = index + step; index < n; index++) {
         gossipMembers.add(remoteMembers.get(index));
       }
     }
