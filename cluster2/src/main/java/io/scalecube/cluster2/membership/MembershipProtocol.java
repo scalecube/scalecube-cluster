@@ -1,5 +1,7 @@
 package io.scalecube.cluster2.membership;
 
+import static io.scalecube.cluster2.ShuffleUtil.shuffle;
+
 import io.scalecube.cluster.transport.api2.Transport;
 import io.scalecube.cluster2.AbstractAgent;
 import io.scalecube.cluster2.Member;
@@ -10,7 +12,9 @@ import io.scalecube.cluster2.sbe.MessageHeaderDecoder;
 import io.scalecube.cluster2.sbe.SyncAckDecoder;
 import io.scalecube.cluster2.sbe.SyncDecoder;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.function.Supplier;
 import org.agrona.MutableDirectBuffer;
 import org.agrona.concurrent.EpochClock;
@@ -30,7 +34,11 @@ public class MembershipProtocol extends AbstractAgent {
   private final MembershipRecordDecoder membershipRecordDecoder = new MembershipRecordDecoder();
   private final MemberCodec memberCodec = new MemberCodec();
   private final String roleName;
+  private long period = 0;
+  private final MemberSelector memberSelector;
   private List<String> seedMembers;
+  private final ArrayList<Member> remoteMembers = new ArrayList<>();
+  private final ArrayList<Member> nonSeedMembers = new ArrayList<>();
 
   public MembershipProtocol(
       Transport transport,
@@ -49,6 +57,8 @@ public class MembershipProtocol extends AbstractAgent {
     this.config = config;
     this.localMember = localMember;
     roleName = "membership@" + localMember.address();
+    seedMembers = config.seedMembers();
+    memberSelector = new MemberSelector(seedMembers, remoteMembers, nonSeedMembers);
   }
 
   @Override
@@ -58,6 +68,8 @@ public class MembershipProtocol extends AbstractAgent {
 
   @Override
   protected void onTick() {
+    period++;
+
     // TODO
   }
 
@@ -94,4 +106,65 @@ public class MembershipProtocol extends AbstractAgent {
   private void onFailureDetectorEvent(FailureDetectorEventDecoder decoder) {}
 
   private void onMembershipRecord(MembershipRecordDecoder decoder) {}
+
+  static class MemberSelector {
+
+    private final List<String> seedMembers;
+    private final ArrayList<Member> remoteMembers;
+    private final ArrayList<Member> nonSeedMembers;
+
+    private final Random random = new Random();
+    private int index;
+
+    MemberSelector(
+        List<String> seedMembers,
+        ArrayList<Member> remoteMembers,
+        ArrayList<Member> nonSeedMembers) {
+      this.seedMembers = seedMembers;
+      this.remoteMembers = remoteMembers;
+      this.nonSeedMembers = nonSeedMembers;
+    }
+
+    String nextSeedMember() {
+      final int size = seedMembers.size();
+      if (size == 0) {
+        return null;
+      }
+
+      final int i;
+      if (index >= size) {
+        i = index = 0;
+        shuffle(seedMembers, random);
+      } else {
+        i = index++;
+      }
+
+      return seedMembers.get(i);
+    }
+
+    Member nextRemoteMember() {
+      nonSeedMembers.clear();
+
+      final int size = remoteMembers.size();
+      if (size == 0) {
+        return null;
+      }
+
+      for (int i = 0; i < size; i++) {
+        final Member member = remoteMembers.get(i);
+        if (!seedMembers.contains(member.address())) {
+          nonSeedMembers.add(member);
+        }
+      }
+
+      final int n = nonSeedMembers.size();
+      if (n == 0) {
+        return null;
+      }
+
+      shuffle(nonSeedMembers, random);
+
+      return nonSeedMembers.get(random.nextInt(n));
+    }
+  }
 }

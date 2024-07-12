@@ -1,5 +1,7 @@
 package io.scalecube.cluster2.fdetector;
 
+import static io.scalecube.cluster2.ShuffleUtil.shuffle;
+
 import io.scalecube.cluster.transport.api2.Transport;
 import io.scalecube.cluster2.AbstractAgent;
 import io.scalecube.cluster2.Member;
@@ -258,7 +260,7 @@ public class FailureDetector extends AbstractAgent {
       final int i;
       if (index >= size) {
         i = index = 0;
-        shuffle();
+        shuffle(pingMembers, random);
       } else {
         i = index++;
       }
@@ -280,18 +282,6 @@ public class FailureDetector extends AbstractAgent {
         if (!pingMember.equals(member) && !pingReqMembers.contains(member)) {
           pingReqMembers.add(member);
           i++;
-        }
-      }
-    }
-
-    void shuffle() {
-      for (int i = 0, n = pingMembers.size(); i < n; i++) {
-        final Member current = pingMembers.get(i);
-        final int k = random.nextInt(n);
-        final Member member = pingMembers.get(k);
-        if (i != k) {
-          pingMembers.set(i, member);
-          pingMembers.set(k, current);
         }
       }
     }

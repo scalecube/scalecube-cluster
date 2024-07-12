@@ -10,9 +10,8 @@ import reactor.core.Exceptions;
 public class MembershipConfig implements Cloneable {
 
   // Default settings for LAN cluster
-  public static final int DEFAULT_SYNC_INTERVAL = 30_000;
-  public static final int DEFAULT_SYNC_TIMEOUT = 3_000;
   public static final int DEFAULT_SUSPICION_MULT = 5;
+  public static final int DEFAULT_SYNC_INTERVAL = 30_000;
 
   // Default settings for WAN cluster (overrides default/LAN settings)
   public static final int DEFAULT_WAN_SUSPICION_MULT = 6;
@@ -21,11 +20,10 @@ public class MembershipConfig implements Cloneable {
   // Default settings for local cluster working via loopback interface (overrides default/LAN
   // settings)
   public static final int DEFAULT_LOCAL_SUSPICION_MULT = 3;
-  public static final int DEFAULT_LOCAL_SYNC_INTERVAL = 15_000;
+  public static final int DEFAULT_LOCAL_SYNC_INTERVAL = 3_000;
 
   private List<String> seedMembers = Collections.emptyList();
   private int syncInterval = DEFAULT_SYNC_INTERVAL;
-  private int syncTimeout = DEFAULT_SYNC_TIMEOUT;
   private int suspicionMult = DEFAULT_SUSPICION_MULT;
   private String namespace = "default";
 
@@ -108,22 +106,6 @@ public class MembershipConfig implements Cloneable {
     return m;
   }
 
-  public int syncTimeout() {
-    return syncTimeout;
-  }
-
-  /**
-   * Setter for {@code syncTimeout}.
-   *
-   * @param syncTimeout sync timeout
-   * @return new {@code MembershipConfig} instance
-   */
-  public MembershipConfig syncTimeout(int syncTimeout) {
-    MembershipConfig m = clone();
-    m.syncTimeout = syncTimeout;
-    return m;
-  }
-
   public int suspicionMult() {
     return suspicionMult;
   }
@@ -170,7 +152,6 @@ public class MembershipConfig implements Cloneable {
     return new StringJoiner(", ", MembershipConfig.class.getSimpleName() + "[", "]")
         .add("seedMembers=" + seedMembers)
         .add("syncInterval=" + syncInterval)
-        .add("syncTimeout=" + syncTimeout)
         .add("suspicionMult=" + suspicionMult)
         .add("namespace='" + namespace + "'")
         .toString();

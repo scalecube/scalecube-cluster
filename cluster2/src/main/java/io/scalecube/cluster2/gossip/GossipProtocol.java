@@ -1,5 +1,6 @@
 package io.scalecube.cluster2.gossip;
 
+import static io.scalecube.cluster2.ShuffleUtil.shuffle;
 import static io.scalecube.cluster2.UUIDCodec.uuid;
 
 import io.scalecube.cluster.transport.api2.Transport;
@@ -295,7 +296,7 @@ public class GossipProtocol extends AbstractAgent {
       }
 
       if (size <= gossipFanout) {
-        shuffle();
+        shuffle(remoteMembers, random);
         for (int i = 0; i < size; i++) {
           gossipMembers.add(remoteMembers.get(i));
         }
@@ -307,23 +308,11 @@ public class GossipProtocol extends AbstractAgent {
 
       if (index >= limit) {
         index = 0;
-        shuffle();
+        shuffle(remoteMembers, random);
       }
 
       for (int n = index + step; index < n; index++) {
         gossipMembers.add(remoteMembers.get(index));
-      }
-    }
-
-    void shuffle() {
-      for (int i = 0, n = remoteMembers.size(); i < n; i++) {
-        final Member current = remoteMembers.get(i);
-        final int k = random.nextInt(n);
-        final Member member = remoteMembers.get(k);
-        if (i != k) {
-          remoteMembers.set(i, member);
-          remoteMembers.set(k, current);
-        }
       }
     }
   }
