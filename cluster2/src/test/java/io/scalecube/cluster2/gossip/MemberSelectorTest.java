@@ -44,7 +44,7 @@ public class MemberSelectorTest {
 
     for (int i = 0; i < 10; i++) {
       memberSelector.nextGossipMembers();
-      assertEquals(3, gossipMembers.size());
+      assertEquals(remoteMembers.size(), gossipMembers.size());
       assertThat(gossipMembers, hasItems(isOneOf(fooMember, barMember, bazMember)));
     }
   }
@@ -59,7 +59,7 @@ public class MemberSelectorTest {
 
     for (int i = 0; i < 10; i++) {
       memberSelector.nextGossipMembers();
-      assertEquals(3, gossipMembers.size());
+      assertEquals(remoteMembers.size(), gossipMembers.size());
       assertThat(gossipMembers, hasItems(isOneOf(fooMember, barMember, bazMember)));
     }
   }
@@ -76,13 +76,61 @@ public class MemberSelectorTest {
     remoteMembers.add(abcMember);
     remoteMembers.add(xyzMember);
 
-    final MemberSelector memberSelector = new MemberSelector(3, remoteMembers, gossipMembers);
+    final int gossipFanout = 3;
+    final MemberSelector memberSelector =
+        new MemberSelector(gossipFanout, remoteMembers, gossipMembers);
 
     for (int i = 0; i < 10; i++) {
       memberSelector.nextGossipMembers();
-      assertEquals(3, gossipMembers.size());
-      System.err.println(gossipMembers);
-      // assertThat(gossipMembers, hasItems(isOneOf(fooMember, barMember, bazMember)));
+      assertEquals(gossipFanout, gossipMembers.size());
+      assertThat(
+          gossipMembers,
+          hasItems(
+              isOneOf(
+                  fooMember,
+                  barMember,
+                  bazMember,
+                  aliceMember,
+                  bobMember,
+                  johnMember,
+                  eveMember,
+                  abcMember,
+                  xyzMember)));
+    }
+  }
+
+  @Test
+  void testSelectWhenGreaterThanFanoutWithReminder() {
+    remoteMembers.add(fooMember);
+    remoteMembers.add(barMember);
+    remoteMembers.add(bazMember);
+    remoteMembers.add(aliceMember);
+    remoteMembers.add(bobMember);
+    remoteMembers.add(johnMember);
+    remoteMembers.add(eveMember);
+    remoteMembers.add(abcMember);
+    remoteMembers.add(xyzMember);
+
+    final int gossipFanout = 4;
+    final MemberSelector memberSelector =
+        new MemberSelector(gossipFanout, remoteMembers, gossipMembers);
+
+    for (int i = 0; i < 10; i++) {
+      memberSelector.nextGossipMembers();
+      assertEquals(gossipFanout, gossipMembers.size());
+      assertThat(
+          gossipMembers,
+          hasItems(
+              isOneOf(
+                  fooMember,
+                  barMember,
+                  bazMember,
+                  aliceMember,
+                  bobMember,
+                  johnMember,
+                  eveMember,
+                  abcMember,
+                  xyzMember)));
     }
   }
 }
