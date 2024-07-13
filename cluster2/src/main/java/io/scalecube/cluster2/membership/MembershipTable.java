@@ -5,7 +5,6 @@ import static io.scalecube.cluster2.sbe.MemberStatus.ALIVE;
 
 import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.MemberActionCodec;
-import io.scalecube.cluster2.MemberCodec;
 import io.scalecube.cluster2.sbe.MemberStatus;
 import java.util.Map;
 import java.util.UUID;
@@ -19,10 +18,8 @@ public class MembershipTable {
   private final BroadcastTransmitter messageTx;
 
   private final Member localMember;
-  private final MemberCodec memberCodec = new MemberCodec();
   private final MemberActionCodec memberActionCodec = new MemberActionCodec();
   private final MembershipRecordCodec membershipRecordCodec = new MembershipRecordCodec();
-  private final Member member = new Member();
   private final Map<UUID, MembershipRecord> recordMap = new Object2ObjectHashMap<>();
 
   public MembershipTable(MembershipRecord localRecord, BroadcastTransmitter messageTx) {
