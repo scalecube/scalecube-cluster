@@ -34,9 +34,6 @@ public class FailureDetector extends AbstractAgent {
   private final FailureDetectorCodec codec = new FailureDetectorCodec();
   private final MemberActionDecoder memberActionDecoder = new MemberActionDecoder();
   private final MemberCodec memberCodec = new MemberCodec();
-  private final Member from = new Member();
-  private final Member target = new Member();
-  private final Member issuer = new Member();
   private final String roleName;
   private final MemberSelector memberSelector;
   private final ArrayList<Member> pingMembers = new ArrayList<>();
@@ -150,9 +147,9 @@ public class FailureDetector extends AbstractAgent {
 
   private void onPing(PingDecoder decoder) {
     final long period = decoder.period();
-    final Member from = memberCodec.member(decoder::wrapFrom, this.from);
-    final Member target = memberCodec.member(decoder::wrapTarget, this.target);
-    final Member issuer = memberCodec.member(decoder::wrapIssuer, this.issuer);
+    final Member from = memberCodec.member(decoder::wrapFrom);
+    final Member target = memberCodec.member(decoder::wrapTarget);
+    final Member issuer = memberCodec.member(decoder::wrapIssuer);
 
     if (!localMember.equals(target)) {
       return;
@@ -167,8 +164,8 @@ public class FailureDetector extends AbstractAgent {
 
   private void onPingRequest(PingRequestDecoder decoder) {
     final long period = decoder.period();
-    final Member from = memberCodec.member(decoder::wrapFrom, this.from);
-    final Member target = memberCodec.member(decoder::wrapTarget, this.target);
+    final Member from = memberCodec.member(decoder::wrapFrom);
+    final Member target = memberCodec.member(decoder::wrapTarget);
     decoder.skipIssuer();
 
     transport.send(
@@ -180,9 +177,9 @@ public class FailureDetector extends AbstractAgent {
 
   private void onPingAck(PingAckDecoder decoder) {
     final long period = decoder.period();
-    final Member from = memberCodec.member(decoder::wrapFrom, this.from);
-    final Member target = memberCodec.member(decoder::wrapTarget, this.target);
-    final Member issuer = memberCodec.member(decoder::wrapIssuer, this.issuer);
+    final Member from = memberCodec.member(decoder::wrapFrom);
+    final Member target = memberCodec.member(decoder::wrapTarget);
+    final Member issuer = memberCodec.member(decoder::wrapIssuer);
 
     // Transit PingAck
 
