@@ -17,11 +17,11 @@ import static org.mockito.Mockito.when;
 import io.scalecube.cluster.transport.api2.Transport;
 import io.scalecube.cluster.transport.api2.Transport.MessagePoller;
 import io.scalecube.cluster2.Member;
+import io.scalecube.cluster2.MemberActionCodec;
 import io.scalecube.cluster2.MemberCodec;
-import io.scalecube.cluster2.membership.MembershipEventCodec;
 import io.scalecube.cluster2.sbe.FailureDetectorEventDecoder;
+import io.scalecube.cluster2.sbe.MemberActionType;
 import io.scalecube.cluster2.sbe.MemberStatus;
-import io.scalecube.cluster2.sbe.MembershipEventType;
 import io.scalecube.cluster2.sbe.MessageHeaderDecoder;
 import io.scalecube.cluster2.sbe.PingAckDecoder;
 import io.scalecube.cluster2.sbe.PingDecoder;
@@ -81,31 +81,19 @@ class FailureDetectorTest {
   }
 
   @Test
-  void testOnMembershipEventLocalMemberWillBeFiltered() {
-    emitMembershipEvent(MembershipEventType.ADDED, localMember);
+  void testOnMemberActionLocalMemberWillBeFiltered() {
+    emitMemberAction(MemberActionType.ADD, localMember);
 
     advanceClock(1);
     verify(transport, never()).send(any(), any(), anyInt(), anyInt());
   }
 
   @Test
-  void testOnMembershipEventAddedThenRemoved() {
-    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
-    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
-    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
-    emitMembershipEvent(MembershipEventType.REMOVED, fooMember);
-
-    advanceClock(1);
-
-    verify(transport, never()).send(any(), any(), anyInt(), anyInt());
-  }
-
-  @Test
-  void testOnMembershipEventAddedThenLeaving() {
-    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
-    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
-    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
-    emitMembershipEvent(MembershipEventType.LEAVING, fooMember);
+  void testOnMembActionAddThenRemove() {
+    emitMemberAction(MemberActionType.ADD, fooMember);
+    emitMemberAction(MemberActionType.ADD, fooMember);
+    emitMemberAction(MemberActionType.ADD, fooMember);
+    emitMemberAction(MemberActionType.REMOVE, fooMember);
 
     advanceClock(1);
 
@@ -114,7 +102,7 @@ class FailureDetectorTest {
 
   @Test
   void testOnTick() {
-    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
+    emitMemberAction(MemberActionType.ADD, fooMember);
 
     advanceClock(1);
     verify(transport).send(addressCaptor.capture(), any(), anyInt(), anyInt());
@@ -133,7 +121,7 @@ class FailureDetectorTest {
 
   @Test
   void testPingThenAck() {
-    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
+    emitMemberAction(MemberActionType.ADD, fooMember);
 
     advanceClock(1);
     verify(transport).send(addressCaptor.capture(), any(), anyInt(), anyInt());
@@ -154,7 +142,7 @@ class FailureDetectorTest {
 
   @Test
   void testPingThenTimeout() {
-    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
+    emitMemberAction(MemberActionType.ADD, fooMember);
 
     advanceClock(1);
     verify(transport).send(addressCaptor.capture(), any(), anyInt(), anyInt());
@@ -392,13 +380,10 @@ class FailureDetectorTest {
     failureDetector.doWork();
   }
 
-  private void emitMembershipEvent(MembershipEventType eventType, Member member) {
-    final MembershipEventCodec membershipEventCodec = new MembershipEventCodec();
+  private void emitMemberAction(MemberActionType actionType, Member member) {
+    final MemberActionCodec memberActionCodec = new MemberActionCodec();
     messageTx.transmit(
-        1,
-        membershipEventCodec.encodeMembershipEvent(eventType, 1, member),
-        0,
-        membershipEventCodec.encodedLength());
+        1, memberActionCodec.encode(actionType, member), 0, memberActionCodec.encodedLength());
     failureDetector.doWork();
   }
 

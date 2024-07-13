@@ -11,8 +11,8 @@ import io.scalecube.cluster2.MemberCodec;
 import io.scalecube.cluster2.sbe.GossipDecoder;
 import io.scalecube.cluster2.sbe.GossipMessageDecoder;
 import io.scalecube.cluster2.sbe.GossipRequestDecoder;
-import io.scalecube.cluster2.sbe.MembershipEventDecoder;
-import io.scalecube.cluster2.sbe.MembershipEventType;
+import io.scalecube.cluster2.sbe.MemberActionDecoder;
+import io.scalecube.cluster2.sbe.MemberActionType;
 import io.scalecube.cluster2.sbe.MessageHeaderDecoder;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -39,8 +39,8 @@ public class GossipProtocol extends AbstractAgent {
   private final GossipMessageDecoder gossipMessageDecoder = new GossipMessageDecoder();
   private final GossipRequestDecoder gossipRequestDecoder = new GossipRequestDecoder();
   private final GossipDecoder gossipDecoder = new GossipDecoder();
-  private final MembershipEventDecoder membershipEventDecoder = new MembershipEventDecoder();
   private final GossipRequestCodec gossipRequestCodec = new GossipRequestCodec();
+  private final MemberActionDecoder memberActionDecoder = new MemberActionDecoder();
   private final MemberCodec memberCodec = new MemberCodec();
   private final UnsafeBuffer unsafeBuffer = new UnsafeBuffer();
   private final String roleName;
@@ -176,8 +176,8 @@ public class GossipProtocol extends AbstractAgent {
       case GossipRequestDecoder.TEMPLATE_ID:
         onGossipRequest(gossipRequestDecoder.wrapAndApplyHeader(buffer, index, headerDecoder));
         break;
-      case MembershipEventDecoder.TEMPLATE_ID:
-        onMembershipEvent(membershipEventDecoder.wrapAndApplyHeader(buffer, index, headerDecoder));
+      case MemberActionDecoder.TEMPLATE_ID:
+        onMemberAction(memberActionDecoder.wrapAndApplyHeader(buffer, index, headerDecoder));
         break;
       default:
         // no-op
@@ -246,8 +246,8 @@ public class GossipProtocol extends AbstractAgent {
     return sequenceIdCollectors.computeIfAbsent(key, s -> new SequenceIdCollector());
   }
 
-  private void onMembershipEvent(MembershipEventDecoder decoder) {
-    final MembershipEventType type = decoder.type();
+  private void onMemberAction(MemberActionDecoder decoder) {
+    final MemberActionType actionType = decoder.actionType();
     final Member member = memberCodec.member(decoder::wrapMember);
     decoder.sbeSkip();
 
@@ -255,13 +255,12 @@ public class GossipProtocol extends AbstractAgent {
       return;
     }
 
-    switch (type) {
-      case REMOVED:
-      case LEAVING:
+    switch (actionType) {
+      case REMOVE:
         remoteMembers.remove(member);
         sequenceIdCollectors.remove(member.id());
         break;
-      case ADDED:
+      case ADD:
         if (!remoteMembers.contains(member)) {
           remoteMembers.add(member);
         }

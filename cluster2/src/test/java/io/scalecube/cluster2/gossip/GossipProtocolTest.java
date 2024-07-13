@@ -20,9 +20,9 @@ import io.scalecube.cluster.transport.api2.Transport;
 import io.scalecube.cluster.transport.api2.Transport.MessagePoller;
 import io.scalecube.cluster2.ClusterMath;
 import io.scalecube.cluster2.Member;
-import io.scalecube.cluster2.membership.MembershipEventCodec;
+import io.scalecube.cluster2.MemberActionCodec;
 import io.scalecube.cluster2.sbe.GossipMessageEncoder;
-import io.scalecube.cluster2.sbe.MembershipEventType;
+import io.scalecube.cluster2.sbe.MemberActionType;
 import io.scalecube.cluster2.sbe.MessageHeaderEncoder;
 import java.util.Random;
 import java.util.UUID;
@@ -77,8 +77,8 @@ class GossipProtocolTest {
   }
 
   @Test
-  void testOnMembershipEventLocalMemberWillBeFiltered() {
-    emitMembershipEvent(MembershipEventType.ADDED, localMember);
+  void testOnMemberActionLocalMemberWillBeFiltered() {
+    emitMemberAction(MemberActionType.ADD, localMember);
     gossipProtocol.doWork();
 
     epochClock.advance(1);
@@ -87,32 +87,15 @@ class GossipProtocolTest {
   }
 
   @Test
-  void testOnMembershipEventAddedThenRemoved() {
-    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
-    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
-    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
+  void testOnMemberActionAddThenRemove() {
+    emitMemberAction(MemberActionType.ADD, fooMember);
+    emitMemberAction(MemberActionType.ADD, fooMember);
+    emitMemberAction(MemberActionType.ADD, fooMember);
     gossipProtocol.doWork();
     gossipProtocol.doWork();
     gossipProtocol.doWork();
 
-    emitMembershipEvent(MembershipEventType.REMOVED, fooMember);
-    gossipProtocol.doWork();
-
-    epochClock.advance(1);
-    gossipProtocol.doWork();
-    verify(transport, never()).send(any(), any(), anyInt(), anyInt());
-  }
-
-  @Test
-  void testOnMembershipEventAddedThenLeaving() {
-    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
-    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
-    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
-    gossipProtocol.doWork();
-    gossipProtocol.doWork();
-    gossipProtocol.doWork();
-
-    emitMembershipEvent(MembershipEventType.LEAVING, fooMember);
+    emitMemberAction(MemberActionType.REMOVE, fooMember);
     gossipProtocol.doWork();
 
     epochClock.advance(1);
@@ -122,9 +105,9 @@ class GossipProtocolTest {
 
   @Test
   void testOnTickNoGossips() {
-    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
-    emitMembershipEvent(MembershipEventType.ADDED, barMember);
-    emitMembershipEvent(MembershipEventType.ADDED, aliceMember);
+    emitMemberAction(MemberActionType.ADD, fooMember);
+    emitMemberAction(MemberActionType.ADD, barMember);
+    emitMemberAction(MemberActionType.ADD, aliceMember);
     gossipProtocol.doWork();
     gossipProtocol.doWork();
     gossipProtocol.doWork();
@@ -136,9 +119,9 @@ class GossipProtocolTest {
 
   @Test
   void testOnGossipMessage() {
-    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
-    emitMembershipEvent(MembershipEventType.ADDED, barMember);
-    emitMembershipEvent(MembershipEventType.ADDED, aliceMember);
+    emitMemberAction(MemberActionType.ADD, fooMember);
+    emitMemberAction(MemberActionType.ADD, barMember);
+    emitMemberAction(MemberActionType.ADD, aliceMember);
     gossipProtocol.doWork();
     gossipProtocol.doWork();
     gossipProtocol.doWork();
@@ -160,9 +143,9 @@ class GossipProtocolTest {
 
   @Test
   void testOnGossipRequest() {
-    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
-    emitMembershipEvent(MembershipEventType.ADDED, barMember);
-    emitMembershipEvent(MembershipEventType.ADDED, aliceMember);
+    emitMemberAction(MemberActionType.ADD, fooMember);
+    emitMemberAction(MemberActionType.ADD, barMember);
+    emitMemberAction(MemberActionType.ADD, aliceMember);
     gossipProtocol.doWork();
     gossipProtocol.doWork();
     gossipProtocol.doWork();
@@ -191,9 +174,9 @@ class GossipProtocolTest {
 
   @Test
   void testSpreadGossipOnlyToNonInfected() {
-    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
-    emitMembershipEvent(MembershipEventType.ADDED, barMember);
-    emitMembershipEvent(MembershipEventType.ADDED, aliceMember);
+    emitMemberAction(MemberActionType.ADD, fooMember);
+    emitMemberAction(MemberActionType.ADD, barMember);
+    emitMemberAction(MemberActionType.ADD, aliceMember);
     gossipProtocol.doWork();
     gossipProtocol.doWork();
     gossipProtocol.doWork();
@@ -218,9 +201,9 @@ class GossipProtocolTest {
 
   @Test
   void testShouldNotSpreadGossipToInfected() {
-    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
-    emitMembershipEvent(MembershipEventType.ADDED, barMember);
-    emitMembershipEvent(MembershipEventType.ADDED, aliceMember);
+    emitMemberAction(MemberActionType.ADD, fooMember);
+    emitMemberAction(MemberActionType.ADD, barMember);
+    emitMemberAction(MemberActionType.ADD, aliceMember);
     gossipProtocol.doWork();
     gossipProtocol.doWork();
     gossipProtocol.doWork();
@@ -259,9 +242,9 @@ class GossipProtocolTest {
 
   @Test
   public void testSweepGossips() {
-    emitMembershipEvent(MembershipEventType.ADDED, fooMember);
-    emitMembershipEvent(MembershipEventType.ADDED, barMember);
-    emitMembershipEvent(MembershipEventType.ADDED, aliceMember);
+    emitMemberAction(MemberActionType.ADD, fooMember);
+    emitMemberAction(MemberActionType.ADD, barMember);
+    emitMemberAction(MemberActionType.ADD, aliceMember);
     gossipProtocol.doWork();
     gossipProtocol.doWork();
     gossipProtocol.doWork();
@@ -292,13 +275,10 @@ class GossipProtocolTest {
     return bytes;
   }
 
-  private void emitMembershipEvent(MembershipEventType eventType, Member member) {
-    final MembershipEventCodec membershipEventCodec = new MembershipEventCodec();
+  private void emitMemberAction(MemberActionType actionType, Member member) {
+    final MemberActionCodec memberActionCodec = new MemberActionCodec();
     messageTx.transmit(
-        1,
-        membershipEventCodec.encodeMembershipEvent(eventType, 1, member),
-        0,
-        membershipEventCodec.encodedLength());
+        1, memberActionCodec.encode(actionType, member), 0, memberActionCodec.encodedLength());
   }
 
   private void emitGossipMessage(byte[] message) {

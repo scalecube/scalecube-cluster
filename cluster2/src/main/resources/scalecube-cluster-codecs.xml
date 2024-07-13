@@ -41,11 +41,16 @@
 
     <!-- Enums -->
 
+    <enum name="MemberActionType" encodingType="int8">
+      <validValue name="ADD">1</validValue>
+      <validValue name="REMOVE">2</validValue>
+    </enum>
+
     <enum name="MemberStatus" encodingType="int8">
-      <validValue name="ALIVE" description="Member is reachable">1</validValue>
-      <validValue name="SUSPECTED" description="Member is suspected">2</validValue>
-      <validValue name="LEAVING" description="Member is going to leave a cluster">3</validValue>
-      <validValue name="DEAD" description="Member declared as dead">4</validValue>
+      <validValue name="ALIVE">1</validValue>
+      <validValue name="SUSPECTED">2</validValue>
+      <validValue name="LEAVING">3</validValue>
+      <validValue name="DEAD">4</validValue>
     </enum>
 
     <enum name="MembershipEventType" encodingType="int8">
@@ -59,6 +64,11 @@
   <sbe:message name="Member" id="10">
     <field name="id" id="1" type="UUID"/>
     <field name="address" id="2" type="String64"/>
+  </sbe:message>
+
+  <sbe:message name="MemberAction" id="11">
+    <field name="actionType" id="1" type="MemberActionType"/>
+    <data name="member" id="100" type="VarData"/>
   </sbe:message>
 
   <!-- Failure Detector -->

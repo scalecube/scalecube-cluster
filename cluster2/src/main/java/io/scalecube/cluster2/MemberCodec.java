@@ -11,8 +11,8 @@ import org.agrona.concurrent.UnsafeBuffer;
 
 public class MemberCodec extends AbstractCodec {
 
-  private final MemberDecoder memberDecoder = new MemberDecoder();
   private final MemberEncoder memberEncoder = new MemberEncoder();
+  private final MemberDecoder memberDecoder = new MemberDecoder();
 
   public MemberCodec() {}
 

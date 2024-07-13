@@ -6,9 +6,9 @@ import io.scalecube.cluster.transport.api2.Transport;
 import io.scalecube.cluster2.AbstractAgent;
 import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.MemberCodec;
+import io.scalecube.cluster2.sbe.MemberActionDecoder;
+import io.scalecube.cluster2.sbe.MemberActionType;
 import io.scalecube.cluster2.sbe.MemberStatus;
-import io.scalecube.cluster2.sbe.MembershipEventDecoder;
-import io.scalecube.cluster2.sbe.MembershipEventType;
 import io.scalecube.cluster2.sbe.MessageHeaderDecoder;
 import io.scalecube.cluster2.sbe.PingAckDecoder;
 import io.scalecube.cluster2.sbe.PingDecoder;
@@ -31,8 +31,8 @@ public class FailureDetector extends AbstractAgent {
   private final PingDecoder pingDecoder = new PingDecoder();
   private final PingRequestDecoder pingRequestDecoder = new PingRequestDecoder();
   private final PingAckDecoder pingAckDecoder = new PingAckDecoder();
-  private final MembershipEventDecoder membershipEventDecoder = new MembershipEventDecoder();
   private final FailureDetectorCodec codec = new FailureDetectorCodec();
+  private final MemberActionDecoder memberActionDecoder = new MemberActionDecoder();
   private final MemberCodec memberCodec = new MemberCodec();
   private final Member from = new Member();
   private final Member target = new Member();
@@ -140,8 +140,8 @@ public class FailureDetector extends AbstractAgent {
       case PingAckDecoder.TEMPLATE_ID:
         onPingAck(pingAckDecoder.wrapAndApplyHeader(buffer, index, headerDecoder));
         break;
-      case MembershipEventDecoder.TEMPLATE_ID:
-        onMembershipEvent(membershipEventDecoder.wrapAndApplyHeader(buffer, index, headerDecoder));
+      case MemberActionDecoder.TEMPLATE_ID:
+        onMemberAction(memberActionDecoder.wrapAndApplyHeader(buffer, index, headerDecoder));
         break;
       default:
         // no-op
@@ -211,8 +211,8 @@ public class FailureDetector extends AbstractAgent {
     }
   }
 
-  private void onMembershipEvent(MembershipEventDecoder decoder) {
-    final MembershipEventType type = decoder.type();
+  private void onMemberAction(MemberActionDecoder decoder) {
+    final MemberActionType actionType = decoder.actionType();
     final Member member = memberCodec.member(decoder::wrapMember);
     decoder.sbeSkip();
 
@@ -220,12 +220,11 @@ public class FailureDetector extends AbstractAgent {
       return;
     }
 
-    switch (type) {
-      case REMOVED:
-      case LEAVING:
+    switch (actionType) {
+      case REMOVE:
         pingMembers.remove(member);
         break;
-      case ADDED:
+      case ADD:
         if (!pingMembers.contains(member)) {
           pingMembers.add(member);
         }
