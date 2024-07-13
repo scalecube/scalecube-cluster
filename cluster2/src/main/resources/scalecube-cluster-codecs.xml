@@ -42,8 +42,8 @@
     <!-- Enums -->
 
     <enum name="MemberActionType" encodingType="int8">
-      <validValue name="ADD">1</validValue>
-      <validValue name="REMOVE">2</validValue>
+      <validValue name="ADD_MEMBER">1</validValue>
+      <validValue name="REMOVE_MEMBER">2</validValue>
     </enum>
 
     <enum name="MemberStatus" encodingType="int8">

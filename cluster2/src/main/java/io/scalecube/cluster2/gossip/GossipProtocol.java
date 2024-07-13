@@ -256,11 +256,11 @@ public class GossipProtocol extends AbstractAgent {
     }
 
     switch (actionType) {
-      case REMOVE:
+      case REMOVE_MEMBER:
         remoteMembers.remove(member);
         sequenceIdCollectors.remove(member.id());
         break;
-      case ADD:
+      case ADD_MEMBER:
         if (!remoteMembers.contains(member)) {
           remoteMembers.add(member);
         }

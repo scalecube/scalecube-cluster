@@ -221,10 +221,10 @@ public class FailureDetector extends AbstractAgent {
     }
 
     switch (actionType) {
-      case REMOVE:
+      case REMOVE_MEMBER:
         pingMembers.remove(member);
         break;
-      case ADD:
+      case ADD_MEMBER:
         if (!pingMembers.contains(member)) {
           pingMembers.add(member);
         }

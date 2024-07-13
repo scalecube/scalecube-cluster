@@ -1,5 +1,7 @@
 package io.scalecube.cluster2.fdetector;
 
+import static io.scalecube.cluster2.sbe.MemberActionType.ADD_MEMBER;
+import static io.scalecube.cluster2.sbe.MemberActionType.REMOVE_MEMBER;
 import static org.agrona.concurrent.broadcast.BroadcastBufferDescriptor.TRAILER_LENGTH;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -82,17 +84,17 @@ class FailureDetectorTest {
 
   @Test
   void testOnMemberActionLocalMemberWillBeFiltered() {
-    emitMemberAction(MemberActionType.ADD, localMember);
+    emitMemberAction(ADD_MEMBER, localMember);
     advanceClock(1);
     verify(transport, never()).send(any(), any(), anyInt(), anyInt());
   }
 
   @Test
   void testOnMembActionAddThenRemove() {
-    emitMemberAction(MemberActionType.ADD, fooMember);
-    emitMemberAction(MemberActionType.ADD, fooMember);
-    emitMemberAction(MemberActionType.ADD, fooMember);
-    emitMemberAction(MemberActionType.REMOVE, fooMember);
+    emitMemberAction(ADD_MEMBER, fooMember);
+    emitMemberAction(ADD_MEMBER, fooMember);
+    emitMemberAction(ADD_MEMBER, fooMember);
+    emitMemberAction(REMOVE_MEMBER, fooMember);
 
     advanceClock(1);
 
@@ -101,7 +103,7 @@ class FailureDetectorTest {
 
   @Test
   void testOnTick() {
-    emitMemberAction(MemberActionType.ADD, fooMember);
+    emitMemberAction(ADD_MEMBER, fooMember);
 
     advanceClock(1);
     verify(transport).send(addressCaptor.capture(), any(), anyInt(), anyInt());
@@ -120,7 +122,7 @@ class FailureDetectorTest {
 
   @Test
   void testPingThenAck() {
-    emitMemberAction(MemberActionType.ADD, fooMember);
+    emitMemberAction(ADD_MEMBER, fooMember);
 
     advanceClock(1);
     verify(transport).send(addressCaptor.capture(), any(), anyInt(), anyInt());
@@ -141,7 +143,7 @@ class FailureDetectorTest {
 
   @Test
   void testPingThenTimeout() {
-    emitMemberAction(MemberActionType.ADD, fooMember);
+    emitMemberAction(ADD_MEMBER, fooMember);
 
     advanceClock(1);
     verify(transport).send(addressCaptor.capture(), any(), anyInt(), anyInt());
