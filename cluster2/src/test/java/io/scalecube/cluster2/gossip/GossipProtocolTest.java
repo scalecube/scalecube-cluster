@@ -71,18 +71,14 @@ class GossipProtocolTest {
 
   @Test
   void testTickWhenNoRemoteMembers() {
-    epochClock.advance(1);
-    gossipProtocol.doWork();
+    advanceClock(1);
     verify(transport, never()).send(any(), any(), anyInt(), anyInt());
   }
 
   @Test
   void testOnMemberActionLocalMemberWillBeFiltered() {
     emitMemberAction(MemberActionType.ADD, localMember);
-    gossipProtocol.doWork();
-
-    epochClock.advance(1);
-    gossipProtocol.doWork();
+    advanceClock(1);
     verify(transport, never()).send(any(), any(), anyInt(), anyInt());
   }
 
@@ -91,15 +87,10 @@ class GossipProtocolTest {
     emitMemberAction(MemberActionType.ADD, fooMember);
     emitMemberAction(MemberActionType.ADD, fooMember);
     emitMemberAction(MemberActionType.ADD, fooMember);
-    gossipProtocol.doWork();
-    gossipProtocol.doWork();
-    gossipProtocol.doWork();
-
     emitMemberAction(MemberActionType.REMOVE, fooMember);
-    gossipProtocol.doWork();
 
-    epochClock.advance(1);
-    gossipProtocol.doWork();
+    advanceClock(1);
+
     verify(transport, never()).send(any(), any(), anyInt(), anyInt());
   }
 
@@ -108,12 +99,9 @@ class GossipProtocolTest {
     emitMemberAction(MemberActionType.ADD, fooMember);
     emitMemberAction(MemberActionType.ADD, barMember);
     emitMemberAction(MemberActionType.ADD, aliceMember);
-    gossipProtocol.doWork();
-    gossipProtocol.doWork();
-    gossipProtocol.doWork();
 
-    epochClock.advance(1);
-    gossipProtocol.doWork();
+    advanceClock(1);
+
     verify(transport, never()).send(any(), any(), anyInt(), anyInt());
   }
 
@@ -122,15 +110,10 @@ class GossipProtocolTest {
     emitMemberAction(MemberActionType.ADD, fooMember);
     emitMemberAction(MemberActionType.ADD, barMember);
     emitMemberAction(MemberActionType.ADD, aliceMember);
-    gossipProtocol.doWork();
-    gossipProtocol.doWork();
-    gossipProtocol.doWork();
 
     emitGossipMessage(newMessage());
-    gossipProtocol.doWork();
 
-    epochClock.advance(1);
-    gossipProtocol.doWork();
+    advanceClock(1);
 
     verify(transport, times(3)).send(addressCaptor.capture(), any(), anyInt(), anyInt());
     assertThat(
@@ -146,23 +129,18 @@ class GossipProtocolTest {
     emitMemberAction(MemberActionType.ADD, fooMember);
     emitMemberAction(MemberActionType.ADD, barMember);
     emitMemberAction(MemberActionType.ADD, aliceMember);
-    gossipProtocol.doWork();
-    gossipProtocol.doWork();
-    gossipProtocol.doWork();
 
+    final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
     final byte[] message = newMessage();
+
     emitGossipRequest(
         codec -> codec.encode(UUID.randomUUID(), new Gossip(UUID.randomUUID(), 1, message, 1)));
-    final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
-    gossipProtocol.doWork();
 
     assertMessageRx(
         messageRx, messageFromRx -> assertArrayEquals(message, messageFromRx, "gossip.message"));
 
     reset(messagePoller);
-    epochClock.advance(1);
-    gossipProtocol.doWork();
-
+    advanceClock(1);
     verify(transport, times(3)).send(addressCaptor.capture(), any(), anyInt(), anyInt());
     assertThat(
         addressCaptor.getAllValues(),
@@ -177,23 +155,16 @@ class GossipProtocolTest {
     emitMemberAction(MemberActionType.ADD, fooMember);
     emitMemberAction(MemberActionType.ADD, barMember);
     emitMemberAction(MemberActionType.ADD, aliceMember);
-    gossipProtocol.doWork();
-    gossipProtocol.doWork();
-    gossipProtocol.doWork();
 
     final byte[] message = newMessage();
     emitGossipMessage(message);
-    gossipProtocol.doWork();
 
     emitGossipRequest(
         codec -> codec.encode(fooMember.id(), new Gossip(localMember.id(), 1, message, 1)));
-    gossipProtocol.doWork();
     emitGossipRequest(
         codec -> codec.encode(barMember.id(), new Gossip(localMember.id(), 1, message, 1)));
-    gossipProtocol.doWork();
 
-    epochClock.advance(1);
-    gossipProtocol.doWork();
+    advanceClock(1);
 
     verify(transport).send(addressCaptor.capture(), any(), anyInt(), anyInt());
     assertThat(addressCaptor.getValue(), is(aliceMember.address()));
@@ -204,26 +175,18 @@ class GossipProtocolTest {
     emitMemberAction(MemberActionType.ADD, fooMember);
     emitMemberAction(MemberActionType.ADD, barMember);
     emitMemberAction(MemberActionType.ADD, aliceMember);
-    gossipProtocol.doWork();
-    gossipProtocol.doWork();
-    gossipProtocol.doWork();
 
     final byte[] message = newMessage();
     emitGossipMessage(message);
-    gossipProtocol.doWork();
 
     emitGossipRequest(
         codec -> codec.encode(fooMember.id(), new Gossip(localMember.id(), 1, message, 1)));
-    gossipProtocol.doWork();
     emitGossipRequest(
         codec -> codec.encode(barMember.id(), new Gossip(localMember.id(), 1, message, 1)));
-    gossipProtocol.doWork();
     emitGossipRequest(
         codec -> codec.encode(aliceMember.id(), new Gossip(localMember.id(), 1, message, 1)));
-    gossipProtocol.doWork();
 
-    epochClock.advance(1);
-    gossipProtocol.doWork();
+    advanceClock(1);
 
     verify(transport, never()).send(any(), any(), anyInt(), anyInt());
   }
@@ -231,12 +194,13 @@ class GossipProtocolTest {
   @Test
   void testShouldNotSpreadGossipWhenNoRemoteMembers() {
     emitGossipMessage(newMessage());
+
     emitGossipRequest(
         codec ->
             codec.encode(UUID.randomUUID(), new Gossip(UUID.randomUUID(), 1, newMessage(), 1)));
-    gossipProtocol.doWork();
 
-    epochClock.advance(1);
+    advanceClock(1);
+
     verify(transport, never()).send(any(), any(), anyInt(), anyInt());
   }
 
@@ -245,26 +209,21 @@ class GossipProtocolTest {
     emitMemberAction(MemberActionType.ADD, fooMember);
     emitMemberAction(MemberActionType.ADD, barMember);
     emitMemberAction(MemberActionType.ADD, aliceMember);
-    gossipProtocol.doWork();
-    gossipProtocol.doWork();
-    gossipProtocol.doWork();
 
     emitGossipMessage(newMessage());
-    gossipProtocol.doWork();
 
-    epochClock.advance(1);
-    gossipProtocol.doWork();
+    advanceClock(1);
+
     verify(transport, times(3)).send(any(), any(), anyInt(), anyInt());
 
     final int periodsToSweep = ClusterMath.gossipPeriodsToSweep(config.gossipRepeatMult(), 3 + 1);
     for (int i = 0; i < periodsToSweep; i++) {
       reset(transport);
-      epochClock.advance(config.gossipInterval() + 1);
-      gossipProtocol.doWork();
+      advanceClock(config.gossipInterval() + 1);
     }
 
     reset(transport);
-    epochClock.advance(config.gossipInterval() + 1);
+    advanceClock(config.gossipInterval() + 1);
     verify(transport, never()).send(any(), any(), anyInt(), anyInt());
   }
 
@@ -275,10 +234,16 @@ class GossipProtocolTest {
     return bytes;
   }
 
+  private void advanceClock(final long millis) {
+    epochClock.advance(millis);
+    gossipProtocol.doWork();
+  }
+
   private void emitMemberAction(MemberActionType actionType, Member member) {
     final MemberActionCodec memberActionCodec = new MemberActionCodec();
     messageTx.transmit(
         1, memberActionCodec.encode(actionType, member), 0, memberActionCodec.encodedLength());
+    gossipProtocol.doWork();
   }
 
   private void emitGossipMessage(byte[] message) {
@@ -289,6 +254,7 @@ class GossipProtocolTest {
     gossipMessageEncoder.putMessage(message, 0, message.length);
     final int encodedLength = headerEncoder.encodedLength() + gossipMessageEncoder.encodedLength();
     messageTx.transmit(1, buffer, 0, encodedLength);
+    gossipProtocol.doWork();
   }
 
   private void emitGossipRequest(Function<GossipRequestCodec, MutableDirectBuffer> function) {
@@ -302,6 +268,7 @@ class GossipProtocolTest {
             })
         .when(messagePoller)
         .poll(any());
+    gossipProtocol.doWork();
   }
 
   private void assertMessageRx(CopyBroadcastReceiver messageRx, Consumer<byte[]> consumer) {

@@ -83,7 +83,6 @@ class FailureDetectorTest {
   @Test
   void testOnMemberActionLocalMemberWillBeFiltered() {
     emitMemberAction(MemberActionType.ADD, localMember);
-
     advanceClock(1);
     verify(transport, never()).send(any(), any(), anyInt(), anyInt());
   }
