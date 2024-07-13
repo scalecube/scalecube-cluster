@@ -70,7 +70,19 @@ public class MembershipProtocol extends AbstractAgent {
   protected void onTick() {
     period++;
 
-    // TODO
+    final String seedMember = memberSelector.nextSeedMember();
+    if (seedMember != null) {
+      doSync(seedMember);
+    }
+
+    final Member remoteMember = memberSelector.nextRemoteMember();
+    if (remoteMember != null) {
+      doSync(remoteMember.address());
+    }
+  }
+
+  private void doSync(String address) {
+    // transport.send();
   }
 
   @Override
