@@ -103,8 +103,7 @@ public class MembershipProtocol extends AbstractAgent {
         onSyncAck(syncAckDecoder.wrapAndApplyHeader(buffer, index, headerDecoder));
         break;
       case MembershipRecordDecoder.TEMPLATE_ID:
-        onMembershipRecord(
-            membershipRecordDecoder.wrapAndApplyHeader(buffer, index, headerDecoder));
+        onGossip(membershipRecordDecoder.wrapAndApplyHeader(buffer, index, headerDecoder));
         break;
       case FailureDetectorEventDecoder.TEMPLATE_ID:
         onFailureDetectorEvent(
@@ -119,7 +118,7 @@ public class MembershipProtocol extends AbstractAgent {
 
   private void onSyncAck(SyncAckDecoder decoder) {}
 
-  private void onMembershipRecord(MembershipRecordDecoder decoder) {}
+  private void onGossip(MembershipRecordDecoder decoder) {}
 
   private void onFailureDetectorEvent(FailureDetectorEventDecoder decoder) {}
 
