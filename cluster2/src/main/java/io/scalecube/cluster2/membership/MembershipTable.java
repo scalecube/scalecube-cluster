@@ -72,12 +72,7 @@ public class MembershipTable implements TimerHandler {
       return;
     }
 
-    if (record.incarnation() > oldRecord.incarnation()) {
-      recordMap.put(key, record);
-      return;
-    }
-
-    if (record.status() != ALIVE) {
+    if (record.incarnation() > oldRecord.incarnation() || record.status() != ALIVE) {
       recordMap.put(key, record);
     }
   }
