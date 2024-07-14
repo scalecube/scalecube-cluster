@@ -66,7 +66,6 @@ public class GossipProtocol extends AbstractAgent {
         messageTx,
         messageRxSupplier,
         epochClock,
-        null,
         Duration.ofMillis(config.gossipInterval()));
     this.config = config;
     this.localMember = localMember;

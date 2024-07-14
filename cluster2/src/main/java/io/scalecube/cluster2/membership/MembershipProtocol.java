@@ -64,7 +64,6 @@ public class MembershipProtocol extends AbstractAgent {
         messageTx,
         messageRxSupplier,
         epochClock,
-        null,
         Duration.ofMillis(config.syncInterval()));
     this.config = config;
     this.localRecord = localRecord;

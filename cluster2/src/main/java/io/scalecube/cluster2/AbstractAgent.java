@@ -16,7 +16,6 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
   protected final BroadcastTransmitter messageTx;
   protected final Supplier<CopyBroadcastReceiver> messageRxSupplier;
   protected final EpochClock epochClock;
-  protected final CallbackInvoker callbackInvoker;
 
   protected MessagePoller messagePoller;
   protected CopyBroadcastReceiver messageRx;
@@ -27,13 +26,11 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
       BroadcastTransmitter messageTx,
       Supplier<CopyBroadcastReceiver> messageRxSupplier,
       EpochClock epochClock,
-      CallbackInvoker callbackInvoker,
       Duration tickInterval) {
     this.transport = transport;
     this.messageTx = messageTx;
     this.messageRxSupplier = messageRxSupplier;
     this.epochClock = epochClock;
-    this.callbackInvoker = callbackInvoker;
     messagePoller = transport.newMessagePoller();
     messageRx = messageRxSupplier.get();
     tickDelay = new Delay(epochClock, tickInterval.toMillis());
@@ -46,7 +43,6 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
     workCount += pollMessage();
     workCount += receiveMessage();
     workCount += processTick();
-    workCount += callbackInvoker != null ? callbackInvoker.doWork() : 0;
 
     return workCount;
   }

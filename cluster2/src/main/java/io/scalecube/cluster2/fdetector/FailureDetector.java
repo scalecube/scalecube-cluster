@@ -54,7 +54,6 @@ public class FailureDetector extends AbstractAgent {
         messageTx,
         messageRxSupplier,
         epochClock,
-        null,
         Duration.ofMillis(config.pingInterval()));
     this.localMember = localMember;
     roleName = "fdetector@" + localMember.address();
