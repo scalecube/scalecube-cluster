@@ -5,6 +5,7 @@ import static io.scalecube.cluster2.sbe.MemberStatus.ALIVE;
 
 import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.MemberActionCodec;
+import io.scalecube.cluster2.sbe.MemberActionType;
 import io.scalecube.cluster2.sbe.MemberStatus;
 import java.util.Map;
 import java.util.UUID;
@@ -58,7 +59,7 @@ public class MembershipTable implements TimerHandler {
     final MembershipRecord oldRecord = recordMap.get(key);
     if (oldRecord == null) {
       recordMap.put(key, record);
-      emitAddMember(member);
+      emitMemberAction(ADD_MEMBER, member);
       return;
     }
 
@@ -73,14 +74,14 @@ public class MembershipTable implements TimerHandler {
     }
 
     if (record.incarnation() > oldRecord.incarnation() || record.status() != ALIVE) {
-      recordMap.put(key, record);
+      update(record, record.status());
     }
   }
 
   public void put(Member member, MemberStatus status) {
     final MembershipRecord record = recordMap.get(member.id());
     if (record != null && record.status() != status) {
-      record.status(status);
+      update(record, status);
       emitGossip(record);
     }
   }
@@ -89,13 +90,38 @@ public class MembershipTable implements TimerHandler {
     recordMap.values().forEach(consumer);
   }
 
-  private void emitAddMember(final Member member) {
+  private void emitMemberAction(MemberActionType actionType, Member member) {
     messageTx.transmit(
-        1, memberActionCodec.encode(ADD_MEMBER, member), 0, memberActionCodec.encodedLength());
+        1, memberActionCodec.encode(actionType, member), 0, memberActionCodec.encodedLength());
   }
 
   private void emitGossip(MembershipRecord record) {
     messageTx.transmit(
         1, membershipRecordCodec.encode(record), 0, membershipRecordCodec.encodedLength());
+  }
+
+  private void update(MembershipRecord record, MemberStatus status) {
+    final UUID key = record.member().id();
+
+    recordMap.put(key, record.status(status));
+
+    if (status == ALIVE) {
+      cancelTimer(key);
+    } else {
+      scheduleTimer(key);
+    }
+  }
+
+  private void cancelTimer(UUID key) {
+    final long timerId = timerIdByMemberId.removeKey(key);
+    memberIdByTimerId.remove(timerId);
+    timerWheel.cancelTimer(timerId);
+  }
+
+  private void scheduleTimer(UUID key) {
+    final long deadline = epochClock.time() + 20000; // TODO: apply here ClathMath.suspicionTimeout
+    final long timerId = timerWheel.scheduleTimer(deadline);
+    timerIdByMemberId.put(key, timerId);
+    memberIdByTimerId.put(timerId, key);
   }
 }
