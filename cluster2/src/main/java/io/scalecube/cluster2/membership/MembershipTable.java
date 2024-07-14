@@ -1,6 +1,7 @@
 package io.scalecube.cluster2.membership;
 
 import static io.scalecube.cluster2.sbe.MemberActionType.ADD_MEMBER;
+import static io.scalecube.cluster2.sbe.MemberActionType.REMOVE_MEMBER;
 import static io.scalecube.cluster2.sbe.MemberStatus.ALIVE;
 
 import io.scalecube.cluster2.Member;
@@ -50,7 +51,16 @@ public class MembershipTable implements TimerHandler {
 
   @Override
   public boolean onTimerExpiry(TimeUnit timeUnit, long now, long timerId) {
-    return false; // TODO -- implement (SUSPECTED -> TIMEOUT)
+    final UUID memberId = memberIdByTimerId.remove(timerId);
+    if (memberId != null) {
+      timerIdByMemberId.removeKey(memberId);
+      final MembershipRecord record = recordMap.remove(memberId);
+      if (record != null) {
+        emitMemberAction(REMOVE_MEMBER, record.member());
+        // TODO: emit to clients MembershipEvent(type=REMOVED)
+      }
+    }
+    return true;
   }
 
   public void put(MembershipRecord record) {
