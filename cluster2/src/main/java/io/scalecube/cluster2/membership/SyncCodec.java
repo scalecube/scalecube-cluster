@@ -14,7 +14,7 @@ public class SyncCodec extends AbstractCodec {
   public SyncCodec() {}
 
   public MutableDirectBuffer encodeSync(
-      int period, String from, MembershipRecord membershipRecord) {
+      long period, String from, MembershipRecord membershipRecord) {
     encodedLength = 0;
 
     syncEncoder.wrapAndApplyHeader(encodedBuffer, 0, headerEncoder);
@@ -28,7 +28,7 @@ public class SyncCodec extends AbstractCodec {
   }
 
   public MutableDirectBuffer encodeSyncAck(
-      int period, String from, MembershipRecord membershipRecord) {
+      long period, String from, MembershipRecord membershipRecord) {
     encodedLength = 0;
 
     syncAckEncoder.wrapAndApplyHeader(encodedBuffer, 0, headerEncoder);
