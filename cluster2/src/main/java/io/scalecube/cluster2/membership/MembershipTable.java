@@ -24,6 +24,8 @@ import org.agrona.concurrent.broadcast.BroadcastTransmitter;
 
 public class MembershipTable implements TimerHandler {
 
+  public static final int TIMEOUT = 20000;
+
   private final EpochClock epochClock;
   private final BroadcastTransmitter messageTx;
   private final MembershipRecord localRecord;
@@ -33,7 +35,7 @@ public class MembershipTable implements TimerHandler {
       new Object2LongHashMap<>(Long.MIN_VALUE);
   private final Long2ObjectHashMap<UUID> memberIdByTimerId = new Long2ObjectHashMap<>();
   private final DeadlineTimerWheel timerWheel =
-      new DeadlineTimerWheel(TimeUnit.MILLISECONDS, 0, 16, 128);
+      new DeadlineTimerWheel(TimeUnit.MILLISECONDS, 0, 8, 128);
   private final MemberActionCodec memberActionCodec = new MemberActionCodec();
   private final MembershipRecordCodec membershipRecordCodec = new MembershipRecordCodec();
   private final GossipMessageCodec gossipMessageCodec = new GossipMessageCodec();
@@ -49,7 +51,7 @@ public class MembershipTable implements TimerHandler {
   }
 
   public int doWork() {
-    return timerWheel.poll(epochClock.time(), this, Integer.MAX_VALUE);
+    return timerWheel.poll(epochClock.time(), this, 10);
   }
 
   @Override
@@ -137,7 +139,8 @@ public class MembershipTable implements TimerHandler {
   }
 
   private void scheduleTimer(UUID key) {
-    final long deadline = epochClock.time() + 20000; // TODO: apply here ClathMath.suspicionTimeout
+    final long deadline =
+        epochClock.time() + TIMEOUT; // TODO: apply here ClathMath.suspicionTimeout
     final long timerId = timerWheel.scheduleTimer(deadline);
     timerIdByMemberId.put(key, timerId);
     memberIdByTimerId.put(timerId, key);

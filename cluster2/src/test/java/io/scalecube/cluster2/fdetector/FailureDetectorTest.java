@@ -431,9 +431,11 @@ class FailureDetectorTest {
     }
 
     messageRx.receive(
-        (msgTypeId, buffer, index, length) ->
-            mutableReference.set(
-                failureDetectorEventDecoder.wrapAndApplyHeader(buffer, index, headerDecoder)));
+        (msgTypeId, buffer, index, length) -> {
+          final FailureDetectorEventDecoder decoder =
+              failureDetectorEventDecoder.wrapAndApplyHeader(buffer, index, headerDecoder);
+          mutableReference.set(decoder);
+        });
 
     final FailureDetectorEventDecoder decoder = mutableReference.get();
     if (decoder == null) {
