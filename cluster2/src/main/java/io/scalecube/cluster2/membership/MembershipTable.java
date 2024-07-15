@@ -4,6 +4,7 @@ import static io.scalecube.cluster2.sbe.MemberActionType.ADD_MEMBER;
 import static io.scalecube.cluster2.sbe.MemberActionType.REMOVE_MEMBER;
 import static io.scalecube.cluster2.sbe.MemberStatus.ALIVE;
 
+import io.scalecube.cluster2.ClusterMath;
 import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.MemberActionCodec;
 import io.scalecube.cluster2.gossip.GossipMessageCodec;
@@ -24,12 +25,12 @@ import org.agrona.concurrent.broadcast.BroadcastTransmitter;
 
 public class MembershipTable implements TimerHandler {
 
-  public static final int TIMEOUT = 20000;
-
   private final EpochClock epochClock;
   private final BroadcastTransmitter messageTx;
   private final MembershipRecord localRecord;
   private final Member localMember;
+  private final int suspicionMult;
+  private final int pingInterval;
 
   private final Object2LongHashMap<UUID> timerIdByMemberId =
       new Object2LongHashMap<>(Long.MIN_VALUE);
@@ -39,7 +40,7 @@ public class MembershipTable implements TimerHandler {
   private final MemberActionCodec memberActionCodec = new MemberActionCodec();
   private final MembershipRecordCodec membershipRecordCodec = new MembershipRecordCodec();
   private final GossipMessageCodec gossipMessageCodec = new GossipMessageCodec();
-  private final Map<UUID, MembershipRecord> recordMap = new Object2ObjectHashMap<>();
+  private final Map<UUID, MembershipRecord> records = new Object2ObjectHashMap<>();
 
   public static void main(String[] args) throws InterruptedException {
     final DeadlineTimerWheel timerWheel = new DeadlineTimerWheel(TimeUnit.MILLISECONDS, 0, 8, 128);
@@ -57,12 +58,18 @@ public class MembershipTable implements TimerHandler {
   }
 
   public MembershipTable(
-      EpochClock epochClock, BroadcastTransmitter messageTx, MembershipRecord localRecord) {
+      EpochClock epochClock,
+      BroadcastTransmitter messageTx,
+      MembershipRecord localRecord,
+      int suspicionMult,
+      int pingInterval) {
     this.epochClock = epochClock;
     this.messageTx = messageTx;
     this.localRecord = localRecord;
+    this.suspicionMult = suspicionMult;
+    this.pingInterval = pingInterval;
     localMember = localRecord.member();
-    recordMap.put(localMember.id(), localRecord);
+    records.put(localMember.id(), localRecord);
   }
 
   public int doWork() {
@@ -74,7 +81,7 @@ public class MembershipTable implements TimerHandler {
     final UUID memberId = memberIdByTimerId.remove(timerId);
     if (memberId != null) {
       timerIdByMemberId.removeKey(memberId);
-      final MembershipRecord record = recordMap.remove(memberId);
+      final MembershipRecord record = records.remove(memberId);
       if (record != null) {
         emitMemberAction(REMOVE_MEMBER, record.member());
         // TODO: emit to clients MembershipEvent(type=REMOVED)
@@ -91,9 +98,9 @@ public class MembershipTable implements TimerHandler {
 
     final Member member = record.member();
     final UUID key = member.id();
-    final MembershipRecord oldRecord = recordMap.get(key);
+    final MembershipRecord oldRecord = records.get(key);
     if (oldRecord == null) {
-      recordMap.put(key, record);
+      records.put(key, record);
       emitMemberAction(ADD_MEMBER, member);
       return;
     }
@@ -114,7 +121,7 @@ public class MembershipTable implements TimerHandler {
   }
 
   public void put(Member member, MemberStatus status) {
-    final MembershipRecord record = recordMap.get(member.id());
+    final MembershipRecord record = records.get(member.id());
     if (record == null) {
       return;
     }
@@ -131,7 +138,7 @@ public class MembershipTable implements TimerHandler {
   }
 
   public void forEach(Consumer<MembershipRecord> consumer) {
-    recordMap.values().forEach(consumer);
+    records.values().forEach(consumer);
   }
 
   private void emitMemberAction(MemberActionType actionType, Member member) {
@@ -152,7 +159,7 @@ public class MembershipTable implements TimerHandler {
   private void update(MembershipRecord record, MemberStatus status) {
     final UUID key = record.member().id();
 
-    recordMap.put(key, record.status(status));
+    records.put(key, record.status(status));
 
     if (status == ALIVE) {
       cancelTimer(key);
@@ -168,8 +175,9 @@ public class MembershipTable implements TimerHandler {
   }
 
   private void scheduleTimer(UUID key) {
-    final long deadline =
-        epochClock.time() + TIMEOUT; // TODO: apply here ClathMath.suspicionTimeout
+    long suspicionTimeout =
+        ClusterMath.suspicionTimeout(suspicionMult, records.size(), pingInterval);
+    final long deadline = epochClock.time() + suspicionTimeout;
     final long timerId = timerWheel.scheduleTimer(deadline);
     timerIdByMemberId.put(key, timerId);
     memberIdByTimerId.put(timerId, key);

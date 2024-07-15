@@ -49,7 +49,7 @@ class MembershipTableTest {
   private final Supplier<CopyBroadcastReceiver> messageRxSupplier =
       () -> new CopyBroadcastReceiver(new BroadcastReceiver(new UnsafeBuffer(byteBuffer)));
   private final MembershipTable membershipTable =
-      new MembershipTable(epochClock, messageTx, localRecord);
+      new MembershipTable(epochClock, messageTx, localRecord, 3, 1000);
 
   @Test
   void testDoNothing() {
