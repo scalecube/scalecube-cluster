@@ -6,6 +6,7 @@ import io.scalecube.cluster.transport.api2.Transport;
 import io.scalecube.cluster2.AbstractAgent;
 import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.sbe.FailureDetectorEventDecoder;
+import io.scalecube.cluster2.sbe.GossipInputMessageDecoder;
 import io.scalecube.cluster2.sbe.MembershipRecordDecoder;
 import io.scalecube.cluster2.sbe.MessageHeaderDecoder;
 import io.scalecube.cluster2.sbe.SyncAckDecoder;
@@ -33,6 +34,8 @@ public class MembershipProtocol extends AbstractAgent {
   private final FailureDetectorEventDecoder failureDetectorEventDecoder =
       new FailureDetectorEventDecoder();
   private final MembershipRecordDecoder membershipRecordDecoder = new MembershipRecordDecoder();
+  private final GossipInputMessageDecoder gossipInputMessageDecoder =
+      new GossipInputMessageDecoder();
   private final SyncCodec syncCodec = new SyncCodec();
   private final String roleName;
   private final MutableLong period = new MutableLong();
@@ -102,8 +105,9 @@ public class MembershipProtocol extends AbstractAgent {
       case SyncAckDecoder.TEMPLATE_ID:
         onSyncAck(syncAckDecoder.wrapAndApplyHeader(buffer, index, headerDecoder));
         break;
-      case MembershipRecordDecoder.TEMPLATE_ID:
-        onGossip(membershipRecordDecoder.wrapAndApplyHeader(buffer, index, headerDecoder));
+      case GossipInputMessageDecoder.TEMPLATE_ID:
+        onGossipInputMessage(
+            gossipInputMessageDecoder.wrapAndApplyHeader(buffer, index, headerDecoder));
         break;
       case FailureDetectorEventDecoder.TEMPLATE_ID:
         onFailureDetectorEvent(
@@ -118,7 +122,7 @@ public class MembershipProtocol extends AbstractAgent {
 
   private void onSyncAck(SyncAckDecoder decoder) {}
 
-  private void onGossip(MembershipRecordDecoder decoder) {}
+  private void onGossipInputMessage(GossipInputMessageDecoder decoder) {}
 
   private void onFailureDetectorEvent(FailureDetectorEventDecoder decoder) {}
 
