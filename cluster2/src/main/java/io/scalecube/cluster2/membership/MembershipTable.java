@@ -6,6 +6,7 @@ import static io.scalecube.cluster2.sbe.MemberStatus.ALIVE;
 
 import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.MemberActionCodec;
+import io.scalecube.cluster2.gossip.GossipMessageCodec;
 import io.scalecube.cluster2.sbe.MemberActionType;
 import io.scalecube.cluster2.sbe.MemberStatus;
 import java.util.Map;
@@ -14,6 +15,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import org.agrona.DeadlineTimerWheel;
 import org.agrona.DeadlineTimerWheel.TimerHandler;
+import org.agrona.MutableDirectBuffer;
 import org.agrona.collections.Long2ObjectHashMap;
 import org.agrona.collections.Object2LongHashMap;
 import org.agrona.collections.Object2ObjectHashMap;
@@ -34,6 +36,7 @@ public class MembershipTable implements TimerHandler {
       new DeadlineTimerWheel(TimeUnit.MILLISECONDS, 0, 16, 128);
   private final MemberActionCodec memberActionCodec = new MemberActionCodec();
   private final MembershipRecordCodec membershipRecordCodec = new MembershipRecordCodec();
+  private final GossipMessageCodec gossipMessageCodec = new GossipMessageCodec();
   private final Map<UUID, MembershipRecord> recordMap = new Object2ObjectHashMap<>();
 
   public MembershipTable(
@@ -106,8 +109,13 @@ public class MembershipTable implements TimerHandler {
   }
 
   private void emitGossip(MembershipRecord record) {
+    final MutableDirectBuffer buffer = membershipRecordCodec.encode(record);
+    final int encodedLength = membershipRecordCodec.encodedLength();
     messageTx.transmit(
-        1, membershipRecordCodec.encode(record), 0, membershipRecordCodec.encodedLength());
+        1,
+        gossipMessageCodec.encodeOutputMessage(buffer, 0, encodedLength),
+        0,
+        gossipMessageCodec.encodedLength());
   }
 
   private void update(MembershipRecord record, MemberStatus status) {
