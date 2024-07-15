@@ -43,7 +43,6 @@ public class MembershipProtocol extends AbstractAgent {
   private final String roleName;
   private final MutableLong period = new MutableLong();
   private final MemberSelector memberSelector;
-  private List<String> seedMembers;
   private final ArrayList<Member> remoteMembers = new ArrayList<>();
   private final ArrayList<Member> nonSeedMembers = new ArrayList<>();
   private final MembershipTable membershipTable;
@@ -66,8 +65,7 @@ public class MembershipProtocol extends AbstractAgent {
     this.localRecord = localRecord;
     this.localMember = localRecord.member();
     roleName = "membership@" + localMember.address();
-    seedMembers = config.seedMembers();
-    memberSelector = new MemberSelector(seedMembers, remoteMembers, nonSeedMembers);
+    memberSelector = new MemberSelector(config.seedMembers(), remoteMembers, nonSeedMembers);
     membershipTable =
         new MembershipTable(
             epochClock,
