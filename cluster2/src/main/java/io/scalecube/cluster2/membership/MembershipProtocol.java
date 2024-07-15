@@ -5,9 +5,11 @@ import static io.scalecube.cluster2.ShuffleUtil.shuffle;
 import io.scalecube.cluster.transport.api2.Transport;
 import io.scalecube.cluster2.AbstractAgent;
 import io.scalecube.cluster2.Member;
+import io.scalecube.cluster2.MemberCodec;
 import io.scalecube.cluster2.fdetector.FailureDetectorConfig;
 import io.scalecube.cluster2.sbe.FailureDetectorEventDecoder;
 import io.scalecube.cluster2.sbe.GossipInputMessageDecoder;
+import io.scalecube.cluster2.sbe.MemberStatus;
 import io.scalecube.cluster2.sbe.MessageHeaderDecoder;
 import io.scalecube.cluster2.sbe.SyncAckDecoder;
 import io.scalecube.cluster2.sbe.SyncDecoder;
@@ -35,6 +37,8 @@ public class MembershipProtocol extends AbstractAgent {
       new FailureDetectorEventDecoder();
   private final GossipInputMessageDecoder gossipInputMessageDecoder =
       new GossipInputMessageDecoder();
+  private final MembershipRecordCodec membershipRecordCodec = new MembershipRecordCodec();
+  private final MemberCodec memberCodec = new MemberCodec();
   private final SyncCodec syncCodec = new SyncCodec();
   private final String roleName;
   private final MutableLong period = new MutableLong();
@@ -124,32 +128,60 @@ public class MembershipProtocol extends AbstractAgent {
     }
   }
 
-  private void onSync(SyncDecoder decoder) {}
+  private void onSync(SyncDecoder decoder) {
+    final long period = decoder.period();
+    final String from = decoder.from();
 
-  private void onSyncAck(SyncAckDecoder decoder) {}
+    if (decoder.membershipRecordLength() != 0) {
+      membershipTable.put(membershipRecordCodec.membershipRecord(decoder::wrapMembershipRecord));
+    } else {
+      doSyncAck(period, from);
+    }
+  }
 
-  private void onGossipInputMessage(GossipInputMessageDecoder decoder) {}
+  private void onSyncAck(SyncAckDecoder decoder) {
+    final long period = decoder.period();
 
-  private void onFailureDetectorEvent(FailureDetectorEventDecoder decoder) {}
+    if (this.period.get() != period) {
+      return;
+    }
+
+    membershipTable.put(membershipRecordCodec.membershipRecord(decoder::wrapMembershipRecord));
+  }
+
+  private void onGossipInputMessage(GossipInputMessageDecoder decoder) {
+    membershipTable.put(membershipRecordCodec.membershipRecord(decoder::wrapMessage));
+  }
+
+  private void onFailureDetectorEvent(FailureDetectorEventDecoder decoder) {
+    final MemberStatus status = decoder.status();
+    final Member member = memberCodec.member(decoder::wrapMember);
+    membershipTable.put(member, status);
+  }
 
   private void doSync(String address) {
     membershipTable.forEach(
         record ->
             transport.send(
                 address,
-                syncCodec.encodeSync(period.get(), localMember.address(), record),
+                syncCodec.encodeSync(Long.MIN_VALUE, null, record),
                 0,
                 syncCodec.encodedLength()));
+
+    // Complete sync (so that remote side could start SyncAck)
+
+    transport.send(
+        address,
+        syncCodec.encodeSync(period.get(), localMember.address(), null),
+        0,
+        syncCodec.encodedLength());
   }
 
-  private void doSyncAck(String address) {
+  private void doSyncAck(long period, String address) {
     membershipTable.forEach(
         record ->
             transport.send(
-                address,
-                syncCodec.encodeSyncAck(period.get(), localMember.address(), record),
-                0,
-                syncCodec.encodedLength()));
+                address, syncCodec.encodeSyncAck(period, record), 0, syncCodec.encodedLength()));
   }
 
   static class MemberSelector {

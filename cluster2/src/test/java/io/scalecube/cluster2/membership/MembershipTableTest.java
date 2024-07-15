@@ -7,13 +7,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import io.scalecube.cluster2.ClusterMath;
 import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.MemberCodec;
 import io.scalecube.cluster2.sbe.GossipOutputMessageDecoder;
 import io.scalecube.cluster2.sbe.MemberActionDecoder;
 import io.scalecube.cluster2.sbe.MemberActionType;
-import io.scalecube.cluster2.sbe.MemberStatus;
-import io.scalecube.cluster2.sbe.MembershipRecordDecoder;
 import io.scalecube.cluster2.sbe.MessageHeaderDecoder;
 import java.util.HashMap;
 import java.util.Map;
@@ -33,12 +32,16 @@ import org.junit.jupiter.api.Test;
 
 class MembershipTableTest {
 
+  private static final int SUSPICION_MULT = 3;
+  private static final int PING_INTERVAL = 1000;
+  private static final String NAMESPACE = "ns";
+
   private final MembershipRecord localRecord =
       new MembershipRecord()
           .incarnation(0)
           .status(ALIVE)
           .alias("alias")
-          .namespace(UUID.randomUUID().toString())
+          .namespace(NAMESPACE)
           .member(new Member(UUID.randomUUID(), "address:1180"));
 
   private final CachedEpochClock epochClock = new CachedEpochClock();
@@ -49,7 +52,7 @@ class MembershipTableTest {
   private final Supplier<CopyBroadcastReceiver> messageRxSupplier =
       () -> new CopyBroadcastReceiver(new BroadcastReceiver(new UnsafeBuffer(byteBuffer)));
   private final MembershipTable membershipTable =
-      new MembershipTable(epochClock, messageTx, localRecord, 3, 1000);
+      new MembershipTable(epochClock, messageTx, localRecord, SUSPICION_MULT, PING_INTERVAL);
 
   @Test
   void testDoNothing() {
@@ -92,7 +95,7 @@ class MembershipTableTest {
         },
         false);
 
-    advanceClock(MembershipTable.TIMEOUT + 1);
+    advanceClock(suspicionTimeout() + 1);
 
     assertMemberAction(
         messageRx,
@@ -166,7 +169,7 @@ class MembershipTableTest {
   @Test
   void testNamespaceFilter() {
     final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
-    final MembershipRecord record = newRecord();
+    final MembershipRecord record = newRecord(r -> r.namespace(UUID.randomUUID().toString()));
 
     membershipTable.put(record);
 
@@ -249,26 +252,7 @@ class MembershipTableTest {
       return;
     }
 
-    final byte[] message = new byte[decoder.messageLength()];
-    decoder.getMessage(message, 0, message.length);
-
-    final UnsafeBuffer unsafeBuffer = new UnsafeBuffer(message);
-    final MembershipRecordDecoder recordDecoder = new MembershipRecordDecoder();
-    recordDecoder.wrapAndApplyHeader(unsafeBuffer, 0, headerDecoder);
-
-    final int incarnation = recordDecoder.incarnation();
-    final MemberStatus status = recordDecoder.status();
-    final String alias = recordDecoder.alias();
-    final String ns = recordDecoder.namespace();
-    final Member member = memberCodec.member(recordDecoder::wrapMember);
-
-    consumer.accept(
-        new MembershipRecord()
-            .incarnation(incarnation)
-            .status(status)
-            .alias(alias)
-            .namespace(ns)
-            .member(member));
+    consumer.accept(new MembershipRecordCodec().membershipRecord(decoder::wrapMessage));
   }
 
   private static MembershipRecord newRecord() {
@@ -284,7 +268,7 @@ class MembershipTableTest {
             .incarnation(0)
             .status(ALIVE)
             .alias("alias")
-            .namespace("ns")
+            .namespace(NAMESPACE)
             .member(member);
     if (consumer != null) {
       consumer.accept(membershipRecord);
@@ -309,5 +293,9 @@ class MembershipTableTest {
       consumer.accept(membershipRecord);
     }
     return membershipRecord;
+  }
+
+  private long suspicionTimeout() {
+    return ClusterMath.suspicionTimeout(SUSPICION_MULT, membershipTable.size(), PING_INTERVAL);
   }
 }

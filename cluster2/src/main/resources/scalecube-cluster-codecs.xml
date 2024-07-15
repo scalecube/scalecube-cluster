@@ -130,7 +130,6 @@
 
   <sbe:message name="SyncAck" id="301">
     <field name="period" id="1" type="int64"/>
-    <field name="from" id="2" type="String64"/>
     <data name="membershipRecord" id="100" type="VarData"/>
   </sbe:message>
 
