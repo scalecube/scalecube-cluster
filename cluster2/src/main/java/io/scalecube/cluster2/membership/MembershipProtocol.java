@@ -27,7 +27,6 @@ import org.agrona.concurrent.broadcast.CopyBroadcastReceiver;
 public class MembershipProtocol extends AbstractAgent {
 
   private final MembershipConfig config;
-  private final MembershipRecord localRecord;
   private final Member localMember;
 
   private final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
@@ -62,7 +61,6 @@ public class MembershipProtocol extends AbstractAgent {
         epochClock,
         Duration.ofMillis(config.syncInterval()));
     this.config = config;
-    this.localRecord = localRecord;
     this.localMember = localRecord.member();
     roleName = "membership@" + localMember.address();
     memberSelector = new MemberSelector(config.seedMembers(), remoteMembers, nonSeedMembers);
