@@ -4,6 +4,7 @@ import static io.scalecube.cluster2.sbe.MemberStatus.ALIVE;
 import static io.scalecube.cluster2.sbe.MemberStatus.SUSPECTED;
 import static org.agrona.concurrent.broadcast.BroadcastBufferDescriptor.TRAILER_LENGTH;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import io.scalecube.cluster2.Member;
@@ -37,7 +38,7 @@ class MembershipTableTest {
           .incarnation(0)
           .status(ALIVE)
           .alias("alias")
-          .namespace("ns")
+          .namespace(UUID.randomUUID().toString())
           .member(new Member(UUID.randomUUID(), "address:1180"));
 
   private final CachedEpochClock epochClock = new CachedEpochClock();
@@ -164,7 +165,18 @@ class MembershipTableTest {
 
   @Test
   void testNamespaceFilter() {
-    fail("Implement");
+    final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
+    final MembershipRecord record = newRecord();
+
+    membershipTable.put(record);
+
+    assertMemberAction(
+        messageRx,
+        (actionType, member) -> {
+          assertNull(actionType, "actionType");
+          assertNull(member, "member");
+        },
+        false);
   }
 
   private void advanceClock(final long millis) {
