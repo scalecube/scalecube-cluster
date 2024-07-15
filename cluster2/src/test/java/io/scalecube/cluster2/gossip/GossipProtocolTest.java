@@ -23,15 +23,14 @@ import io.scalecube.cluster.transport.api2.Transport.MessagePoller;
 import io.scalecube.cluster2.ClusterMath;
 import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.MemberActionCodec;
-import io.scalecube.cluster2.sbe.GossipMessageEncoder;
+import io.scalecube.cluster2.sbe.GossipInputMessageDecoder;
 import io.scalecube.cluster2.sbe.MemberActionType;
-import io.scalecube.cluster2.sbe.MessageHeaderEncoder;
+import io.scalecube.cluster2.sbe.MessageHeaderDecoder;
 import java.util.Random;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import org.agrona.ExpandableArrayBuffer;
 import org.agrona.ExpandableDirectByteBuffer;
 import org.agrona.MutableDirectBuffer;
 import org.agrona.collections.MutableReference;
@@ -113,7 +112,7 @@ class GossipProtocolTest {
     emitMemberAction(ADD_MEMBER, barMember);
     emitMemberAction(ADD_MEMBER, aliceMember);
 
-    emitGossipMessage(newMessage());
+    emitGossipOutputMessage(newMessage());
 
     advanceClock(1);
 
@@ -159,7 +158,7 @@ class GossipProtocolTest {
     emitMemberAction(ADD_MEMBER, aliceMember);
 
     final byte[] message = newMessage();
-    emitGossipMessage(message);
+    emitGossipOutputMessage(message);
 
     emitGossipRequest(
         codec -> codec.encode(fooMember.id(), new Gossip(localMember.id(), 1, message, 1)));
@@ -179,7 +178,7 @@ class GossipProtocolTest {
     emitMemberAction(ADD_MEMBER, aliceMember);
 
     final byte[] message = newMessage();
-    emitGossipMessage(message);
+    emitGossipOutputMessage(message);
 
     emitGossipRequest(
         codec -> codec.encode(fooMember.id(), new Gossip(localMember.id(), 1, message, 1)));
@@ -195,7 +194,7 @@ class GossipProtocolTest {
 
   @Test
   void testShouldNotSpreadGossipWhenNoRemoteMembers() {
-    emitGossipMessage(newMessage());
+    emitGossipOutputMessage(newMessage());
 
     emitGossipRequest(
         codec ->
@@ -212,7 +211,7 @@ class GossipProtocolTest {
     emitMemberAction(ADD_MEMBER, barMember);
     emitMemberAction(ADD_MEMBER, aliceMember);
 
-    emitGossipMessage(newMessage());
+    emitGossipOutputMessage(newMessage());
 
     advanceClock(1);
 
@@ -248,14 +247,14 @@ class GossipProtocolTest {
     gossipProtocol.doWork();
   }
 
-  private void emitGossipMessage(byte[] message) {
-    final ExpandableArrayBuffer buffer = new ExpandableArrayBuffer();
-    final MessageHeaderEncoder headerEncoder = new MessageHeaderEncoder();
-    final GossipMessageEncoder gossipMessageEncoder = new GossipMessageEncoder();
-    gossipMessageEncoder.wrapAndApplyHeader(buffer, 0, headerEncoder);
-    gossipMessageEncoder.putMessage(message, 0, message.length);
-    final int encodedLength = headerEncoder.encodedLength() + gossipMessageEncoder.encodedLength();
-    messageTx.transmit(1, buffer, 0, encodedLength);
+  private void emitGossipOutputMessage(byte[] message) {
+    final GossipMessageCodec gossipMessageCodec = new GossipMessageCodec();
+    final UnsafeBuffer buffer = new UnsafeBuffer(message);
+    messageTx.transmit(
+        1,
+        gossipMessageCodec.encodeOutputMessage(buffer, 0, buffer.capacity()),
+        0,
+        gossipMessageCodec.encodedLength());
     gossipProtocol.doWork();
   }
 
@@ -281,8 +280,13 @@ class GossipProtocolTest {
         });
     messageRx.receive(
         (msgTypeId, buffer, index, length) -> {
-          final byte[] message = new byte[length];
-          buffer.getBytes(index, message, 0, message.length);
+          final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
+          final GossipInputMessageDecoder decoder = new GossipInputMessageDecoder();
+          decoder.wrapAndApplyHeader(buffer, index, headerDecoder);
+
+          final byte[] message = new byte[decoder.messageLength()];
+          decoder.getMessage(message, 0, message.length);
+
           mutableReference.set(message);
         });
 

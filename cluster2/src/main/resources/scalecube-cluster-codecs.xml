@@ -107,13 +107,17 @@
     <data name="message" id="101" type="VarData"/>
   </sbe:message>
 
-  <sbe:message name="GossipMessage" id="201">
+  <sbe:message name="GossipRequest" id="201">
+    <field name="from" id="1" type="UUID"/>
+    <data name="gossip" id="100" type="VarData"/>
+  </sbe:message>
+
+  <sbe:message name="GossipOutputMessage" id="202">
     <data name="message" id="100" type="VarData"/>
   </sbe:message>
 
-  <sbe:message name="GossipRequest" id="202">
-    <field name="from" id="1" type="UUID"/>
-    <data name="gossip" id="100" type="VarData"/>
+  <sbe:message name="GossipInputMessage" id="203">
+    <data name="message" id="100" type="VarData"/>
   </sbe:message>
 
   <!-- Cluster Membership -->

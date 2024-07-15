@@ -5,7 +5,7 @@ import org.agrona.concurrent.MessageHandler;
 
 public interface Transport extends AutoCloseable {
 
-  void send(String address, DirectBuffer bytes, int offset, int length);
+  void send(String address, DirectBuffer buffer, int offset, int length);
 
   MessagePoller newMessagePoller();
 
