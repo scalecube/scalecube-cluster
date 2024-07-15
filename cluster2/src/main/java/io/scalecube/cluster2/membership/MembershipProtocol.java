@@ -141,12 +141,9 @@ public class MembershipProtocol extends AbstractAgent {
 
   private void onSyncAck(SyncAckDecoder decoder) {
     final long period = decoder.period();
-
-    if (this.period.get() != period) {
-      return;
+    if (this.period.get() == period) {
+      membershipTable.put(membershipRecordCodec.membershipRecord(decoder::wrapMembershipRecord));
     }
-
-    membershipTable.put(membershipRecordCodec.membershipRecord(decoder::wrapMembershipRecord));
   }
 
   private void onGossipInputMessage(GossipInputMessageDecoder decoder) {
