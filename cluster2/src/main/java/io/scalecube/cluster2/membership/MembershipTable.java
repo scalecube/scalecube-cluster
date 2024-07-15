@@ -41,6 +41,21 @@ public class MembershipTable implements TimerHandler {
   private final GossipMessageCodec gossipMessageCodec = new GossipMessageCodec();
   private final Map<UUID, MembershipRecord> recordMap = new Object2ObjectHashMap<>();
 
+  public static void main(String[] args) throws InterruptedException {
+    final DeadlineTimerWheel timerWheel = new DeadlineTimerWheel(TimeUnit.MILLISECONDS, 0, 8, 128);
+    timerWheel.scheduleTimer(System.currentTimeMillis() + 1000);
+
+    Thread.sleep(3000);
+
+    timerWheel.poll(
+        System.currentTimeMillis(),
+        (timeUnit, now, timerId) -> {
+          System.err.println("### " + timerId);
+          return true;
+        },
+        10);
+  }
+
   public MembershipTable(
       EpochClock epochClock, BroadcastTransmitter messageTx, MembershipRecord localRecord) {
     this.epochClock = epochClock;
