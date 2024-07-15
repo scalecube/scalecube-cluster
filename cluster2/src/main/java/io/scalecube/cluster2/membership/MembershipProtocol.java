@@ -5,9 +5,9 @@ import static io.scalecube.cluster2.ShuffleUtil.shuffle;
 import io.scalecube.cluster.transport.api2.Transport;
 import io.scalecube.cluster2.AbstractAgent;
 import io.scalecube.cluster2.Member;
+import io.scalecube.cluster2.fdetector.FailureDetectorConfig;
 import io.scalecube.cluster2.sbe.FailureDetectorEventDecoder;
 import io.scalecube.cluster2.sbe.GossipInputMessageDecoder;
-import io.scalecube.cluster2.sbe.MembershipRecordDecoder;
 import io.scalecube.cluster2.sbe.MessageHeaderDecoder;
 import io.scalecube.cluster2.sbe.SyncAckDecoder;
 import io.scalecube.cluster2.sbe.SyncDecoder;
@@ -33,7 +33,6 @@ public class MembershipProtocol extends AbstractAgent {
   private final SyncAckDecoder syncAckDecoder = new SyncAckDecoder();
   private final FailureDetectorEventDecoder failureDetectorEventDecoder =
       new FailureDetectorEventDecoder();
-  private final MembershipRecordDecoder membershipRecordDecoder = new MembershipRecordDecoder();
   private final GossipInputMessageDecoder gossipInputMessageDecoder =
       new GossipInputMessageDecoder();
   private final SyncCodec syncCodec = new SyncCodec();
@@ -51,6 +50,7 @@ public class MembershipProtocol extends AbstractAgent {
       Supplier<CopyBroadcastReceiver> messageRxSupplier,
       EpochClock epochClock,
       MembershipConfig config,
+      FailureDetectorConfig fdetectorConfig,
       MembershipRecord localRecord) {
     super(
         transport,
@@ -64,7 +64,13 @@ public class MembershipProtocol extends AbstractAgent {
     roleName = "membership@" + localMember.address();
     seedMembers = config.seedMembers();
     memberSelector = new MemberSelector(seedMembers, remoteMembers, nonSeedMembers);
-    membershipTable = new MembershipTable(epochClock, messageTx, localRecord);
+    membershipTable =
+        new MembershipTable(
+            epochClock,
+            messageTx,
+            localRecord,
+            config.suspicionMult(),
+            fdetectorConfig.pingInterval());
   }
 
   @Override
