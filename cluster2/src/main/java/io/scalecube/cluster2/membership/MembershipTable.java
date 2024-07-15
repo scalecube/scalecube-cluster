@@ -69,6 +69,11 @@ public class MembershipTable implements TimerHandler {
   }
 
   public void put(MembershipRecord record) {
+    final String namespace = record.namespace();
+    if (!localRecord.namespace().equals(namespace)) {
+      return;
+    }
+
     final Member member = record.member();
     final UUID key = member.id();
     final MembershipRecord oldRecord = recordMap.get(key);
@@ -95,7 +100,16 @@ public class MembershipTable implements TimerHandler {
 
   public void put(Member member, MemberStatus status) {
     final MembershipRecord record = recordMap.get(member.id());
-    if (record != null && record.status() != status) {
+    if (record == null) {
+      return;
+    }
+
+    final String namespace = record.namespace();
+    if (!localRecord.namespace().equals(namespace)) {
+      return;
+    }
+
+    if (record.status() != status) {
       update(record, status);
       emitGossip(record);
     }
