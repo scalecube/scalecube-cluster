@@ -24,9 +24,9 @@ import org.agrona.concurrent.EpochClock;
 import org.agrona.concurrent.broadcast.BroadcastTransmitter;
 import org.agrona.concurrent.broadcast.CopyBroadcastReceiver;
 
+@SuppressWarnings("FieldCanBeLocal")
 public class MembershipProtocol extends AbstractAgent {
 
-  private final MembershipConfig config;
   private final Member localMember;
 
   private final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
@@ -59,8 +59,7 @@ public class MembershipProtocol extends AbstractAgent {
         messageRxSupplier,
         epochClock,
         Duration.ofMillis(config.syncInterval()));
-    this.config = config;
-    this.localMember = localRecord.member();
+    localMember = localRecord.member();
     roleName = "membership@" + localMember.address();
     memberSelector = new MemberSelector(config.seedMembers(), remoteMembers);
     membershipTable =
