@@ -98,6 +98,9 @@ class MembershipTableTest {
     membershipTable.put(record);
     membershipTable.put(suspectedRecord);
 
+    assertEquals(1, remoteMembers.size());
+    assertEquals(record.member(), remoteMembers.get(0));
+
     advanceClock(suspicionTimeout() + 1);
 
     assertMemberAction(
