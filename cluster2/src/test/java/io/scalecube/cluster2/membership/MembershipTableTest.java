@@ -107,7 +107,9 @@ class MembershipTableTest {
           assertEquals(MemberActionType.REMOVE_MEMBER, actionType, "actionType");
           assertEquals(record.member(), member, "member");
         },
-        false);
+        true);
+
+    assertEquals(0, remoteMembers.size());
   }
 
   @Test
