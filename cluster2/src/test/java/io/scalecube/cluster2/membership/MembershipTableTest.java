@@ -245,12 +245,41 @@ class MembershipTableTest {
 
   @Test
   void testApplySuspectedStatusOnSuspectedMember() {
-    fail("Implement");
+    final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
+    final MembershipRecord record = newRecord(r -> r.status(SUSPECTED));
+    final Member member = record.member();
+
+    membershipTable.put(record);
+    membershipTable.put(member, SUSPECTED);
+
+    assertGossipMessage(messageRx, mr -> assertNull(mr, "assertGossipMessage"), true);
+
+    final Map<UUID, MembershipRecord> recordMap = recordMap();
+    assertEquals(2, recordMap.size());
+    assertEquals(localRecord, recordMap.get(localRecord.member().id()));
+
+    final MembershipRecord recordAfterUpdate = recordMap.get(record.member().id());
+    assertEquals(SUSPECTED, recordAfterUpdate.status());
+    assertEquals(INITIAL_INCARNATION, recordAfterUpdate.incarnation());
   }
 
   @Test
   void testApplySuspectedStatusOnAliveMember() {
-    fail("Implement");
+    final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
+    final MembershipRecord record = newRecord();
+    final Member member = record.member();
+
+    membershipTable.put(record);
+    membershipTable.put(member, SUSPECTED);
+
+    assertGossipMessage(messageRx, mr -> assertEquals(SUSPECTED, mr.status()), true);
+
+    final Map<UUID, MembershipRecord> recordMap = recordMap();
+    assertEquals(2, recordMap.size());
+    assertEquals(localRecord, recordMap.get(localRecord.member().id()));
+
+    final MembershipRecord recordAfterUpdate = recordMap.get(record.member().id());
+    assertEquals(SUSPECTED, recordAfterUpdate.status());
   }
 
   @Test
