@@ -109,7 +109,7 @@ class MembershipTableTest {
           assertEquals(MemberActionType.REMOVE_MEMBER, actionType, "actionType");
           assertEquals(record.member(), member, "member");
         },
-        true);
+        false);
   }
 
   @Test
@@ -190,9 +190,7 @@ class MembershipTableTest {
 
   private void advanceClock(final long millis) {
     epochClock.advance(millis);
-    for (int i = 0; i < 1000; i++) {
-      membershipTable.doWork();
-    }
+    membershipTable.doWork();
   }
 
   private Map<UUID, MembershipRecord> recordMap() {

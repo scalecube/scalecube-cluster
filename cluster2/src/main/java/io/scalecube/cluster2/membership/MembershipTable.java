@@ -7,16 +7,14 @@ import static io.scalecube.cluster2.sbe.MemberStatus.ALIVE;
 import io.scalecube.cluster2.ClusterMath;
 import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.MemberActionCodec;
+import io.scalecube.cluster2.TimerInvoker;
 import io.scalecube.cluster2.gossip.GossipMessageCodec;
 import io.scalecube.cluster2.sbe.MemberActionType;
 import io.scalecube.cluster2.sbe.MemberStatus;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-import org.agrona.DeadlineTimerWheel;
-import org.agrona.DeadlineTimerWheel.TimerHandler;
 import org.agrona.MutableDirectBuffer;
 import org.agrona.collections.ArrayListUtil;
 import org.agrona.collections.Long2ObjectHashMap;
@@ -25,7 +23,7 @@ import org.agrona.collections.Object2ObjectHashMap;
 import org.agrona.concurrent.EpochClock;
 import org.agrona.concurrent.broadcast.BroadcastTransmitter;
 
-public class MembershipTable implements TimerHandler {
+public class MembershipTable {
 
   private final EpochClock epochClock;
   private final BroadcastTransmitter messageTx;
@@ -38,8 +36,7 @@ public class MembershipTable implements TimerHandler {
   private final Object2LongHashMap<UUID> timerIdByMemberId =
       new Object2LongHashMap<>(Long.MIN_VALUE);
   private final Long2ObjectHashMap<UUID> memberIdByTimerId = new Long2ObjectHashMap<>();
-  private final DeadlineTimerWheel timerWheel =
-      new DeadlineTimerWheel(TimeUnit.MILLISECONDS, 0, 8, 128);
+  private final TimerInvoker timerInvoker;
   private final MemberActionCodec memberActionCodec = new MemberActionCodec();
   private final MembershipRecordCodec membershipRecordCodec = new MembershipRecordCodec();
   private final GossipMessageCodec gossipMessageCodec = new GossipMessageCodec();
@@ -58,28 +55,13 @@ public class MembershipTable implements TimerHandler {
     this.remoteMembers = remoteMembers;
     this.suspicionMult = suspicionMult;
     this.pingInterval = pingInterval;
+    timerInvoker = new TimerInvoker(epochClock);
     localMember = localRecord.member();
     recordMap.put(localMember.id(), localRecord);
   }
 
   public int doWork() {
-    return timerWheel.poll(epochClock.time(), this, 10);
-  }
-
-  @Override
-  public boolean onTimerExpiry(TimeUnit timeUnit, long now, long timerId) {
-    final UUID memberId = memberIdByTimerId.remove(timerId);
-    if (memberId != null) {
-      timerIdByMemberId.removeKey(memberId);
-      final MembershipRecord record = recordMap.remove(memberId);
-      if (record != null) {
-        final Member member = record.member();
-        removeFromRemoteMembers(member);
-        emitMemberAction(REMOVE_MEMBER, member);
-        // TODO: emit to external clients of the lib - MembershipEvent(type=REMOVED)
-      }
-    }
-    return true;
+    return timerInvoker.poll(this::onTimerExpiry);
   }
 
   public void put(MembershipRecord record) {
@@ -168,16 +150,30 @@ public class MembershipTable implements TimerHandler {
   private void cancelTimer(UUID key) {
     final long timerId = timerIdByMemberId.removeKey(key);
     memberIdByTimerId.remove(timerId);
-    timerWheel.cancelTimer(timerId);
+    timerInvoker.cancelTimer(timerId);
   }
 
   private void scheduleTimer(UUID key) {
     long suspicionTimeout =
         ClusterMath.suspicionTimeout(suspicionMult, recordMap.size(), pingInterval);
     final long deadline = epochClock.time() + suspicionTimeout;
-    final long timerId = timerWheel.scheduleTimer(deadline);
+    final long timerId = timerInvoker.scheduleTimer(deadline);
     timerIdByMemberId.put(key, timerId);
     memberIdByTimerId.put(timerId, key);
+  }
+
+  private void onTimerExpiry(long timerId) {
+    final UUID memberId = memberIdByTimerId.remove(timerId);
+    if (memberId != null) {
+      timerIdByMemberId.removeKey(memberId);
+      final MembershipRecord record = recordMap.remove(memberId);
+      if (record != null) {
+        final Member member = record.member();
+        removeFromRemoteMembers(member);
+        emitMemberAction(REMOVE_MEMBER, member);
+        // TODO: emit to external clients of the lib - MembershipEvent(type=REMOVED)
+      }
+    }
   }
 
   private void removeFromRemoteMembers(Member member) {
