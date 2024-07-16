@@ -102,8 +102,7 @@ public class MembershipTable {
       return;
     }
 
-    final String namespace = record.namespace();
-    if (!localRecord.namespace().equals(namespace)) {
+    if (!localRecord.namespace().equals(record.namespace())) {
       return;
     }
 
