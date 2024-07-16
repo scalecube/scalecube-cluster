@@ -4,6 +4,7 @@ import static io.scalecube.cluster2.sbe.MemberStatus.ALIVE;
 import static io.scalecube.cluster2.sbe.MemberStatus.SUSPECTED;
 import static org.agrona.concurrent.broadcast.BroadcastBufferDescriptor.TRAILER_LENGTH;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import io.scalecube.cluster2.ClusterMath;
@@ -35,12 +36,13 @@ class MembershipTableTest {
   private static final int SUSPICION_MULT = 3;
   private static final int PING_INTERVAL = 1000;
   private static final String NAMESPACE = "ns";
+  private static final int INITIAL_INCARNATION = 0;
 
   private final MembershipRecord localRecord =
       new MembershipRecord()
-          .incarnation(0)
+          .incarnation(INITIAL_INCARNATION)
           .status(ALIVE)
-          .alias("alias")
+          .alias("alias@" + System.currentTimeMillis())
           .namespace(NAMESPACE)
           .member(new Member(UUID.randomUUID(), "address:1180"));
 
@@ -59,8 +61,13 @@ class MembershipTableTest {
   @Test
   void testDoNothing() {
     final Map<UUID, MembershipRecord> recordMap = recordMap();
+
     assertEquals(1, recordMap.size());
-    assertEquals(localRecord, recordMap.get(localRecord.member().id()));
+    final MembershipRecord record = recordMap.get(localRecord.member().id());
+    assertEquals(localRecord, record);
+    assertEquals(ALIVE, record.status());
+    assertEquals(0, record.incarnation());
+
     assertEquals(0, membershipTable.doWork());
   }
 
@@ -92,14 +99,6 @@ class MembershipTableTest {
     membershipTable.put(record);
     membershipTable.put(suspectedRecord);
 
-    assertMemberAction(
-        messageRx,
-        (actionType, member) -> {
-          assertEquals(MemberActionType.ADD_MEMBER, actionType, "actionType");
-          assertEquals(record.member(), member, "member");
-        },
-        false);
-
     advanceClock(suspicionTimeout() + 1);
 
     assertMemberAction(
@@ -113,42 +112,133 @@ class MembershipTableTest {
 
   @Test
   void testMemberNotUpdatedWhenIncarnationLessThanExisting() {
-    fail("Implement");
+    final int incarnation = 2;
+    final MembershipRecord record = newRecord(r -> r.incarnation(incarnation));
+    final MembershipRecord suspectedRecord =
+        copyFrom(record, r -> r.incarnation(1).status(SUSPECTED));
+
+    membershipTable.put(record);
+    membershipTable.put(suspectedRecord);
+
+    final Map<UUID, MembershipRecord> recordMap = recordMap();
+    assertEquals(2, recordMap.size());
+    assertEquals(localRecord, recordMap.get(localRecord.member().id()));
+    assertEquals(record, recordMap.get(record.member().id()));
+    assertEquals(ALIVE, record.status());
+    assertEquals(incarnation, record.incarnation());
   }
 
   @Test
   void testLocalMemberUpdated() {
-    fail("Implement");
+    final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
+
+    membershipTable.put(copyFrom(localRecord, r -> r.status(SUSPECTED)));
+
+    final MembershipRecord record = recordMap().get(localRecord.member().id());
+    assertEquals(1, record.incarnation());
+    assertEquals(SUSPECTED, record.status());
+
+    assertGossipMessage(
+        messageRx,
+        mr -> {
+          assertEquals(INITIAL_INCARNATION + 1, mr.incarnation(), "incarnation");
+          assertEquals(SUSPECTED, mr.status());
+        },
+        false);
   }
 
   @Test
-  void testMemberUpdatedByGreaterIncarnation() {
-    fail("Implement");
+  void testLocalMemberNotUpdated() {
+    final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
+
+    membershipTable.put(copyFrom(localRecord));
+
+    final MembershipRecord record = recordMap().get(localRecord.member().id());
+    assertEquals(INITIAL_INCARNATION, record.incarnation());
+    assertEquals(ALIVE, record.status());
+
+    assertGossipMessage(messageRx, mr -> assertNull(mr, "assertGossipMessage"), false);
+  }
+
+  @Test
+  void testAliveMemberUpdatedByGreaterIncarnation() {
+    final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
+    final MembershipRecord record = newRecord();
+    final MembershipRecord suspectedRecord =
+        copyFrom(record, r -> r.status(SUSPECTED).incarnation(1));
+
+    membershipTable.put(record);
+    membershipTable.put(suspectedRecord);
+
+    assertGossipMessage(messageRx, mr -> assertNull(mr, "assertGossipMessage"), true);
+
+    final Map<UUID, MembershipRecord> recordMap = recordMap();
+    assertEquals(2, recordMap.size());
+    assertEquals(localRecord, recordMap.get(localRecord.member().id()));
+
+    final MembershipRecord recordAfterUpdate = recordMap.get(record.member().id());
+    assertEquals(SUSPECTED, recordAfterUpdate.status());
+    assertEquals(INITIAL_INCARNATION + 1, recordAfterUpdate.incarnation());
+  }
+
+  @Test
+  void testSuspectedMemberUpdatedByGreaterIncarnation() {
+    final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
+    final MembershipRecord record = newRecord(r -> r.status(SUSPECTED));
+    final MembershipRecord suspectedRecord = copyFrom(record, r -> r.status(ALIVE).incarnation(1));
+
+    membershipTable.put(record);
+    membershipTable.put(suspectedRecord);
+
+    assertGossipMessage(messageRx, mr -> assertNull(mr, "assertGossipMessage"), true);
+
+    final Map<UUID, MembershipRecord> recordMap = recordMap();
+    assertEquals(2, recordMap.size());
+    assertEquals(localRecord, recordMap.get(localRecord.member().id()));
+
+    final MembershipRecord recordAfterUpdate = recordMap.get(record.member().id());
+    assertEquals(ALIVE, recordAfterUpdate.status());
+    assertEquals(INITIAL_INCARNATION + 1, recordAfterUpdate.incarnation());
   }
 
   @Test
   void testMemberUpdatedByAssumingTheWorse() {
-    fail("Implement");
+    final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
+    final MembershipRecord record = newRecord();
+    final MembershipRecord suspectedRecord = copyFrom(record, r -> r.status(SUSPECTED));
+
+    membershipTable.put(record);
+    membershipTable.put(suspectedRecord);
+
+    assertGossipMessage(messageRx, mr -> assertNull(mr, "assertGossipMessage"), true);
+
+    final Map<UUID, MembershipRecord> recordMap = recordMap();
+    assertEquals(2, recordMap.size());
+    assertEquals(localRecord, recordMap.get(localRecord.member().id()));
+
+    final MembershipRecord recordAfterUpdate = recordMap.get(record.member().id());
+    assertEquals(SUSPECTED, recordAfterUpdate.status());
+    assertEquals(INITIAL_INCARNATION, recordAfterUpdate.incarnation());
   }
 
   @Test
-  void testMemberNotUpdatedIfNotAssumingTheWorse() {
-    fail("Implement");
-  }
+  void testMemberNotUpdatedOptimistically() {
+    final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
+    final MembershipRecord record = newRecord(r -> r.status(SUSPECTED));
+    final MembershipRecord suspectedRecord = copyFrom(record, r -> r.status(ALIVE));
 
-  @Test
-  void testMemberNotUpdatedIfThereAreNoChanges() {
-    fail("Implement");
-  }
+    membershipTable.put(record);
+    membershipTable.put(suspectedRecord);
 
-  @Test
-  void testAliveMemberChangedToSuspected() {
-    fail("Implement");
-  }
+    assertGossipMessage(messageRx, mr -> assertNull(mr, "assertGossipMessage"), true);
 
-  @Test
-  void testSuspectedMemberChangedToAlive() {
-    fail("Implement");
+    final Map<UUID, MembershipRecord> recordMap = recordMap();
+    assertEquals(2, recordMap.size());
+    assertEquals(localRecord, recordMap.get(localRecord.member().id()));
+
+    final MembershipRecord recordAfterUpdate = recordMap.get(record.member().id());
+    assertEquals(SUSPECTED, recordAfterUpdate.status());
+    assertEquals(INITIAL_INCARNATION, recordAfterUpdate.incarnation());
   }
 
   @Test
@@ -172,7 +262,7 @@ class MembershipTableTest {
   }
 
   @Test
-  void testNamespaceFilter() {
+  void testFilterByNamespace() {
     membershipTable.put(newRecord(r -> r.namespace(UUID.randomUUID().toString())));
 
     final Map<UUID, MembershipRecord> recordMap = recordMap();
@@ -264,9 +354,9 @@ class MembershipTableTest {
     final Member member = new Member().id(UUID.randomUUID()).address("foobar:" + port);
     final MembershipRecord membershipRecord =
         new MembershipRecord()
-            .incarnation(0)
+            .incarnation(INITIAL_INCARNATION)
             .status(ALIVE)
-            .alias("alias")
+            .alias("alias@" + System.currentTimeMillis())
             .namespace(NAMESPACE)
             .member(member);
     if (consumer != null) {

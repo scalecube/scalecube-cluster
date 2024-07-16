@@ -65,14 +65,15 @@ public class MembershipTable {
   }
 
   public void put(MembershipRecord record) {
-    final String namespace = record.namespace();
-    if (!localRecord.namespace().equals(namespace)) {
+    if (!localRecord.namespace().equals(record.namespace())) {
       return;
     }
 
     final Member member = record.member();
     final UUID key = member.id();
     final MembershipRecord oldRecord = recordMap.get(key);
+    final MemberStatus status = record.status();
+
     if (oldRecord == null) {
       recordMap.put(key, record);
       remoteMembers.add(member);
@@ -84,14 +85,14 @@ public class MembershipTable {
       return;
     }
 
-    if (localMember.equals(member) && record.status() != ALIVE) {
-      localRecord.incarnation(localRecord.incarnation() + 1);
+    if (localMember.equals(member) && status != ALIVE) {
+      localRecord.status(status).incarnation(localRecord.incarnation() + 1);
       emitGossip(localRecord);
       return;
     }
 
-    if (record.incarnation() > oldRecord.incarnation() || record.status() != ALIVE) {
-      update(record, record.status());
+    if (record.incarnation() > oldRecord.incarnation() || status != ALIVE) {
+      update(record, status);
     }
   }
 
