@@ -143,6 +143,36 @@ class MembershipTableTest {
   }
 
   @Test
+  void testMemberRecoveredByApplyingMemberStatus() {
+    final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
+    final MembershipRecord record = newRecord();
+
+    membershipTable.put(record);
+    membershipTable.put(record.member(), SUSPECTED);
+
+    assertGossipMessage(messageRx, mr -> assertEquals(SUSPECTED, mr.status()), true);
+
+    assertEquals(1, remoteMembers.size());
+    assertEquals(record.member(), remoteMembers.get(0));
+
+    membershipTable.put(record.member(), ALIVE);
+
+    assertGossipMessage(messageRx, mr -> assertEquals(ALIVE, mr.status()), false);
+
+    advanceClock(suspicionTimeout() + 1);
+
+    assertMemberAction(
+        messageRx,
+        (actionType, member) -> {
+          assertNull(actionType, "actionType");
+          assertNull(member, "member");
+        },
+        false);
+
+    assertEquals(1, remoteMembers.size());
+  }
+
+  @Test
   void testMemberNotUpdatedWhenIncarnationLessThanExisting() {
     final int incarnation = 2;
     final MembershipRecord record = newRecord(r -> r.incarnation(incarnation));
