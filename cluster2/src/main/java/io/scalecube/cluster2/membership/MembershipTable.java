@@ -98,15 +98,7 @@ public class MembershipTable {
 
   public void put(Member member, MemberStatus status) {
     final MembershipRecord record = recordMap.get(member.id());
-    if (record == null) {
-      return;
-    }
-
-    if (!localRecord.namespace().equals(record.namespace())) {
-      return;
-    }
-
-    if (record.status() != status) {
+    if (record != null && record.status() != status) {
       update(record, status);
       emitGossip(record);
     }
