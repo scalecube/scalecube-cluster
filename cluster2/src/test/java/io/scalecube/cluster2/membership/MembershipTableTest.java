@@ -1,5 +1,7 @@
 package io.scalecube.cluster2.membership;
 
+import static io.scalecube.cluster2.sbe.MemberActionType.ADD_MEMBER;
+import static io.scalecube.cluster2.sbe.MemberActionType.REMOVE_MEMBER;
 import static io.scalecube.cluster2.sbe.MemberStatus.ALIVE;
 import static io.scalecube.cluster2.sbe.MemberStatus.SUSPECTED;
 import static org.agrona.concurrent.broadcast.BroadcastBufferDescriptor.TRAILER_LENGTH;
@@ -80,7 +82,7 @@ class MembershipTableTest {
     assertMemberAction(
         messageRx,
         (actionType, member) -> {
-          assertEquals(MemberActionType.ADD_MEMBER, actionType, "actionType");
+          assertEquals(ADD_MEMBER, actionType, "actionType");
           assertEquals(record.member(), member, "member");
         },
         false);
@@ -106,10 +108,36 @@ class MembershipTableTest {
     assertMemberAction(
         messageRx,
         (actionType, member) -> {
-          assertEquals(MemberActionType.REMOVE_MEMBER, actionType, "actionType");
+          assertEquals(REMOVE_MEMBER, actionType, "actionType");
           assertEquals(record.member(), member, "member");
         },
         true);
+
+    assertEquals(0, remoteMembers.size());
+  }
+
+  @Test
+  void testMemberRemovedByApplyingMemberStatus() {
+    final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
+    final MembershipRecord record = newRecord();
+
+    membershipTable.put(record);
+    membershipTable.put(record.member(), SUSPECTED);
+
+    assertGossipMessage(messageRx, mr -> assertEquals(SUSPECTED, mr.status()), true);
+
+    assertEquals(1, remoteMembers.size());
+    assertEquals(record.member(), remoteMembers.get(0));
+
+    advanceClock(suspicionTimeout() + 1);
+
+    assertMemberAction(
+        messageRx,
+        (actionType, member) -> {
+          assertEquals(REMOVE_MEMBER, actionType, "actionType");
+          assertEquals(record.member(), member, "member");
+        },
+        false);
 
     assertEquals(0, remoteMembers.size());
   }
