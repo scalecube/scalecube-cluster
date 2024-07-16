@@ -74,10 +74,7 @@ public class MembershipTable implements TimerHandler {
       final MembershipRecord record = recordMap.remove(memberId);
       if (record != null) {
         final Member member = record.member();
-        final int index = remoteMembers.indexOf(member);
-        if (index != -1) {
-          ArrayListUtil.fastUnorderedRemove(remoteMembers, index);
-        }
+        removeFromRemoteMembers(member);
         emitMemberAction(REMOVE_MEMBER, member);
         // TODO: emit to external clients of the lib - MembershipEvent(type=REMOVED)
       }
@@ -181,5 +178,12 @@ public class MembershipTable implements TimerHandler {
     final long timerId = timerWheel.scheduleTimer(deadline);
     timerIdByMemberId.put(key, timerId);
     memberIdByTimerId.put(timerId, key);
+  }
+
+  private void removeFromRemoteMembers(Member member) {
+    final int index = remoteMembers.indexOf(member);
+    if (index != -1) {
+      ArrayListUtil.fastUnorderedRemove(remoteMembers, index);
+    }
   }
 }
