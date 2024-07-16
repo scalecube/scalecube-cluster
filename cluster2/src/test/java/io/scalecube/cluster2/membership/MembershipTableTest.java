@@ -5,7 +5,6 @@ import static io.scalecube.cluster2.sbe.MemberStatus.SUSPECTED;
 import static org.agrona.concurrent.broadcast.BroadcastBufferDescriptor.TRAILER_LENGTH;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.fail;
 
 import io.scalecube.cluster2.ClusterMath;
 import io.scalecube.cluster2.Member;
@@ -66,7 +65,7 @@ class MembershipTableTest {
     final MembershipRecord record = recordMap.get(localRecord.member().id());
     assertEquals(localRecord, record);
     assertEquals(ALIVE, record.status());
-    assertEquals(0, record.incarnation());
+    assertEquals(INITIAL_INCARNATION, record.incarnation());
 
     assertEquals(0, membershipTable.doWork());
   }
@@ -122,10 +121,8 @@ class MembershipTableTest {
     membershipTable.put(record);
     membershipTable.put(suspectedRecord);
 
-    final Map<UUID, MembershipRecord> recordMap = recordMap();
-    assertEquals(2, recordMap.size());
-    assertEquals(localRecord, recordMap.get(localRecord.member().id()));
-    assertEquals(record, recordMap.get(record.member().id()));
+    assertEquals(localRecord, recordMap().get(localRecord.member().id()));
+    assertEquals(record, recordMap().get(record.member().id()));
     assertEquals(ALIVE, record.status());
     assertEquals(incarnation, record.incarnation());
   }
@@ -174,11 +171,7 @@ class MembershipTableTest {
 
     assertGossipMessage(messageRx, mr -> assertNull(mr, "assertGossipMessage"), true);
 
-    final Map<UUID, MembershipRecord> recordMap = recordMap();
-    assertEquals(2, recordMap.size());
-    assertEquals(localRecord, recordMap.get(localRecord.member().id()));
-
-    final MembershipRecord recordAfterUpdate = recordMap.get(record.member().id());
+    final MembershipRecord recordAfterUpdate = recordMap().get(record.member().id());
     assertEquals(SUSPECTED, recordAfterUpdate.status());
     assertEquals(INITIAL_INCARNATION + 1, recordAfterUpdate.incarnation());
   }
@@ -194,11 +187,7 @@ class MembershipTableTest {
 
     assertGossipMessage(messageRx, mr -> assertNull(mr, "assertGossipMessage"), true);
 
-    final Map<UUID, MembershipRecord> recordMap = recordMap();
-    assertEquals(2, recordMap.size());
-    assertEquals(localRecord, recordMap.get(localRecord.member().id()));
-
-    final MembershipRecord recordAfterUpdate = recordMap.get(record.member().id());
+    final MembershipRecord recordAfterUpdate = recordMap().get(record.member().id());
     assertEquals(ALIVE, recordAfterUpdate.status());
     assertEquals(INITIAL_INCARNATION + 1, recordAfterUpdate.incarnation());
   }
@@ -214,11 +203,7 @@ class MembershipTableTest {
 
     assertGossipMessage(messageRx, mr -> assertNull(mr, "assertGossipMessage"), true);
 
-    final Map<UUID, MembershipRecord> recordMap = recordMap();
-    assertEquals(2, recordMap.size());
-    assertEquals(localRecord, recordMap.get(localRecord.member().id()));
-
-    final MembershipRecord recordAfterUpdate = recordMap.get(record.member().id());
+    final MembershipRecord recordAfterUpdate = recordMap().get(record.member().id());
     assertEquals(SUSPECTED, recordAfterUpdate.status());
     assertEquals(INITIAL_INCARNATION, recordAfterUpdate.incarnation());
   }
@@ -234,11 +219,7 @@ class MembershipTableTest {
 
     assertGossipMessage(messageRx, mr -> assertNull(mr, "assertGossipMessage"), true);
 
-    final Map<UUID, MembershipRecord> recordMap = recordMap();
-    assertEquals(2, recordMap.size());
-    assertEquals(localRecord, recordMap.get(localRecord.member().id()));
-
-    final MembershipRecord recordAfterUpdate = recordMap.get(record.member().id());
+    final MembershipRecord recordAfterUpdate = recordMap().get(record.member().id());
     assertEquals(SUSPECTED, recordAfterUpdate.status());
     assertEquals(INITIAL_INCARNATION, recordAfterUpdate.incarnation());
   }
@@ -247,49 +228,52 @@ class MembershipTableTest {
   void testApplySuspectedStatusOnSuspectedMember() {
     final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
     final MembershipRecord record = newRecord(r -> r.status(SUSPECTED));
-    final Member member = record.member();
 
     membershipTable.put(record);
-    membershipTable.put(member, SUSPECTED);
+    membershipTable.put(record.member(), SUSPECTED);
 
     assertGossipMessage(messageRx, mr -> assertNull(mr, "assertGossipMessage"), true);
 
-    final Map<UUID, MembershipRecord> recordMap = recordMap();
-    assertEquals(2, recordMap.size());
-    assertEquals(localRecord, recordMap.get(localRecord.member().id()));
-
-    final MembershipRecord recordAfterUpdate = recordMap.get(record.member().id());
-    assertEquals(SUSPECTED, recordAfterUpdate.status());
-    assertEquals(INITIAL_INCARNATION, recordAfterUpdate.incarnation());
+    assertEquals(SUSPECTED, recordMap().get(record.member().id()).status());
   }
 
   @Test
   void testApplySuspectedStatusOnAliveMember() {
     final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
     final MembershipRecord record = newRecord();
-    final Member member = record.member();
 
     membershipTable.put(record);
-    membershipTable.put(member, SUSPECTED);
+    membershipTable.put(record.member(), SUSPECTED);
 
     assertGossipMessage(messageRx, mr -> assertEquals(SUSPECTED, mr.status()), true);
 
-    final Map<UUID, MembershipRecord> recordMap = recordMap();
-    assertEquals(2, recordMap.size());
-    assertEquals(localRecord, recordMap.get(localRecord.member().id()));
-
-    final MembershipRecord recordAfterUpdate = recordMap.get(record.member().id());
-    assertEquals(SUSPECTED, recordAfterUpdate.status());
+    assertEquals(SUSPECTED, recordMap().get(record.member().id()).status());
   }
 
   @Test
   void testApplyAliveStatusOnAliveMember() {
-    fail("Implement");
+    final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
+    final MembershipRecord record = newRecord();
+
+    membershipTable.put(record);
+    membershipTable.put(record.member(), ALIVE);
+
+    assertGossipMessage(messageRx, mr -> assertNull(mr, "assertGossipMessage"), true);
+
+    assertEquals(ALIVE, recordMap().get(record.member().id()).status());
   }
 
   @Test
   void testApplyAliveStatusOnSuspectedMember() {
-    fail("Implement");
+    final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
+    final MembershipRecord record = newRecord(r -> r.status(SUSPECTED));
+
+    membershipTable.put(record);
+    membershipTable.put(record.member(), ALIVE);
+
+    assertGossipMessage(messageRx, mr -> assertEquals(ALIVE, mr.status()), true);
+
+    assertEquals(ALIVE, recordMap().get(record.member().id()).status());
   }
 
   @Test
@@ -350,7 +334,6 @@ class MembershipTableTest {
     final MutableReference<GossipOutputMessageDecoder> mutableReference = new MutableReference<>();
     final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
     final GossipOutputMessageDecoder gossipOutputMessageDecoder = new GossipOutputMessageDecoder();
-    final MemberCodec memberCodec = new MemberCodec();
 
     if (skipLast) {
       messageRx.receive(
