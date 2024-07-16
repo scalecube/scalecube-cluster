@@ -4,7 +4,6 @@ import static io.scalecube.cluster2.sbe.MemberStatus.ALIVE;
 import static io.scalecube.cluster2.sbe.MemberStatus.SUSPECTED;
 import static org.agrona.concurrent.broadcast.BroadcastBufferDescriptor.TRAILER_LENGTH;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import io.scalecube.cluster2.ClusterMath;
@@ -174,18 +173,12 @@ class MembershipTableTest {
 
   @Test
   void testNamespaceFilter() {
-    final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
-    final MembershipRecord record = newRecord(r -> r.namespace(UUID.randomUUID().toString()));
+    membershipTable.put(newRecord(r -> r.namespace(UUID.randomUUID().toString())));
 
-    membershipTable.put(record);
+    final Map<UUID, MembershipRecord> recordMap = recordMap();
 
-    assertMemberAction(
-        messageRx,
-        (actionType, member) -> {
-          assertNull(actionType, "actionType");
-          assertNull(member, "member");
-        },
-        false);
+    assertEquals(1, recordMap.size());
+    assertEquals(localRecord, recordMap.get(localRecord.member().id()));
   }
 
   private void advanceClock(final long millis) {
