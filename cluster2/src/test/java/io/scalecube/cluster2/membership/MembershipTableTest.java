@@ -14,6 +14,7 @@ import io.scalecube.cluster2.sbe.GossipOutputMessageDecoder;
 import io.scalecube.cluster2.sbe.MemberActionDecoder;
 import io.scalecube.cluster2.sbe.MemberActionType;
 import io.scalecube.cluster2.sbe.MessageHeaderDecoder;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -51,8 +52,10 @@ class MembershipTableTest {
       new BroadcastTransmitter(new UnsafeBuffer(byteBuffer));
   private final Supplier<CopyBroadcastReceiver> messageRxSupplier =
       () -> new CopyBroadcastReceiver(new BroadcastReceiver(new UnsafeBuffer(byteBuffer)));
+  private final ArrayList<Member> remoteMembers = new ArrayList<>();
   private final MembershipTable membershipTable =
-      new MembershipTable(epochClock, messageTx, localRecord, SUSPICION_MULT, PING_INTERVAL);
+      new MembershipTable(
+          epochClock, messageTx, localRecord, remoteMembers, SUSPICION_MULT, PING_INTERVAL);
 
   @Test
   void testDoNothing() {
@@ -76,6 +79,9 @@ class MembershipTableTest {
           assertEquals(record.member(), member, "member");
         },
         false);
+
+    assertEquals(1, remoteMembers.size());
+    assertEquals(record.member(), remoteMembers.get(0));
   }
 
   @Test
@@ -184,7 +190,9 @@ class MembershipTableTest {
 
   private void advanceClock(final long millis) {
     epochClock.advance(millis);
-    membershipTable.doWork();
+    for (int i = 0; i < 1000; i++) {
+      membershipTable.doWork();
+    }
   }
 
   private Map<UUID, MembershipRecord> recordMap() {

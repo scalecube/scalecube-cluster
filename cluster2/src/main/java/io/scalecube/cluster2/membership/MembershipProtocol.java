@@ -43,7 +43,6 @@ public class MembershipProtocol extends AbstractAgent {
   private final MutableLong period = new MutableLong();
   private final MemberSelector memberSelector;
   private final ArrayList<Member> remoteMembers = new ArrayList<>();
-  private final ArrayList<Member> nonSeedMembers = new ArrayList<>();
   private final MembershipTable membershipTable;
 
   public MembershipProtocol(
@@ -63,12 +62,13 @@ public class MembershipProtocol extends AbstractAgent {
     this.config = config;
     this.localMember = localRecord.member();
     roleName = "membership@" + localMember.address();
-    memberSelector = new MemberSelector(config.seedMembers(), remoteMembers, nonSeedMembers);
+    memberSelector = new MemberSelector(config.seedMembers(), remoteMembers);
     membershipTable =
         new MembershipTable(
             epochClock,
             messageTx,
             localRecord,
+            remoteMembers,
             config.suspicionMult(),
             fdetectorConfig.pingInterval());
   }
@@ -180,18 +180,14 @@ public class MembershipProtocol extends AbstractAgent {
 
     private final List<String> seedMembers;
     private final ArrayList<Member> remoteMembers;
-    private final ArrayList<Member> nonSeedMembers;
 
+    private final ArrayList<Member> nonSeedMembers = new ArrayList<>();
     private final Random random = new Random();
     private int index;
 
-    MemberSelector(
-        List<String> seedMembers,
-        ArrayList<Member> remoteMembers,
-        ArrayList<Member> nonSeedMembers) {
+    MemberSelector(List<String> seedMembers, ArrayList<Member> remoteMembers) {
       this.seedMembers = seedMembers;
       this.remoteMembers = remoteMembers;
-      this.nonSeedMembers = nonSeedMembers;
     }
 
     String nextSeedMember() {

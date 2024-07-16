@@ -22,9 +22,7 @@ public class MemberSelectorTest {
 
   private final List<String> seedMembers = new ArrayList<>();
   private final ArrayList<Member> remoteMembers = new ArrayList<>();
-  private final ArrayList<Member> nonSeedMembers = new ArrayList<>();
-  private final MemberSelector memberSelector =
-      new MemberSelector(seedMembers, remoteMembers, nonSeedMembers);
+  private final MemberSelector memberSelector = new MemberSelector(seedMembers, remoteMembers);
 
   @Test
   void testSelectNothingWhenEmpty() {

@@ -10,6 +10,7 @@ import io.scalecube.cluster2.MemberActionCodec;
 import io.scalecube.cluster2.gossip.GossipMessageCodec;
 import io.scalecube.cluster2.sbe.MemberActionType;
 import io.scalecube.cluster2.sbe.MemberStatus;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -17,6 +18,7 @@ import java.util.function.Consumer;
 import org.agrona.DeadlineTimerWheel;
 import org.agrona.DeadlineTimerWheel.TimerHandler;
 import org.agrona.MutableDirectBuffer;
+import org.agrona.collections.ArrayListUtil;
 import org.agrona.collections.Long2ObjectHashMap;
 import org.agrona.collections.Object2LongHashMap;
 import org.agrona.collections.Object2ObjectHashMap;
@@ -28,6 +30,7 @@ public class MembershipTable implements TimerHandler {
   private final EpochClock epochClock;
   private final BroadcastTransmitter messageTx;
   private final MembershipRecord localRecord;
+  private final ArrayList<Member> remoteMembers;
   private final Member localMember;
   private final int suspicionMult;
   private final int pingInterval;
@@ -42,30 +45,17 @@ public class MembershipTable implements TimerHandler {
   private final GossipMessageCodec gossipMessageCodec = new GossipMessageCodec();
   private final Map<UUID, MembershipRecord> recordMap = new Object2ObjectHashMap<>();
 
-  public static void main(String[] args) throws InterruptedException {
-    final DeadlineTimerWheel timerWheel = new DeadlineTimerWheel(TimeUnit.MILLISECONDS, 0, 8, 128);
-    timerWheel.scheduleTimer(System.currentTimeMillis() + 1000);
-
-    Thread.sleep(3000);
-
-    timerWheel.poll(
-        System.currentTimeMillis(),
-        (timeUnit, now, timerId) -> {
-          System.err.println("### " + timerId);
-          return true;
-        },
-        10);
-  }
-
   public MembershipTable(
       EpochClock epochClock,
       BroadcastTransmitter messageTx,
       MembershipRecord localRecord,
+      ArrayList<Member> remoteMembers,
       int suspicionMult,
       int pingInterval) {
     this.epochClock = epochClock;
     this.messageTx = messageTx;
     this.localRecord = localRecord;
+    this.remoteMembers = remoteMembers;
     this.suspicionMult = suspicionMult;
     this.pingInterval = pingInterval;
     localMember = localRecord.member();
@@ -83,8 +73,13 @@ public class MembershipTable implements TimerHandler {
       timerIdByMemberId.removeKey(memberId);
       final MembershipRecord record = recordMap.remove(memberId);
       if (record != null) {
-        emitMemberAction(REMOVE_MEMBER, record.member());
-        // TODO: emit to clients MembershipEvent(type=REMOVED)
+        final Member member = record.member();
+        final int index = remoteMembers.indexOf(member);
+        if (index != -1) {
+          ArrayListUtil.fastUnorderedRemove(remoteMembers, index);
+        }
+        emitMemberAction(REMOVE_MEMBER, member);
+        // TODO: emit to external clients of the lib - MembershipEvent(type=REMOVED)
       }
     }
     return true;
@@ -101,6 +96,7 @@ public class MembershipTable implements TimerHandler {
     final MembershipRecord oldRecord = recordMap.get(key);
     if (oldRecord == null) {
       recordMap.put(key, record);
+      remoteMembers.add(member);
       emitMemberAction(ADD_MEMBER, member);
       return;
     }
