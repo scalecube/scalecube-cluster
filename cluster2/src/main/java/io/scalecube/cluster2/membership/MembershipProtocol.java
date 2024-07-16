@@ -212,6 +212,8 @@ public class MembershipProtocol extends AbstractAgent {
     }
 
     Member nextRemoteMember() {
+      // TODO: implement effecient way to collect nonSeedMembers
+
       nonSeedMembers.clear();
 
       final int size = remoteMembers.size();
