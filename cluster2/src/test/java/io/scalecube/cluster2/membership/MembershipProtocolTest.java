@@ -150,12 +150,29 @@ class MembershipProtocolTest {
 
   @Test
   void testOnSyncAckPeriodMismatch() {
-    fail("Implemnent");
+    final int period = 10;
+    setMembershipProtocolPeriod(period);
+    emitSyncAck(syncCodec -> syncCodec.encodeSyncAck(20, localRecord));
+    verify(membershipTable, never()).put(any(MembershipRecord.class));
   }
 
   @Test
   void testOnGossipMessage() {
-    fail("Implemnent");
+    emitGossipInputMessage(
+        gossipMessageCodec -> {
+          final MembershipRecordCodec membershipRecordCodec = new MembershipRecordCodec();
+          final MutableDirectBuffer buffer = membershipRecordCodec.encode(localRecord);
+          return gossipMessageCodec.encodeInputMessage(
+              buffer, 0, membershipRecordCodec.encodedLength());
+        });
+
+    verify(membershipTable)
+        .put(
+            argThat(
+                arg -> {
+                  assertMembershipRecordEquals(localRecord, arg);
+                  return true;
+                }));
   }
 
   @Test
