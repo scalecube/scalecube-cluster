@@ -5,6 +5,7 @@ import static org.agrona.concurrent.broadcast.BroadcastBufferDescriptor.TRAILER_
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.isOneOf;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -20,10 +21,13 @@ import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.fdetector.FailureDetectorCodec;
 import io.scalecube.cluster2.fdetector.FailureDetectorConfig;
 import io.scalecube.cluster2.gossip.GossipMessageCodec;
+import java.lang.reflect.Field;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.agrona.ExpandableDirectByteBuffer;
+import org.agrona.LangUtil;
 import org.agrona.MutableDirectBuffer;
 import org.agrona.concurrent.CachedEpochClock;
 import org.agrona.concurrent.MessageHandler;
@@ -33,11 +37,13 @@ import org.agrona.concurrent.broadcast.BroadcastTransmitter;
 import org.agrona.concurrent.broadcast.CopyBroadcastReceiver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 class MembershipProtocolTest {
 
   private static final String NAMESPACE = "ns";
 
+  private final String localAddress = "local:1181";
   private final String fooAddress = "foo:1181";
   private final String barAddress = "bar:1182";
   private final String bazAddress = "baz:1183";
@@ -48,7 +54,7 @@ class MembershipProtocolTest {
           .status(ALIVE)
           .alias("alias@" + System.currentTimeMillis())
           .namespace(NAMESPACE)
-          .member(new Member(UUID.randomUUID(), "address:1180"));
+          .member(new Member(UUID.randomUUID(), localAddress));
 
   private final Transport transport = mock(Transport.class);
   private final ExpandableDirectByteBuffer byteBuffer =
@@ -60,26 +66,24 @@ class MembershipProtocolTest {
   private final CachedEpochClock epochClock = new CachedEpochClock();
   private final MessagePoller messagePoller = mock(MessagePoller.class);
   private final FailureDetectorConfig fdetectorConfig = new FailureDetectorConfig();
-  private MembershipConfig config;
+  private MembershipConfig config = new MembershipConfig();
   private MembershipProtocol membershipProtocol;
+  private MembershipTable membershipTable;
 
   @BeforeEach
   void beforeEach() {
     when(transport.newMessagePoller()).thenReturn(messagePoller);
+    ensureMembershipProtocol();
   }
 
   @Test
   void testDoNothing() {
-    config = new MembershipConfig();
-    membershipProtocol = newMembershipProtocol();
-
     assertEquals(0, membershipProtocol.doWork());
   }
 
   @Test
   void testTick() {
-    config = new MembershipConfig().seedMembers(fooAddress, barAddress, bazAddress);
-    membershipProtocol = newMembershipProtocol();
+    ensureMembershipProtocol(config -> config.seedMembers(fooAddress, barAddress, bazAddress));
 
     advanceClock(config.syncInterval() + 1);
 
@@ -95,14 +99,67 @@ class MembershipProtocolTest {
             anyInt());
   }
 
+  @Test
+  void testOnSync() {
+    emitSync(syncCodec -> syncCodec.encodeSync(Long.MIN_VALUE, null, localRecord));
+  }
+
+  @Test
+  void testOnSyncComplete() {
+    fail("Implemnent");
+  }
+
+  @Test
+  void testOnSyncAck() {
+    fail("Implemnent");
+  }
+
+  @Test
+  void testOnSyncAckPeriodMismatch() {
+    fail("Implemnent");
+  }
+
+  @Test
+  void testOnGossipMessage() {
+    fail("Implemnent");
+  }
+
+  @Test
+  void testOnFailureDetectorEvent() {
+    fail("Implemnent");
+  }
+
   private void advanceClock(final long millis) {
     epochClock.advance(millis);
     membershipProtocol.doWork();
   }
 
-  private MembershipProtocol newMembershipProtocol() {
-    return new MembershipProtocol(
-        transport, messageTx, messageRxSupplier, epochClock, config, fdetectorConfig, localRecord);
+  private void ensureMembershipProtocol() {
+    ensureMembershipProtocol(null);
+  }
+
+  private void ensureMembershipProtocol(Consumer<MembershipConfig> consumer) {
+    try {
+      if (consumer != null) {
+        consumer.accept(config);
+      }
+      membershipProtocol =
+          new MembershipProtocol(
+              transport,
+              messageTx,
+              messageRxSupplier,
+              epochClock,
+              config,
+              fdetectorConfig,
+              localRecord);
+      final Class<? extends MembershipProtocol> clazz = membershipProtocol.getClass();
+      final Field field = clazz.getDeclaredField("membershipTable");
+      field.setAccessible(true);
+      membershipTable = Mockito.spy((MembershipTable) field.get(membershipProtocol));
+      field.set(membershipProtocol, membershipTable);
+    } catch (Exception ex) {
+      LangUtil.rethrowUnchecked(ex);
+    }
   }
 
   private void emitSync(Function<SyncCodec, MutableDirectBuffer> function) {
