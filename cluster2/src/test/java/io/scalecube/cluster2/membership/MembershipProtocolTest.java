@@ -11,6 +11,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -26,6 +27,7 @@ import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import org.agrona.DirectBuffer;
 import org.agrona.ExpandableDirectByteBuffer;
 import org.agrona.LangUtil;
 import org.agrona.MutableDirectBuffer;
@@ -66,7 +68,7 @@ class MembershipProtocolTest {
   private final CachedEpochClock epochClock = new CachedEpochClock();
   private final MessagePoller messagePoller = mock(MessagePoller.class);
   private final FailureDetectorConfig fdetectorConfig = new FailureDetectorConfig();
-  private MembershipConfig config = new MembershipConfig();
+  private final MembershipConfig config = new MembershipConfig();
   private MembershipProtocol membershipProtocol;
   private MembershipTable membershipTable;
 
@@ -102,11 +104,34 @@ class MembershipProtocolTest {
   @Test
   void testOnSync() {
     emitSync(syncCodec -> syncCodec.encodeSync(Long.MIN_VALUE, null, localRecord));
+
+    verify(membershipTable)
+        .put(
+            argThat(
+                arg -> {
+                  assertMembershipRecordEquals(localRecord, arg);
+                  return true;
+                }));
+
+    verify(transport, never()).send(any(String.class), any(DirectBuffer.class), anyInt(), anyInt());
   }
 
   @Test
   void testOnSyncComplete() {
-    fail("Implemnent");
+    emitSync(syncCodec -> syncCodec.encodeSync(10, fooAddress, null));
+
+    verify(membershipTable, never()).put(any(MembershipRecord.class));
+
+    verify(transport)
+        .send(
+            argThat(
+                arg -> {
+                  assertEquals(fooAddress, arg, "from");
+                  return true;
+                }),
+            argThat(arg -> true),
+            anyInt(),
+            anyInt());
   }
 
   @Test
@@ -206,5 +231,14 @@ class MembershipProtocolTest {
     final FailureDetectorCodec codec = new FailureDetectorCodec();
     messageTx.transmit(1, function.apply(codec), 0, codec.encodedLength());
     membershipProtocol.doWork();
+  }
+
+  private static void assertMembershipRecordEquals(
+      MembershipRecord expected, MembershipRecord actual) {
+    assertEquals(expected.incarnation(), actual.incarnation(), "incarnation");
+    assertEquals(expected.status(), actual.status(), "status");
+    assertEquals(expected.alias(), actual.alias(), "alias");
+    assertEquals(expected.namespace(), actual.namespace(), "namespace");
+    assertEquals(expected.member(), actual.member(), "member");
   }
 }
