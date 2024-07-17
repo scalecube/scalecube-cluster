@@ -5,10 +5,10 @@ import static org.agrona.concurrent.broadcast.BroadcastBufferDescriptor.TRAILER_
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.isOneOf;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -22,6 +22,7 @@ import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.fdetector.FailureDetectorCodec;
 import io.scalecube.cluster2.fdetector.FailureDetectorConfig;
 import io.scalecube.cluster2.gossip.GossipMessageCodec;
+import io.scalecube.cluster2.sbe.MemberStatus;
 import java.lang.reflect.Field;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -159,11 +160,10 @@ class MembershipProtocolTest {
   @Test
   void testOnGossipMessage() {
     emitGossipInputMessage(
-        gossipMessageCodec -> {
+        codec -> {
           final MembershipRecordCodec membershipRecordCodec = new MembershipRecordCodec();
           final MutableDirectBuffer buffer = membershipRecordCodec.encode(localRecord);
-          return gossipMessageCodec.encodeInputMessage(
-              buffer, 0, membershipRecordCodec.encodedLength());
+          return codec.encodeInputMessage(buffer, 0, membershipRecordCodec.encodedLength());
         });
 
     verify(membershipTable)
@@ -177,7 +177,18 @@ class MembershipProtocolTest {
 
   @Test
   void testOnFailureDetectorEvent() {
-    fail("Implemnent");
+    final Member member = localRecord.member();
+    final MemberStatus memberStatus = ALIVE;
+    emitFailureDetectorEvent(codec -> codec.encodeFailureDetectorEvent(member, memberStatus));
+
+    verify(membershipTable)
+        .put(
+            argThat(
+                arg -> {
+                  assertEquals(member, arg, "member");
+                  return true;
+                }),
+            eq(memberStatus));
   }
 
   private void advanceClock(final long millis) {
