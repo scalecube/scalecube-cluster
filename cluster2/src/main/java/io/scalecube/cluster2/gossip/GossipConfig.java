@@ -26,98 +26,45 @@ public class GossipConfig implements Cloneable {
 
   public GossipConfig() {}
 
-  public static GossipConfig defaultConfig() {
+  public static GossipConfig defaultLanConfig() {
     return new GossipConfig();
   }
 
-  /**
-   * Creates {@code GossipConfig} with default settings for cluster on LAN network.
-   *
-   * @return new {@code GossipConfig}
-   */
-  public static GossipConfig defaultLanConfig() {
-    return defaultConfig();
-  }
-
-  /**
-   * Creates {@code GossipConfig} with default settings for cluster on WAN network.
-   *
-   * @return new {@code GossipConfig}
-   */
   public static GossipConfig defaultWanConfig() {
-    return defaultConfig().gossipFanout(DEFAULT_WAN_GOSSIP_FANOUT);
+    return new GossipConfig().gossipFanout(DEFAULT_WAN_GOSSIP_FANOUT);
   }
 
-  /**
-   * Creates {@code GossipConfig} with default settings for cluster on local loopback interface.
-   *
-   * @return new {@code GossipConfig}
-   */
   public static GossipConfig defaultLocalConfig() {
-    return defaultConfig()
+    return new GossipConfig()
         .gossipRepeatMult(DEFAULT_LOCAL_GOSSIP_REPEAT_MULT)
         .gossipInterval(DEFAULT_LOCAL_GOSSIP_INTERVAL);
-  }
-
-  /**
-   * Setter for {@code gossipFanout}.
-   *
-   * @param gossipFanout gossip fanout
-   * @return new {@code GossipConfig}
-   */
-  public GossipConfig gossipFanout(int gossipFanout) {
-    GossipConfig g = clone();
-    g.gossipFanout = gossipFanout;
-    return g;
   }
 
   public int gossipFanout() {
     return gossipFanout;
   }
 
-  /**
-   * Setter for {@code gossipInterval}.
-   *
-   * @param gossipInterval gossip interval
-   * @return new {@code GossipConfig}
-   */
-  public GossipConfig gossipInterval(long gossipInterval) {
-    GossipConfig g = clone();
-    g.gossipInterval = gossipInterval;
-    return g;
+  public GossipConfig gossipFanout(int gossipFanout) {
+    this.gossipFanout = gossipFanout;
+    return this;
   }
 
   public long gossipInterval() {
     return gossipInterval;
   }
 
-  /**
-   * Setter for {@code gossipRepeatMult}.
-   *
-   * @param gossipRepeatMult gossip repeat multiplier
-   * @return new {@code GossipConfig}
-   */
-  public GossipConfig gossipRepeatMult(int gossipRepeatMult) {
-    GossipConfig g = clone();
-    g.gossipRepeatMult = gossipRepeatMult;
-    return g;
+  public GossipConfig gossipInterval(long gossipInterval) {
+    this.gossipInterval = gossipInterval;
+    return this;
   }
 
   public int gossipRepeatMult() {
     return gossipRepeatMult;
   }
 
-  /**
-   * Setter for {@code gossipSegmentationThreshold}.
-   *
-   * @param gossipSegmentationThreshold gossip segmentation threshold
-   * @return new {@code GossipConfig}
-   * @see #gossipSegmentationThreshold()
-   */
-  public GossipConfig gossipSegmentationThreshold(int gossipSegmentationThreshold) {
-    GossipConfig g = clone();
-    g.gossipSegmentationThreshold = gossipSegmentationThreshold;
-    return g;
+  public GossipConfig gossipRepeatMult(int gossipRepeatMult) {
+    this.gossipRepeatMult = gossipRepeatMult;
+    return this;
   }
 
   /**
@@ -131,6 +78,21 @@ public class GossipConfig implements Cloneable {
    */
   public int gossipSegmentationThreshold() {
     return gossipSegmentationThreshold;
+  }
+
+  /**
+   * A threshold for received gossip id intervals. If number of intervals is more than threshold
+   * then warning will be raised, this mean that node losing network frequently for a long time.
+   *
+   * <p>For example if we received gossip with id 1,2 and 5 then we will have 2 intervals [1, 2],
+   * [5, 5].
+   *
+   * @param gossipSegmentationThreshold gossipSegmentationThreshold
+   * @return gossip segmentation threshold
+   */
+  public GossipConfig gossipSegmentationThreshold(int gossipSegmentationThreshold) {
+    this.gossipSegmentationThreshold = gossipSegmentationThreshold;
+    return this;
   }
 
   @Override

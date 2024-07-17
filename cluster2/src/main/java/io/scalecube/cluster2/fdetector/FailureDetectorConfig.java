@@ -22,70 +22,36 @@ public class FailureDetectorConfig implements Cloneable {
 
   public FailureDetectorConfig() {}
 
-  public static FailureDetectorConfig defaultConfig() {
+  public static FailureDetectorConfig defaultLanConfig() {
     return new FailureDetectorConfig();
   }
 
-  /**
-   * Creates {@code FailureDetectorConfig} with default settings for cluster on LAN network.
-   *
-   * @return new {@code FailureDetectorConfig}
-   */
-  public static FailureDetectorConfig defaultLanConfig() {
-    return defaultConfig();
-  }
-
-  /**
-   * Creates {@code FailureDetectorConfig} with default settings for cluster on WAN network.
-   *
-   * @return new {@code FailureDetectorConfig}
-   */
   public static FailureDetectorConfig defaultWanConfig() {
-    return defaultConfig().pingInterval(DEFAULT_WAN_PING_INTERVAL);
+    return new FailureDetectorConfig().pingInterval(DEFAULT_WAN_PING_INTERVAL);
   }
 
-  /**
-   * Creates {@code FailureDetectorConfig} with default settings for cluster on local loopback
-   * interface.
-   *
-   * @return new {@code FailureDetectorConfig}
-   */
   public static FailureDetectorConfig defaultLocalConfig() {
-    return defaultConfig()
+    return new FailureDetectorConfig()
         .pingInterval(DEFAULT_LOCAL_PING_INTERVAL)
         .pingReqMembers(DEFAULT_LOCAL_PING_REQ_MEMBERS);
-  }
-
-  /**
-   * Setter for {@code pingInterval}.
-   *
-   * @param pingInterval ping interval
-   * @return new {@code FailureDetectorConfig}
-   */
-  public FailureDetectorConfig pingInterval(int pingInterval) {
-    FailureDetectorConfig f = clone();
-    f.pingInterval = pingInterval;
-    return f;
   }
 
   public int pingInterval() {
     return pingInterval;
   }
 
-  /**
-   * Setter for number of members for requesting a ping.
-   *
-   * @param pingReqMembers number of members for requesting a ping
-   * @return new {@code FailureDetectorConfig}
-   */
-  public FailureDetectorConfig pingReqMembers(int pingReqMembers) {
-    FailureDetectorConfig f = clone();
-    f.pingReqMembers = pingReqMembers;
-    return f;
+  public FailureDetectorConfig pingInterval(int pingInterval) {
+    this.pingInterval = pingInterval;
+    return this;
   }
 
   public int pingReqMembers() {
     return pingReqMembers;
+  }
+
+  public FailureDetectorConfig pingReqMembers(int pingReqMembers) {
+    this.pingReqMembers = pingReqMembers;
+    return this;
   }
 
   @Override
