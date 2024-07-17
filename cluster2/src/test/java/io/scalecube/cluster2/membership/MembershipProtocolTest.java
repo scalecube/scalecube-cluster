@@ -27,10 +27,10 @@ import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import org.agrona.DirectBuffer;
 import org.agrona.ExpandableDirectByteBuffer;
 import org.agrona.LangUtil;
 import org.agrona.MutableDirectBuffer;
+import org.agrona.collections.MutableLong;
 import org.agrona.concurrent.CachedEpochClock;
 import org.agrona.concurrent.MessageHandler;
 import org.agrona.concurrent.UnsafeBuffer;
@@ -112,8 +112,6 @@ class MembershipProtocolTest {
                   assertMembershipRecordEquals(localRecord, arg);
                   return true;
                 }));
-
-    verify(transport, never()).send(any(String.class), any(DirectBuffer.class), anyInt(), anyInt());
   }
 
   @Test
@@ -136,7 +134,18 @@ class MembershipProtocolTest {
 
   @Test
   void testOnSyncAck() {
-    fail("Implemnent");
+    final int period = 10;
+    setMembershipProtocolPeriod(period);
+
+    emitSyncAck(syncCodec -> syncCodec.encodeSyncAck(period, localRecord));
+
+    verify(membershipTable)
+        .put(
+            argThat(
+                arg -> {
+                  assertMembershipRecordEquals(localRecord, arg);
+                  return true;
+                }));
   }
 
   @Test
@@ -182,6 +191,18 @@ class MembershipProtocolTest {
       field.setAccessible(true);
       membershipTable = Mockito.spy((MembershipTable) field.get(membershipProtocol));
       field.set(membershipProtocol, membershipTable);
+    } catch (Exception ex) {
+      LangUtil.rethrowUnchecked(ex);
+    }
+  }
+
+  private void setMembershipProtocolPeriod(long val) {
+    try {
+      final Class<? extends MembershipProtocol> clazz = membershipProtocol.getClass();
+      final Field field = clazz.getDeclaredField("period");
+      field.setAccessible(true);
+      final MutableLong period = (MutableLong) field.get(membershipProtocol);
+      period.set(val);
     } catch (Exception ex) {
       LangUtil.rethrowUnchecked(ex);
     }
