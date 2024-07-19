@@ -7,7 +7,6 @@ import io.scalecube.cluster2.AbstractAgent;
 import io.scalecube.cluster2.ClusterConfig;
 import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.MemberCodec;
-import io.scalecube.cluster2.fdetector.FailureDetector.MemberSelector;
 import io.scalecube.cluster2.sbe.MemberActionDecoder;
 import io.scalecube.cluster2.sbe.MemberActionType;
 import io.scalecube.cluster2.sbe.MessageHeaderDecoder;
