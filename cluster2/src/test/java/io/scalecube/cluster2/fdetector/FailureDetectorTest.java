@@ -18,6 +18,7 @@ import static org.mockito.Mockito.when;
 
 import io.scalecube.cluster.transport.api2.Transport;
 import io.scalecube.cluster.transport.api2.Transport.MessagePoller;
+import io.scalecube.cluster2.ClusterConfig;
 import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.MemberActionCodec;
 import io.scalecube.cluster2.MemberCodec;
@@ -61,7 +62,7 @@ class FailureDetectorTest {
   private final Supplier<CopyBroadcastReceiver> messageRxSupplier =
       () -> new CopyBroadcastReceiver(new BroadcastReceiver(new UnsafeBuffer(byteBuffer)));
   private final CachedEpochClock epochClock = new CachedEpochClock();
-  private final FailureDetectorConfig config = new FailureDetectorConfig();
+  private final ClusterConfig config = new ClusterConfig();
   private final MessagePoller messagePoller = mock(MessagePoller.class);
   private final ArgumentCaptor<String> addressCaptor = ArgumentCaptor.forClass(String.class);
 

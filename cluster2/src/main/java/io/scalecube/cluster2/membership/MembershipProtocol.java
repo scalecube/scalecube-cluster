@@ -4,9 +4,9 @@ import static io.scalecube.cluster2.ShuffleUtil.shuffle;
 
 import io.scalecube.cluster.transport.api2.Transport;
 import io.scalecube.cluster2.AbstractAgent;
+import io.scalecube.cluster2.ClusterConfig;
 import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.MemberCodec;
-import io.scalecube.cluster2.fdetector.FailureDetectorConfig;
 import io.scalecube.cluster2.sbe.FailureDetectorEventDecoder;
 import io.scalecube.cluster2.sbe.GossipInputMessageDecoder;
 import io.scalecube.cluster2.sbe.MemberStatus;
@@ -50,8 +50,7 @@ public class MembershipProtocol extends AbstractAgent {
       BroadcastTransmitter messageTx,
       Supplier<CopyBroadcastReceiver> messageRxSupplier,
       EpochClock epochClock,
-      MembershipConfig config,
-      FailureDetectorConfig fdetectorConfig,
+      ClusterConfig config,
       MembershipRecord localRecord) {
     super(
         transport,
@@ -69,7 +68,7 @@ public class MembershipProtocol extends AbstractAgent {
             localRecord,
             remoteMembers,
             config.suspicionMult(),
-            fdetectorConfig.pingInterval());
+            config.pingInterval());
   }
 
   @Override

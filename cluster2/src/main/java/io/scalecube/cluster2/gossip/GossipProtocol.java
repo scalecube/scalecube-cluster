@@ -5,6 +5,7 @@ import static io.scalecube.cluster2.UUIDCodec.uuid;
 
 import io.scalecube.cluster.transport.api2.Transport;
 import io.scalecube.cluster2.AbstractAgent;
+import io.scalecube.cluster2.ClusterConfig;
 import io.scalecube.cluster2.ClusterMath;
 import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.MemberCodec;
@@ -32,7 +33,7 @@ import org.agrona.concurrent.broadcast.CopyBroadcastReceiver;
 
 public class GossipProtocol extends AbstractAgent {
 
-  private final GossipConfig config;
+  private final ClusterConfig config;
   private final Member localMember;
 
   private final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
@@ -61,7 +62,7 @@ public class GossipProtocol extends AbstractAgent {
       BroadcastTransmitter messageTx,
       Supplier<CopyBroadcastReceiver> messageRxSupplier,
       EpochClock epochClock,
-      GossipConfig config,
+      ClusterConfig config,
       Member localMember) {
     super(
         transport,

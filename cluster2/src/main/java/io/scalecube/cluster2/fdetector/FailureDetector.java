@@ -4,6 +4,7 @@ import static io.scalecube.cluster2.ShuffleUtil.shuffle;
 
 import io.scalecube.cluster.transport.api2.Transport;
 import io.scalecube.cluster2.AbstractAgent;
+import io.scalecube.cluster2.ClusterConfig;
 import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.MemberCodec;
 import io.scalecube.cluster2.sbe.MemberActionDecoder;
@@ -47,7 +48,7 @@ public class FailureDetector extends AbstractAgent {
       BroadcastTransmitter messageTx,
       Supplier<CopyBroadcastReceiver> messageRxSupplier,
       EpochClock epochClock,
-      FailureDetectorConfig config,
+      ClusterConfig config,
       Member localMember) {
     super(
         transport,

@@ -20,6 +20,7 @@ import static org.mockito.Mockito.when;
 
 import io.scalecube.cluster.transport.api2.Transport;
 import io.scalecube.cluster.transport.api2.Transport.MessagePoller;
+import io.scalecube.cluster2.ClusterConfig;
 import io.scalecube.cluster2.ClusterMath;
 import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.MemberActionCodec;
@@ -59,7 +60,7 @@ class GossipProtocolTest {
   private final Supplier<CopyBroadcastReceiver> messageRxSupplier =
       () -> new CopyBroadcastReceiver(new BroadcastReceiver(new UnsafeBuffer(byteBuffer)));
   private final CachedEpochClock epochClock = new CachedEpochClock();
-  private final GossipConfig config = new GossipConfig();
+  private final ClusterConfig config = new ClusterConfig();
   private final GossipProtocol gossipProtocol =
       new GossipProtocol(transport, messageTx, messageRxSupplier, epochClock, config, localMember);
   private final MessagePoller messagePoller = mock(MessagePoller.class);

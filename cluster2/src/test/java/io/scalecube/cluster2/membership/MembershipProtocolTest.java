@@ -18,9 +18,9 @@ import static org.mockito.Mockito.when;
 
 import io.scalecube.cluster.transport.api2.Transport;
 import io.scalecube.cluster.transport.api2.Transport.MessagePoller;
+import io.scalecube.cluster2.ClusterConfig;
 import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.fdetector.FailureDetectorCodec;
-import io.scalecube.cluster2.fdetector.FailureDetectorConfig;
 import io.scalecube.cluster2.gossip.GossipMessageCodec;
 import io.scalecube.cluster2.sbe.MemberStatus;
 import java.lang.reflect.Field;
@@ -68,8 +68,7 @@ class MembershipProtocolTest {
       () -> new CopyBroadcastReceiver(new BroadcastReceiver(new UnsafeBuffer(byteBuffer)));
   private final CachedEpochClock epochClock = new CachedEpochClock();
   private final MessagePoller messagePoller = mock(MessagePoller.class);
-  private final FailureDetectorConfig fdetectorConfig = new FailureDetectorConfig();
-  private final MembershipConfig config = new MembershipConfig();
+  private final ClusterConfig config = new ClusterConfig();
   private MembershipProtocol membershipProtocol;
   private MembershipTable membershipTable;
 
@@ -200,20 +199,14 @@ class MembershipProtocolTest {
     ensureMembershipProtocol(null);
   }
 
-  private void ensureMembershipProtocol(Consumer<MembershipConfig> consumer) {
+  private void ensureMembershipProtocol(Consumer<ClusterConfig> consumer) {
     try {
       if (consumer != null) {
         consumer.accept(config);
       }
       membershipProtocol =
           new MembershipProtocol(
-              transport,
-              messageTx,
-              messageRxSupplier,
-              epochClock,
-              config,
-              fdetectorConfig,
-              localRecord);
+              transport, messageTx, messageRxSupplier, epochClock, config, localRecord);
       final Class<? extends MembershipProtocol> clazz = membershipProtocol.getClass();
       final Field field = clazz.getDeclaredField("membershipTable");
       field.setAccessible(true);
