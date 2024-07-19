@@ -163,7 +163,6 @@ public class MembershipTable {
         final Member member = record.member();
         removeFromRemoteMembers(member);
         emitMemberAction(REMOVE_MEMBER, member);
-        // TODO: emit to external clients of the lib - MembershipEvent(type=REMOVED)
       }
     }
   }
