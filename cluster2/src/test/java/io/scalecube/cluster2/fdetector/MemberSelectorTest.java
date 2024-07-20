@@ -46,6 +46,21 @@ class MemberSelectorTest {
   }
 
   @Test
+  void testPingMember() {
+    pingMembers.add(aliceMember);
+    pingMembers.add(bobMember);
+    pingMembers.add(johnMember);
+    pingMembers.add(eveMember);
+
+    final MemberSelector memberSelector = new MemberSelector(1, pingMembers, pingReqMembers);
+
+    for (int i = 0; i < 10; i++) {
+      final Member member = memberSelector.nextPingMember();
+      assertThat(member, isOneOf(aliceMember, bobMember, johnMember, eveMember));
+    }
+  }
+
+  @Test
   void testPingReqMembersWhenOnePingReqMember() {
     pingMembers.add(fooMember);
     pingMembers.add(barMember);
