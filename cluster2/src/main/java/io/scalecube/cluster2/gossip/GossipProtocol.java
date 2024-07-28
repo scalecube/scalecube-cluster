@@ -9,12 +9,12 @@ import io.scalecube.cluster2.ClusterConfig;
 import io.scalecube.cluster2.ClusterMath;
 import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.MemberCodec;
+import io.scalecube.cluster2.sbe.AddMemberDecoder;
 import io.scalecube.cluster2.sbe.GossipDecoder;
 import io.scalecube.cluster2.sbe.GossipOutputMessageDecoder;
 import io.scalecube.cluster2.sbe.GossipRequestDecoder;
-import io.scalecube.cluster2.sbe.MemberActionDecoder;
-import io.scalecube.cluster2.sbe.MemberActionType;
 import io.scalecube.cluster2.sbe.MessageHeaderDecoder;
+import io.scalecube.cluster2.sbe.RemoveMemberDecoder;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Map;
@@ -42,7 +42,8 @@ public class GossipProtocol extends AbstractAgent {
   private final GossipRequestDecoder gossipRequestDecoder = new GossipRequestDecoder();
   private final GossipDecoder gossipDecoder = new GossipDecoder();
   private final GossipRequestCodec gossipRequestCodec = new GossipRequestCodec();
-  private final MemberActionDecoder memberActionDecoder = new MemberActionDecoder();
+  private final AddMemberDecoder addMemberDecoder = new AddMemberDecoder();
+  private final RemoveMemberDecoder removeMemberDecoder = new RemoveMemberDecoder();
   private final MemberCodec memberCodec = new MemberCodec();
   private final GossipMessageCodec gossipMessageCodec = new GossipMessageCodec();
   private final UnsafeBuffer unsafeBuffer = new UnsafeBuffer();
@@ -179,8 +180,11 @@ public class GossipProtocol extends AbstractAgent {
       case GossipRequestDecoder.TEMPLATE_ID:
         onGossipRequest(gossipRequestDecoder.wrapAndApplyHeader(buffer, index, headerDecoder));
         break;
-      case MemberActionDecoder.TEMPLATE_ID:
-        onMemberAction(memberActionDecoder.wrapAndApplyHeader(buffer, index, headerDecoder));
+      case AddMemberDecoder.TEMPLATE_ID:
+        onAddMember(addMemberDecoder.wrapAndApplyHeader(buffer, index, headerDecoder));
+        break;
+      case RemoveMemberDecoder.TEMPLATE_ID:
+        onRemoveMember(removeMemberDecoder.wrapAndApplyHeader(buffer, index, headerDecoder));
         break;
       default:
         // no-op
@@ -253,8 +257,7 @@ public class GossipProtocol extends AbstractAgent {
     return sequenceIdCollectors.computeIfAbsent(key, s -> new SequenceIdCollector());
   }
 
-  private void onMemberAction(MemberActionDecoder decoder) {
-    final MemberActionType actionType = decoder.actionType();
+  private void onAddMember(AddMemberDecoder decoder) {
     final Member member = memberCodec.member(decoder::wrapMember);
     decoder.sbeSkip();
 
@@ -262,19 +265,21 @@ public class GossipProtocol extends AbstractAgent {
       return;
     }
 
-    switch (actionType) {
-      case REMOVE_MEMBER:
-        remoteMembers.remove(member);
-        sequenceIdCollectors.remove(member.id());
-        break;
-      case ADD_MEMBER:
-        if (!remoteMembers.contains(member)) {
-          remoteMembers.add(member);
-        }
-        break;
-      default:
-        // no-op
+    if (!remoteMembers.contains(member)) {
+      remoteMembers.add(member);
     }
+  }
+
+  private void onRemoveMember(RemoveMemberDecoder decoder) {
+    final Member member = memberCodec.member(decoder::wrapMember);
+    decoder.sbeSkip();
+
+    if (localMember.equals(member)) {
+      return;
+    }
+
+    remoteMembers.remove(member);
+    sequenceIdCollectors.remove(member.id());
   }
 
   static class MemberSelector {

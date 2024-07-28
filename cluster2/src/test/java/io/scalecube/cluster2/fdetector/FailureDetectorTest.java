@@ -1,7 +1,5 @@
 package io.scalecube.cluster2.fdetector;
 
-import static io.scalecube.cluster2.sbe.MemberActionType.ADD_MEMBER;
-import static io.scalecube.cluster2.sbe.MemberActionType.REMOVE_MEMBER;
 import static org.agrona.concurrent.broadcast.BroadcastBufferDescriptor.TRAILER_LENGTH;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -20,10 +18,9 @@ import io.scalecube.cluster.transport.api2.Transport;
 import io.scalecube.cluster.transport.api2.Transport.MessagePoller;
 import io.scalecube.cluster2.ClusterConfig;
 import io.scalecube.cluster2.Member;
-import io.scalecube.cluster2.MemberActionCodec;
 import io.scalecube.cluster2.MemberCodec;
+import io.scalecube.cluster2.membership.MemberActionCodec;
 import io.scalecube.cluster2.sbe.FailureDetectorEventDecoder;
-import io.scalecube.cluster2.sbe.MemberActionType;
 import io.scalecube.cluster2.sbe.MemberStatus;
 import io.scalecube.cluster2.sbe.MessageHeaderDecoder;
 import io.scalecube.cluster2.sbe.PingAckDecoder;
@@ -85,17 +82,17 @@ class FailureDetectorTest {
 
   @Test
   void testOnMemberActionLocalMemberWillBeFiltered() {
-    emitMemberAction(ADD_MEMBER, localMember);
+    emitAddMember(localMember);
     advanceClock(1);
     verify(transport, never()).send(any(), any(), anyInt(), anyInt());
   }
 
   @Test
   void testOnMembActionAddThenRemove() {
-    emitMemberAction(ADD_MEMBER, fooMember);
-    emitMemberAction(ADD_MEMBER, fooMember);
-    emitMemberAction(ADD_MEMBER, fooMember);
-    emitMemberAction(REMOVE_MEMBER, fooMember);
+    emitAddMember(fooMember);
+    emitAddMember(fooMember);
+    emitAddMember(fooMember);
+    emitRemoveMember(fooMember);
 
     advanceClock(1);
 
@@ -104,7 +101,7 @@ class FailureDetectorTest {
 
   @Test
   void testOnTick() {
-    emitMemberAction(ADD_MEMBER, fooMember);
+    emitAddMember(fooMember);
 
     advanceClock(1);
     verify(transport).send(addressCaptor.capture(), any(), anyInt(), anyInt());
@@ -123,7 +120,7 @@ class FailureDetectorTest {
 
   @Test
   void testPingThenAck() {
-    emitMemberAction(ADD_MEMBER, fooMember);
+    emitAddMember(fooMember);
 
     advanceClock(1);
     verify(transport).send(addressCaptor.capture(), any(), anyInt(), anyInt());
@@ -144,7 +141,7 @@ class FailureDetectorTest {
 
   @Test
   void testPingThenTimeout() {
-    emitMemberAction(ADD_MEMBER, fooMember);
+    emitAddMember(fooMember);
 
     advanceClock(1);
     verify(transport).send(addressCaptor.capture(), any(), anyInt(), anyInt());
@@ -382,10 +379,17 @@ class FailureDetectorTest {
     failureDetector.doWork();
   }
 
-  private void emitMemberAction(MemberActionType actionType, Member member) {
+  private void emitAddMember(Member member) {
     final MemberActionCodec memberActionCodec = new MemberActionCodec();
     messageTx.transmit(
-        1, memberActionCodec.encode(actionType, member), 0, memberActionCodec.encodedLength());
+        1, memberActionCodec.encodeAddMember(member), 0, memberActionCodec.encodedLength());
+    failureDetector.doWork();
+  }
+
+  private void emitRemoveMember(Member member) {
+    final MemberActionCodec memberActionCodec = new MemberActionCodec();
+    messageTx.transmit(
+        1, memberActionCodec.encodeRemoveMember(member), 0, memberActionCodec.encodedLength());
     failureDetector.doWork();
   }
 

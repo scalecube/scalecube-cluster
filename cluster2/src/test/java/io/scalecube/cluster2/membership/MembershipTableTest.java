@@ -1,7 +1,5 @@
 package io.scalecube.cluster2.membership;
 
-import static io.scalecube.cluster2.sbe.MemberActionType.ADD_MEMBER;
-import static io.scalecube.cluster2.sbe.MemberActionType.REMOVE_MEMBER;
 import static io.scalecube.cluster2.sbe.MemberStatus.ALIVE;
 import static io.scalecube.cluster2.sbe.MemberStatus.SUSPECTED;
 import static org.agrona.concurrent.broadcast.BroadcastBufferDescriptor.TRAILER_LENGTH;
@@ -11,16 +9,15 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import io.scalecube.cluster2.ClusterMath;
 import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.MemberCodec;
+import io.scalecube.cluster2.sbe.AddMemberDecoder;
 import io.scalecube.cluster2.sbe.GossipOutputMessageDecoder;
-import io.scalecube.cluster2.sbe.MemberActionDecoder;
-import io.scalecube.cluster2.sbe.MemberActionType;
 import io.scalecube.cluster2.sbe.MessageHeaderDecoder;
+import io.scalecube.cluster2.sbe.RemoveMemberDecoder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.agrona.ExpandableDirectByteBuffer;
@@ -79,13 +76,7 @@ class MembershipTableTest {
 
     membershipTable.put(record);
 
-    assertMemberAction(
-        messageRx,
-        (actionType, member) -> {
-          assertEquals(ADD_MEMBER, actionType, "actionType");
-          assertEquals(record.member(), member, "member");
-        },
-        false);
+    assertAddMember(messageRx, member -> assertEquals(record.member(), member, "member"), false);
 
     assertEquals(1, remoteMembers.size());
     assertEquals(record.member(), remoteMembers.get(0));
@@ -105,13 +96,7 @@ class MembershipTableTest {
 
     advanceClock(suspicionTimeout() + 1);
 
-    assertMemberAction(
-        messageRx,
-        (actionType, member) -> {
-          assertEquals(REMOVE_MEMBER, actionType, "actionType");
-          assertEquals(record.member(), member, "member");
-        },
-        true);
+    assertRemoveMember(messageRx, member -> assertEquals(record.member(), member, "member"), true);
 
     assertEquals(0, remoteMembers.size());
   }
@@ -131,13 +116,7 @@ class MembershipTableTest {
 
     advanceClock(suspicionTimeout() + 1);
 
-    assertMemberAction(
-        messageRx,
-        (actionType, member) -> {
-          assertEquals(REMOVE_MEMBER, actionType, "actionType");
-          assertEquals(record.member(), member, "member");
-        },
-        false);
+    assertRemoveMember(messageRx, member -> assertEquals(record.member(), member, "member"), false);
 
     assertEquals(0, remoteMembers.size());
   }
@@ -160,14 +139,6 @@ class MembershipTableTest {
     assertGossipMessage(messageRx, mr -> assertEquals(ALIVE, mr.status()), false);
 
     advanceClock(suspicionTimeout() + 1);
-
-    assertMemberAction(
-        messageRx,
-        (actionType, member) -> {
-          assertNull(actionType, "actionType");
-          assertNull(member, "member");
-        },
-        false);
 
     assertEquals(1, remoteMembers.size());
   }
@@ -358,13 +329,11 @@ class MembershipTableTest {
     return recordMap;
   }
 
-  private void assertMemberAction(
-      CopyBroadcastReceiver messageRx,
-      BiConsumer<MemberActionType, Member> consumer,
-      boolean skipLast) {
-    final MutableReference<MemberActionDecoder> mutableReference = new MutableReference<>();
+  private void assertAddMember(
+      CopyBroadcastReceiver messageRx, Consumer<Member> consumer, boolean skipLast) {
+    final MutableReference<AddMemberDecoder> mutableReference = new MutableReference<>();
     final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
-    final MemberActionDecoder memberActionDecoder = new MemberActionDecoder();
+    final AddMemberDecoder addMemberDecoder = new AddMemberDecoder();
     final MemberCodec memberCodec = new MemberCodec();
 
     if (skipLast) {
@@ -376,18 +345,48 @@ class MembershipTableTest {
 
     messageRx.receive(
         (msgTypeId, buffer, index, length) -> {
-          final MemberActionDecoder decoder =
-              memberActionDecoder.wrapAndApplyHeader(buffer, index, headerDecoder);
+          final AddMemberDecoder decoder =
+              addMemberDecoder.wrapAndApplyHeader(buffer, index, headerDecoder);
           mutableReference.set(decoder);
         });
 
-    final MemberActionDecoder decoder = mutableReference.get();
+    final AddMemberDecoder decoder = mutableReference.get();
     if (decoder == null) {
-      consumer.accept(null, null);
+      consumer.accept(null);
       return;
     }
 
-    consumer.accept(decoder.actionType(), memberCodec.member(decoder::wrapMember));
+    consumer.accept(memberCodec.member(decoder::wrapMember));
+  }
+
+  private void assertRemoveMember(
+      CopyBroadcastReceiver messageRx, Consumer<Member> consumer, boolean skipLast) {
+    final MutableReference<RemoveMemberDecoder> mutableReference = new MutableReference<>();
+    final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
+    final RemoveMemberDecoder removeMemberDecoder = new RemoveMemberDecoder();
+    final MemberCodec memberCodec = new MemberCodec();
+
+    if (skipLast) {
+      messageRx.receive(
+          (msgTypeId, buffer, index, length) -> {
+            // skip last
+          });
+    }
+
+    messageRx.receive(
+        (msgTypeId, buffer, index, length) -> {
+          final RemoveMemberDecoder decoder =
+              removeMemberDecoder.wrapAndApplyHeader(buffer, index, headerDecoder);
+          mutableReference.set(decoder);
+        });
+
+    final RemoveMemberDecoder decoder = mutableReference.get();
+    if (decoder == null) {
+      consumer.accept(null);
+      return;
+    }
+
+    consumer.accept(memberCodec.member(decoder::wrapMember));
   }
 
   private void assertGossipMessage(

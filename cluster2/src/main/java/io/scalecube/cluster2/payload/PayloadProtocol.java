@@ -7,9 +7,9 @@ import io.scalecube.cluster2.AbstractAgent;
 import io.scalecube.cluster2.ClusterConfig;
 import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.MemberCodec;
-import io.scalecube.cluster2.sbe.MemberActionDecoder;
-import io.scalecube.cluster2.sbe.MemberActionType;
+import io.scalecube.cluster2.sbe.AddMemberDecoder;
 import io.scalecube.cluster2.sbe.MessageHeaderDecoder;
+import io.scalecube.cluster2.sbe.RemoveMemberDecoder;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Random;
@@ -27,7 +27,8 @@ public class PayloadProtocol extends AbstractAgent {
 
   private final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
   private final PayloadCodec payloadCodec = new PayloadCodec();
-  private final MemberActionDecoder memberActionDecoder = new MemberActionDecoder();
+  private final AddMemberDecoder addMemberDecoder = new AddMemberDecoder();
+  private final RemoveMemberDecoder removeMemberDecoder = new RemoveMemberDecoder();
   private final MemberCodec memberCodec = new MemberCodec();
   private final String roleName;
   private long period = 0;
@@ -73,8 +74,7 @@ public class PayloadProtocol extends AbstractAgent {
   @Override
   public void onMessage(int msgTypeId, MutableDirectBuffer buffer, int index, int length) {}
 
-  private void onMemberAction(MemberActionDecoder decoder) {
-    final MemberActionType actionType = decoder.actionType();
+  private void onAddMember(AddMemberDecoder decoder) {
     final Member member = memberCodec.member(decoder::wrapMember);
     decoder.sbeSkip();
 
@@ -82,26 +82,20 @@ public class PayloadProtocol extends AbstractAgent {
       return;
     }
 
-    switch (actionType) {
-      case REMOVE_MEMBER:
-        onRemoveMember(member);
-        break;
-      case ADD_MEMBER:
-        onAddMember(member);
-        break;
-      default:
-        // no-op
-    }
-  }
-
-  private void onRemoveMember(Member member) {
-    remoteMembers.remove(member);
-  }
-
-  private void onAddMember(Member member) {
     if (!remoteMembers.contains(member)) {
       remoteMembers.add(member);
     }
+  }
+
+  private void onRemoveMember(RemoveMemberDecoder decoder) {
+    final Member member = memberCodec.member(decoder::wrapMember);
+    decoder.sbeSkip();
+
+    if (localMember.equals(member)) {
+      return;
+    }
+
+    remoteMembers.remove(member);
   }
 
   static class MemberSelector {

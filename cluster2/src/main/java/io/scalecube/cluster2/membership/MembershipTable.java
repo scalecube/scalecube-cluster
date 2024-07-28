@@ -1,15 +1,11 @@
 package io.scalecube.cluster2.membership;
 
-import static io.scalecube.cluster2.sbe.MemberActionType.ADD_MEMBER;
-import static io.scalecube.cluster2.sbe.MemberActionType.REMOVE_MEMBER;
 import static io.scalecube.cluster2.sbe.MemberStatus.ALIVE;
 
 import io.scalecube.cluster2.ClusterMath;
 import io.scalecube.cluster2.Member;
-import io.scalecube.cluster2.MemberActionCodec;
 import io.scalecube.cluster2.TimerInvoker;
 import io.scalecube.cluster2.gossip.GossipMessageCodec;
-import io.scalecube.cluster2.sbe.MemberActionType;
 import io.scalecube.cluster2.sbe.MemberStatus;
 import java.util.ArrayList;
 import java.util.Map;
@@ -77,7 +73,7 @@ public class MembershipTable {
     if (oldRecord == null) {
       recordMap.put(key, record);
       remoteMembers.add(member);
-      emitMemberAction(ADD_MEMBER, member);
+      emitAddMember(member);
       return;
     }
 
@@ -110,11 +106,6 @@ public class MembershipTable {
 
   public int size() {
     return recordMap.size();
-  }
-
-  private void emitMemberAction(MemberActionType actionType, Member member) {
-    messageTx.transmit(
-        1, memberActionCodec.encode(actionType, member), 0, memberActionCodec.encodedLength());
   }
 
   private void emitGossip(MembershipRecord record) {
@@ -162,7 +153,7 @@ public class MembershipTable {
       if (record != null) {
         final Member member = record.member();
         removeFromRemoteMembers(member);
-        emitMemberAction(REMOVE_MEMBER, member);
+        emitRemoveMember(member);
       }
     }
   }
@@ -172,5 +163,15 @@ public class MembershipTable {
     if (index != -1) {
       ArrayListUtil.fastUnorderedRemove(remoteMembers, index);
     }
+  }
+
+  private void emitAddMember(Member member) {
+    messageTx.transmit(
+        1, memberActionCodec.encodeAddMember(member), 0, memberActionCodec.encodedLength());
+  }
+
+  private void emitRemoveMember(Member member) {
+    messageTx.transmit(
+        1, memberActionCodec.encodeRemoveMember(member), 0, memberActionCodec.encodedLength());
   }
 }

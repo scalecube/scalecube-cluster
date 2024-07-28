@@ -41,11 +41,6 @@
 
     <!-- Enums -->
 
-    <enum name="MemberActionType" encodingType="int8">
-      <validValue name="ADD_MEMBER">1</validValue>
-      <validValue name="REMOVE_MEMBER">2</validValue>
-    </enum>
-
     <enum name="MemberStatus" encodingType="int8">
       <validValue name="ALIVE">1</validValue>
       <validValue name="SUSPECTED">2</validValue>
@@ -66,8 +61,11 @@
     <field name="address" id="2" type="String64"/>
   </sbe:message>
 
-  <sbe:message name="MemberAction" id="11">
-    <field name="actionType" id="1" type="MemberActionType"/>
+  <sbe:message name="AddMember" id="11">
+    <data name="member" id="100" type="VarData"/>
+  </sbe:message>
+
+  <sbe:message name="RemoveMember" id="12">
     <data name="member" id="100" type="VarData"/>
   </sbe:message>
 

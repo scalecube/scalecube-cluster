@@ -7,13 +7,13 @@ import io.scalecube.cluster2.AbstractAgent;
 import io.scalecube.cluster2.ClusterConfig;
 import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.MemberCodec;
-import io.scalecube.cluster2.sbe.MemberActionDecoder;
-import io.scalecube.cluster2.sbe.MemberActionType;
+import io.scalecube.cluster2.sbe.AddMemberDecoder;
 import io.scalecube.cluster2.sbe.MemberStatus;
 import io.scalecube.cluster2.sbe.MessageHeaderDecoder;
 import io.scalecube.cluster2.sbe.PingAckDecoder;
 import io.scalecube.cluster2.sbe.PingDecoder;
 import io.scalecube.cluster2.sbe.PingRequestDecoder;
+import io.scalecube.cluster2.sbe.RemoveMemberDecoder;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Random;
@@ -32,8 +32,9 @@ public class FailureDetector extends AbstractAgent {
   private final PingDecoder pingDecoder = new PingDecoder();
   private final PingRequestDecoder pingRequestDecoder = new PingRequestDecoder();
   private final PingAckDecoder pingAckDecoder = new PingAckDecoder();
+  private final AddMemberDecoder addMemberDecoder = new AddMemberDecoder();
+  private final RemoveMemberDecoder removeMemberDecoder = new RemoveMemberDecoder();
   private final FailureDetectorCodec codec = new FailureDetectorCodec();
-  private final MemberActionDecoder memberActionDecoder = new MemberActionDecoder();
   private final MemberCodec memberCodec = new MemberCodec();
   private final String roleName;
   private final MemberSelector memberSelector;
@@ -137,8 +138,11 @@ public class FailureDetector extends AbstractAgent {
       case PingAckDecoder.TEMPLATE_ID:
         onPingAck(pingAckDecoder.wrapAndApplyHeader(buffer, index, headerDecoder));
         break;
-      case MemberActionDecoder.TEMPLATE_ID:
-        onMemberAction(memberActionDecoder.wrapAndApplyHeader(buffer, index, headerDecoder));
+      case AddMemberDecoder.TEMPLATE_ID:
+        onAddMember(addMemberDecoder.wrapAndApplyHeader(buffer, index, headerDecoder));
+        break;
+      case RemoveMemberDecoder.TEMPLATE_ID:
+        onRemoveMember(removeMemberDecoder.wrapAndApplyHeader(buffer, index, headerDecoder));
         break;
       default:
         // no-op
@@ -208,8 +212,7 @@ public class FailureDetector extends AbstractAgent {
     }
   }
 
-  private void onMemberAction(MemberActionDecoder decoder) {
-    final MemberActionType actionType = decoder.actionType();
+  private void onAddMember(AddMemberDecoder decoder) {
     final Member member = memberCodec.member(decoder::wrapMember);
     decoder.sbeSkip();
 
@@ -217,18 +220,20 @@ public class FailureDetector extends AbstractAgent {
       return;
     }
 
-    switch (actionType) {
-      case REMOVE_MEMBER:
-        pingMembers.remove(member);
-        break;
-      case ADD_MEMBER:
-        if (!pingMembers.contains(member)) {
-          pingMembers.add(member);
-        }
-        break;
-      default:
-        // no-op
+    if (!pingMembers.contains(member)) {
+      pingMembers.add(member);
     }
+  }
+
+  private void onRemoveMember(RemoveMemberDecoder decoder) {
+    final Member member = memberCodec.member(decoder::wrapMember);
+    decoder.sbeSkip();
+
+    if (localMember.equals(member)) {
+      return;
+    }
+
+    pingMembers.remove(member);
   }
 
   static class MemberSelector {
