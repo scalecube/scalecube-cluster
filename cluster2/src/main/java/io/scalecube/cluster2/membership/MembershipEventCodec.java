@@ -15,12 +15,16 @@ public class MembershipEventCodec extends AbstractCodec {
   public MembershipEventCodec() {}
 
   public MutableDirectBuffer encodeMembershipEvent(
-      MembershipEventType type, long timestamp, Member member) {
+      MembershipEventType type, long timestamp, String alias, String ns, Member member) {
     encodedLength = 0;
+
+    // TODO: add payload
 
     membershipEventEncoder.wrapAndApplyHeader(encodedBuffer, 0, headerEncoder);
     membershipEventEncoder.type(type);
     membershipEventEncoder.timestamp(timestamp);
+    membershipEventEncoder.alias(alias);
+    membershipEventEncoder.namespace(ns);
     membershipEventEncoder.putMember(memberCodec.encode(member), 0, memberCodec.encodedLength());
 
     encodedLength = headerEncoder.encodedLength() + membershipEventEncoder.encodedLength();

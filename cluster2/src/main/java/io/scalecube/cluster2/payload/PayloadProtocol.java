@@ -1,7 +1,5 @@
 package io.scalecube.cluster2.payload;
 
-import static io.scalecube.cluster2.ShuffleUtil.shuffle;
-
 import io.scalecube.cluster.transport.api2.Transport;
 import io.scalecube.cluster2.AbstractAgent;
 import io.scalecube.cluster2.ClusterConfig;
@@ -10,11 +8,12 @@ import io.scalecube.cluster2.MemberCodec;
 import io.scalecube.cluster2.sbe.AddMemberDecoder;
 import io.scalecube.cluster2.sbe.MessageHeaderDecoder;
 import io.scalecube.cluster2.sbe.RemoveMemberDecoder;
+import io.scalecube.cluster2.sbe.SetPayloadDecoder;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Random;
 import java.util.UUID;
 import java.util.function.Supplier;
+import org.agrona.ExpandableArrayBuffer;
 import org.agrona.MutableDirectBuffer;
 import org.agrona.collections.Object2LongHashMap;
 import org.agrona.concurrent.EpochClock;
@@ -30,11 +29,13 @@ public class PayloadProtocol extends AbstractAgent {
   private final AddMemberDecoder addMemberDecoder = new AddMemberDecoder();
   private final RemoveMemberDecoder removeMemberDecoder = new RemoveMemberDecoder();
   private final MemberCodec memberCodec = new MemberCodec();
+  private final SetPayloadDecoder setPayloadDecoder = new SetPayloadDecoder();
   private final String roleName;
-  private long period = 0;
-  private final MemberSelector memberSelector;
   private final ArrayList<Member> remoteMembers = new ArrayList<>();
   private final Object2LongHashMap<UUID> payloadIndex = new Object2LongHashMap<>(Long.MIN_VALUE);
+  private final ExpandableArrayBuffer payloadBuffer = new ExpandableArrayBuffer();
+  private int payloadLength;
+  private long generation;
 
   public PayloadProtocol(
       Transport transport,
@@ -51,7 +52,6 @@ public class PayloadProtocol extends AbstractAgent {
         Duration.ofMillis(config.payloadInterval()));
     this.localMember = localMember;
     roleName = "payload@" + localMember.address();
-    memberSelector = new MemberSelector(remoteMembers);
   }
 
   @Override
@@ -61,18 +61,41 @@ public class PayloadProtocol extends AbstractAgent {
 
   @Override
   protected void onTick() {
-    period++;
-
-    final Member member = memberSelector.nextMember();
-    if (member == null) {
-      return;
-    }
-
-    // TODO implement
+    // no-op
   }
 
   @Override
-  public void onMessage(int msgTypeId, MutableDirectBuffer buffer, int index, int length) {}
+  public void onMessage(int msgTypeId, MutableDirectBuffer buffer, int index, int length) {
+    headerDecoder.wrap(buffer, index);
+
+    final int templateId = headerDecoder.templateId();
+
+    switch (templateId) {
+      case SetPayloadDecoder.TEMPLATE_ID:
+        onSetPayload(setPayloadDecoder.wrapAndApplyHeader(buffer, index, headerDecoder));
+        break;
+      case AddMemberDecoder.TEMPLATE_ID:
+        onAddMember(addMemberDecoder.wrapAndApplyHeader(buffer, index, headerDecoder));
+        break;
+      case RemoveMemberDecoder.TEMPLATE_ID:
+        onRemoveMember(removeMemberDecoder.wrapAndApplyHeader(buffer, index, headerDecoder));
+        break;
+      default:
+        // no-op
+    }
+  }
+
+  private void onSetPayload(SetPayloadDecoder decoder) {
+    payloadLength = decoder.payloadLength();
+
+    decoder.getPayload(payloadBuffer, 0, payloadLength);
+
+    messageTx.transmit(
+        1,
+        payloadCodec.encodePayloadGenerationUpdated(++generation, payloadLength),
+        0,
+        payloadCodec.encodedLength());
+  }
 
   private void onAddMember(AddMemberDecoder decoder) {
     final Member member = memberCodec.member(decoder::wrapMember);
@@ -96,34 +119,5 @@ public class PayloadProtocol extends AbstractAgent {
     }
 
     remoteMembers.remove(member);
-  }
-
-  static class MemberSelector {
-
-    private final ArrayList<Member> remoteMembers;
-
-    private final Random random = new Random();
-    private int index;
-
-    MemberSelector(ArrayList<Member> remoteMembers) {
-      this.remoteMembers = remoteMembers;
-    }
-
-    Member nextMember() {
-      final int size = remoteMembers.size();
-      if (size == 0) {
-        return null;
-      }
-
-      final int i;
-      if (index >= size) {
-        i = index = 0;
-        shuffle(remoteMembers, random);
-      } else {
-        i = index++;
-      }
-
-      return remoteMembers.get(i);
-    }
   }
 }
