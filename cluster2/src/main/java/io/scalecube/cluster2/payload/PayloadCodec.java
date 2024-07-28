@@ -2,8 +2,6 @@ package io.scalecube.cluster2.payload;
 
 import io.scalecube.cluster2.AbstractCodec;
 import io.scalecube.cluster2.sbe.GenerationGoneEncoder;
-import io.scalecube.cluster2.sbe.GenerationRequestEncoder;
-import io.scalecube.cluster2.sbe.GenerationResponseEncoder;
 import io.scalecube.cluster2.sbe.PayloadChunkRequestEncoder;
 import io.scalecube.cluster2.sbe.PayloadChunkResponseEncoder;
 import org.agrona.DirectBuffer;
@@ -11,9 +9,6 @@ import org.agrona.MutableDirectBuffer;
 
 public class PayloadCodec extends AbstractCodec {
 
-  private final GenerationRequestEncoder generationRequestEncoder = new GenerationRequestEncoder();
-  private final GenerationResponseEncoder generationResponseEncoder =
-      new GenerationResponseEncoder();
   private final GenerationGoneEncoder generationGoneEncoder = new GenerationGoneEncoder();
   private final PayloadChunkRequestEncoder payloadChunkRequestEncoder =
       new PayloadChunkRequestEncoder();
@@ -21,27 +16,6 @@ public class PayloadCodec extends AbstractCodec {
       new PayloadChunkResponseEncoder();
 
   public PayloadCodec() {}
-
-  public MutableDirectBuffer encodeGenerationRequest(long genId) {
-    encodedLength = 0;
-
-    generationRequestEncoder.wrapAndApplyHeader(encodedBuffer, 0, headerEncoder);
-    generationRequestEncoder.genId(genId);
-
-    encodedLength = headerEncoder.encodedLength() + generationRequestEncoder.encodedLength();
-    return encodedBuffer;
-  }
-
-  public MutableDirectBuffer encodeGenerationResponse(long genId, long genLength) {
-    encodedLength = 0;
-
-    generationResponseEncoder.wrapAndApplyHeader(encodedBuffer, 0, headerEncoder);
-    generationResponseEncoder.genId(genId);
-    generationResponseEncoder.genLength(genLength);
-
-    encodedLength = headerEncoder.encodedLength() + generationResponseEncoder.encodedLength();
-    return encodedBuffer;
-  }
 
   public MutableDirectBuffer encodeGenerationGone(long genId) {
     encodedLength = 0;

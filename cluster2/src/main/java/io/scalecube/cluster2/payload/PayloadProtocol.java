@@ -13,8 +13,10 @@ import io.scalecube.cluster2.sbe.MessageHeaderDecoder;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Random;
+import java.util.UUID;
 import java.util.function.Supplier;
 import org.agrona.MutableDirectBuffer;
+import org.agrona.collections.Object2LongHashMap;
 import org.agrona.concurrent.EpochClock;
 import org.agrona.concurrent.broadcast.BroadcastTransmitter;
 import org.agrona.concurrent.broadcast.CopyBroadcastReceiver;
@@ -28,9 +30,10 @@ public class PayloadProtocol extends AbstractAgent {
   private final MemberActionDecoder memberActionDecoder = new MemberActionDecoder();
   private final MemberCodec memberCodec = new MemberCodec();
   private final String roleName;
+  private long period = 0;
   private final MemberSelector memberSelector;
-  private final ArrayList<Member> pingMembers = new ArrayList<>();
-  private Member pingMember;
+  private final ArrayList<Member> remoteMembers = new ArrayList<>();
+  private final Object2LongHashMap<UUID> payloadIndex = new Object2LongHashMap<>(Long.MIN_VALUE);
 
   public PayloadProtocol(
       Transport transport,
@@ -47,7 +50,7 @@ public class PayloadProtocol extends AbstractAgent {
         Duration.ofMillis(config.payloadInterval()));
     this.localMember = localMember;
     roleName = "payload@" + localMember.address();
-    memberSelector = new MemberSelector(pingMembers);
+    memberSelector = new MemberSelector(remoteMembers);
   }
 
   @Override
@@ -57,8 +60,10 @@ public class PayloadProtocol extends AbstractAgent {
 
   @Override
   protected void onTick() {
-    pingMember = memberSelector.nextPingMember();
-    if (pingMember == null) {
+    period++;
+
+    final Member member = memberSelector.nextMember();
+    if (member == null) {
       return;
     }
 
@@ -79,31 +84,39 @@ public class PayloadProtocol extends AbstractAgent {
 
     switch (actionType) {
       case REMOVE_MEMBER:
-        pingMembers.remove(member);
+        onRemoveMember(member);
         break;
       case ADD_MEMBER:
-        if (!pingMembers.contains(member)) {
-          pingMembers.add(member);
-        }
+        onAddMember(member);
         break;
       default:
         // no-op
     }
   }
 
+  private void onRemoveMember(Member member) {
+    remoteMembers.remove(member);
+  }
+
+  private void onAddMember(Member member) {
+    if (!remoteMembers.contains(member)) {
+      remoteMembers.add(member);
+    }
+  }
+
   static class MemberSelector {
 
-    private final ArrayList<Member> pingMembers;
+    private final ArrayList<Member> remoteMembers;
 
     private final Random random = new Random();
     private int index;
 
-    MemberSelector(ArrayList<Member> pingMembers) {
-      this.pingMembers = pingMembers;
+    MemberSelector(ArrayList<Member> remoteMembers) {
+      this.remoteMembers = remoteMembers;
     }
 
-    Member nextPingMember() {
-      final int size = pingMembers.size();
+    Member nextMember() {
+      final int size = remoteMembers.size();
       if (size == 0) {
         return null;
       }
@@ -111,12 +124,12 @@ public class PayloadProtocol extends AbstractAgent {
       final int i;
       if (index >= size) {
         i = index = 0;
-        shuffle(pingMembers, random);
+        shuffle(remoteMembers, random);
       } else {
         i = index++;
       }
 
-      return pingMembers.get(i);
+      return remoteMembers.get(i);
     }
   }
 }

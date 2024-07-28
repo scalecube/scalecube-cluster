@@ -22,28 +22,28 @@ class MemberSelectorTest {
   private final MemberSelector memberSelector = new MemberSelector(pingMembers);
 
   @Test
-  void testPingMemberWhenNoMembers() {
-    assertNull(memberSelector.nextPingMember());
+  void testNextMemberWhenNoMembers() {
+    assertNull(memberSelector.nextMember());
   }
 
   @Test
-  void testPingMemberWhenOneMember() {
+  void testNextMemberWhenOneMember() {
     pingMembers.add(aliceMember);
 
     for (int i = 0; i < 10; i++) {
-      assertEquals(aliceMember, memberSelector.nextPingMember());
+      assertEquals(aliceMember, memberSelector.nextMember());
     }
   }
 
   @Test
-  void testPingMember() {
+  void testNextMember() {
     pingMembers.add(aliceMember);
     pingMembers.add(bobMember);
     pingMembers.add(johnMember);
     pingMembers.add(eveMember);
 
     for (int i = 0; i < 10; i++) {
-      final Member member = memberSelector.nextPingMember();
+      final Member member = memberSelector.nextMember();
       assertThat(member, isOneOf(aliceMember, bobMember, johnMember, eveMember));
     }
   }
