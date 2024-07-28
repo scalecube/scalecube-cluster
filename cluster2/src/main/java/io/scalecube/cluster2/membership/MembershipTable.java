@@ -108,6 +108,10 @@ public class MembershipTable {
     return recordMap.size();
   }
 
+  public void update(long generation, int payloadLength) {
+    localRecord.generation(generation).payloadLength(payloadLength);
+  }
+
   private void emitGossip(MembershipRecord record) {
     final MutableDirectBuffer buffer = membershipRecordCodec.encode(record);
     final int encodedLength = membershipRecordCodec.encodedLength();

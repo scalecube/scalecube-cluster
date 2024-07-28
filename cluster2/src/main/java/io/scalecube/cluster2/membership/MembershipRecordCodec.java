@@ -25,6 +25,8 @@ public class MembershipRecordCodec extends AbstractCodec {
 
     membershipRecordEncoder.wrapAndApplyHeader(encodedBuffer, 0, headerEncoder);
     membershipRecordEncoder.incarnation(record.incarnation());
+    membershipRecordEncoder.generation(record.generation());
+    membershipRecordEncoder.payloadLength(record.payloadLength());
     membershipRecordEncoder.status(record.status());
     membershipRecordEncoder.alias(record.alias());
     membershipRecordEncoder.namespace(record.namespace());
@@ -42,6 +44,8 @@ public class MembershipRecordCodec extends AbstractCodec {
 
     membershipRecordDecoder.wrapAndApplyHeader(unsafeBuffer, 0, headerDecoder);
     final int incarnation = membershipRecordDecoder.incarnation();
+    final long generation = membershipRecordDecoder.generation();
+    final int payloadLength = membershipRecordDecoder.payloadLength();
     final MemberStatus status = membershipRecordDecoder.status();
     final String alias = membershipRecordDecoder.alias();
     final String ns = membershipRecordDecoder.namespace();
@@ -49,6 +53,8 @@ public class MembershipRecordCodec extends AbstractCodec {
 
     return new MembershipRecord()
         .incarnation(incarnation)
+        .generation(generation)
+        .payloadLength(payloadLength)
         .status(status)
         .alias(alias)
         .namespace(ns)
