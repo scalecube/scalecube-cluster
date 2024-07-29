@@ -92,7 +92,7 @@ public class PayloadProtocol extends AbstractAgent {
 
     messageTx.transmit(
         1,
-        payloadCodec.encodePayloadGenerationUpdated(++generation, payloadLength),
+        payloadCodec.encodePayloadGenerationUpdated(localMember.id(), ++generation, payloadLength),
         0,
         payloadCodec.encodedLength());
   }

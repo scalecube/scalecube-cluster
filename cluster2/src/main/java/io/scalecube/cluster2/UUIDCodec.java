@@ -8,7 +8,7 @@ public class UUIDCodec {
 
   private UUIDCodec() {}
 
-  public static void encode(UUID value, UUIDEncoder encoder) {
+  public static void encodeUUID(UUID value, UUIDEncoder encoder) {
     if (value == null) {
       encoder
           .mostSignificantBits(UUIDEncoder.mostSignificantBitsNullValue())

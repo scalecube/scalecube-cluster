@@ -1,10 +1,13 @@
 package io.scalecube.cluster2.payload;
 
+import static io.scalecube.cluster2.UUIDCodec.encodeUUID;
+
 import io.scalecube.cluster2.AbstractCodec;
 import io.scalecube.cluster2.MemberCodec;
 import io.scalecube.cluster2.sbe.PayloadChunkRequestEncoder;
 import io.scalecube.cluster2.sbe.PayloadChunkResponseEncoder;
 import io.scalecube.cluster2.sbe.PayloadGenerationUpdatedEncoder;
+import java.util.UUID;
 import org.agrona.DirectBuffer;
 import org.agrona.MutableDirectBuffer;
 
@@ -20,10 +23,12 @@ public class PayloadCodec extends AbstractCodec {
 
   public PayloadCodec() {}
 
-  public MutableDirectBuffer encodePayloadGenerationUpdated(long generation, int payloadLength) {
+  public MutableDirectBuffer encodePayloadGenerationUpdated(
+      UUID memberId, long generation, int payloadLength) {
     encodedLength = 0;
 
     payloadGenerationUpdatedEncoder.wrapAndApplyHeader(encodedBuffer, 0, headerEncoder);
+    encodeUUID(memberId, payloadGenerationUpdatedEncoder.memberId());
     payloadGenerationUpdatedEncoder.generation(generation);
     payloadGenerationUpdatedEncoder.payloadLength(payloadLength);
 

@@ -162,8 +162,9 @@
   </sbe:message>
 
   <sbe:message name="PayloadGenerationUpdated" id="401">
-    <field name="generation" id="1" type="int64"/>
-    <field name="payloadLength" id="2" type="int32"/>
+    <field name="memberId" id="1" type="UUID"/>
+    <field name="generation" id="2" type="int64"/>
+    <field name="payloadLength" id="3" type="int32"/>
   </sbe:message>
 
   <!--  <sbe:message name="PayloadGenerationGone" id="401">-->
