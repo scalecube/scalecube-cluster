@@ -1,6 +1,7 @@
 package io.scalecube.cluster2.membership;
 
 import static io.scalecube.cluster2.ShuffleUtil.shuffle;
+import static io.scalecube.cluster2.UUIDCodec.uuid;
 
 import io.scalecube.cluster.transport.api2.Transport;
 import io.scalecube.cluster2.AbstractAgent;
@@ -157,7 +158,9 @@ public class MembershipProtocol extends AbstractAgent {
   }
 
   private void onPayloadGenerationUpdated(PayloadGenerationUpdatedDecoder decoder) {
-    membershipTable.update(decoder.generation(), decoder.payloadLength());
+    if (localMember.id().equals(uuid(decoder.memberId()))) {
+      membershipTable.update(decoder.generation(), decoder.payloadLength());
+    }
   }
 
   private void doSync(String address) {
