@@ -9,11 +9,9 @@ import io.scalecube.cluster2.sbe.AddMemberDecoder;
 import io.scalecube.cluster2.sbe.MessageHeaderDecoder;
 import io.scalecube.cluster2.sbe.RemoveMemberDecoder;
 import io.scalecube.cluster2.sbe.SetPayloadDecoder;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.UUID;
 import java.util.function.Supplier;
-import org.agrona.ExpandableArrayBuffer;
 import org.agrona.MutableDirectBuffer;
 import org.agrona.collections.Object2LongHashMap;
 import org.agrona.concurrent.EpochClock;
@@ -33,7 +31,7 @@ public class PayloadProtocol extends AbstractAgent {
   private final String roleName;
   private final ArrayList<Member> remoteMembers = new ArrayList<>();
   private final Object2LongHashMap<UUID> payloadIndex = new Object2LongHashMap<>(Long.MIN_VALUE);
-  private final ExpandableArrayBuffer payloadBuffer = new ExpandableArrayBuffer();
+  private final MutableDirectBuffer payload;
   private int payloadLength;
   private long generation;
 
@@ -44,13 +42,10 @@ public class PayloadProtocol extends AbstractAgent {
       EpochClock epochClock,
       ClusterConfig config,
       Member localMember) {
-    super(
-        transport,
-        messageTx,
-        messageRxSupplier,
-        epochClock,
-        Duration.ofMillis(config.payloadInterval()));
+    super(transport, messageTx, messageRxSupplier, epochClock, null);
     this.localMember = localMember;
+    payload = config.payload();
+    payloadLength = config.payloadLength();
     roleName = "payload@" + localMember.address();
   }
 
@@ -88,7 +83,7 @@ public class PayloadProtocol extends AbstractAgent {
   private void onSetPayload(SetPayloadDecoder decoder) {
     payloadLength = decoder.payloadLength();
 
-    decoder.getPayload(payloadBuffer, 0, payloadLength);
+    decoder.getPayload(payload, 0, payloadLength);
 
     messageTx.transmit(
         1,

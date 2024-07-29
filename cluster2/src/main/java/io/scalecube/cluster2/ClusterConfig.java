@@ -5,63 +5,23 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.StringJoiner;
+import org.agrona.MutableDirectBuffer;
 import reactor.core.Exceptions;
 
 public class ClusterConfig implements Cloneable {
 
-  // Default settings for LAN cluster
-  public static final int DEFAULT_SUSPICION_MULT = 5;
-  public static final int DEFAULT_SYNC_INTERVAL = 30_000;
-
-  // Default settings for WAN cluster (overrides default/LAN settings)
-  public static final int DEFAULT_WAN_SUSPICION_MULT = 6;
-  public static final int DEFAULT_WAN_SYNC_INTERVAL = 60_000;
-
-  // Default settings for local cluster working via loopback interface (overrides default/LAN
-  // settings)
-  public static final int DEFAULT_LOCAL_SUSPICION_MULT = 3;
-  public static final int DEFAULT_LOCAL_SYNC_INTERVAL = 3_000;
-
-  // Default settings for LAN cluster
-  public static final int DEFAULT_PING_INTERVAL = 1_000;
-  public static final int DEFAULT_PING_REQ_MEMBERS = 3;
-
-  // Default settings for WAN cluster (overrides default/LAN settings)
-  public static final int DEFAULT_WAN_PING_INTERVAL = 5_000;
-
-  // Default settings for local cluster working via loopback interface (overrides default/LAN
-  // settings)
-  public static final int DEFAULT_LOCAL_PING_INTERVAL = 1_000;
-  public static final int DEFAULT_LOCAL_PING_REQ_MEMBERS = 1;
-
-  // Default settings for LAN cluster
-  public static final long DEFAULT_GOSSIP_INTERVAL = 200;
-  public static final int DEFAULT_GOSSIP_FANOUT = 3;
-  public static final int DEFAULT_GOSSIP_REPEAT_MULT = 3;
-  public static final int GOSSIP_SEGMENTATION_THRESHOLD = 1000;
-
-  // Default settings for WAN cluster (overrides default/LAN settings)
-  public static final int DEFAULT_WAN_GOSSIP_FANOUT = 4;
-
-  // Default settings for local cluster working via loopback interface (overrides default/LAN
-  // settings)
-  public static final int DEFAULT_LOCAL_GOSSIP_REPEAT_MULT = 2;
-  public static final int DEFAULT_LOCAL_GOSSIP_INTERVAL = 100;
-
-  // Default ping interval for payload protocol
-  public static final int DEFAULT_PAYLOAD_INTERVAL = 200;
-
   private List<String> seedMembers = Collections.emptyList();
-  private int syncInterval = DEFAULT_SYNC_INTERVAL;
-  private int suspicionMult = DEFAULT_SUSPICION_MULT;
+  private int syncInterval = 3000;
+  private int suspicionMult = 5;
   private String namespace = "default";
-  private int pingInterval = DEFAULT_PING_INTERVAL;
-  private int pingReqMembers = DEFAULT_PING_REQ_MEMBERS;
-  private int gossipFanout = DEFAULT_GOSSIP_FANOUT;
-  private long gossipInterval = DEFAULT_GOSSIP_INTERVAL;
-  private int gossipRepeatMult = DEFAULT_GOSSIP_REPEAT_MULT;
-  private int gossipSegmentationThreshold = GOSSIP_SEGMENTATION_THRESHOLD;
-  private int payloadInterval = DEFAULT_PAYLOAD_INTERVAL;
+  private int pingInterval = 1000;
+  private int pingReqMembers = 3;
+  private int gossipFanout = 3;
+  private long gossipInterval = 200;
+  private int gossipRepeatMult = 3;
+  private int gossipSegmentationThreshold = 1000;
+  private MutableDirectBuffer payload;
+  private int payloadLength;
 
   public ClusterConfig() {}
 
@@ -178,12 +138,21 @@ public class ClusterConfig implements Cloneable {
     return this;
   }
 
-  public int payloadInterval() {
-    return payloadInterval;
+  public MutableDirectBuffer payload() {
+    return payload;
   }
 
-  public ClusterConfig payloadInterval(int payloadInterval) {
-    this.payloadInterval = payloadInterval;
+  public ClusterConfig payload(MutableDirectBuffer payload) {
+    this.payload = payload;
+    return this;
+  }
+
+  public int payloadLength() {
+    return payloadLength;
+  }
+
+  public ClusterConfig payloadLength(int payloadLength) {
+    this.payloadLength = payloadLength;
     return this;
   }
 
@@ -203,13 +172,14 @@ public class ClusterConfig implements Cloneable {
         .add("syncInterval=" + syncInterval)
         .add("suspicionMult=" + suspicionMult)
         .add("namespace='" + namespace + "'")
-        .add("payloadInterval=" + payloadInterval)
         .add("pingInterval=" + pingInterval)
         .add("pingReqMembers=" + pingReqMembers)
         .add("gossipFanout=" + gossipFanout)
         .add("gossipInterval=" + gossipInterval)
         .add("gossipRepeatMult=" + gossipRepeatMult)
         .add("gossipSegmentationThreshold=" + gossipSegmentationThreshold)
+        .add("payload=" + payload)
+        .add("payloadLength=" + payloadLength)
         .toString();
   }
 }

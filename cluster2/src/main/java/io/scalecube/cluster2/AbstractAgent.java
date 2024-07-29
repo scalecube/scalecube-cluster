@@ -33,7 +33,7 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
     this.epochClock = epochClock;
     messagePoller = transport.newMessagePoller();
     messageRx = messageRxSupplier.get();
-    tickDelay = new Delay(epochClock, tickInterval.toMillis());
+    tickDelay = tickInterval != null ? new Delay(epochClock, tickInterval.toMillis()) : null;
   }
 
   @Override
@@ -68,12 +68,14 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
   }
 
   private int processTick() {
-    if (tickDelay.isOverdue()) {
-      tickDelay.delay();
-      onTick();
-      return 1;
+    if (tickDelay == null || tickDelay.isNotOverdue()) {
+      return 0;
     }
-    return 0;
+
+    tickDelay.delay();
+    onTick();
+
+    return 1;
   }
 
   protected abstract void onTick();
