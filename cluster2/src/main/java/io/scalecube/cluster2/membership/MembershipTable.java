@@ -6,6 +6,7 @@ import io.scalecube.cluster2.ClusterMath;
 import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.TimerInvoker;
 import io.scalecube.cluster2.gossip.GossipMessageCodec;
+import io.scalecube.cluster2.payload.PayloadCodec;
 import io.scalecube.cluster2.sbe.MemberStatus;
 import java.util.ArrayList;
 import java.util.Map;
@@ -36,6 +37,7 @@ public class MembershipTable {
   private final MemberActionCodec memberActionCodec = new MemberActionCodec();
   private final MembershipRecordCodec membershipRecordCodec = new MembershipRecordCodec();
   private final GossipMessageCodec gossipMessageCodec = new GossipMessageCodec();
+  private final PayloadCodec payloadCodec = new PayloadCodec();
   private final Map<UUID, MembershipRecord> recordMap = new Object2ObjectHashMap<>();
 
   public MembershipTable(
@@ -67,17 +69,20 @@ public class MembershipTable {
 
     final Member member = record.member();
     final UUID key = member.id();
-    final MembershipRecord oldRecord = recordMap.get(key);
+    final MembershipRecord currRecord = recordMap.get(key);
     final MemberStatus status = record.status();
 
-    if (oldRecord == null) {
+    if (currRecord == null) {
       recordMap.put(key, record);
       remoteMembers.add(member);
       emitAddMember(member);
+      emitPayloadGenerationUpdated(record);
       return;
     }
 
-    if (record.incarnation() < oldRecord.incarnation()) {
+    tryUpdatePayloadGeneration(record);
+
+    if (record.incarnation() < currRecord.incarnation()) {
       return;
     }
 
@@ -87,12 +92,12 @@ public class MembershipTable {
       return;
     }
 
-    if (record.incarnation() > oldRecord.incarnation() || status != ALIVE) {
+    if (record.incarnation() > currRecord.incarnation() || status != ALIVE) {
       updateStatus(record, status);
     }
   }
 
-  public void memberStatus(Member member, MemberStatus status) {
+  public void put(Member member, MemberStatus status) {
     final MembershipRecord record = recordMap.get(member.id());
     if (record != null && record.status() != status) {
       updateStatus(record, status);
@@ -108,8 +113,28 @@ public class MembershipTable {
     return recordMap.size();
   }
 
-  public void payloadGeneration(long generation, int payloadLength) {
+  public void updatePayloadGeneration(long generation, int payloadLength) {
     localRecord.generation(generation).payloadLength(payloadLength);
+  }
+
+  private void tryUpdatePayloadGeneration(MembershipRecord record) {
+    final Member member = record.member();
+    final UUID key = member.id();
+    final MembershipRecord currRecord = recordMap.get(key);
+    if (currRecord.generation() < record.generation()) {
+      emitPayloadGenerationUpdated(record);
+    }
+  }
+
+  private void emitPayloadGenerationUpdated(MembershipRecord record) {
+    final UUID memberId = record.member().id();
+    final long generation = record.generation();
+    final int payloadLength = record.payloadLength();
+    messageTx.transmit(
+        1,
+        payloadCodec.encodePayloadGenerationUpdated(memberId, generation, payloadLength),
+        0,
+        payloadCodec.encodedLength());
   }
 
   private void emitGossip(MembershipRecord record) {
