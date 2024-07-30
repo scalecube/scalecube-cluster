@@ -68,14 +68,12 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
   }
 
   private int processTick() {
-    if (tickDelay == null || tickDelay.isNotOverdue()) {
-      return 0;
+    if (tickDelay != null && tickDelay.isOverdue()) {
+      tickDelay.delay();
+      onTick();
+      return 1;
     }
-
-    tickDelay.delay();
-    onTick();
-
-    return 1;
+    return 0;
   }
 
   protected abstract void onTick();
