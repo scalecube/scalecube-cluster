@@ -107,7 +107,7 @@ class MembershipTableTest {
     final MembershipRecord record = newRecord();
 
     membershipTable.put(record);
-    membershipTable.put(record.member(), SUSPECTED);
+    membershipTable.memberStatus(record.member(), SUSPECTED);
 
     assertGossipMessage(messageRx, mr -> assertEquals(SUSPECTED, mr.status()), true);
 
@@ -127,14 +127,14 @@ class MembershipTableTest {
     final MembershipRecord record = newRecord();
 
     membershipTable.put(record);
-    membershipTable.put(record.member(), SUSPECTED);
+    membershipTable.memberStatus(record.member(), SUSPECTED);
 
     assertGossipMessage(messageRx, mr -> assertEquals(SUSPECTED, mr.status()), true);
 
     assertEquals(1, remoteMembers.size());
     assertEquals(record.member(), remoteMembers.get(0));
 
-    membershipTable.put(record.member(), ALIVE);
+    membershipTable.memberStatus(record.member(), ALIVE);
 
     assertGossipMessage(messageRx, mr -> assertEquals(ALIVE, mr.status()), false);
 
@@ -262,7 +262,7 @@ class MembershipTableTest {
     final MembershipRecord record = newRecord(r -> r.status(SUSPECTED));
 
     membershipTable.put(record);
-    membershipTable.put(record.member(), SUSPECTED);
+    membershipTable.memberStatus(record.member(), SUSPECTED);
 
     assertGossipMessage(messageRx, mr -> assertNull(mr, "assertGossipMessage"), true);
 
@@ -275,7 +275,7 @@ class MembershipTableTest {
     final MembershipRecord record = newRecord();
 
     membershipTable.put(record);
-    membershipTable.put(record.member(), SUSPECTED);
+    membershipTable.memberStatus(record.member(), SUSPECTED);
 
     assertGossipMessage(messageRx, mr -> assertEquals(SUSPECTED, mr.status()), true);
 
@@ -288,7 +288,7 @@ class MembershipTableTest {
     final MembershipRecord record = newRecord();
 
     membershipTable.put(record);
-    membershipTable.put(record.member(), ALIVE);
+    membershipTable.memberStatus(record.member(), ALIVE);
 
     assertGossipMessage(messageRx, mr -> assertNull(mr, "assertGossipMessage"), true);
 
@@ -301,7 +301,7 @@ class MembershipTableTest {
     final MembershipRecord record = newRecord(r -> r.status(SUSPECTED));
 
     membershipTable.put(record);
-    membershipTable.put(record.member(), ALIVE);
+    membershipTable.memberStatus(record.member(), ALIVE);
 
     assertGossipMessage(messageRx, mr -> assertEquals(ALIVE, mr.status()), true);
 

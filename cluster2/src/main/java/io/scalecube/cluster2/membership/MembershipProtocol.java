@@ -154,12 +154,12 @@ public class MembershipProtocol extends AbstractAgent {
   private void onFailureDetectorEvent(FailureDetectorEventDecoder decoder) {
     final MemberStatus status = decoder.status();
     final Member member = memberCodec.member(decoder::wrapMember);
-    membershipTable.put(member, status);
+    membershipTable.memberStatus(member, status);
   }
 
   private void onPayloadGenerationUpdated(PayloadGenerationUpdatedDecoder decoder) {
     if (localMember.id().equals(uuid(decoder.memberId()))) {
-      membershipTable.update(decoder.generation(), decoder.payloadLength());
+      membershipTable.payloadGeneration(decoder.generation(), decoder.payloadLength());
     }
   }
 

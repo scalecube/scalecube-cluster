@@ -88,14 +88,14 @@ public class MembershipTable {
     }
 
     if (record.incarnation() > oldRecord.incarnation() || status != ALIVE) {
-      update(record, status);
+      updateStatus(record, status);
     }
   }
 
-  public void put(Member member, MemberStatus status) {
+  public void memberStatus(Member member, MemberStatus status) {
     final MembershipRecord record = recordMap.get(member.id());
     if (record != null && record.status() != status) {
-      update(record, status);
+      updateStatus(record, status);
       emitGossip(record);
     }
   }
@@ -108,7 +108,7 @@ public class MembershipTable {
     return recordMap.size();
   }
 
-  public void update(long generation, int payloadLength) {
+  public void payloadGeneration(long generation, int payloadLength) {
     localRecord.generation(generation).payloadLength(payloadLength);
   }
 
@@ -122,7 +122,7 @@ public class MembershipTable {
         gossipMessageCodec.encodedLength());
   }
 
-  private void update(MembershipRecord record, MemberStatus status) {
+  private void updateStatus(MembershipRecord record, MemberStatus status) {
     final UUID key = record.member().id();
 
     recordMap.put(key, record.status(status));

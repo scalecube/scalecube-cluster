@@ -181,7 +181,7 @@ class MembershipProtocolTest {
     emitFailureDetectorEvent(codec -> codec.encodeFailureDetectorEvent(member, memberStatus));
 
     verify(membershipTable)
-        .put(
+        .memberStatus(
             argThat(
                 arg -> {
                   assertEquals(member, arg, "member");
