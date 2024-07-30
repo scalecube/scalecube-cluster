@@ -80,7 +80,9 @@ public class MembershipTable {
       return;
     }
 
-    tryUpdatePayloadGeneration(record);
+    if (!localMember.equals(member) && record.generation() > currRecord.generation()) {
+      emitPayloadGenerationUpdated(record);
+    }
 
     if (record.incarnation() < currRecord.incarnation()) {
       return;
@@ -115,15 +117,6 @@ public class MembershipTable {
 
   public void updatePayloadGeneration(long generation, int payloadLength) {
     localRecord.generation(generation).payloadLength(payloadLength);
-  }
-
-  private void tryUpdatePayloadGeneration(MembershipRecord record) {
-    final Member member = record.member();
-    final UUID key = member.id();
-    final MembershipRecord currRecord = recordMap.get(key);
-    if (currRecord.generation() < record.generation()) {
-      emitPayloadGenerationUpdated(record);
-    }
   }
 
   private void emitPayloadGenerationUpdated(MembershipRecord record) {

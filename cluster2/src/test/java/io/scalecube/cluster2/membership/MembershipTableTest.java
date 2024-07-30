@@ -342,6 +342,52 @@ class MembershipTableTest {
     assertEquals(localRecord, recordMap.get(localRecord.member().id()));
   }
 
+  @Test
+  void testPayloadGenerationUpdated() {
+    final int generation = 1;
+    final int payloadLength = 100;
+
+    final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
+    final MembershipRecord record = newRecord();
+    final MembershipRecord recordWithGreaterGeneration =
+        copyFrom(record, r -> r.generation(generation).payloadLength(payloadLength));
+
+    membershipTable.put(record);
+    membershipTable.put(recordWithGreaterGeneration);
+
+    assertPayloadGenerationUpdated(
+        messageRx,
+        decoder -> {
+          assertNotNull(decoder, "assertPayloadGenerationUpdated");
+          assertEquals(0, decoder.generation(), "generation");
+          assertEquals(0, decoder.payloadLength(), "payloadLength");
+        },
+        true);
+    assertPayloadGenerationUpdated(
+        messageRx,
+        decoder -> {
+          assertNotNull(decoder, "assertPayloadGenerationUpdated");
+          assertEquals(generation, decoder.generation(), "generation");
+          assertEquals(payloadLength, decoder.payloadLength(), "payloadLength");
+        },
+        false);
+  }
+
+  @Test
+  void testPayloadGenerationNotUpdatedForLocalMember() {
+    final int generation = 1;
+    final int payloadLength = 100;
+
+    final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
+    final MembershipRecord localRecordWithGreaterGeneration =
+        copyFrom(localRecord, r -> r.generation(generation).payloadLength(payloadLength));
+
+    membershipTable.put(localRecordWithGreaterGeneration);
+
+    assertPayloadGenerationUpdated(
+        messageRx, decoder -> assertNull(decoder, "assertPayloadGenerationUpdated"), true);
+  }
+
   private void advanceClock(final long millis) {
     epochClock.advance(millis);
     membershipTable.doWork();
