@@ -5,6 +5,7 @@ import io.scalecube.cluster.transport.api2.Transport.MessagePoller;
 import java.time.Duration;
 import java.util.function.Supplier;
 import org.agrona.concurrent.Agent;
+import org.agrona.concurrent.AgentTerminationException;
 import org.agrona.concurrent.EpochClock;
 import org.agrona.concurrent.MessageHandler;
 import org.agrona.concurrent.broadcast.BroadcastTransmitter;
@@ -17,8 +18,8 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
   protected final Supplier<CopyBroadcastReceiver> messageRxSupplier;
   protected final EpochClock epochClock;
 
-  protected MessagePoller messagePoller;
-  protected CopyBroadcastReceiver messageRx;
+  protected final MessagePoller messagePoller;
+  protected final CopyBroadcastReceiver messageRx;
   protected final Delay tickDelay;
 
   public AbstractAgent(
@@ -48,23 +49,19 @@ public abstract class AbstractAgent implements Agent, MessageHandler {
   }
 
   private int pollMessage() {
-    int workCount = 0;
     try {
-      workCount = messagePoller.poll(this);
+      return messagePoller.poll(this);
     } catch (Exception ex) {
-      messagePoller = transport.newMessagePoller();
+      throw new AgentTerminationException(ex);
     }
-    return workCount;
   }
 
   private int receiveMessage() {
-    int workCount = 0;
     try {
-      workCount = messageRx.receive(this);
+      return messageRx.receive(this);
     } catch (Exception ex) {
-      messageRx = messageRxSupplier.get();
+      throw new AgentTerminationException(ex);
     }
-    return workCount;
   }
 
   private int processTick() {
