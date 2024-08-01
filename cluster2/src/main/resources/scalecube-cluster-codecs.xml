@@ -52,12 +52,6 @@
       <validValue name="ADDED">1</validValue>
       <validValue name="REMOVED">2</validValue>
       <validValue name="LEAVING">3</validValue>
-      <validValue name="UPDATED">4</validValue>
-    </enum>
-
-    <enum name="PayloadEventType" encodingType="int8">
-      <validValue name="ADDED">1</validValue>
-      <validValue name="UPDATED">2</validValue>
     </enum>
   </types>
 
@@ -138,7 +132,6 @@
 
   <sbe:message name="MembershipRecord" id="302">
     <field name="incarnation" id="1" type="int32"/>
-    <field name="generation" id="2" type="int64"/>
     <field name="payloadLength" id="3" type="int32"/>
     <field name="status" id="4" type="MemberStatus"/>
     <field name="alias" id="5" type="String64"/>
@@ -157,37 +150,30 @@
 
   <!-- Payload Protocol -->
 
-  <sbe:message name="SetPayload" id="400">
-    <data name="payload" id="100" type="VarData"/>
-  </sbe:message>
-
-  <sbe:message name="PayloadGenerationUpdated" id="401">
+  <sbe:message name="PayloadGenerationHeader" id="400">
     <field name="memberId" id="1" type="UUID"/>
-    <field name="generation" id="2" type="int64"/>
-    <field name="payloadLength" id="3" type="int32"/>
+    <field name="payloadLength" id="2" type="int32"/>
+    <field name="payloadOffset" id="3" type="int32"/>
   </sbe:message>
 
-  <!--  <sbe:message name="PayloadGenerationGone" id="401">-->
-  <!--    <field name="genId" id="1" type="int64"/>-->
-  <!--  </sbe:message>-->
+  <sbe:message name="PayloadGenerationEvent" id="401">
+    <field name="memberId" id="1" type="UUID"/>
+    <field name="payloadLength" id="2" type="int32"/>
+  </sbe:message>
 
   <sbe:message name="PayloadChunkRequest" id="402">
-    <field name="generation" id="1" type="int64"/>
-    <field name="payloadOffset" id="2" type="int64"/>
+    <field name="payloadOffset" id="1" type="int64"/>
     <data name="from" id="100" type="VarData"/>
   </sbe:message>
 
   <sbe:message name="PayloadChunkResponse" id="403">
-    <field name="generation" id="1" type="int64"/>
-    <field name="payloadOffset" id="2" type="int64"/>
+    <field name="payloadOffset" id="1" type="int64"/>
     <data name="from" id="100" type="VarData"/>
     <data name="chunk" id="101" type="VarData"/>
   </sbe:message>
 
   <sbe:message name="PayloadEvent" id="404">
-    <field name="type" id="1" type="PayloadEventType"/>
-    <field name="memberId" id="2" type="UUID"/>
-    <field name="generation" id="3" type="int64"/>
+    <field name="memberId" id="1" type="UUID"/>
     <data name="payload" id="100" type="VarData"/>
   </sbe:message>
 

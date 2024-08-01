@@ -1,7 +1,6 @@
 package io.scalecube.cluster2.membership;
 
 import static io.scalecube.cluster2.ShuffleUtil.shuffle;
-import static io.scalecube.cluster2.UUIDCodec.uuid;
 
 import io.scalecube.cluster.transport.api2.Transport;
 import io.scalecube.cluster2.AbstractAgent;
@@ -12,7 +11,6 @@ import io.scalecube.cluster2.sbe.FailureDetectorEventDecoder;
 import io.scalecube.cluster2.sbe.GossipInputMessageDecoder;
 import io.scalecube.cluster2.sbe.MemberStatus;
 import io.scalecube.cluster2.sbe.MessageHeaderDecoder;
-import io.scalecube.cluster2.sbe.PayloadGenerationUpdatedDecoder;
 import io.scalecube.cluster2.sbe.SyncAckDecoder;
 import io.scalecube.cluster2.sbe.SyncDecoder;
 import java.time.Duration;
@@ -38,8 +36,6 @@ public class MembershipProtocol extends AbstractAgent {
       new FailureDetectorEventDecoder();
   private final GossipInputMessageDecoder gossipInputMessageDecoder =
       new GossipInputMessageDecoder();
-  private final PayloadGenerationUpdatedDecoder payloadGenerationUpdatedDecoder =
-      new PayloadGenerationUpdatedDecoder();
   private final MembershipRecordCodec membershipRecordCodec = new MembershipRecordCodec();
   private final MemberCodec memberCodec = new MemberCodec();
   private final SyncCodec syncCodec = new SyncCodec();
@@ -121,10 +117,6 @@ public class MembershipProtocol extends AbstractAgent {
         onFailureDetectorEvent(
             failureDetectorEventDecoder.wrapAndApplyHeader(buffer, index, headerDecoder));
         break;
-      case PayloadGenerationUpdatedDecoder.TEMPLATE_ID:
-        onPayloadGenerationUpdated(
-            payloadGenerationUpdatedDecoder.wrapAndApplyHeader(buffer, index, headerDecoder));
-        break;
       default:
         // no-op
     }
@@ -155,12 +147,6 @@ public class MembershipProtocol extends AbstractAgent {
     final MemberStatus status = decoder.status();
     final Member member = memberCodec.member(decoder::wrapMember);
     membershipTable.put(member, status);
-  }
-
-  private void onPayloadGenerationUpdated(PayloadGenerationUpdatedDecoder decoder) {
-    if (localMember.id().equals(uuid(decoder.memberId()))) {
-      membershipTable.updatePayloadGeneration(decoder.generation(), decoder.payloadLength());
-    }
   }
 
   private void doSync(String address) {

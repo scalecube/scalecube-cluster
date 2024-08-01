@@ -7,7 +7,6 @@ import java.util.StringJoiner;
 public class MembershipRecord {
 
   private int incarnation;
-  private long generation;
   private int payloadLength;
   private MemberStatus status;
   private String alias;
@@ -22,15 +21,6 @@ public class MembershipRecord {
 
   public MembershipRecord incarnation(int incarnation) {
     this.incarnation = incarnation;
-    return this;
-  }
-
-  public long generation() {
-    return generation;
-  }
-
-  public MembershipRecord generation(long generation) {
-    this.generation = generation;
     return this;
   }
 
@@ -83,7 +73,6 @@ public class MembershipRecord {
   public String toString() {
     return new StringJoiner(", ", MembershipRecord.class.getSimpleName() + "[", "]")
         .add("incarnation=" + incarnation)
-        .add("generation=" + generation)
         .add("payloadLength=" + payloadLength)
         .add("status=" + status)
         .add("alias='" + alias + "'")

@@ -76,12 +76,8 @@ public class MembershipTable {
       recordMap.put(key, record);
       remoteMembers.add(member);
       emitAddMember(member);
-      emitPayloadGenerationUpdated(record);
+      emitPayloadGenerationEvent(record);
       return;
-    }
-
-    if (!localMember.equals(member) && record.generation() > currRecord.generation()) {
-      emitPayloadGenerationUpdated(record);
     }
 
     if (record.incarnation() < currRecord.incarnation()) {
@@ -115,17 +111,12 @@ public class MembershipTable {
     return recordMap.size();
   }
 
-  public void updatePayloadGeneration(long generation, int payloadLength) {
-    localRecord.generation(generation).payloadLength(payloadLength);
-  }
-
-  private void emitPayloadGenerationUpdated(MembershipRecord record) {
+  private void emitPayloadGenerationEvent(MembershipRecord record) {
     final UUID memberId = record.member().id();
-    final long generation = record.generation();
     final int payloadLength = record.payloadLength();
     messageTx.transmit(
         1,
-        payloadCodec.encodePayloadGenerationUpdated(memberId, generation, payloadLength),
+        payloadCodec.encodePayloadGenerationEvent(memberId, payloadLength),
         0,
         payloadCodec.encodedLength());
   }

@@ -13,7 +13,7 @@ import io.scalecube.cluster2.MemberCodec;
 import io.scalecube.cluster2.sbe.AddMemberDecoder;
 import io.scalecube.cluster2.sbe.GossipOutputMessageDecoder;
 import io.scalecube.cluster2.sbe.MessageHeaderDecoder;
-import io.scalecube.cluster2.sbe.PayloadGenerationUpdatedDecoder;
+import io.scalecube.cluster2.sbe.PayloadGenerationEventDecoder;
 import io.scalecube.cluster2.sbe.RemoveMemberDecoder;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -98,8 +98,8 @@ class MembershipTableTest {
 
     advanceClock(suspicionTimeout() + 1);
 
-    assertPayloadGenerationUpdated(
-        messageRx, decoder -> assertNotNull(decoder, "assertPayloadGenerationUpdated"), true);
+    assertPayloadGenerationEvent(
+        messageRx, decoder -> assertNotNull(decoder, "assertPayloadGenerationEvent"), true);
     assertRemoveMember(messageRx, member -> assertEquals(record.member(), member, "member"), false);
 
     assertEquals(0, remoteMembers.size());
@@ -113,8 +113,8 @@ class MembershipTableTest {
     membershipTable.put(record);
     membershipTable.put(record.member(), SUSPECTED);
 
-    assertPayloadGenerationUpdated(
-        messageRx, decoder -> assertNotNull(decoder, "assertPayloadGenerationUpdated"), true);
+    assertPayloadGenerationEvent(
+        messageRx, decoder -> assertNotNull(decoder, "assertPayloadGenerationEvent"), true);
     assertGossipMessage(messageRx, mr -> assertEquals(SUSPECTED, mr.status()), false);
 
     assertEquals(1, remoteMembers.size());
@@ -135,8 +135,8 @@ class MembershipTableTest {
     membershipTable.put(record);
     membershipTable.put(record.member(), SUSPECTED);
 
-    assertPayloadGenerationUpdated(
-        messageRx, decoder -> assertNotNull(decoder, "assertPayloadGenerationUpdated"), true);
+    assertPayloadGenerationEvent(
+        messageRx, decoder -> assertNotNull(decoder, "assertPayloadGenerationEvent"), true);
     assertGossipMessage(messageRx, mr -> assertEquals(SUSPECTED, mr.status()), false);
 
     assertEquals(1, remoteMembers.size());
@@ -209,8 +209,8 @@ class MembershipTableTest {
     membershipTable.put(record);
     membershipTable.put(suspectedRecord);
 
-    assertPayloadGenerationUpdated(
-        messageRx, decoder -> assertNotNull(decoder, "assertPayloadGenerationUpdated"), true);
+    assertPayloadGenerationEvent(
+        messageRx, decoder -> assertNotNull(decoder, "assertPayloadGenerationEvent"), true);
     assertGossipMessage(messageRx, mr -> assertNull(mr, "assertGossipMessage"), false);
 
     final MembershipRecord recordAfterUpdate = recordMap().get(record.member().id());
@@ -227,8 +227,8 @@ class MembershipTableTest {
     membershipTable.put(record);
     membershipTable.put(suspectedRecord);
 
-    assertPayloadGenerationUpdated(
-        messageRx, decoder -> assertNotNull(decoder, "assertPayloadGenerationUpdated"), true);
+    assertPayloadGenerationEvent(
+        messageRx, decoder -> assertNotNull(decoder, "assertPayloadGenerationEvent"), true);
     assertGossipMessage(messageRx, mr -> assertNull(mr, "assertGossipMessage"), false);
 
     final MembershipRecord recordAfterUpdate = recordMap().get(record.member().id());
@@ -245,8 +245,8 @@ class MembershipTableTest {
     membershipTable.put(record);
     membershipTable.put(suspectedRecord);
 
-    assertPayloadGenerationUpdated(
-        messageRx, decoder -> assertNotNull(decoder, "assertPayloadGenerationUpdated"), true);
+    assertPayloadGenerationEvent(
+        messageRx, decoder -> assertNotNull(decoder, "assertPayloadGenerationEvent"), true);
     assertGossipMessage(messageRx, mr -> assertNull(mr, "assertGossipMessage"), false);
 
     final MembershipRecord recordAfterUpdate = recordMap().get(record.member().id());
@@ -263,8 +263,8 @@ class MembershipTableTest {
     membershipTable.put(record);
     membershipTable.put(suspectedRecord);
 
-    assertPayloadGenerationUpdated(
-        messageRx, decoder -> assertNotNull(decoder, "assertPayloadGenerationUpdated"), true);
+    assertPayloadGenerationEvent(
+        messageRx, decoder -> assertNotNull(decoder, "assertPayloadGenerationEvent"), true);
     assertGossipMessage(messageRx, mr -> assertNull(mr, "assertGossipMessage"), false);
 
     final MembershipRecord recordAfterUpdate = recordMap().get(record.member().id());
@@ -280,8 +280,8 @@ class MembershipTableTest {
     membershipTable.put(record);
     membershipTable.put(record.member(), SUSPECTED);
 
-    assertPayloadGenerationUpdated(
-        messageRx, decoder -> assertNotNull(decoder, "assertPayloadGenerationUpdated"), true);
+    assertPayloadGenerationEvent(
+        messageRx, decoder -> assertNotNull(decoder, "assertPayloadGenerationEvent"), true);
     assertGossipMessage(messageRx, mr -> assertNull(mr, "assertGossipMessage"), false);
 
     assertEquals(SUSPECTED, recordMap().get(record.member().id()).status());
@@ -295,8 +295,8 @@ class MembershipTableTest {
     membershipTable.put(record);
     membershipTable.put(record.member(), SUSPECTED);
 
-    assertPayloadGenerationUpdated(
-        messageRx, decoder -> assertNotNull(decoder, "assertPayloadGenerationUpdated"), true);
+    assertPayloadGenerationEvent(
+        messageRx, decoder -> assertNotNull(decoder, "assertPayloadGenerationEvent"), true);
     assertGossipMessage(messageRx, mr -> assertEquals(SUSPECTED, mr.status()), false);
 
     assertEquals(SUSPECTED, recordMap().get(record.member().id()).status());
@@ -310,8 +310,8 @@ class MembershipTableTest {
     membershipTable.put(record);
     membershipTable.put(record.member(), ALIVE);
 
-    assertPayloadGenerationUpdated(
-        messageRx, decoder -> assertNotNull(decoder, "assertPayloadGenerationUpdated"), true);
+    assertPayloadGenerationEvent(
+        messageRx, decoder -> assertNotNull(decoder, "assertPayloadGenerationEvent"), true);
     assertGossipMessage(messageRx, mr -> assertNull(mr, "assertGossipMessage"), false);
 
     assertEquals(ALIVE, recordMap().get(record.member().id()).status());
@@ -325,8 +325,8 @@ class MembershipTableTest {
     membershipTable.put(record);
     membershipTable.put(record.member(), ALIVE);
 
-    assertPayloadGenerationUpdated(
-        messageRx, decoder -> assertNotNull(decoder, "assertPayloadGenerationUpdated"), true);
+    assertPayloadGenerationEvent(
+        messageRx, decoder -> assertNotNull(decoder, "assertPayloadGenerationEvent"), true);
     assertGossipMessage(messageRx, mr -> assertEquals(ALIVE, mr.status()), false);
 
     assertEquals(ALIVE, recordMap().get(record.member().id()).status());
@@ -343,49 +343,38 @@ class MembershipTableTest {
   }
 
   @Test
-  void testPayloadGenerationUpdated() {
-    final int generation = 1;
+  void testPayloadGenerationEvent() {
     final int payloadLength = 100;
 
     final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
     final MembershipRecord record = newRecord();
     final MembershipRecord recordWithGreaterGeneration =
-        copyFrom(record, r -> r.generation(generation).payloadLength(payloadLength));
+        copyFrom(record, r -> r.payloadLength(payloadLength));
 
     membershipTable.put(record);
     membershipTable.put(recordWithGreaterGeneration);
 
-    assertPayloadGenerationUpdated(
+    assertPayloadGenerationEvent(
         messageRx,
         decoder -> {
-          assertNotNull(decoder, "assertPayloadGenerationUpdated");
-          assertEquals(0, decoder.generation(), "generation");
+          assertNotNull(decoder, "assertPayloadGenerationEvent");
           assertEquals(0, decoder.payloadLength(), "payloadLength");
         },
         true);
-    assertPayloadGenerationUpdated(
-        messageRx,
-        decoder -> {
-          assertNotNull(decoder, "assertPayloadGenerationUpdated");
-          assertEquals(generation, decoder.generation(), "generation");
-          assertEquals(payloadLength, decoder.payloadLength(), "payloadLength");
-        },
-        false);
   }
 
   @Test
   void testPayloadGenerationNotUpdatedForLocalMember() {
-    final int generation = 1;
     final int payloadLength = 100;
 
     final CopyBroadcastReceiver messageRx = messageRxSupplier.get();
     final MembershipRecord localRecordWithGreaterGeneration =
-        copyFrom(localRecord, r -> r.generation(generation).payloadLength(payloadLength));
+        copyFrom(localRecord, r -> r.payloadLength(payloadLength));
 
     membershipTable.put(localRecordWithGreaterGeneration);
 
-    assertPayloadGenerationUpdated(
-        messageRx, decoder -> assertNull(decoder, "assertPayloadGenerationUpdated"), true);
+    assertPayloadGenerationEvent(
+        messageRx, decoder -> assertNull(decoder, "assertPayloadGenerationEvent"), true);
   }
 
   private void advanceClock(final long millis) {
@@ -488,15 +477,15 @@ class MembershipTableTest {
     consumer.accept(new MembershipRecordCodec().membershipRecord(decoder::wrapMessage));
   }
 
-  private void assertPayloadGenerationUpdated(
+  private void assertPayloadGenerationEvent(
       CopyBroadcastReceiver messageRx,
-      Consumer<PayloadGenerationUpdatedDecoder> consumer,
+      Consumer<PayloadGenerationEventDecoder> consumer,
       boolean skipLast) {
-    final MutableReference<PayloadGenerationUpdatedDecoder> mutableReference =
+    final MutableReference<PayloadGenerationEventDecoder> mutableReference =
         new MutableReference<>();
     final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
-    final PayloadGenerationUpdatedDecoder payloadGenerationUpdatedDecoder =
-        new PayloadGenerationUpdatedDecoder();
+    final PayloadGenerationEventDecoder payloadGenerationEventDecoder =
+        new PayloadGenerationEventDecoder();
 
     if (skipLast) {
       messageRx.receive(
@@ -507,8 +496,8 @@ class MembershipTableTest {
 
     messageRx.receive(
         (msgTypeId, buffer, index, length) -> {
-          final PayloadGenerationUpdatedDecoder decoder =
-              payloadGenerationUpdatedDecoder.wrapAndApplyHeader(buffer, index, headerDecoder);
+          final PayloadGenerationEventDecoder decoder =
+              payloadGenerationEventDecoder.wrapAndApplyHeader(buffer, index, headerDecoder);
           mutableReference.set(decoder);
         });
 

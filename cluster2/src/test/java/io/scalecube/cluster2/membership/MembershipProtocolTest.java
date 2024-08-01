@@ -22,7 +22,6 @@ import io.scalecube.cluster2.ClusterConfig;
 import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.fdetector.FailureDetectorCodec;
 import io.scalecube.cluster2.gossip.GossipMessageCodec;
-import io.scalecube.cluster2.payload.PayloadCodec;
 import io.scalecube.cluster2.sbe.MemberStatus;
 import java.lang.reflect.Field;
 import java.util.UUID;
@@ -191,37 +190,6 @@ class MembershipProtocolTest {
             eq(memberStatus));
   }
 
-  @Test
-  void testOnPayloadGenerationUpdated() {
-    final Member member = localRecord.member();
-
-    assertEquals(0, localRecord.generation(), "generation");
-    assertEquals(0, localRecord.payloadLength(), "payloadLength");
-
-    final int generation = 1;
-    final int payloadLength = 100;
-    emitPayloadGenerationUpdated(
-        codec -> codec.encodePayloadGenerationUpdated(member.id(), generation, payloadLength));
-
-    assertEquals(generation, localRecord.generation(), "generation");
-    assertEquals(payloadLength, localRecord.payloadLength(), "payloadLength");
-  }
-
-  @Test
-  void testOnPayloadGenerationUpdatedForNonLocalMember() {
-    assertEquals(0, localRecord.generation(), "generation");
-    assertEquals(0, localRecord.payloadLength(), "payloadLength");
-
-    final int generation = 1;
-    final int payloadLength = 100;
-    final UUID nonLocalMemberId = UUID.randomUUID();
-    emitPayloadGenerationUpdated(
-        codec -> codec.encodePayloadGenerationUpdated(nonLocalMemberId, generation, payloadLength));
-
-    assertEquals(0, localRecord.generation(), "generation");
-    assertEquals(0, localRecord.payloadLength(), "payloadLength");
-  }
-
   private void advanceClock(final long millis) {
     epochClock.advance(millis);
     membershipProtocol.doWork();
@@ -306,12 +274,6 @@ class MembershipProtocolTest {
     final FailureDetectorCodec failureDetectorCodec = new FailureDetectorCodec();
     messageTx.transmit(
         1, function.apply(failureDetectorCodec), 0, failureDetectorCodec.encodedLength());
-    membershipProtocol.doWork();
-  }
-
-  private void emitPayloadGenerationUpdated(Function<PayloadCodec, MutableDirectBuffer> function) {
-    final PayloadCodec payloadCodec = new PayloadCodec();
-    messageTx.transmit(1, function.apply(payloadCodec), 0, payloadCodec.encodedLength());
     membershipProtocol.doWork();
   }
 
