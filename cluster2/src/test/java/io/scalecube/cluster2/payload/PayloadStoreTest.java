@@ -16,8 +16,8 @@ class PayloadStoreTest {
   void testAddGeneration() throws IOException {
     final PayloadStore payloadStore =
         new PayloadStore(tempDir.resolve("" + System.currentTimeMillis()).toFile());
-    for (int i = 0; i < 3; i++) {
-      payloadStore.addGeneration(UUID.randomUUID(), 1024);
+    for (int i = 0; i < 10; i++) {
+      payloadStore.addGeneration(UUID.randomUUID(), 128);
     }
   }
 }
