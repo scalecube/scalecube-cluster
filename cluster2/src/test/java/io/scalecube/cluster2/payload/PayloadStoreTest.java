@@ -2,6 +2,8 @@ package io.scalecube.cluster2.payload;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import io.scalecube.cluster2.sbe.PayloadGenerationHeaderEncoder;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.UUID;
@@ -14,10 +16,18 @@ class PayloadStoreTest {
 
   @Test
   void testAddGeneration() throws IOException {
-    final PayloadStore payloadStore =
-        new PayloadStore(tempDir.resolve("" + System.currentTimeMillis()).toFile());
-    for (int i = 0; i < 10; i++) {
-      payloadStore.addGeneration(UUID.randomUUID(), 128);
+    final File storeFile = tempDir.resolve("" + System.currentTimeMillis()).toFile();
+    final PayloadStore payloadStore = new PayloadStore(storeFile);
+    final int n = 100;
+    final int payloadLength = 128;
+
+    for (int i = 0; i < n; i++) {
+      payloadStore.addGeneration(UUID.randomUUID(), payloadLength);
     }
+
+    assertEquals(
+        storeFile.length(),
+        n * (PayloadGenerationHeaderEncoder.BLOCK_LENGTH + payloadLength),
+        "storeFile.length");
   }
 }
