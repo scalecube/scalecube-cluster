@@ -17,7 +17,7 @@ public class PayloadStore {
 
   private final PayloadGenerationHeaderEncoder headerEncoder = new PayloadGenerationHeaderEncoder();
   private final MutableDirectBuffer headerBuffer =
-      new ExpandableDirectByteBuffer(headerEncoder.sbeBlockLength());
+      new ExpandableDirectByteBuffer(PayloadGenerationHeaderEncoder.BLOCK_LENGTH);
   private final ByteBuffer nullBuffer = ByteBuffer.wrap(new byte[1]);
   private final Object2LongHashMap<UUID> payloadIndex = new Object2LongHashMap<>(Long.MIN_VALUE);
   private FileChannel storeChannel;
