@@ -172,7 +172,7 @@
     <data name="chunk" id="101" type="VarData"/>
   </sbe:message>
 
-  <sbe:message name="PayloadEvent" id="404">
+  <sbe:message name="PayloadCreatedEvent" id="404">
     <field name="memberId" id="1" type="UUID"/>
     <data name="payload" id="100" type="VarData"/>
   </sbe:message>
