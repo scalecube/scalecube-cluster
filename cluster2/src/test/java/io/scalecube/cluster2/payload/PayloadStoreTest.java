@@ -26,4 +26,22 @@ class PayloadStoreTest {
 
     assertEquals(storeFile.length(), n * payloadLength, "storeFile.length");
   }
+
+  @Test
+  void testRemoveGeneration() throws IOException {
+    final File storeFile = tempDir.resolve("" + System.currentTimeMillis()).toFile();
+    final PayloadStore payloadStore = new PayloadStore(storeFile);
+    final int n = 100;
+    final int payloadLength = 128;
+
+    UUID memberId = null;
+    for (int i = 0; i < n; i++) {
+      memberId = UUID.randomUUID();
+      payloadStore.addGeneration(memberId, payloadLength);
+    }
+
+    payloadStore.removeGeneration(memberId);
+
+    assertEquals(n - 1, payloadStore.size());
+  }
 }

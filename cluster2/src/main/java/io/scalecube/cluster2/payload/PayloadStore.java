@@ -41,6 +41,10 @@ public class PayloadStore {
     payloadIndex.remove(memberId);
   }
 
+  public int size() {
+    return payloadIndex.size();
+  }
+
   public void putPayload(UUID memberId, DirectBuffer chunk, int chunkOffset, int chunkLength)
       throws IOException {
     final PayloadInfo payloadInfo = payloadIndex.get(memberId);
