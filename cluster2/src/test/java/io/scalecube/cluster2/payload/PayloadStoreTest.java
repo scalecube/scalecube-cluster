@@ -1,10 +1,10 @@
 package io.scalecube.cluster2.payload;
 
+import static io.scalecube.cluster2.payload.PayloadStore.HEADER_LENGTH;
 import static org.junit.jupiter.api.Assertions.*;
 
 import io.scalecube.cluster2.UUIDCodec;
 import io.scalecube.cluster2.sbe.PayloadGenerationHeaderDecoder;
-import io.scalecube.cluster2.sbe.PayloadGenerationHeaderEncoder;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -22,8 +22,7 @@ class PayloadStoreTest {
   @TempDir private Path tempDir;
 
   private final PayloadGenerationHeaderDecoder headerDecoder = new PayloadGenerationHeaderDecoder();
-  private final MutableDirectBuffer headerBuffer =
-      new ExpandableDirectByteBuffer(PayloadGenerationHeaderDecoder.BLOCK_LENGTH);
+  private final MutableDirectBuffer headerBuffer = new ExpandableDirectByteBuffer(HEADER_LENGTH);
 
   @Test
   void testAddGeneration() throws IOException {
@@ -36,10 +35,7 @@ class PayloadStoreTest {
       payloadStore.addGeneration(UUID.randomUUID(), payloadLength);
     }
 
-    assertEquals(
-        storeFile.length(),
-        n * (PayloadGenerationHeaderEncoder.BLOCK_LENGTH + payloadLength),
-        "storeFile.length");
+    assertEquals(storeFile.length(), n * (HEADER_LENGTH + payloadLength), "storeFile.length");
   }
 
   @Test
@@ -57,8 +53,7 @@ class PayloadStoreTest {
 
     payloadStore.removeGeneration(memberId);
 
-    long lastRecordPosition =
-        storeFile.length() - (PayloadGenerationHeaderEncoder.BLOCK_LENGTH + payloadLength);
+    long lastRecordPosition = storeFile.length() - (HEADER_LENGTH + payloadLength);
     final RandomAccessFile randomAccessFile = new RandomAccessFile(storeFile, "r");
     final FileChannel fileChannel = randomAccessFile.getChannel();
 
@@ -68,7 +63,7 @@ class PayloadStoreTest {
       fileChannel.read(buffer, lastRecordPosition);
     } while (buffer.hasRemaining());
 
-    headerDecoder.wrap(headerBuffer, 0, PayloadGenerationHeaderDecoder.BLOCK_LENGTH, 0);
+    headerDecoder.wrap(headerBuffer, 0, HEADER_LENGTH, 0);
 
     assertEquals(UUIDCodec.uuid(headerDecoder.memberId()), memberId, "memberId");
     assertEquals(payloadLength, headerDecoder.payloadLength(), "payloadLength");
