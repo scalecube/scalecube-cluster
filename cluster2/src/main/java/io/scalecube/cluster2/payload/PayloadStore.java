@@ -1,110 +1,99 @@
 package io.scalecube.cluster2.payload;
 
-import static io.scalecube.cluster2.UUIDCodec.encodeUUID;
-
-import io.scalecube.cluster2.sbe.PayloadGenerationHeaderDecoder;
-import io.scalecube.cluster2.sbe.PayloadGenerationHeaderEncoder;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.util.StringJoiner;
 import java.util.UUID;
 import org.agrona.DirectBuffer;
-import org.agrona.ExpandableDirectByteBuffer;
-import org.agrona.MutableDirectBuffer;
-import org.agrona.collections.Object2LongHashMap;
-import org.agrona.collections.ObjectHashSet;
+import org.agrona.collections.Object2ObjectHashMap;
 
 public class PayloadStore {
 
-  public static final int HEADER_LENGTH = PayloadGenerationHeaderEncoder.BLOCK_LENGTH;
-
-  private final PayloadGenerationHeaderEncoder headerEncoder = new PayloadGenerationHeaderEncoder();
-  private final PayloadGenerationHeaderDecoder headerDecoder = new PayloadGenerationHeaderDecoder();
-  private final MutableDirectBuffer headerBuffer = new ExpandableDirectByteBuffer(HEADER_LENGTH);
-  private final ByteBuffer nullBuffer = ByteBuffer.wrap(new byte[1]);
-  private final Object2LongHashMap<UUID> payloadIndex = new Object2LongHashMap<>(Long.MIN_VALUE);
-  private final ObjectHashSet<UUID> proceedingMembers = new ObjectHashSet<>();
   private FileChannel storeChannel;
   private RandomAccessFile storeFile;
+  private final ByteBuffer dstBuffer = ByteBuffer.allocateDirect(64 * 1024);
+  private final Object2ObjectHashMap<UUID, PayloadInfo> payloadIndex = new Object2ObjectHashMap<>();
 
-  public PayloadStore(File storeFile) {
+  public PayloadStore(File payloadStore) {
     try {
-      this.storeFile = new RandomAccessFile(storeFile, "rw");
-      this.storeChannel = this.storeFile.getChannel();
+      storeFile = new RandomAccessFile(payloadStore, "rw");
+      storeChannel = storeFile.getChannel();
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
   }
 
   public void addGeneration(UUID memberId, int payloadLength) throws IOException {
-    payloadIndex.put(memberId, storeChannel.position());
-    proceedingMembers.add(memberId);
+    payloadIndex.put(
+        memberId, new PayloadInfo(memberId, storeChannel.position(), payloadLength, 0));
 
-    headerEncoder.wrap(headerBuffer, 0);
-    encodeUUID(memberId, headerEncoder.memberId());
-    headerEncoder.payloadLength(payloadLength);
-    headerEncoder.payloadOffset(0);
-
-    appendHeader();
+    // Fill up with 0
 
     for (int i = 0; i < payloadLength; i++) {
-      //noinspection ResultOfMethodCallIgnored,RedundantCast
-      storeChannel.write((ByteBuffer) nullBuffer.clear());
+      storeFile.write(0);
     }
   }
 
-  public void removeGeneration(UUID memberId) throws IOException {
-    final long position = payloadIndex.getValue(memberId);
-    if (position != Long.MIN_VALUE) {
-      readHeader(position);
-
-      headerEncoder.wrap(headerBuffer, 0);
-      headerEncoder.payloadOffset(Integer.MIN_VALUE);
-
-      writeHeader(position);
-
-      payloadIndex.removeKey(memberId);
-      proceedingMembers.remove(memberId);
-    }
+  public void removeGeneration(UUID memberId) {
+    payloadIndex.remove(memberId);
   }
 
-  public void putPayload(
-      UUID memberId, int payloadOffset, DirectBuffer chunk, int chunkOffset, int chunkLength)
+  public void putPayload(UUID memberId, DirectBuffer chunk, int chunkOffset, int chunkLength)
       throws IOException {
-    final long position = payloadIndex.getValue(memberId);
-    if (position != Long.MIN_VALUE) {
-      readHeader(position);
-
-      headerEncoder.wrap(headerBuffer, 0);
-      headerDecoder.wrap(headerBuffer, 0, HEADER_LENGTH, 0);
-
-      final long payloadPosition = position + HEADER_LENGTH + payloadOffset;
+    final PayloadInfo payloadInfo = payloadIndex.get(memberId);
+    if (payloadInfo == null || payloadInfo.isCompleted()) {
+      return;
     }
+
+    if (payloadInfo.length < payloadInfo.appendOffset + chunkLength) {
+      throw new IllegalArgumentException("Invalid chunkLength: " + chunkLength);
+    }
+
+    //noinspection RedundantCast
+    chunk.getBytes(chunkOffset, (ByteBuffer) dstBuffer.clear(), chunkLength);
+
+    dstBuffer.flip();
+    long position = payloadInfo.appendPosition();
+    do {
+      position += storeChannel.write(dstBuffer, position);
+    } while (dstBuffer.hasRemaining());
+
+    payloadInfo.appendOffset += chunkLength;
   }
 
-  private void appendHeader() throws IOException {
-    //noinspection RedundantCast
-    final ByteBuffer buffer = (ByteBuffer) headerBuffer.byteBuffer().clear();
-    do {
-      storeChannel.write(buffer);
-    } while (buffer.hasRemaining());
-  }
+  private static class PayloadInfo {
 
-  private void writeHeader(long position) throws IOException {
-    //noinspection RedundantCast
-    final ByteBuffer buffer = (ByteBuffer) headerBuffer.byteBuffer().clear();
-    do {
-      storeChannel.write(buffer, position);
-    } while (buffer.hasRemaining());
-  }
+    private final UUID memberId;
+    private final long initialPosition;
+    private final int length;
+    private int appendOffset;
 
-  private void readHeader(long position) throws IOException {
-    //noinspection RedundantCast
-    final ByteBuffer buffer = (ByteBuffer) headerBuffer.byteBuffer().clear();
-    do {
-      storeChannel.read(buffer, position);
-    } while (buffer.hasRemaining());
+    private PayloadInfo(UUID memberId, long initialPosition, int length, int appendOffset) {
+      this.memberId = memberId;
+      this.initialPosition = initialPosition;
+      this.length = length;
+      this.appendOffset = appendOffset;
+    }
+
+    private long appendPosition() {
+      return initialPosition + appendOffset;
+    }
+
+    private boolean isCompleted() {
+      return appendOffset == length;
+    }
+
+    @Override
+    public String toString() {
+      return new StringJoiner(", ", PayloadInfo.class.getSimpleName() + "[", "]")
+          .add("memberId=" + memberId)
+          .add("initialPosition=" + initialPosition)
+          .add("length=" + length)
+          .add("proceedingOffset=" + appendOffset)
+          .toString();
+    }
   }
 }
