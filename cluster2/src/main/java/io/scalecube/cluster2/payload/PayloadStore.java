@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.StringJoiner;
 import java.util.UUID;
 import org.agrona.DirectBuffer;
 import org.agrona.collections.Object2ObjectHashMap;
@@ -45,14 +44,16 @@ public class PayloadStore {
     return payloadIndex.size();
   }
 
-  public void putPayload(UUID memberId, DirectBuffer chunk, int chunkOffset, int chunkLength)
+  public boolean putPayload(UUID memberId, DirectBuffer chunk, int chunkOffset, int chunkLength)
       throws IOException {
     final PayloadInfo payloadInfo = payloadIndex.get(memberId);
-    if (payloadInfo == null || payloadInfo.isCompleted()) {
-      return;
+    if (payloadInfo == null) {
+      return false;
     }
 
-    if (payloadInfo.length < payloadInfo.appendOffset + chunkLength) {
+    final int newAppendOffset = payloadInfo.appendOffset() + chunkLength;
+
+    if (payloadInfo.length() < newAppendOffset) {
       throw new IllegalArgumentException("Invalid chunkLength: " + chunkLength);
     }
 
@@ -65,39 +66,25 @@ public class PayloadStore {
       position += storeChannel.write(dstBuffer, position);
     } while (dstBuffer.hasRemaining());
 
-    payloadInfo.appendOffset += chunkLength;
+    payloadInfo.appendOffset(newAppendOffset);
+
+    return payloadInfo.isCompleted();
   }
 
-  private static class PayloadInfo {
-
-    private final UUID memberId;
-    private final long initialPosition;
-    private final int length;
-    private int appendOffset;
-
-    private PayloadInfo(UUID memberId, long initialPosition, int length, int appendOffset) {
-      this.memberId = memberId;
-      this.initialPosition = initialPosition;
-      this.length = length;
-      this.appendOffset = appendOffset;
+  public ByteBuffer readPayload(UUID memberId) throws IOException {
+    final PayloadInfo payloadInfo = payloadIndex.get(memberId);
+    if (payloadInfo == null || !payloadInfo.isCompleted()) {
+      return null;
     }
 
-    private long appendPosition() {
-      return initialPosition + appendOffset;
-    }
+    //noinspection RedundantCast
+    final ByteBuffer readBuffer = (ByteBuffer) dstBuffer.clear().limit(payloadInfo.length());
+    long position = payloadInfo.position();
+    do {
+      position += storeChannel.read(readBuffer, position);
+    } while (readBuffer.hasRemaining());
 
-    private boolean isCompleted() {
-      return appendOffset == length;
-    }
-
-    @Override
-    public String toString() {
-      return new StringJoiner(", ", PayloadInfo.class.getSimpleName() + "[", "]")
-          .add("memberId=" + memberId)
-          .add("initialPosition=" + initialPosition)
-          .add("length=" + length)
-          .add("proceedingOffset=" + appendOffset)
-          .toString();
-    }
+    //noinspection RedundantCast
+    return (ByteBuffer) readBuffer.flip();
   }
 }
