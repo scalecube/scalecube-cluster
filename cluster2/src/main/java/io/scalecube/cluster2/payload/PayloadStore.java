@@ -44,16 +44,21 @@ public class PayloadStore {
     return payloadIndex.size();
   }
 
-  public boolean putPayload(UUID memberId, DirectBuffer chunk, int chunkOffset, int chunkLength)
+  public boolean putPayload(
+      UUID memberId, int payloadOffset, DirectBuffer chunk, int chunkOffset, int chunkLength)
       throws IOException {
     final PayloadInfo payloadInfo = payloadIndex.get(memberId);
     if (payloadInfo == null) {
-      return false;
+      throw new IllegalArgumentException("Payload not found, memberId: " + memberId);
+    }
+
+    if (payloadOffset != payloadInfo.appendOffset()) {
+      throw new IllegalArgumentException("Invalid payloadOffset: " + payloadOffset);
     }
 
     final int newAppendOffset = payloadInfo.appendOffset() + chunkLength;
 
-    if (payloadInfo.length() < newAppendOffset) {
+    if (newAppendOffset > payloadInfo.length()) {
       throw new IllegalArgumentException("Invalid chunkLength: " + chunkLength);
     }
 

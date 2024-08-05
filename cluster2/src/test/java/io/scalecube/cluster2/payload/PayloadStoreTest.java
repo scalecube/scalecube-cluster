@@ -1,6 +1,7 @@
 package io.scalecube.cluster2.payload;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.File;
 import java.io.IOException;
@@ -66,9 +67,9 @@ class PayloadStoreTest {
     random.nextBytes(bytes);
     final UnsafeBuffer buffer = new UnsafeBuffer(bytes);
 
-    assertFalse(payloadStore.putPayload(memberId, buffer, 0, 768), "putPayload");
-    assertFalse(payloadStore.putPayload(memberId, buffer, 768, 255), "putPayload");
-    assertTrue(payloadStore.putPayload(memberId, buffer, 1023, 9), "putPayload");
+    assertFalse(payloadStore.putPayload(memberId, 0, buffer, 0, 768), "putPayload");
+    assertFalse(payloadStore.putPayload(memberId, 768, buffer, 768, 255), "putPayload");
+    assertTrue(payloadStore.putPayload(memberId, 1023, buffer, 1023, 9), "putPayload");
 
     final ByteBuffer payload = payloadStore.readPayload(memberId);
     assertEquals(payloadLength, payload.limit(), "payloadLength");
@@ -76,5 +77,71 @@ class PayloadStoreTest {
     payload.get(payloadBytes);
 
     assertArrayEquals(bytes, payloadBytes, "payloadBytes");
+  }
+
+  @Test
+  void testPutPayloadPayloadNotFound() throws IOException {
+    final File storeFile = tempDir.resolve("" + System.currentTimeMillis()).toFile();
+    final PayloadStore payloadStore = new PayloadStore(storeFile);
+
+    final UUID memberId = UUID.randomUUID();
+    final int payloadLength = 1032;
+
+    final Random random = new Random();
+    byte[] bytes = new byte[payloadLength];
+    random.nextBytes(bytes);
+    final UnsafeBuffer buffer = new UnsafeBuffer(bytes);
+
+    payloadStore.addGeneration(memberId, payloadLength);
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> payloadStore.putPayload(UUID.randomUUID(), 0, buffer, 0, 768));
+  }
+
+  @Test
+  void testPutPayloadInvalidPayloadOffset() throws IOException {
+    final File storeFile = tempDir.resolve("" + System.currentTimeMillis()).toFile();
+    final PayloadStore payloadStore = new PayloadStore(storeFile);
+
+    final UUID memberId = UUID.randomUUID();
+    final int payloadLength = 1032;
+
+    final Random random = new Random();
+    byte[] bytes = new byte[payloadLength];
+    random.nextBytes(bytes);
+    final UnsafeBuffer buffer = new UnsafeBuffer(bytes);
+
+    payloadStore.addGeneration(memberId, payloadLength);
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> payloadStore.putPayload(memberId, 768, buffer, 0, 768));
+  }
+
+  @Test
+  void testPutPayloadInvalidChunk() throws IOException {
+    final File storeFile = tempDir.resolve("" + System.currentTimeMillis()).toFile();
+    final PayloadStore payloadStore = new PayloadStore(storeFile);
+
+    final UUID memberId = UUID.randomUUID();
+    final int payloadLength = 1032;
+
+    payloadStore.addGeneration(memberId, payloadLength);
+
+    assertNull(payloadStore.readPayload(memberId), "readPayload");
+
+    final Random random = new Random();
+    byte[] bytes = new byte[payloadLength];
+    random.nextBytes(bytes);
+    final UnsafeBuffer buffer = new UnsafeBuffer(bytes);
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> {
+          assertFalse(payloadStore.putPayload(memberId, 0, buffer, 0, 768), "putPayload");
+          assertFalse(payloadStore.putPayload(memberId, 768, buffer, 768, 255), "putPayload");
+          payloadStore.putPayload(memberId, 1023, buffer, 1023, 10);
+        });
   }
 }

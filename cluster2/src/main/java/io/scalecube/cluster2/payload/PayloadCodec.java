@@ -35,7 +35,7 @@ public class PayloadCodec extends AbstractCodec {
     return encodedBuffer;
   }
 
-  public MutableDirectBuffer encodePayloadChunkRequest(long payloadOffset, Member from) {
+  public MutableDirectBuffer encodePayloadChunkRequest(Member from, int payloadOffset) {
     encodedLength = 0;
 
     payloadChunkRequestEncoder.wrapAndApplyHeader(encodedBuffer, 0, headerEncoder);
@@ -47,10 +47,11 @@ public class PayloadCodec extends AbstractCodec {
   }
 
   public MutableDirectBuffer encodePayloadChunkResponse(
-      Member from, DirectBuffer chunk, int chunkOffset, int chunkLength) {
+      Member from, int payloadOffset, DirectBuffer chunk, int chunkOffset, int chunkLength) {
     encodedLength = 0;
 
     payloadChunkResponseEncoder.wrapAndApplyHeader(encodedBuffer, 0, headerEncoder);
+    payloadChunkResponseEncoder.payloadOffset(payloadOffset);
     payloadChunkResponseEncoder.putFrom(memberCodec.encode(from), 0, memberCodec.encodedLength());
     payloadChunkResponseEncoder.putChunk(chunk, chunkOffset, chunkLength);
 
