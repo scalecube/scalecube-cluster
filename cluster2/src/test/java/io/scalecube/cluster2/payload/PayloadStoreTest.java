@@ -9,18 +9,32 @@ import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.util.Random;
 import java.util.UUID;
+import org.agrona.CloseHelper;
 import org.agrona.concurrent.UnsafeBuffer;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class PayloadStoreTest {
 
   @TempDir private Path tempDir;
+  private PayloadStore payloadStore;
+  private File storeFile;
+
+  @BeforeEach
+  void beforeEach() {
+    storeFile = tempDir.resolve("" + System.currentTimeMillis()).toFile();
+    payloadStore = new PayloadStore(storeFile);
+  }
+
+  @AfterEach
+  void afterEach() {
+    CloseHelper.quietClose(payloadStore);
+  }
 
   @Test
   void testAddGeneration() throws IOException {
-    final File storeFile = tempDir.resolve("" + System.currentTimeMillis()).toFile();
-    final PayloadStore payloadStore = new PayloadStore(storeFile);
     final int n = 100;
     final int payloadLength = 128;
 
@@ -33,8 +47,6 @@ class PayloadStoreTest {
 
   @Test
   void testRemoveGeneration() throws IOException {
-    final File storeFile = tempDir.resolve("" + System.currentTimeMillis()).toFile();
-    final PayloadStore payloadStore = new PayloadStore(storeFile);
     final int n = 100;
     final int payloadLength = 128;
 
@@ -52,9 +64,6 @@ class PayloadStoreTest {
 
   @Test
   void testReadPayload() throws IOException {
-    final File storeFile = tempDir.resolve("" + System.currentTimeMillis()).toFile();
-    final PayloadStore payloadStore = new PayloadStore(storeFile);
-
     final UUID memberId = UUID.randomUUID();
     final int payloadLength = 1032;
 
@@ -81,9 +90,6 @@ class PayloadStoreTest {
 
   @Test
   void testPutPayloadPayloadNotFound() throws IOException {
-    final File storeFile = tempDir.resolve("" + System.currentTimeMillis()).toFile();
-    final PayloadStore payloadStore = new PayloadStore(storeFile);
-
     final UUID memberId = UUID.randomUUID();
     final int payloadLength = 1032;
 
@@ -101,9 +107,6 @@ class PayloadStoreTest {
 
   @Test
   void testPutPayloadInvalidPayloadOffset() throws IOException {
-    final File storeFile = tempDir.resolve("" + System.currentTimeMillis()).toFile();
-    final PayloadStore payloadStore = new PayloadStore(storeFile);
-
     final UUID memberId = UUID.randomUUID();
     final int payloadLength = 1032;
 
@@ -121,9 +124,6 @@ class PayloadStoreTest {
 
   @Test
   void testPutPayloadInvalidChunk() throws IOException {
-    final File storeFile = tempDir.resolve("" + System.currentTimeMillis()).toFile();
-    final PayloadStore payloadStore = new PayloadStore(storeFile);
-
     final UUID memberId = UUID.randomUUID();
     final int payloadLength = 1032;
 

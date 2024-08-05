@@ -6,13 +6,14 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.UUID;
+import org.agrona.CloseHelper;
 import org.agrona.DirectBuffer;
 import org.agrona.collections.Object2ObjectHashMap;
 
-public class PayloadStore {
+public class PayloadStore implements AutoCloseable {
 
-  private FileChannel storeChannel;
-  private RandomAccessFile storeFile;
+  private final RandomAccessFile storeFile;
+  private final FileChannel storeChannel;
   private final ByteBuffer dstBuffer = ByteBuffer.allocateDirect(64 * 1024);
   private final Object2ObjectHashMap<UUID, PayloadInfo> payloadIndex = new Object2ObjectHashMap<>();
 
@@ -38,10 +39,6 @@ public class PayloadStore {
 
   public void removeGeneration(UUID memberId) {
     payloadIndex.remove(memberId);
-  }
-
-  public int size() {
-    return payloadIndex.size();
   }
 
   public boolean putPayload(
@@ -91,5 +88,14 @@ public class PayloadStore {
 
     //noinspection RedundantCast
     return (ByteBuffer) readBuffer.flip();
+  }
+
+  public int size() {
+    return payloadIndex.size();
+  }
+
+  @Override
+  public void close() {
+    CloseHelper.quietCloseAll(storeFile, storeChannel);
   }
 }
