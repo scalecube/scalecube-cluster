@@ -6,7 +6,6 @@ import io.scalecube.cluster2.ClusterMath;
 import io.scalecube.cluster2.Member;
 import io.scalecube.cluster2.TimerInvoker;
 import io.scalecube.cluster2.gossip.GossipMessageCodec;
-import io.scalecube.cluster2.payload.PayloadCodec;
 import io.scalecube.cluster2.sbe.MemberStatus;
 import java.util.ArrayList;
 import java.util.Map;
@@ -37,7 +36,6 @@ public class MembershipTable {
   private final MemberActionCodec memberActionCodec = new MemberActionCodec();
   private final MembershipRecordCodec membershipRecordCodec = new MembershipRecordCodec();
   private final GossipMessageCodec gossipMessageCodec = new GossipMessageCodec();
-  private final PayloadCodec payloadCodec = new PayloadCodec();
   private final Map<UUID, MembershipRecord> recordMap = new Object2ObjectHashMap<>();
 
   public MembershipTable(
@@ -109,16 +107,6 @@ public class MembershipTable {
 
   public int size() {
     return recordMap.size();
-  }
-
-  private void emitPayloadGenerationEvent(MembershipRecord record) {
-    final UUID memberId = record.member().id();
-    final int payloadLength = record.payloadLength();
-    messageTx.transmit(
-        1,
-        payloadCodec.encodePayloadGenerationEvent(memberId, payloadLength),
-        0,
-        payloadCodec.encodedLength());
   }
 
   private void emitGossip(MembershipRecord record) {
