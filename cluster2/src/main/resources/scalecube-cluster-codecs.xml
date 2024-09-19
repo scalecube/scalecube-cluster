@@ -148,17 +148,17 @@
     <data name="payload" id="101" type="VarData"/>
   </sbe:message>
 
-  <!-- Payload Protocol -->
+  <!--  &lt;!&ndash; Payload Protocol &ndash;&gt;-->
 
-  <sbe:message name="PayloadChunkRequest" id="402">
-    <field name="payloadOffset" id="1" type="int32"/>
-    <data name="from" id="100" type="VarData"/>
-  </sbe:message>
+  <!--  <sbe:message name="PayloadChunkRequest" id="402">-->
+  <!--    <field name="payloadOffset" id="1" type="int32"/>-->
+  <!--    <data name="from" id="100" type="VarData"/>-->
+  <!--  </sbe:message>-->
 
-  <sbe:message name="PayloadChunkResponse" id="403">
-    <field name="payloadOffset" id="1" type="int32"/>
-    <data name="from" id="100" type="VarData"/>
-    <data name="chunk" id="101" type="VarData"/>
-  </sbe:message>
+  <!--  <sbe:message name="PayloadChunkResponse" id="403">-->
+  <!--    <field name="payloadOffset" id="1" type="int32"/>-->
+  <!--    <data name="from" id="100" type="VarData"/>-->
+  <!--    <data name="chunk" id="101" type="VarData"/>-->
+  <!--  </sbe:message>-->
 
 </sbe:messageSchema>
