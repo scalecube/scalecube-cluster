@@ -9,13 +9,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.scalecube.cluster.BaseTest;
 import io.scalecube.cluster.Member;
-import io.scalecube.net.Address;
 import org.junit.jupiter.api.Test;
 
 public class MembershipRecordTest extends BaseTest {
 
-  private final Member member = new Member("0", "0", Address.from("localhost:1234"), "ns-0");
-  private final Member anotherMember = new Member("1", "1", Address.from("localhost:4567"), "ns-1");
+  private final Member member = new Member("0", "0", "localhost:1234", "ns-0");
+  private final Member anotherMember = new Member("1", "1", "localhost:4567", "ns-1");
 
   private final MembershipRecord r0Null = null;
 

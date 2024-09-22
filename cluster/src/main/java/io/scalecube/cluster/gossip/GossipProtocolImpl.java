@@ -7,7 +7,6 @@ import io.scalecube.cluster.Member;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
-import io.scalecube.net.Address;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -288,14 +287,14 @@ public final class GossipProtocolImpl implements GossipProtocol {
     }
 
     // Send gossip request
-    Address address = member.address();
+    String address = member.address();
 
     gossips.stream()
         .map(this::buildGossipRequestMessage)
         .forEach(
             message ->
                 transport
-                    .send(address.toString(), message)
+                    .send(address, message)
                     .subscribe(
                         null,
                         ex ->

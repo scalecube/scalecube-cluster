@@ -1,6 +1,8 @@
 package io.scalecube.cluster;
 
-import static io.scalecube.reactor.RetryNonSerializedEmitFailureHandler.RETRY_NON_SERIALIZED;
+import static io.scalecube.cluster.transport.api.Transport.parseHost;
+import static io.scalecube.cluster.transport.api.Transport.parsePort;
+import static reactor.core.publisher.Sinks.EmitFailureHandler.busyLooping;
 
 import io.scalecube.cluster.fdetector.FailureDetectorConfig;
 import io.scalecube.cluster.fdetector.FailureDetectorImpl;
@@ -16,9 +18,9 @@ import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.cluster.transport.api.TransportFactory;
-import io.scalecube.net.Address;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
@@ -111,14 +113,14 @@ public final class ClusterImpl implements Cluster {
     start
         .asMono()
         .then(doStart())
-        .doOnSuccess(avoid -> onStart.emitEmpty(RETRY_NON_SERIALIZED))
-        .doOnError(th -> onStart.emitError(th, RETRY_NON_SERIALIZED))
+        .doOnSuccess(avoid -> onStart.emitEmpty(busyLooping(Duration.ofSeconds(3))))
+        .doOnError(th -> onStart.emitError(th, busyLooping(Duration.ofSeconds(3))))
         .subscribe(null, th -> LOGGER.error("[{}][doStart] Exception occurred:", localMember, th));
 
     shutdown
         .asMono()
         .then(doShutdown())
-        .doFinally(s -> onShutdown.emitEmpty(RETRY_NON_SERIALIZED))
+        .doFinally(s -> onShutdown.emitEmpty(busyLooping(Duration.ofSeconds(3))))
         .subscribe(
             null,
             th ->
@@ -224,7 +226,7 @@ public final class ClusterImpl implements Cluster {
   public Mono<Cluster> start() {
     return Mono.defer(
         () -> {
-          start.emitEmpty(RETRY_NON_SERIALIZED);
+          start.emitEmpty(busyLooping(Duration.ofSeconds(3)));
           return onStart.asMono().thenReturn(this);
         });
   }
@@ -241,10 +243,10 @@ public final class ClusterImpl implements Cluster {
     return Transport.bind(config.transportConfig())
         .flatMap(
             boundTransport -> {
-              localMember = createLocalMember(Address.from(boundTransport.address()));
+              localMember = createLocalMember(boundTransport.address());
               transport = new SenderAwareTransport(boundTransport, localMember.address());
 
-              scheduler = Schedulers.newSingle("sc-cluster-" + localMember.address().port(), true);
+              scheduler = Schedulers.newSingle("sc-cluster-" + localMember.address(), true);
 
               failureDetector =
                   new FailureDetectorImpl(
@@ -283,9 +285,10 @@ public final class ClusterImpl implements Cluster {
                       /*.publishOn(scheduler)*/
                       // Dont uncomment, already beign executed inside scalecube-cluster thread
                       .subscribe(
-                          event -> membershipSink.emitNext(event, RETRY_NON_SERIALIZED),
+                          event ->
+                              membershipSink.emitNext(event, busyLooping(Duration.ofSeconds(3))),
                           ex -> LOGGER.error("[{}][membership][error] cause:", localMember, ex),
-                          () -> membershipSink.emitComplete(RETRY_NON_SERIALIZED)));
+                          () -> membershipSink.emitComplete(busyLooping(Duration.ofSeconds(3)))));
 
               return Mono.fromRunnable(() -> failureDetector.start())
                   .then(Mono.fromRunnable(() -> gossip.start()))
@@ -371,14 +374,13 @@ public final class ClusterImpl implements Cluster {
    * @param address transport address
    * @return local cluster member with cluster address and cluster member id
    */
-  private Member createLocalMember(Address address) {
-    int port = Optional.ofNullable(config.externalPort()).orElse(address.port());
+  private Member createLocalMember(String address) {
+    final String finalHost =
+        Optional.ofNullable(config.externalHost()).orElseGet(() -> parseHost(address));
+    final int finalPort =
+        Optional.ofNullable(config.externalPort()).orElseGet(() -> parsePort(address));
 
-    // calculate local member cluster address
-    Address memberAddress =
-        Optional.ofNullable(config.externalHost())
-            .map(host -> Address.create(host, port))
-            .orElseGet(() -> Address.create(address.host(), port));
+    final String memberAddress = finalHost + ":" + finalPort;
 
     return new Member(
         config.memberId() != null ? config.memberId() : UUID.randomUUID().toString(),
@@ -388,7 +390,7 @@ public final class ClusterImpl implements Cluster {
   }
 
   @Override
-  public Address address() {
+  public String address() {
     return member().address();
   }
 
@@ -431,13 +433,13 @@ public final class ClusterImpl implements Cluster {
   }
 
   @Override
-  public Optional<Member> member(String id) {
-    return membership.member(id);
+  public Optional<Member> memberById(String id) {
+    return membership.memberById(id);
   }
 
   @Override
-  public Optional<Member> member(Address address) {
-    return membership.member(address);
+  public Optional<Member> memberByAddress(String address) {
+    return membership.memberByAddress(address);
   }
 
   @Override
@@ -449,7 +451,7 @@ public final class ClusterImpl implements Cluster {
 
   @Override
   public void shutdown() {
-    shutdown.emitEmpty(RETRY_NON_SERIALIZED);
+    shutdown.emitEmpty(busyLooping(Duration.ofSeconds(3)));
   }
 
   private Mono<Void> doShutdown() {
@@ -498,9 +500,9 @@ public final class ClusterImpl implements Cluster {
   private static class SenderAwareTransport implements Transport {
 
     private final Transport transport;
-    private final Address address;
+    private final String address;
 
-    private SenderAwareTransport(Transport transport, Address address) {
+    private SenderAwareTransport(Transport transport, String address) {
       this.transport = Objects.requireNonNull(transport);
       this.address = Objects.requireNonNull(address);
     }
@@ -541,7 +543,7 @@ public final class ClusterImpl implements Cluster {
     }
 
     private Message enhanceWithSender(Message message) {
-      return Message.with(message).sender(address.toString()).build();
+      return Message.with(message).sender(address).build();
     }
   }
 }

@@ -1,5 +1,6 @@
 package io.scalecube.cluster.gossip;
 
+import static io.scalecube.cluster.transport.api.Transport.parsePort;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import io.scalecube.cluster.BaseTest;
@@ -9,7 +10,6 @@ import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.utils.NetworkEmulatorTransport;
-import io.scalecube.net.Address;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -38,24 +38,15 @@ public class GossipDelayTest extends BaseTest {
     final GossipProtocolImpl gossipProtocol1 =
         initGossipProtocol(
             transport1,
-            Arrays.asList(
-                Address.from(transport1.address()),
-                Address.from(transport2.address()),
-                Address.from(transport3.address())));
+            Arrays.asList(transport1.address(), transport2.address(), transport3.address()));
     final GossipProtocolImpl gossipProtocol2 =
         initGossipProtocol(
             transport2,
-            Arrays.asList(
-                Address.from(transport1.address()),
-                Address.from(transport2.address()),
-                Address.from(transport3.address())));
+            Arrays.asList(transport1.address(), transport2.address(), transport3.address()));
     final GossipProtocolImpl gossipProtocol3 =
         initGossipProtocol(
             transport3,
-            Arrays.asList(
-                Address.from(transport1.address()),
-                Address.from(transport2.address()),
-                Address.from(transport3.address())));
+            Arrays.asList(transport1.address(), transport2.address(), transport3.address()));
 
     final AtomicInteger protocol1GossipCounter = new AtomicInteger(0);
     final AtomicInteger protocol2GossipCounter = new AtomicInteger(0);
@@ -83,7 +74,7 @@ public class GossipDelayTest extends BaseTest {
     return transport;
   }
 
-  private GossipProtocolImpl initGossipProtocol(Transport transport, List<Address> members) {
+  private GossipProtocolImpl initGossipProtocol(Transport transport, List<String> members) {
     GossipConfig gossipConfig =
         new GossipConfig()
             .gossipFanout(gossipFanout)
@@ -92,15 +83,12 @@ public class GossipDelayTest extends BaseTest {
 
     Member localMember =
         new Member(
-            "member-" + Address.from(transport.address()).port(),
-            null,
-            Address.from(transport.address()),
-            NAMESPACE);
+            "member-" + parsePort(transport.address()), null, transport.address(), NAMESPACE);
 
     Flux<MembershipEvent> membershipFlux =
         Flux.fromIterable(members)
             .filter(address -> !transport.address().equals(address))
-            .map(address -> new Member("member-" + address.port(), null, address, NAMESPACE))
+            .map(address -> new Member("member-" + parsePort(address), null, address, NAMESPACE))
             .map(member -> MembershipEvent.createAdded(member, null, 0));
 
     GossipProtocolImpl gossipProtocol =

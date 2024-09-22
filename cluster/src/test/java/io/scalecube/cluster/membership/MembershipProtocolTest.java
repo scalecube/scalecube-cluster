@@ -1,5 +1,6 @@
 package io.scalecube.cluster.membership;
 
+import static io.scalecube.cluster.transport.api.Transport.parsePort;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -18,7 +19,6 @@ import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.cluster.utils.NetworkEmulator;
 import io.scalecube.cluster.utils.NetworkEmulatorTransport;
-import io.scalecube.net.Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.time.Duration;
@@ -76,9 +76,7 @@ public class MembershipProtocolTest extends BaseTest {
     NetworkEmulatorTransport a = createTransport();
     NetworkEmulatorTransport b = createTransport();
     NetworkEmulatorTransport c = createTransport();
-    List<Address> addresses =
-        Arrays.asList(
-            Address.from(a.address()), Address.from(b.address()), Address.from(c.address()));
+    List<String> addresses = Arrays.asList(a.address(), b.address(), c.address());
 
     MembershipProtocolImpl cmA = createMembership(a, addresses);
     MembershipProtocolImpl cmB = createMembership(b, addresses);
@@ -111,10 +109,8 @@ public class MembershipProtocolTest extends BaseTest {
   public void testLeaveClusterCameBeforeAlive() {
     final NetworkEmulatorTransport a = createTransport();
     final NetworkEmulatorTransport b = createTransport();
-    final Member anotherMember =
-        new Member("leavingNodeId-1", null, Address.from("localhost:9236"), NAMESPACE);
-    final List<Address> addresses =
-        Arrays.asList(Address.from(a.address()), Address.from(b.address()));
+    final Member anotherMember = new Member("leavingNodeId-1", null, "localhost:9236", NAMESPACE);
+    final List<String> addresses = Arrays.asList(a.address(), b.address());
 
     final MembershipProtocolImpl cmA = createMembership(a, addresses);
     final MembershipProtocolImpl cmB = createMembership(b, addresses);
@@ -157,10 +153,8 @@ public class MembershipProtocolTest extends BaseTest {
   public void testLeaveClusterOnly() {
     final NetworkEmulatorTransport a = createTransport();
     final NetworkEmulatorTransport b = createTransport();
-    final Member anotherMember =
-        new Member("leavingNodeId-1", null, Address.from("localhost:9236"), NAMESPACE);
-    final List<Address> addresses =
-        Arrays.asList(Address.from(a.address()), Address.from(b.address()));
+    final Member anotherMember = new Member("leavingNodeId-1", null, "localhost:9236", NAMESPACE);
+    final List<String> addresses = Arrays.asList(a.address(), b.address());
 
     final MembershipProtocolImpl cmA = createMembership(a, addresses);
     final MembershipProtocolImpl cmB = createMembership(b, addresses);
@@ -192,10 +186,8 @@ public class MembershipProtocolTest extends BaseTest {
   public void testLeaveClusterOnSuspectedNode() {
     final NetworkEmulatorTransport a = createTransport();
     final NetworkEmulatorTransport b = createTransport();
-    final Member anotherMember =
-        new Member("leavingNodeId-1", null, Address.from("localhost:9236"), NAMESPACE);
-    final List<Address> addresses =
-        Arrays.asList(Address.from(a.address()), Address.from(b.address()));
+    final Member anotherMember = new Member("leavingNodeId-1", null, "localhost:9236", NAMESPACE);
+    final List<String> addresses = Arrays.asList(a.address(), b.address());
 
     final MembershipProtocolImpl cmA = createMembership(a, addresses);
     final MembershipProtocolImpl cmB = createMembership(b, addresses);
@@ -239,8 +231,7 @@ public class MembershipProtocolTest extends BaseTest {
   public void testLeaveClusterOnAliveAndSuspectedNode() {
     final NetworkEmulatorTransport a = createTransport();
     final NetworkEmulatorTransport b = createTransport();
-    final List<Address> addresses =
-        Arrays.asList(Address.from(a.address()), Address.from(b.address()));
+    final List<String> addresses = Arrays.asList(a.address(), b.address());
 
     final MembershipProtocolImpl cmA = createMembership(a, addresses);
     final MembershipProtocolImpl cmB = createMembership(b, addresses);
@@ -276,9 +267,7 @@ public class MembershipProtocolTest extends BaseTest {
     Transport a = createTransport();
     Transport b = createTransport();
     Transport c = createTransport();
-    List<Address> addresses =
-        Arrays.asList(
-            Address.from(a.address()), Address.from(b.address()), Address.from(c.address()));
+    List<String> addresses = Arrays.asList(a.address(), b.address(), c.address());
 
     MembershipProtocolImpl cmA = createMembership(a, addresses);
     MembershipProtocolImpl cmB = createMembership(b, addresses);
@@ -303,9 +292,7 @@ public class MembershipProtocolTest extends BaseTest {
     NetworkEmulatorTransport a = createTransport();
     NetworkEmulatorTransport b = createTransport();
     NetworkEmulatorTransport c = createTransport();
-    List<Address> addresses =
-        Arrays.asList(
-            Address.from(a.address()), Address.from(b.address()), Address.from(c.address()));
+    List<String> addresses = Arrays.asList(a.address(), b.address(), c.address());
 
     MembershipProtocolImpl cmA = createMembership(a, addresses);
     MembershipProtocolImpl cmB = createMembership(b, addresses);
@@ -314,12 +301,9 @@ public class MembershipProtocolTest extends BaseTest {
     awaitSeconds(3);
 
     // Block traffic
-    a.networkEmulator()
-        .blockOutbound(addresses.stream().map(Address::toString).collect(Collectors.toList()));
-    b.networkEmulator()
-        .blockOutbound(addresses.stream().map(Address::toString).collect(Collectors.toList()));
-    c.networkEmulator()
-        .blockOutbound(addresses.stream().map(Address::toString).collect(Collectors.toList()));
+    a.networkEmulator().blockOutbound(addresses);
+    b.networkEmulator().blockOutbound(addresses);
+    c.networkEmulator().blockOutbound(addresses);
 
     try {
 
@@ -354,9 +338,7 @@ public class MembershipProtocolTest extends BaseTest {
     NetworkEmulatorTransport a = createTransport();
     NetworkEmulatorTransport b = createTransport();
     NetworkEmulatorTransport c = createTransport();
-    List<Address> members =
-        Arrays.asList(
-            Address.from(a.address()), Address.from(b.address()), Address.from(c.address()));
+    List<String> members = Arrays.asList(a.address(), b.address(), c.address());
 
     MembershipProtocolImpl cmA = createMembership(a, members);
     MembershipProtocolImpl cmB = createMembership(b, members);
@@ -412,9 +394,7 @@ public class MembershipProtocolTest extends BaseTest {
     NetworkEmulatorTransport a = createTransport();
     NetworkEmulatorTransport b = createTransport();
     NetworkEmulatorTransport c = createTransport();
-    List<Address> addresses =
-        Arrays.asList(
-            Address.from(a.address()), Address.from(b.address()), Address.from(c.address()));
+    List<String> addresses = Arrays.asList(a.address(), b.address(), c.address());
 
     MembershipProtocolImpl cmA = createMembership(a, addresses);
     MembershipProtocolImpl cmB = createMembership(b, addresses);
@@ -484,9 +464,7 @@ public class MembershipProtocolTest extends BaseTest {
     NetworkEmulatorTransport a = createTransport();
     NetworkEmulatorTransport b = createTransport();
     NetworkEmulatorTransport c = createTransport();
-    List<Address> addresses =
-        Arrays.asList(
-            Address.from(a.address()), Address.from(b.address()), Address.from(c.address()));
+    List<String> addresses = Arrays.asList(a.address(), b.address(), c.address());
 
     MembershipProtocolImpl cmA = createMembership(a, addresses);
     MembershipProtocolImpl cmB = createMembership(b, addresses);
@@ -502,12 +480,9 @@ public class MembershipProtocolTest extends BaseTest {
       assertTrusted(cmC, cmB.member(), cmA.member());
       assertNoSuspected(cmC);
 
-      a.networkEmulator()
-          .blockOutbound(addresses.stream().map(Address::toString).collect(Collectors.toList()));
-      b.networkEmulator()
-          .blockOutbound(addresses.stream().map(Address::toString).collect(Collectors.toList()));
-      c.networkEmulator()
-          .blockOutbound(addresses.stream().map(Address::toString).collect(Collectors.toList()));
+      a.networkEmulator().blockOutbound(addresses);
+      b.networkEmulator().blockOutbound(addresses);
+      c.networkEmulator().blockOutbound(addresses);
 
       awaitSeconds(1);
 
@@ -545,12 +520,7 @@ public class MembershipProtocolTest extends BaseTest {
     NetworkEmulatorTransport b = createTransport();
     NetworkEmulatorTransport c = createTransport();
     NetworkEmulatorTransport d = createTransport();
-    List<Address> addresses =
-        Arrays.asList(
-            Address.from(a.address()),
-            Address.from(b.address()),
-            Address.from(c.address()),
-            Address.from(d.address()));
+    List<String> addresses = Arrays.asList(a.address(), b.address(), c.address(), d.address());
 
     MembershipProtocolImpl cmA = createMembership(a, addresses);
     MembershipProtocolImpl cmB = createMembership(b, addresses);
@@ -603,12 +573,7 @@ public class MembershipProtocolTest extends BaseTest {
     NetworkEmulatorTransport b = createTransport();
     NetworkEmulatorTransport c = createTransport();
     NetworkEmulatorTransport d = createTransport();
-    List<Address> addresses =
-        Arrays.asList(
-            Address.from(a.address()),
-            Address.from(b.address()),
-            Address.from(c.address()),
-            Address.from(d.address()));
+    List<String> addresses = Arrays.asList(a.address(), b.address(), c.address(), d.address());
 
     MembershipProtocolImpl cmA = createMembership(a, addresses);
     MembershipProtocolImpl cmB = createMembership(b, addresses);
@@ -688,12 +653,7 @@ public class MembershipProtocolTest extends BaseTest {
     NetworkEmulatorTransport b = createTransport();
     NetworkEmulatorTransport c = createTransport();
     NetworkEmulatorTransport d = createTransport();
-    List<Address> addresses =
-        Arrays.asList(
-            Address.from(a.address()),
-            Address.from(b.address()),
-            Address.from(c.address()),
-            Address.from(d.address()));
+    List<String> addresses = Arrays.asList(a.address(), b.address(), c.address(), d.address());
 
     MembershipProtocolImpl cmA = createMembership(a, addresses);
     MembershipProtocolImpl cmB = createMembership(b, addresses);
@@ -728,8 +688,8 @@ public class MembershipProtocolTest extends BaseTest {
       assertSuspected(cmB, cmC.member(), cmD.member());
 
       // Restart C and D on same ports
-      c_Restarted = createTransport(new TransportConfig().port(Address.from(c.address()).port()));
-      d_Restarted = createTransport(new TransportConfig().port(Address.from(d.address()).port()));
+      c_Restarted = createTransport(new TransportConfig().port(parsePort(c.address())));
+      d_Restarted = createTransport(new TransportConfig().port(parsePort(d.address())));
       cmC_Restarted = createMembership(c_Restarted, addresses);
       cmD_Restarted = createMembership(d_Restarted, addresses);
 
@@ -765,14 +725,10 @@ public class MembershipProtocolTest extends BaseTest {
     NetworkEmulatorTransport e = createTransport();
 
     MembershipProtocolImpl cmA = createMembership(a, Collections.emptyList());
-    MembershipProtocolImpl cmB =
-        createMembership(b, Collections.singletonList(Address.from(a.address())));
-    MembershipProtocolImpl cmC =
-        createMembership(c, Collections.singletonList(Address.from(a.address())));
-    MembershipProtocolImpl cmD =
-        createMembership(d, Collections.singletonList(Address.from(b.address())));
-    MembershipProtocolImpl cmE =
-        createMembership(e, Collections.singletonList(Address.from(b.address())));
+    MembershipProtocolImpl cmB = createMembership(b, Collections.singletonList(a.address()));
+    MembershipProtocolImpl cmC = createMembership(c, Collections.singletonList(a.address()));
+    MembershipProtocolImpl cmD = createMembership(d, Collections.singletonList(b.address()));
+    MembershipProtocolImpl cmE = createMembership(e, Collections.singletonList(b.address()));
 
     try {
       awaitSeconds(3);
@@ -806,24 +762,16 @@ public class MembershipProtocolTest extends BaseTest {
         createMembership(a, testConfig(Collections.emptyList()).externalHost(localAddress));
     MembershipProtocolImpl cmB =
         createMembership(
-            b,
-            testConfig(Collections.singletonList(Address.from(a.address())))
-                .externalHost(localAddress));
+            b, testConfig(Collections.singletonList(a.address())).externalHost(localAddress));
     MembershipProtocolImpl cmC =
         createMembership(
-            c,
-            testConfig(Collections.singletonList(Address.from(a.address())))
-                .externalHost(localAddress));
+            c, testConfig(Collections.singletonList(a.address())).externalHost(localAddress));
     MembershipProtocolImpl cmD =
         createMembership(
-            d,
-            testConfig(Collections.singletonList(Address.from(b.address())))
-                .externalHost(localAddress));
+            d, testConfig(Collections.singletonList(b.address())).externalHost(localAddress));
     MembershipProtocolImpl cmE =
         createMembership(
-            e,
-            testConfig(Collections.singletonList(Address.from(b.address())))
-                .externalHost(localAddress));
+            e, testConfig(Collections.singletonList(b.address())).externalHost(localAddress));
 
     try {
       awaitSeconds(3);
@@ -853,10 +801,9 @@ public class MembershipProtocolTest extends BaseTest {
     c_noInbound.networkEmulator().blockAllInbound();
 
     MembershipProtocolImpl cmA = createMembership(a, Collections.emptyList());
-    MembershipProtocolImpl cmB =
-        createMembership(b, Collections.singletonList(Address.from(a.address())));
+    MembershipProtocolImpl cmB = createMembership(b, Collections.singletonList(a.address()));
     MembershipProtocolImpl cm_noInbound =
-        createMembership(c_noInbound, Collections.singletonList(Address.from(a.address())));
+        createMembership(c_noInbound, Collections.singletonList(a.address()));
 
     awaitSeconds(3);
 
@@ -881,11 +828,9 @@ public class MembershipProtocolTest extends BaseTest {
     c_noInboundThenInboundOk.networkEmulator().blockAllInbound();
 
     MembershipProtocolImpl cmA = createMembership(a, Collections.emptyList());
-    MembershipProtocolImpl cmB =
-        createMembership(b, Collections.singletonList(Address.from(a.address())));
+    MembershipProtocolImpl cmB = createMembership(b, Collections.singletonList(a.address()));
     MembershipProtocolImpl cm_noInboundThenInboundOk =
-        createMembership(
-            c_noInboundThenInboundOk, Collections.singletonList(Address.from(a.address())));
+        createMembership(c_noInboundThenInboundOk, Collections.singletonList(a.address()));
 
     awaitSeconds(3);
 
@@ -917,10 +862,8 @@ public class MembershipProtocolTest extends BaseTest {
     NetworkEmulatorTransport c = createTransport();
 
     MembershipProtocolImpl cmA = createMembership(a, Collections.emptyList());
-    MembershipProtocolImpl cmB =
-        createMembership(b, Collections.singletonList(Address.from(a.address())));
-    MembershipProtocolImpl cmC =
-        createMembership(c, Collections.singletonList(Address.from(a.address())));
+    MembershipProtocolImpl cmB = createMembership(b, Collections.singletonList(a.address()));
+    MembershipProtocolImpl cmC = createMembership(c, Collections.singletonList(a.address()));
 
     try {
       awaitSeconds(3);
@@ -959,10 +902,8 @@ public class MembershipProtocolTest extends BaseTest {
     NetworkEmulatorTransport c = createTransport();
 
     MembershipProtocolImpl cmA = createMembership(a, Collections.emptyList());
-    MembershipProtocolImpl cmB =
-        createMembership(b, Collections.singletonList(Address.from(a.address())));
-    MembershipProtocolImpl cmC =
-        createMembership(c, Collections.singletonList(Address.from(a.address())));
+    MembershipProtocolImpl cmB = createMembership(b, Collections.singletonList(a.address()));
+    MembershipProtocolImpl cmC = createMembership(c, Collections.singletonList(a.address()));
 
     try {
       awaitSeconds(3);
@@ -1013,10 +954,8 @@ public class MembershipProtocolTest extends BaseTest {
     NetworkEmulatorTransport c = createTransport();
 
     MembershipProtocolImpl cmA = createMembership(a, Collections.emptyList());
-    MembershipProtocolImpl cmB =
-        createMembership(b, Collections.singletonList(Address.from(a.address())));
-    MembershipProtocolImpl cmC =
-        createMembership(c, Collections.singletonList(Address.from(a.address())));
+    MembershipProtocolImpl cmB = createMembership(b, Collections.singletonList(a.address()));
+    MembershipProtocolImpl cmC = createMembership(c, Collections.singletonList(a.address()));
 
     try {
       awaitSeconds(3);
@@ -1045,10 +984,8 @@ public class MembershipProtocolTest extends BaseTest {
     NetworkEmulatorTransport c = createTransport();
 
     MembershipProtocolImpl cmA = createMembership(a, Collections.emptyList());
-    MembershipProtocolImpl cmB =
-        createMembership(b, Collections.singletonList(Address.from(a.address())));
-    MembershipProtocolImpl cmC =
-        createMembership(c, Collections.singletonList(Address.from(a.address())));
+    MembershipProtocolImpl cmB = createMembership(b, Collections.singletonList(a.address()));
+    MembershipProtocolImpl cmC = createMembership(c, Collections.singletonList(a.address()));
 
     try {
       awaitSeconds(3);
@@ -1077,10 +1014,8 @@ public class MembershipProtocolTest extends BaseTest {
     NetworkEmulatorTransport c = createTransport();
 
     MembershipProtocolImpl cmA = createMembership(a, Collections.emptyList());
-    MembershipProtocolImpl cmB =
-        createMembership(b, Collections.singletonList(Address.from(a.address())));
-    MembershipProtocolImpl cmC =
-        createMembership(c, Collections.singletonList(Address.from(a.address())));
+    MembershipProtocolImpl cmB = createMembership(b, Collections.singletonList(a.address()));
+    MembershipProtocolImpl cmC = createMembership(c, Collections.singletonList(a.address()));
 
     try {
       awaitSeconds(3);
@@ -1109,12 +1044,7 @@ public class MembershipProtocolTest extends BaseTest {
     NetworkEmulatorTransport b = createTransport();
     NetworkEmulatorTransport c = createTransport();
     NetworkEmulatorTransport d = createTransport();
-    List<Address> addresses =
-        Arrays.asList(
-            Address.from(a.address()),
-            Address.from(b.address()),
-            Address.from(c.address()),
-            Address.from(d.address()));
+    List<String> addresses = Arrays.asList(a.address(), b.address(), c.address(), d.address());
 
     MembershipProtocolImpl cmA = createMembership(a, addresses);
     MembershipProtocolImpl cmB = createMembership(b, addresses);
@@ -1184,7 +1114,7 @@ public class MembershipProtocolTest extends BaseTest {
     }
   }
 
-  private static ClusterConfig testConfig(List<Address> seedAddresses) {
+  private static ClusterConfig testConfig(List<String> seedAddresses) {
     // Create faster config for local testing
     return new ClusterConfig()
         .membership(opts -> opts.seedMembers(seedAddresses))
@@ -1196,14 +1126,12 @@ public class MembershipProtocolTest extends BaseTest {
         .metadataTimeout(100);
   }
 
-  private MembershipProtocolImpl createMembership(
-      Transport transport, List<Address> seedAddresses) {
+  private MembershipProtocolImpl createMembership(Transport transport, List<String> seedAddresses) {
     return createMembership(transport, testConfig(seedAddresses));
   }
 
   private MembershipProtocolImpl createMembership(Transport transport, ClusterConfig config) {
-    Member localMember =
-        new Member(newMemberId(), null, Address.from(transport.address()), NAMESPACE);
+    Member localMember = new Member(newMemberId(), null, transport.address(), NAMESPACE);
 
     Sinks.Many<MembershipEvent> membershipProcessor = Sinks.many().multicast().directBestEffort();
 

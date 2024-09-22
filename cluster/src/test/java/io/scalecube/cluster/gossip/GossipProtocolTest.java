@@ -4,6 +4,7 @@ import static io.scalecube.cluster.ClusterMath.gossipConvergencePercent;
 import static io.scalecube.cluster.ClusterMath.gossipDisseminationTime;
 import static io.scalecube.cluster.ClusterMath.maxMessagesPerGossipPerNode;
 import static io.scalecube.cluster.ClusterMath.maxMessagesPerGossipTotal;
+import static io.scalecube.cluster.transport.api.Transport.parsePort;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -15,7 +16,6 @@ import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.utils.NetworkEmulatorTransport;
-import io.scalecube.net.Address;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -230,9 +230,9 @@ class GossipProtocolTest extends BaseTest {
 
   private List<GossipProtocolImpl> initGossipProtocols(int count, int lostPercent, int meanDelay) {
     final List<Transport> transports = initTransports(count, lostPercent, meanDelay);
-    List<Address> members = new ArrayList<>();
+    List<String> members = new ArrayList<>();
     for (Transport transport : transports) {
-      members.add(Address.from(transport.address()));
+      members.add(transport.address());
     }
     List<GossipProtocolImpl> gossipProtocols = new ArrayList<>();
     for (Transport transport : transports) {
@@ -251,7 +251,7 @@ class GossipProtocolTest extends BaseTest {
     return transports;
   }
 
-  private GossipProtocolImpl initGossipProtocol(Transport transport, List<Address> members) {
+  private GossipProtocolImpl initGossipProtocol(Transport transport, List<String> members) {
     GossipConfig gossipConfig =
         new GossipConfig()
             .gossipFanout(gossipFanout)
@@ -260,15 +260,12 @@ class GossipProtocolTest extends BaseTest {
 
     Member localMember =
         new Member(
-            "member-" + Address.from(transport.address()).port(),
-            null,
-            Address.from(transport.address()),
-            NAMESPACE);
+            "member-" + parsePort(transport.address()), null, transport.address(), NAMESPACE);
 
     Flux<MembershipEvent> membershipFlux =
         Flux.fromIterable(members)
             .filter(address -> !transport.address().equals(address))
-            .map(address -> new Member("member-" + address.port(), null, address, NAMESPACE))
+            .map(address -> new Member("member-" + parsePort(address), null, address, NAMESPACE))
             .map(member -> MembershipEvent.createAdded(member, null, 0));
 
     GossipProtocolImpl gossipProtocol =

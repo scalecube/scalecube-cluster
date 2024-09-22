@@ -3,6 +3,7 @@ package io.scalecube.cluster.membership;
 import static io.scalecube.cluster.membership.MemberStatus.ALIVE;
 import static io.scalecube.cluster.membership.MemberStatus.DEAD;
 import static io.scalecube.cluster.membership.MemberStatus.LEAVING;
+import static io.scalecube.cluster.transport.api.Transport.parsePort;
 import static reactor.core.publisher.Sinks.EmitFailureHandler.busyLooping;
 
 import io.scalecube.cluster.ClusterConfig;
@@ -15,8 +16,8 @@ import io.scalecube.cluster.gossip.GossipProtocol;
 import io.scalecube.cluster.metadata.MetadataStore;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
-import io.scalecube.net.Address;
 import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -74,7 +75,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private final Transport transport;
   private final MembershipConfig membershipConfig;
   private final FailureDetectorConfig failureDetectorConfig;
-  private final List<Address> seedMembers;
+  private final List<String> seedMembers;
   private final FailureDetector failureDetector;
   private final GossipProtocol gossipProtocol;
   private final MetadataStore metadataStore;
@@ -160,18 +161,18 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   }
 
   // Remove duplicates and local address(es)
-  private List<Address> cleanUpSeedMembers(Collection<Address> seedMembers) {
-    InetAddress localIpAddress = Address.getLocalIpAddress();
+  private List<String> cleanUpSeedMembers(Collection<String> seedMembers) {
+    InetAddress localIpAddress = getLocalIpAddress();
 
     String hostAddress = localIpAddress.getHostAddress();
     String hostName = localIpAddress.getHostName();
 
-    Address memberAddr = localMember.address();
-    Address transportAddr = Address.from(transport.address());
-    Address memberAddrByHostAddress = Address.create(hostAddress, memberAddr.port());
-    Address transportAddrByHostAddress = Address.create(hostAddress, transportAddr.port());
-    Address memberAddByHostName = Address.create(hostName, memberAddr.port());
-    Address transportAddrByHostName = Address.create(hostName, transportAddr.port());
+    String memberAddr = localMember.address();
+    String transportAddr = transport.address();
+    String memberAddrByHostAddress = hostAddress + ":" + parsePort(memberAddr);
+    String transportAddrByHostAddress = hostAddress + ":" + parsePort(transportAddr);
+    String memberAddByHostName = hostName + ":" + parsePort(memberAddr);
+    String transportAddrByHostName = hostName + ":" + parsePort(transportAddr);
 
     return new LinkedHashSet<>(seedMembers)
         .stream()
@@ -184,7 +185,15 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
             .collect(Collectors.toList());
   }
 
-  private boolean checkAddressesNotEqual(Address address0, Address address1) {
+  private static InetAddress getLocalIpAddress() {
+    try {
+      return InetAddress.getLocalHost();
+    } catch (UnknownHostException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private boolean checkAddressesNotEqual(String address0, String address1) {
     if (!address0.equals(address1)) {
       return true;
     } else {
@@ -256,8 +265,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                 address ->
                     transport
                         .requestResponse(
-                            address.toString(),
-                            prepareSyncDataMsg(SYNC, UUID.randomUUID().toString()))
+                            address, prepareSyncDataMsg(SYNC, UUID.randomUUID().toString()))
                         .doOnError(
                             ex ->
                                 LOGGER.warn(
@@ -321,18 +329,18 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   }
 
   @Override
-  public Optional<Member> member(String id) {
+  public Optional<Member> memberById(String id) {
     return Optional.ofNullable(members.get(id));
   }
 
   @Override
-  public Optional<Member> member(Address address) {
+  public Optional<Member> memberByAddress(String address) {
     return new ArrayList<>(members.values())
         .stream().filter(member -> member.address().equals(address)).findFirst();
   }
 
   private void doSync() {
-    Address address = selectSyncAddress().orElse(null);
+    String address = selectSyncAddress().orElse(null);
     if (address == null) {
       return;
     }
@@ -340,7 +348,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     Message message = prepareSyncDataMsg(SYNC, null);
     LOGGER.debug("[{}][doSync] Send Sync to {}", localMember, address);
     transport
-        .send(address.toString(), message)
+        .send(address, message)
         .subscribe(
             null,
             ex ->
@@ -391,14 +399,14 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private Mono<Void> onSync(Message syncMsg) {
     return Mono.defer(
         () -> {
-          final Address sender = Address.from(syncMsg.sender());
+          final String sender = syncMsg.sender();
           LOGGER.debug("[{}] Received Sync from {}", localMember, sender);
           return syncMembership(syncMsg.data(), false)
               .doOnSuccess(
                   avoid -> {
                     Message message = prepareSyncDataMsg(SYNC_ACK, syncMsg.correlationId());
                     transport
-                        .send(sender.toString(), message)
+                        .send(sender, message)
                         .subscribe(
                             null,
                             ex ->
@@ -426,9 +434,9 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       // Alive won't override SUSPECT so issue instead extra sync with member to force it spread
       // alive with inc + 1
       Message syncMsg = prepareSyncDataMsg(SYNC, null);
-      Address address = fdEvent.member().address();
+      String address = fdEvent.member().address();
       transport
-          .send(address.toString(), syncMsg)
+          .send(address, syncMsg)
           .subscribe(
               null,
               ex ->
@@ -465,8 +473,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     }
   }
 
-  private Optional<Address> selectSyncAddress() {
-    List<Address> addresses =
+  private Optional<String> selectSyncAddress() {
+    List<String> addresses =
         Stream.concat(seedMembers.stream(), otherMembers().stream().map(Member::address))
             .collect(Collectors.collectingAndThen(Collectors.toSet(), ArrayList::new));
     Collections.shuffle(addresses);
