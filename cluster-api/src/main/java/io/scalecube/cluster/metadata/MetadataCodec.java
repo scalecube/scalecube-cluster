@@ -10,7 +10,7 @@ public interface MetadataCodec {
   MetadataCodec INSTANCE =
       StreamSupport.stream(ServiceLoader.load(MetadataCodec.class).spliterator(), false)
           .findFirst()
-          .orElse(null);
+          .orElseGet(JdkMetadataCodec::new);
 
   /**
    * Deserializes metadata from buffer.
