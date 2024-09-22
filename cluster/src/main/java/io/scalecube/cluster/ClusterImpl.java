@@ -17,13 +17,13 @@ import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.cluster.transport.api.TransportFactory;
 import io.scalecube.net.Address;
-import io.scalecube.utils.ServiceLoaderUtil;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -32,6 +32,7 @@ import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
@@ -300,7 +301,9 @@ public final class ClusterImpl implements Cluster {
 
   private void validateConfiguration() {
     final MetadataCodec metadataCodec =
-        ServiceLoaderUtil.findFirst(MetadataCodec.class).orElse(null);
+        StreamSupport.stream(ServiceLoader.load(MetadataCodec.class).spliterator(), false)
+            .findFirst()
+            .orElse(null);
 
     if (metadataCodec == null) {
       Object metadata = config.metadata();
