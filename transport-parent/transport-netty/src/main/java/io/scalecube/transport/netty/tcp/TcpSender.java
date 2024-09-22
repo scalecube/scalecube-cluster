@@ -1,9 +1,11 @@
 package io.scalecube.transport.netty.tcp;
 
+import static io.scalecube.cluster.transport.api.Transport.parseHost;
+import static io.scalecube.cluster.transport.api.Transport.parsePort;
+
 import io.netty.channel.ChannelOption;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.TransportConfig;
-import io.scalecube.net.Address;
 import io.scalecube.transport.netty.Sender;
 import io.scalecube.transport.netty.TransportImpl.SenderContext;
 import reactor.core.publisher.Mono;
@@ -19,7 +21,7 @@ public final class TcpSender implements Sender {
   }
 
   @Override
-  public Mono<Connection> connect(Address address) {
+  public Mono<Connection> connect(String address) {
     return Mono.deferContextual(context -> Mono.just(context.get(SenderContext.class)))
         .map(context -> newTcpClient(context, address))
         .flatMap(TcpClient::connect);
@@ -38,12 +40,12 @@ public final class TcpSender implements Sender {
         });
   }
 
-  private TcpClient newTcpClient(SenderContext context, Address address) {
+  private TcpClient newTcpClient(SenderContext context, String address) {
     TcpClient tcpClient =
         TcpClient.newConnection()
             .runOn(context.loopResources())
-            .host(address.host())
-            .port(address.port())
+            .host(parseHost(address))
+            .port(parsePort(address))
             .option(ChannelOption.TCP_NODELAY, true)
             .option(ChannelOption.SO_KEEPALIVE, true)
             .option(ChannelOption.SO_REUSEADDR, true)

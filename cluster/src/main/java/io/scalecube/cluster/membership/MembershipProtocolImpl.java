@@ -3,7 +3,7 @@ package io.scalecube.cluster.membership;
 import static io.scalecube.cluster.membership.MemberStatus.ALIVE;
 import static io.scalecube.cluster.membership.MemberStatus.DEAD;
 import static io.scalecube.cluster.membership.MemberStatus.LEAVING;
-import static io.scalecube.reactor.RetryNonSerializedEmitFailureHandler.RETRY_NON_SERIALIZED;
+import static reactor.core.publisher.Sinks.EmitFailureHandler.busyLooping;
 
 import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.ClusterMath;
@@ -167,7 +167,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     String hostName = localIpAddress.getHostName();
 
     Address memberAddr = localMember.address();
-    Address transportAddr = transport.address();
+    Address transportAddr = Address.from(transport.address());
     Address memberAddrByHostAddress = Address.create(hostAddress, memberAddr.port());
     Address transportAddrByHostAddress = Address.create(hostAddress, transportAddr.port());
     Address memberAddByHostName = Address.create(hostName, memberAddr.port());
@@ -256,7 +256,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                 address ->
                     transport
                         .requestResponse(
-                            address, prepareSyncDataMsg(SYNC, UUID.randomUUID().toString()))
+                            address.toString(),
+                            prepareSyncDataMsg(SYNC, UUID.randomUUID().toString()))
                         .doOnError(
                             ex ->
                                 LOGGER.warn(
@@ -300,7 +301,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     suspicionTimeoutTasks.clear();
 
     // Stop publishing events
-    sink.emitComplete(RETRY_NON_SERIALIZED);
+    sink.emitComplete(busyLooping(Duration.ofSeconds(3)));
   }
 
   @Override
@@ -339,7 +340,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     Message message = prepareSyncDataMsg(SYNC, null);
     LOGGER.debug("[{}][doSync] Send Sync to {}", localMember, address);
     transport
-        .send(address, message)
+        .send(address.toString(), message)
         .subscribe(
             null,
             ex ->
@@ -390,14 +391,14 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private Mono<Void> onSync(Message syncMsg) {
     return Mono.defer(
         () -> {
-          final Address sender = syncMsg.sender();
+          final Address sender = Address.from(syncMsg.sender());
           LOGGER.debug("[{}] Received Sync from {}", localMember, sender);
           return syncMembership(syncMsg.data(), false)
               .doOnSuccess(
                   avoid -> {
                     Message message = prepareSyncDataMsg(SYNC_ACK, syncMsg.correlationId());
                     transport
-                        .send(sender, message)
+                        .send(sender.toString(), message)
                         .subscribe(
                             null,
                             ex ->
@@ -427,7 +428,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       Message syncMsg = prepareSyncDataMsg(SYNC, null);
       Address address = fdEvent.member().address();
       transport
-          .send(address, syncMsg)
+          .send(address.toString(), syncMsg)
           .subscribe(
               null,
               ex ->
@@ -726,7 +727,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   private void publishEvent(MembershipEvent event) {
     LOGGER.info("[{}][publishEvent] {}", localMember, event);
-    sink.emitNext(event, RETRY_NON_SERIALIZED);
+    sink.emitNext(event, busyLooping(Duration.ofSeconds(3)));
   }
 
   private Mono<Void> onDeadMemberDetected(MembershipRecord r1) {

@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.utils.NetworkEmulatorTransport;
-import io.scalecube.net.Address;
 import io.scalecube.transport.netty.BaseTest;
 import java.io.IOException;
 import java.net.UnknownHostException;
@@ -45,7 +44,7 @@ public class TcpTransportTest extends BaseTest {
     client = createTcpTransport();
     // create transport with wrong host
     try {
-      Address address = Address.from("wronghost:49255");
+      String address = "wronghost:49255";
       Message message = Message.withData("q").build();
       client.send(address, message).block(Duration.ofSeconds(20));
       fail("fail");
@@ -57,7 +56,7 @@ public class TcpTransportTest extends BaseTest {
 
   @Test
   public void testInteractWithNoConnection(TestInfo testInfo) {
-    Address serverAddress = Address.from("localhost:49255");
+    String serverAddress = "localhost:49255";
     for (int i = 0; i < 10; i++) {
       LOGGER.debug("####### {} : iteration = {}", testInfo.getDisplayName(), i);
 
@@ -94,7 +93,7 @@ public class TcpTransportTest extends BaseTest {
         .listen()
         .subscribe(
             message -> {
-              Address address = message.sender();
+              String address = message.sender();
               assertEquals(client.address(), address, "Expected clientAddress");
               send(server, address, Message.fromQualifier("hi client")).subscribe();
             });

@@ -53,7 +53,9 @@ public class FailureDetectorTest extends BaseTest {
     Transport a = createTransport();
     Transport b = createTransport();
     Transport c = createTransport();
-    List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
+    List<Address> members =
+        Arrays.asList(
+            Address.from(a.address()), Address.from(b.address()), Address.from(c.address()));
 
     // Create failure detectors
     FailureDetectorImpl fdA = createFd(a, members);
@@ -68,9 +70,24 @@ public class FailureDetectorTest extends BaseTest {
       Future<List<FailureDetectorEvent>> listB = listenNextEventFor(fdB, members);
       Future<List<FailureDetectorEvent>> listC = listenNextEventFor(fdC, members);
 
-      assertStatus(a.address(), ALIVE, awaitEvents(listA), b.address(), c.address());
-      assertStatus(b.address(), ALIVE, awaitEvents(listB), a.address(), c.address());
-      assertStatus(c.address(), ALIVE, awaitEvents(listC), a.address(), b.address());
+      assertStatus(
+          Address.from(a.address()),
+          ALIVE,
+          awaitEvents(listA),
+          Address.from(b.address()),
+          Address.from(c.address()));
+      assertStatus(
+          Address.from(b.address()),
+          ALIVE,
+          awaitEvents(listB),
+          Address.from(a.address()),
+          Address.from(c.address()));
+      assertStatus(
+          Address.from(c.address()),
+          ALIVE,
+          awaitEvents(listC),
+          Address.from(a.address()),
+          Address.from(b.address()));
     } finally {
       stop(fdetectors);
     }
@@ -82,7 +99,9 @@ public class FailureDetectorTest extends BaseTest {
     NetworkEmulatorTransport a = createTransport();
     NetworkEmulatorTransport b = createTransport();
     NetworkEmulatorTransport c = createTransport();
-    List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
+    List<Address> members =
+        Arrays.asList(
+            Address.from(a.address()), Address.from(b.address()), Address.from(c.address()));
 
     // Create failure detectors
     FailureDetectorImpl fdA = createFd(a, members);
@@ -91,9 +110,12 @@ public class FailureDetectorTest extends BaseTest {
     List<FailureDetectorImpl> fdetectors = Arrays.asList(fdA, fdB, fdC);
 
     // block all traffic
-    a.networkEmulator().blockOutbound(members);
-    b.networkEmulator().blockOutbound(members);
-    c.networkEmulator().blockOutbound(members);
+    a.networkEmulator()
+        .blockOutbound(members.stream().map(Address::toString).collect(Collectors.toList()));
+    b.networkEmulator()
+        .blockOutbound(members.stream().map(Address::toString).collect(Collectors.toList()));
+    c.networkEmulator()
+        .blockOutbound(members.stream().map(Address::toString).collect(Collectors.toList()));
 
     try {
       start(fdetectors);
@@ -102,9 +124,24 @@ public class FailureDetectorTest extends BaseTest {
       Future<List<FailureDetectorEvent>> listB = listenNextEventFor(fdB, members);
       Future<List<FailureDetectorEvent>> listC = listenNextEventFor(fdC, members);
 
-      assertStatus(a.address(), SUSPECT, awaitEvents(listA), b.address(), c.address());
-      assertStatus(b.address(), SUSPECT, awaitEvents(listB), a.address(), c.address());
-      assertStatus(c.address(), SUSPECT, awaitEvents(listC), a.address(), b.address());
+      assertStatus(
+          Address.from(a.address()),
+          SUSPECT,
+          awaitEvents(listA),
+          Address.from(b.address()),
+          Address.from(c.address()));
+      assertStatus(
+          Address.from(b.address()),
+          SUSPECT,
+          awaitEvents(listB),
+          Address.from(a.address()),
+          Address.from(c.address()));
+      assertStatus(
+          Address.from(c.address()),
+          SUSPECT,
+          awaitEvents(listC),
+          Address.from(a.address()),
+          Address.from(b.address()));
     } finally {
       a.networkEmulator().unblockAllOutbound();
       b.networkEmulator().unblockAllOutbound();
@@ -119,7 +156,9 @@ public class FailureDetectorTest extends BaseTest {
     NetworkEmulatorTransport a = createTransport();
     NetworkEmulatorTransport b = createTransport();
     NetworkEmulatorTransport c = createTransport();
-    List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
+    List<Address> members =
+        Arrays.asList(
+            Address.from(a.address()), Address.from(b.address()), Address.from(c.address()));
 
     // Create failure detectors
     FailureDetectorImpl fdA = createFd(a, members);
@@ -137,9 +176,24 @@ public class FailureDetectorTest extends BaseTest {
     try {
       start(fdetectors);
 
-      assertStatus(a.address(), ALIVE, awaitEvents(listA), b.address(), c.address());
-      assertStatus(b.address(), ALIVE, awaitEvents(listB), a.address(), c.address());
-      assertStatus(c.address(), ALIVE, awaitEvents(listC), a.address(), b.address());
+      assertStatus(
+          Address.from(a.address()),
+          ALIVE,
+          awaitEvents(listA),
+          Address.from(b.address()),
+          Address.from(c.address()));
+      assertStatus(
+          Address.from(b.address()),
+          ALIVE,
+          awaitEvents(listB),
+          Address.from(a.address()),
+          Address.from(c.address()));
+      assertStatus(
+          Address.from(c.address()),
+          ALIVE,
+          awaitEvents(listC),
+          Address.from(a.address()),
+          Address.from(b.address()));
     } finally {
       stop(fdetectors);
     }
@@ -151,7 +205,9 @@ public class FailureDetectorTest extends BaseTest {
     Transport a = createTransport();
     Transport b = createTransport();
     Transport c = createTransport();
-    List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
+    List<Address> members =
+        Arrays.asList(
+            Address.from(a.address()), Address.from(b.address()), Address.from(c.address()));
 
     // Create failure detectors
     FailureDetectorImpl fdA = createFd(a, members);
@@ -168,9 +224,24 @@ public class FailureDetectorTest extends BaseTest {
       Future<List<FailureDetectorEvent>> listB = listenNextEventFor(fdB, members);
       Future<List<FailureDetectorEvent>> listC = listenNextEventFor(fdC, members);
 
-      assertStatus(a.address(), ALIVE, awaitEvents(listA), b.address(), c.address());
-      assertStatus(b.address(), ALIVE, awaitEvents(listB), a.address(), c.address());
-      assertStatus(c.address(), ALIVE, awaitEvents(listC), a.address(), b.address());
+      assertStatus(
+          Address.from(a.address()),
+          ALIVE,
+          awaitEvents(listA),
+          Address.from(b.address()),
+          Address.from(c.address()));
+      assertStatus(
+          Address.from(b.address()),
+          ALIVE,
+          awaitEvents(listB),
+          Address.from(a.address()),
+          Address.from(c.address()));
+      assertStatus(
+          Address.from(c.address()),
+          ALIVE,
+          awaitEvents(listC),
+          Address.from(a.address()),
+          Address.from(b.address()));
     } finally {
       stop(fdetectors);
     }
@@ -183,7 +254,12 @@ public class FailureDetectorTest extends BaseTest {
     NetworkEmulatorTransport b = createTransport();
     NetworkEmulatorTransport c = createTransport();
     NetworkEmulatorTransport d = createTransport();
-    List<Address> members = Arrays.asList(a.address(), b.address(), c.address(), d.address());
+    List<Address> members =
+        Arrays.asList(
+            Address.from(a.address()),
+            Address.from(b.address()),
+            Address.from(c.address()),
+            Address.from(d.address()));
 
     // Create failure detectors
     FailureDetectorImpl fdA = createFd(a, members);
@@ -193,7 +269,8 @@ public class FailureDetectorTest extends BaseTest {
     List<FailureDetectorImpl> fdetectors = Arrays.asList(fdA, fdB, fdC, fdD);
 
     // Block traffic on member A to all cluster members
-    a.networkEmulator().blockOutbound(members);
+    a.networkEmulator()
+        .blockOutbound(members.stream().map(Address::toString).collect(Collectors.toList()));
 
     try {
       final Future<List<FailureDetectorEvent>> listA = listenNextEventFor(fdA, members);
@@ -204,16 +281,19 @@ public class FailureDetectorTest extends BaseTest {
       start(fdetectors);
 
       assertStatus(
-          a.address(),
+          Address.from(a.address()),
           SUSPECT,
           awaitEvents(listA),
-          b.address(),
-          c.address(),
-          d.address()); // node A
+          Address.from(b.address()),
+          Address.from(c.address()),
+          Address.from(d.address())); // node A
       // partitioned
-      assertStatus(b.address(), SUSPECT, awaitEvents(listB), a.address());
-      assertStatus(c.address(), SUSPECT, awaitEvents(listC), a.address());
-      assertStatus(d.address(), SUSPECT, awaitEvents(listD), a.address());
+      assertStatus(
+          Address.from(b.address()), SUSPECT, awaitEvents(listB), Address.from(a.address()));
+      assertStatus(
+          Address.from(c.address()), SUSPECT, awaitEvents(listC), Address.from(a.address()));
+      assertStatus(
+          Address.from(d.address()), SUSPECT, awaitEvents(listD), Address.from(a.address()));
 
       // Unblock traffic on member A
       a.networkEmulator().unblockAllOutbound();
@@ -226,10 +306,34 @@ public class FailureDetectorTest extends BaseTest {
 
       // Check member A recovers
 
-      assertStatus(a.address(), ALIVE, awaitEvents(listA0), b.address(), c.address(), d.address());
-      assertStatus(b.address(), ALIVE, awaitEvents(listB0), a.address(), c.address(), d.address());
-      assertStatus(c.address(), ALIVE, awaitEvents(listC0), a.address(), b.address(), d.address());
-      assertStatus(d.address(), ALIVE, awaitEvents(listD0), a.address(), b.address(), c.address());
+      assertStatus(
+          Address.from(a.address()),
+          ALIVE,
+          awaitEvents(listA0),
+          Address.from(b.address()),
+          Address.from(c.address()),
+          Address.from(d.address()));
+      assertStatus(
+          Address.from(b.address()),
+          ALIVE,
+          awaitEvents(listB0),
+          Address.from(a.address()),
+          Address.from(c.address()),
+          Address.from(d.address()));
+      assertStatus(
+          Address.from(c.address()),
+          ALIVE,
+          awaitEvents(listC0),
+          Address.from(a.address()),
+          Address.from(b.address()),
+          Address.from(d.address()));
+      assertStatus(
+          Address.from(d.address()),
+          ALIVE,
+          awaitEvents(listD0),
+          Address.from(a.address()),
+          Address.from(b.address()),
+          Address.from(c.address()));
     } finally {
       stop(fdetectors);
     }
@@ -242,7 +346,12 @@ public class FailureDetectorTest extends BaseTest {
     NetworkEmulatorTransport b = createTransport();
     NetworkEmulatorTransport c = createTransport();
     NetworkEmulatorTransport d = createTransport();
-    List<Address> members = Arrays.asList(a.address(), b.address(), c.address(), d.address());
+    List<Address> members =
+        Arrays.asList(
+            Address.from(a.address()),
+            Address.from(b.address()),
+            Address.from(c.address()),
+            Address.from(d.address()));
 
     // Create failure detectors
     FailureDetectorImpl fdA = createFd(a, members);
@@ -264,16 +373,19 @@ public class FailureDetectorTest extends BaseTest {
 
       start(fdetectors);
 
-      assertStatus(a.address(), SUSPECT, awaitEvents(listA), d.address());
-      assertStatus(b.address(), SUSPECT, awaitEvents(listB), d.address());
-      assertStatus(c.address(), SUSPECT, awaitEvents(listC), d.address());
       assertStatus(
-          d.address(),
+          Address.from(a.address()), SUSPECT, awaitEvents(listA), Address.from(d.address()));
+      assertStatus(
+          Address.from(b.address()), SUSPECT, awaitEvents(listB), Address.from(d.address()));
+      assertStatus(
+          Address.from(c.address()), SUSPECT, awaitEvents(listC), Address.from(d.address()));
+      assertStatus(
+          Address.from(d.address()),
           SUSPECT,
           awaitEvents(listD),
-          a.address(),
-          b.address(),
-          c.address()); // node D
+          Address.from(a.address()),
+          Address.from(b.address()),
+          Address.from(c.address())); // node D
       // partitioned
 
       // Unblock traffic to member D on other members
@@ -289,10 +401,34 @@ public class FailureDetectorTest extends BaseTest {
 
       // Check member D recovers
 
-      assertStatus(a.address(), ALIVE, awaitEvents(listA0), b.address(), c.address(), d.address());
-      assertStatus(b.address(), ALIVE, awaitEvents(listB0), a.address(), c.address(), d.address());
-      assertStatus(c.address(), ALIVE, awaitEvents(listC0), a.address(), b.address(), d.address());
-      assertStatus(d.address(), ALIVE, awaitEvents(listD0), a.address(), b.address(), c.address());
+      assertStatus(
+          Address.from(a.address()),
+          ALIVE,
+          awaitEvents(listA0),
+          Address.from(b.address()),
+          Address.from(c.address()),
+          Address.from(d.address()));
+      assertStatus(
+          Address.from(b.address()),
+          ALIVE,
+          awaitEvents(listB0),
+          Address.from(a.address()),
+          Address.from(c.address()),
+          Address.from(d.address()));
+      assertStatus(
+          Address.from(c.address()),
+          ALIVE,
+          awaitEvents(listC0),
+          Address.from(a.address()),
+          Address.from(b.address()),
+          Address.from(d.address()));
+      assertStatus(
+          Address.from(d.address()),
+          ALIVE,
+          awaitEvents(listD0),
+          Address.from(a.address()),
+          Address.from(b.address()),
+          Address.from(c.address()));
     } finally {
       stop(fdetectors);
     }
@@ -303,7 +439,7 @@ public class FailureDetectorTest extends BaseTest {
     // Create transports
     NetworkEmulatorTransport a = createTransport();
     NetworkEmulatorTransport b = createTransport();
-    List<Address> members = Arrays.asList(a.address(), b.address());
+    List<Address> members = Arrays.asList(Address.from(a.address()), Address.from(b.address()));
 
     // Create failure detectors
     FailureDetectorImpl fdA = createFd(a, members);
@@ -320,8 +456,10 @@ public class FailureDetectorTest extends BaseTest {
     try {
       start(fdetectors);
 
-      assertStatus(a.address(), SUSPECT, awaitEvents(listA), b.address());
-      assertStatus(b.address(), SUSPECT, awaitEvents(listB), a.address());
+      assertStatus(
+          Address.from(a.address()), SUSPECT, awaitEvents(listA), Address.from(b.address()));
+      assertStatus(
+          Address.from(b.address()), SUSPECT, awaitEvents(listB), Address.from(a.address()));
 
       // Unblock A and B members: A-->B, B-->A
       a.networkEmulator().unblockAllOutbound();
@@ -333,8 +471,8 @@ public class FailureDetectorTest extends BaseTest {
       listA = listenNextEventFor(fdA, members);
       listB = listenNextEventFor(fdB, members);
 
-      assertStatus(a.address(), ALIVE, awaitEvents(listA), b.address());
-      assertStatus(b.address(), ALIVE, awaitEvents(listB), a.address());
+      assertStatus(Address.from(a.address()), ALIVE, awaitEvents(listA), Address.from(b.address()));
+      assertStatus(Address.from(b.address()), ALIVE, awaitEvents(listB), Address.from(a.address()));
     } finally {
       stop(fdetectors);
     }
@@ -346,7 +484,9 @@ public class FailureDetectorTest extends BaseTest {
     NetworkEmulatorTransport a = createTransport();
     NetworkEmulatorTransport b = createTransport();
     NetworkEmulatorTransport x = createTransport();
-    List<Address> members = Arrays.asList(a.address(), b.address(), x.address());
+    List<Address> members =
+        Arrays.asList(
+            Address.from(a.address()), Address.from(b.address()), Address.from(x.address()));
 
     // Create failure detectors
     FailureDetectorImpl fdA = createFd(a, members);
@@ -365,16 +505,31 @@ public class FailureDetectorTest extends BaseTest {
     try {
       start(fdetectors);
 
-      assertStatus(a.address(), ALIVE, awaitEvents(listA), b.address(), x.address());
-      assertStatus(b.address(), ALIVE, awaitEvents(listB), a.address(), x.address());
-      assertStatus(x.address(), ALIVE, awaitEvents(listX), a.address(), b.address());
+      assertStatus(
+          Address.from(a.address()),
+          ALIVE,
+          awaitEvents(listA),
+          Address.from(b.address()),
+          Address.from(x.address()));
+      assertStatus(
+          Address.from(b.address()),
+          ALIVE,
+          awaitEvents(listB),
+          Address.from(a.address()),
+          Address.from(x.address()));
+      assertStatus(
+          Address.from(x.address()),
+          ALIVE,
+          awaitEvents(listX),
+          Address.from(a.address()),
+          Address.from(b.address()));
 
       // stop node X
       stop(Collections.singletonList(fdX));
       TimeUnit.SECONDS.sleep(2);
 
       // restart node X as XX
-      xx = createTransport(new TransportConfig().port(x.address().port()));
+      xx = createTransport(new TransportConfig().port(Address.from(x.address()).port()));
       assertEquals(x.address(), xx.address());
       fdetectors = Arrays.asList(fdA, fdB, fdXx = createFd(xx, members));
 
@@ -389,9 +544,24 @@ public class FailureDetectorTest extends BaseTest {
       // TODO [AK]: It would be more correct to consider restarted member as a new member, so x is
       // still suspected!
 
-      assertStatus(a.address(), ALIVE, awaitEvents(listA), b.address(), xx.address());
-      assertStatus(b.address(), ALIVE, awaitEvents(listB), a.address(), xx.address());
-      assertStatus(xx.address(), ALIVE, awaitEvents(listXx), a.address(), b.address());
+      assertStatus(
+          Address.from(a.address()),
+          ALIVE,
+          awaitEvents(listA),
+          Address.from(b.address()),
+          Address.from(xx.address()));
+      assertStatus(
+          Address.from(b.address()),
+          ALIVE,
+          awaitEvents(listB),
+          Address.from(a.address()),
+          Address.from(xx.address()));
+      assertStatus(
+          Address.from(xx.address()),
+          ALIVE,
+          awaitEvents(listXx),
+          Address.from(a.address()),
+          Address.from(b.address()));
     } finally {
       stop(fdetectors);
     }
@@ -410,11 +580,15 @@ public class FailureDetectorTest extends BaseTest {
       Transport transport, List<Address> addresses, FailureDetectorConfig config) {
 
     Member localMember =
-        new Member("member-" + transport.address().port(), null, transport.address(), NAMESPACE);
+        new Member(
+            "member-" + Address.from(transport.address()).port(),
+            null,
+            Address.from(transport.address()),
+            NAMESPACE);
 
     Flux<MembershipEvent> membershipFlux =
         Flux.fromIterable(addresses)
-            .filter(address -> !transport.address().equals(address))
+            .filter(address -> !transport.address().equals(address.toString()))
             .map(address -> new Member("member-" + address.port(), null, address, NAMESPACE))
             .map(member -> MembershipEvent.createAdded(member, null, 0));
 
@@ -465,7 +639,7 @@ public class FailureDetectorTest extends BaseTest {
       FailureDetectorImpl fd, List<Address> addresses) {
     final Transport transport = BaseTest.getField(fd, "transport");
     addresses = new ArrayList<>(addresses);
-    addresses.remove(transport.address()); // exclude self
+    addresses.remove(Address.from(transport.address())); // exclude self
     if (addresses.isEmpty()) {
       throw new IllegalArgumentException();
     }

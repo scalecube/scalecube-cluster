@@ -160,7 +160,7 @@ public class MetadataStoreImpl implements MetadataStore {
                   .build();
 
           return transport
-              .requestResponse(targetAddress, request)
+              .requestResponse(targetAddress.toString(), request)
               .timeout(Duration.ofMillis(config.metadataTimeout()), scheduler)
               .publishOn(scheduler)
               .doOnSuccess(
@@ -196,7 +196,7 @@ public class MetadataStoreImpl implements MetadataStore {
   }
 
   private void onMetadataRequest(Message message) {
-    final Address sender = message.sender();
+    final Address sender = Address.from(message.sender());
     LOGGER.debug("[{}] Received GetMetadataReq from {}", localMember, sender);
 
     GetMetadataRequest reqData = message.data();
@@ -225,7 +225,7 @@ public class MetadataStoreImpl implements MetadataStore {
 
     LOGGER.debug("[{}] Send GetMetadataResp to {}", localMember, sender);
     transport
-        .send(sender, response)
+        .send(sender.toString(), response)
         .subscribe(
             null,
             ex ->

@@ -241,7 +241,7 @@ public final class ClusterImpl implements Cluster {
     return Transport.bind(config.transportConfig())
         .flatMap(
             boundTransport -> {
-              localMember = createLocalMember(boundTransport.address());
+              localMember = createLocalMember(Address.from(boundTransport.address()));
               transport = new SenderAwareTransport(boundTransport, localMember.address());
 
               scheduler = Schedulers.newSingle("sc-cluster-" + localMember.address().port(), true);
@@ -506,7 +506,7 @@ public final class ClusterImpl implements Cluster {
     }
 
     @Override
-    public Address address() {
+    public String address() {
       return transport.address();
     }
 
@@ -526,12 +526,12 @@ public final class ClusterImpl implements Cluster {
     }
 
     @Override
-    public Mono<Void> send(Address address, Message message) {
+    public Mono<Void> send(String address, Message message) {
       return Mono.defer(() -> transport.send(address, enhanceWithSender(message)));
     }
 
     @Override
-    public Mono<Message> requestResponse(Address address, Message request) {
+    public Mono<Message> requestResponse(String address, Message request) {
       return Mono.defer(() -> transport.requestResponse(address, enhanceWithSender(request)));
     }
 
@@ -541,7 +541,7 @@ public final class ClusterImpl implements Cluster {
     }
 
     private Message enhanceWithSender(Message message) {
-      return Message.with(message).sender(address).build();
+      return Message.with(message).sender(address.toString()).build();
     }
   }
 }

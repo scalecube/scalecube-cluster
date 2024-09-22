@@ -1,10 +1,12 @@
 package io.scalecube.transport.netty.websocket;
 
+import static io.scalecube.cluster.transport.api.Transport.parseHost;
+import static io.scalecube.cluster.transport.api.Transport.parsePort;
+
 import io.netty.channel.ChannelOption;
 import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.TransportConfig;
-import io.scalecube.net.Address;
 import io.scalecube.transport.netty.Sender;
 import io.scalecube.transport.netty.TransportImpl.SenderContext;
 import reactor.core.publisher.Mono;
@@ -21,7 +23,7 @@ public final class WebsocketSender implements Sender {
   }
 
   @Override
-  public Mono<Connection> connect(Address address) {
+  public Mono<Connection> connect(String address) {
     return Mono.deferContextual(context -> Mono.just(context.get(SenderContext.class)))
         .map(context -> newWebsocketSender(context, address))
         .flatMap(sender -> sender.uri("/").connect());
@@ -44,12 +46,12 @@ public final class WebsocketSender implements Sender {
         });
   }
 
-  private HttpClient.WebsocketSender newWebsocketSender(SenderContext context, Address address) {
+  private HttpClient.WebsocketSender newWebsocketSender(SenderContext context, String address) {
     HttpClient httpClient =
         HttpClient.newConnection()
             .runOn(context.loopResources())
-            .host(address.host())
-            .port(address.port())
+            .host(parseHost(address))
+            .port(parsePort(address))
             .option(ChannelOption.TCP_NODELAY, true)
             .option(ChannelOption.SO_KEEPALIVE, true)
             .option(ChannelOption.SO_REUSEADDR, true)

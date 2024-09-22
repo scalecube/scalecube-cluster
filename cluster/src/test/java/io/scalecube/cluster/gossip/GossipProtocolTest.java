@@ -232,7 +232,7 @@ class GossipProtocolTest extends BaseTest {
     final List<Transport> transports = initTransports(count, lostPercent, meanDelay);
     List<Address> members = new ArrayList<>();
     for (Transport transport : transports) {
-      members.add(transport.address());
+      members.add(Address.from(transport.address()));
     }
     List<GossipProtocolImpl> gossipProtocols = new ArrayList<>();
     for (Transport transport : transports) {
@@ -259,7 +259,11 @@ class GossipProtocolTest extends BaseTest {
             .gossipRepeatMult(gossipRepeatMultiplier);
 
     Member localMember =
-        new Member("member-" + transport.address().port(), null, transport.address(), NAMESPACE);
+        new Member(
+            "member-" + Address.from(transport.address()).port(),
+            null,
+            Address.from(transport.address()),
+            NAMESPACE);
 
     Flux<MembershipEvent> membershipFlux =
         Flux.fromIterable(members)

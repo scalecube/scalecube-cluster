@@ -147,7 +147,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     LOGGER.debug("[{}][{}] Send Ping to {}", localMember, period, pingMember);
     Address address = pingMember.address();
     transport
-        .requestResponse(address, pingMsg)
+        .requestResponse(address.toString(), pingMsg)
         .timeout(Duration.ofMillis(config.pingTimeout()), scheduler)
         .publishOn(scheduler)
         .subscribe(
@@ -190,7 +190,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     pingReqMembers.forEach(
         member ->
             transport
-                .requestResponse(member.address(), pingReqMsg)
+                .requestResponse(member.address().toString(), pingReqMsg)
                 .timeout(timeout, scheduler)
                 .publishOn(scheduler)
                 .subscribe(
@@ -232,7 +232,7 @@ public final class FailureDetectorImpl implements FailureDetector {
   /** Listens to PING message and answers with ACK. */
   private void onPing(Message message) {
     long period = this.currentPeriod;
-    Address sender = message.sender();
+    Address sender = Address.from(message.sender());
     LOGGER.debug("[{}][{}] Received Ping from {}", localMember, period, sender);
     PingData data = message.data();
     data = data.withAckType(AckType.DEST_OK);
@@ -252,7 +252,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     Address address = data.getFrom().address();
     LOGGER.debug("[{}][{}] Send PingAck to {}", localMember, period, address);
     transport
-        .send(address, ackMessage)
+        .send(address.toString(), ackMessage)
         .subscribe(
             null,
             ex ->
@@ -278,7 +278,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     Address address = target.address();
     LOGGER.debug("[{}][{}] Send transit Ping to {}", localMember, period, address);
     transport
-        .send(address, pingMessage)
+        .send(address.toString(), pingMessage)
         .subscribe(
             null,
             ex ->
@@ -308,7 +308,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     Address address = target.address();
     LOGGER.debug("[{}][{}] Resend transit PingAck to {}", localMember, period, address);
     transport
-        .send(address, originalAckMessage)
+        .send(address.toString(), originalAckMessage)
         .subscribe(
             null,
             ex ->

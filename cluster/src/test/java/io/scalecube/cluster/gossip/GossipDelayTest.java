@@ -38,15 +38,24 @@ public class GossipDelayTest extends BaseTest {
     final GossipProtocolImpl gossipProtocol1 =
         initGossipProtocol(
             transport1,
-            Arrays.asList(transport1.address(), transport2.address(), transport3.address()));
+            Arrays.asList(
+                Address.from(transport1.address()),
+                Address.from(transport2.address()),
+                Address.from(transport3.address())));
     final GossipProtocolImpl gossipProtocol2 =
         initGossipProtocol(
             transport2,
-            Arrays.asList(transport1.address(), transport2.address(), transport3.address()));
+            Arrays.asList(
+                Address.from(transport1.address()),
+                Address.from(transport2.address()),
+                Address.from(transport3.address())));
     final GossipProtocolImpl gossipProtocol3 =
         initGossipProtocol(
             transport3,
-            Arrays.asList(transport1.address(), transport2.address(), transport3.address()));
+            Arrays.asList(
+                Address.from(transport1.address()),
+                Address.from(transport2.address()),
+                Address.from(transport3.address())));
 
     final AtomicInteger protocol1GossipCounter = new AtomicInteger(0);
     final AtomicInteger protocol2GossipCounter = new AtomicInteger(0);
@@ -82,7 +91,11 @@ public class GossipDelayTest extends BaseTest {
             .gossipRepeatMult(gossipRepeatMultiplier);
 
     Member localMember =
-        new Member("member-" + transport.address().port(), null, transport.address(), NAMESPACE);
+        new Member(
+            "member-" + Address.from(transport.address()).port(),
+            null,
+            Address.from(transport.address()),
+            NAMESPACE);
 
     Flux<MembershipEvent> membershipFlux =
         Flux.fromIterable(members)
