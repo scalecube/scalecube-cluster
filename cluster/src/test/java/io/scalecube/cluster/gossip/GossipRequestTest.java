@@ -8,7 +8,6 @@ import io.scalecube.cluster.BaseTest;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.MessageCodec;
-import io.scalecube.net.Address;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.Serializable;
@@ -39,7 +38,7 @@ public class GossipRequestTest extends BaseTest {
 
   @Test
   public void testSerializationAndDeserialization() throws Exception {
-    Member from = new Member("0", null, Address.from("localhost:1234"), NAMESPACE);
+    Member from = new Member("0", null, "localhost:1234", NAMESPACE);
     List<Gossip> gossips = getGossips();
     Message message =
         Message.withData(new GossipRequest(gossips, from.id())).correlationId("CORR_ID").build();

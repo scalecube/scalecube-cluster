@@ -1,5 +1,6 @@
 package io.scalecube.cluster.membership;
 
+import static io.scalecube.cluster.transport.api.Transport.parsePort;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -18,7 +19,6 @@ import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.cluster.utils.NetworkEmulator;
 import io.scalecube.cluster.utils.NetworkEmulatorTransport;
-import io.scalecube.net.Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.time.Duration;
@@ -76,7 +76,7 @@ public class MembershipProtocolTest extends BaseTest {
     NetworkEmulatorTransport a = createTransport();
     NetworkEmulatorTransport b = createTransport();
     NetworkEmulatorTransport c = createTransport();
-    List<Address> addresses = Arrays.asList(a.address(), b.address(), c.address());
+    List<String> addresses = Arrays.asList(a.address(), b.address(), c.address());
 
     MembershipProtocolImpl cmA = createMembership(a, addresses);
     MembershipProtocolImpl cmB = createMembership(b, addresses);
@@ -109,9 +109,8 @@ public class MembershipProtocolTest extends BaseTest {
   public void testLeaveClusterCameBeforeAlive() {
     final NetworkEmulatorTransport a = createTransport();
     final NetworkEmulatorTransport b = createTransport();
-    final Member anotherMember =
-        new Member("leavingNodeId-1", null, Address.from("localhost:9236"), NAMESPACE);
-    final List<Address> addresses = Arrays.asList(a.address(), b.address());
+    final Member anotherMember = new Member("leavingNodeId-1", null, "localhost:9236", NAMESPACE);
+    final List<String> addresses = Arrays.asList(a.address(), b.address());
 
     final MembershipProtocolImpl cmA = createMembership(a, addresses);
     final MembershipProtocolImpl cmB = createMembership(b, addresses);
@@ -154,9 +153,8 @@ public class MembershipProtocolTest extends BaseTest {
   public void testLeaveClusterOnly() {
     final NetworkEmulatorTransport a = createTransport();
     final NetworkEmulatorTransport b = createTransport();
-    final Member anotherMember =
-        new Member("leavingNodeId-1", null, Address.from("localhost:9236"), NAMESPACE);
-    final List<Address> addresses = Arrays.asList(a.address(), b.address());
+    final Member anotherMember = new Member("leavingNodeId-1", null, "localhost:9236", NAMESPACE);
+    final List<String> addresses = Arrays.asList(a.address(), b.address());
 
     final MembershipProtocolImpl cmA = createMembership(a, addresses);
     final MembershipProtocolImpl cmB = createMembership(b, addresses);
@@ -188,9 +186,8 @@ public class MembershipProtocolTest extends BaseTest {
   public void testLeaveClusterOnSuspectedNode() {
     final NetworkEmulatorTransport a = createTransport();
     final NetworkEmulatorTransport b = createTransport();
-    final Member anotherMember =
-        new Member("leavingNodeId-1", null, Address.from("localhost:9236"), NAMESPACE);
-    final List<Address> addresses = Arrays.asList(a.address(), b.address());
+    final Member anotherMember = new Member("leavingNodeId-1", null, "localhost:9236", NAMESPACE);
+    final List<String> addresses = Arrays.asList(a.address(), b.address());
 
     final MembershipProtocolImpl cmA = createMembership(a, addresses);
     final MembershipProtocolImpl cmB = createMembership(b, addresses);
@@ -234,7 +231,7 @@ public class MembershipProtocolTest extends BaseTest {
   public void testLeaveClusterOnAliveAndSuspectedNode() {
     final NetworkEmulatorTransport a = createTransport();
     final NetworkEmulatorTransport b = createTransport();
-    final List<Address> addresses = Arrays.asList(a.address(), b.address());
+    final List<String> addresses = Arrays.asList(a.address(), b.address());
 
     final MembershipProtocolImpl cmA = createMembership(a, addresses);
     final MembershipProtocolImpl cmB = createMembership(b, addresses);
@@ -270,7 +267,7 @@ public class MembershipProtocolTest extends BaseTest {
     Transport a = createTransport();
     Transport b = createTransport();
     Transport c = createTransport();
-    List<Address> addresses = Arrays.asList(a.address(), b.address(), c.address());
+    List<String> addresses = Arrays.asList(a.address(), b.address(), c.address());
 
     MembershipProtocolImpl cmA = createMembership(a, addresses);
     MembershipProtocolImpl cmB = createMembership(b, addresses);
@@ -295,7 +292,7 @@ public class MembershipProtocolTest extends BaseTest {
     NetworkEmulatorTransport a = createTransport();
     NetworkEmulatorTransport b = createTransport();
     NetworkEmulatorTransport c = createTransport();
-    List<Address> addresses = Arrays.asList(a.address(), b.address(), c.address());
+    List<String> addresses = Arrays.asList(a.address(), b.address(), c.address());
 
     MembershipProtocolImpl cmA = createMembership(a, addresses);
     MembershipProtocolImpl cmB = createMembership(b, addresses);
@@ -341,7 +338,7 @@ public class MembershipProtocolTest extends BaseTest {
     NetworkEmulatorTransport a = createTransport();
     NetworkEmulatorTransport b = createTransport();
     NetworkEmulatorTransport c = createTransport();
-    List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
+    List<String> members = Arrays.asList(a.address(), b.address(), c.address());
 
     MembershipProtocolImpl cmA = createMembership(a, members);
     MembershipProtocolImpl cmB = createMembership(b, members);
@@ -397,7 +394,7 @@ public class MembershipProtocolTest extends BaseTest {
     NetworkEmulatorTransport a = createTransport();
     NetworkEmulatorTransport b = createTransport();
     NetworkEmulatorTransport c = createTransport();
-    List<Address> addresses = Arrays.asList(a.address(), b.address(), c.address());
+    List<String> addresses = Arrays.asList(a.address(), b.address(), c.address());
 
     MembershipProtocolImpl cmA = createMembership(a, addresses);
     MembershipProtocolImpl cmB = createMembership(b, addresses);
@@ -467,7 +464,7 @@ public class MembershipProtocolTest extends BaseTest {
     NetworkEmulatorTransport a = createTransport();
     NetworkEmulatorTransport b = createTransport();
     NetworkEmulatorTransport c = createTransport();
-    List<Address> addresses = Arrays.asList(a.address(), b.address(), c.address());
+    List<String> addresses = Arrays.asList(a.address(), b.address(), c.address());
 
     MembershipProtocolImpl cmA = createMembership(a, addresses);
     MembershipProtocolImpl cmB = createMembership(b, addresses);
@@ -523,7 +520,7 @@ public class MembershipProtocolTest extends BaseTest {
     NetworkEmulatorTransport b = createTransport();
     NetworkEmulatorTransport c = createTransport();
     NetworkEmulatorTransport d = createTransport();
-    List<Address> addresses = Arrays.asList(a.address(), b.address(), c.address(), d.address());
+    List<String> addresses = Arrays.asList(a.address(), b.address(), c.address(), d.address());
 
     MembershipProtocolImpl cmA = createMembership(a, addresses);
     MembershipProtocolImpl cmB = createMembership(b, addresses);
@@ -576,7 +573,7 @@ public class MembershipProtocolTest extends BaseTest {
     NetworkEmulatorTransport b = createTransport();
     NetworkEmulatorTransport c = createTransport();
     NetworkEmulatorTransport d = createTransport();
-    List<Address> addresses = Arrays.asList(a.address(), b.address(), c.address(), d.address());
+    List<String> addresses = Arrays.asList(a.address(), b.address(), c.address(), d.address());
 
     MembershipProtocolImpl cmA = createMembership(a, addresses);
     MembershipProtocolImpl cmB = createMembership(b, addresses);
@@ -656,7 +653,7 @@ public class MembershipProtocolTest extends BaseTest {
     NetworkEmulatorTransport b = createTransport();
     NetworkEmulatorTransport c = createTransport();
     NetworkEmulatorTransport d = createTransport();
-    List<Address> addresses = Arrays.asList(a.address(), b.address(), c.address(), d.address());
+    List<String> addresses = Arrays.asList(a.address(), b.address(), c.address(), d.address());
 
     MembershipProtocolImpl cmA = createMembership(a, addresses);
     MembershipProtocolImpl cmB = createMembership(b, addresses);
@@ -691,8 +688,8 @@ public class MembershipProtocolTest extends BaseTest {
       assertSuspected(cmB, cmC.member(), cmD.member());
 
       // Restart C and D on same ports
-      c_Restarted = createTransport(new TransportConfig().port(c.address().port()));
-      d_Restarted = createTransport(new TransportConfig().port(d.address().port()));
+      c_Restarted = createTransport(new TransportConfig().port(parsePort(c.address())));
+      d_Restarted = createTransport(new TransportConfig().port(parsePort(d.address())));
       cmC_Restarted = createMembership(c_Restarted, addresses);
       cmD_Restarted = createMembership(d_Restarted, addresses);
 
@@ -1047,7 +1044,7 @@ public class MembershipProtocolTest extends BaseTest {
     NetworkEmulatorTransport b = createTransport();
     NetworkEmulatorTransport c = createTransport();
     NetworkEmulatorTransport d = createTransport();
-    List<Address> addresses = Arrays.asList(a.address(), b.address(), c.address(), d.address());
+    List<String> addresses = Arrays.asList(a.address(), b.address(), c.address(), d.address());
 
     MembershipProtocolImpl cmA = createMembership(a, addresses);
     MembershipProtocolImpl cmB = createMembership(b, addresses);
@@ -1117,7 +1114,7 @@ public class MembershipProtocolTest extends BaseTest {
     }
   }
 
-  private static ClusterConfig testConfig(List<Address> seedAddresses) {
+  private static ClusterConfig testConfig(List<String> seedAddresses) {
     // Create faster config for local testing
     return new ClusterConfig()
         .membership(opts -> opts.seedMembers(seedAddresses))
@@ -1129,8 +1126,7 @@ public class MembershipProtocolTest extends BaseTest {
         .metadataTimeout(100);
   }
 
-  private MembershipProtocolImpl createMembership(
-      Transport transport, List<Address> seedAddresses) {
+  private MembershipProtocolImpl createMembership(Transport transport, List<String> seedAddresses) {
     return createMembership(transport, testConfig(seedAddresses));
   }
 

@@ -1,7 +1,6 @@
 package io.scalecube.cluster;
 
 import io.scalecube.cluster.transport.api.Message;
-import io.scalecube.net.Address;
 import java.util.Collection;
 import java.util.Optional;
 import reactor.core.publisher.Mono;
@@ -10,11 +9,11 @@ import reactor.core.publisher.Mono;
 public interface Cluster {
 
   /**
-   * Returns {@link Address} of this cluster instance.
+   * Returns address of this cluster instance.
    *
    * @return cluster address
    */
-  Address address();
+  String address();
 
   /**
    * Spreads given message between cluster members using gossiping protocol.
@@ -52,7 +51,7 @@ public interface Cluster {
    *
    * @return member by id
    */
-  Optional<Member> member(String id);
+  Optional<Member> memberById(String id);
 
   /**
    * Returns cluster member by given address or null if no member with such address exists at joined
@@ -60,7 +59,7 @@ public interface Cluster {
    *
    * @return member by address
    */
-  Optional<Member> member(Address address);
+  Optional<Member> memberByAddress(String address);
 
   /**
    * Returns list of all members of the joined cluster. This will include all cluster members

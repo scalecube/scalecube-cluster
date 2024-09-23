@@ -4,7 +4,6 @@ import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.cluster.utils.NetworkEmulatorTransport;
-import io.scalecube.net.Address;
 import io.scalecube.transport.netty.tcp.TcpTransportFactory;
 import io.scalecube.transport.netty.websocket.WebsocketTransportFactory;
 import java.time.Duration;
@@ -37,7 +36,7 @@ public class BaseTest {
    * @param to destination
    * @param msg request
    */
-  protected Mono<Void> send(Transport transport, Address to, Message msg) {
+  protected Mono<Void> send(Transport transport, String to, Message msg) {
     return transport
         .send(to, msg)
         .doOnError(

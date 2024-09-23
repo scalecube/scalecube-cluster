@@ -1,6 +1,6 @@
 package io.scalecube.cluster.fdetector;
 
-import static io.scalecube.reactor.RetryNonSerializedEmitFailureHandler.RETRY_NON_SERIALIZED;
+import static reactor.core.publisher.Sinks.EmitFailureHandler.busyLooping;
 
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.fdetector.PingData.AckType;
@@ -8,7 +8,6 @@ import io.scalecube.cluster.membership.MemberStatus;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
-import io.scalecube.net.Address;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -117,7 +116,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     actionsDisposables.dispose();
 
     // Stop publishing events
-    sink.emitComplete(RETRY_NON_SERIALIZED);
+    sink.emitComplete(busyLooping(Duration.ofSeconds(3)));
   }
 
   @Override
@@ -145,7 +144,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     Message pingMsg = Message.withData(pingData).qualifier(PING).correlationId(cid).build();
 
     LOGGER.debug("[{}][{}] Send Ping to {}", localMember, period, pingMember);
-    Address address = pingMember.address();
+    String address = pingMember.address();
     transport
         .requestResponse(address, pingMsg)
         .timeout(Duration.ofMillis(config.pingTimeout()), scheduler)
@@ -232,7 +231,7 @@ public final class FailureDetectorImpl implements FailureDetector {
   /** Listens to PING message and answers with ACK. */
   private void onPing(Message message) {
     long period = this.currentPeriod;
-    Address sender = message.sender();
+    String sender = message.sender();
     LOGGER.debug("[{}][{}] Received Ping from {}", localMember, period, sender);
     PingData data = message.data();
     data = data.withAckType(AckType.DEST_OK);
@@ -249,7 +248,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     String correlationId = message.correlationId();
     Message ackMessage =
         Message.withData(data).qualifier(PING_ACK).correlationId(correlationId).build();
-    Address address = data.getFrom().address();
+    String address = data.getFrom().address();
     LOGGER.debug("[{}][{}] Send PingAck to {}", localMember, period, address);
     transport
         .send(address, ackMessage)
@@ -275,7 +274,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     PingData pingReqData = new PingData(localMember, target, originalIssuer);
     Message pingMessage =
         Message.withData(pingReqData).qualifier(PING).correlationId(correlationId).build();
-    Address address = target.address();
+    String address = target.address();
     LOGGER.debug("[{}][{}] Send transit Ping to {}", localMember, period, address);
     transport
         .send(address, pingMessage)
@@ -305,7 +304,7 @@ public final class FailureDetectorImpl implements FailureDetector {
     PingData originalAckData = new PingData(target, data.getTo()).withAckType(ackType);
     Message originalAckMessage =
         Message.withData(originalAckData).qualifier(PING_ACK).correlationId(correlationId).build();
-    Address address = target.address();
+    String address = target.address();
     LOGGER.debug("[{}][{}] Resend transit PingAck to {}", localMember, period, address);
     transport
         .send(address, originalAckMessage)
@@ -378,7 +377,7 @@ public final class FailureDetectorImpl implements FailureDetector {
 
   private void publishPingResult(long period, Member member, MemberStatus status) {
     LOGGER.debug("[{}][{}] Member {} detected as {}", localMember, period, member, status);
-    sink.emitNext(new FailureDetectorEvent(member, status), RETRY_NON_SERIALIZED);
+    sink.emitNext(new FailureDetectorEvent(member, status), busyLooping(Duration.ofSeconds(3)));
   }
 
   private MemberStatus computeMemberStatus(Message message, long period) {

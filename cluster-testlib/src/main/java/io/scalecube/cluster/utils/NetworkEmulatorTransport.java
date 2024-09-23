@@ -2,7 +2,6 @@ package io.scalecube.cluster.utils;
 
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
-import io.scalecube.net.Address;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -26,7 +25,7 @@ public final class NetworkEmulatorTransport implements Transport {
   }
 
   @Override
-  public Address address() {
+  public String address() {
     return transport.address();
   }
 
@@ -46,7 +45,7 @@ public final class NetworkEmulatorTransport implements Transport {
   }
 
   @Override
-  public Mono<Void> send(Address address, Message message) {
+  public Mono<Void> send(String address, Message message) {
     return Mono.defer(
         () ->
             Mono.just(enhanceWithSender(message))
@@ -56,7 +55,7 @@ public final class NetworkEmulatorTransport implements Transport {
   }
 
   @Override
-  public Mono<Message> requestResponse(Address address, Message request) {
+  public Mono<Message> requestResponse(String address, Message request) {
     return Mono.defer(
         () ->
             Mono.just(enhanceWithSender(request))

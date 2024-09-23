@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
-import io.scalecube.net.Address;
 import io.scalecube.transport.netty.BaseTest;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -220,7 +219,7 @@ public class TcpTransportSendOrderTest extends BaseTest {
     }
   }
 
-  private Callable<Void> sender(int id, Transport client, Address address, int total) {
+  private Callable<Void> sender(int id, Transport client, String address, int total) {
     return () -> {
       for (int j = 0; j < total; j++) {
         String correlationId = id + "/" + j;

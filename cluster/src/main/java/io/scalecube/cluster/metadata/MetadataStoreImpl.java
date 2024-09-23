@@ -4,7 +4,6 @@ import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
-import io.scalecube.net.Address;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.HashMap;
@@ -148,7 +147,7 @@ public class MetadataStoreImpl implements MetadataStore {
     return Mono.defer(
         () -> {
           final String cid = UUID.randomUUID().toString();
-          final Address targetAddress = member.address();
+          final String targetAddress = member.address();
 
           LOGGER.debug("[{}][{}] Getting metadata for member {}", localMember, cid, member);
 
@@ -196,7 +195,7 @@ public class MetadataStoreImpl implements MetadataStore {
   }
 
   private void onMetadataRequest(Message message) {
-    final Address sender = message.sender();
+    final String sender = message.sender();
     LOGGER.debug("[{}] Received GetMetadataReq from {}", localMember, sender);
 
     GetMetadataRequest reqData = message.data();

@@ -1,6 +1,6 @@
 package io.scalecube.transport.netty;
 
-import static io.scalecube.reactor.RetryNonSerializedEmitFailureHandler.RETRY_NON_SERIALIZED;
+import static reactor.core.publisher.Sinks.EmitFailureHandler.busyLooping;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -10,13 +10,13 @@ import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.EncoderException;
 import io.netty.util.ReferenceCountUtil;
+import io.scalecube.cluster.transport.api.DistinctErrors;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.MessageCodec;
 import io.scalecube.cluster.transport.api.Transport;
-import io.scalecube.errors.DistinctErrors;
-import io.scalecube.net.Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
@@ -36,6 +36,7 @@ import reactor.netty.resources.LoopResources;
 public final class TransportImpl implements Transport {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Transport.class);
+
   private static final DistinctErrors DISTINCT_ERRORS = new DistinctErrors(Duration.ofMinutes(1));
 
   private final MessageCodec messageCodec;
@@ -48,15 +49,15 @@ public final class TransportImpl implements Transport {
   private final Sinks.One<Void> onStop = Sinks.one();
 
   // Server
-  private Address address;
+  private String address;
   private DisposableServer server;
-  private final Map<Address, Mono<? extends Connection>> connections = new ConcurrentHashMap<>();
+  private final Map<String, Mono<? extends Connection>> connections = new ConcurrentHashMap<>();
   private final LoopResources loopResources = LoopResources.create("sc-cluster-io", 1, true);
 
   // Transport factory
   private final Receiver receiver;
   private final Sender sender;
-  private final Function<Address, Address> addressMapper;
+  private final Function<String, String> addressMapper;
 
   /**
    * Constructor with config as parameter.
@@ -72,21 +73,30 @@ public final class TransportImpl implements Transport {
       MessageCodec messageCodec,
       Receiver receiver,
       Sender sender,
-      Function<Address, Address> addressMapper) {
+      Function<String, String> addressMapper) {
     this.messageCodec = messageCodec;
     this.receiver = receiver;
     this.sender = sender;
     this.addressMapper = addressMapper;
   }
 
-  private static Address prepareAddress(DisposableServer server) {
+  private static String prepareAddress(DisposableServer server) {
     final InetSocketAddress serverAddress = (InetSocketAddress) server.address();
-    InetAddress inetAddress = serverAddress.getAddress();
-    int port = serverAddress.getPort();
+    final InetAddress inetAddress = serverAddress.getAddress();
+    final int port = serverAddress.getPort();
+
     if (inetAddress.isAnyLocalAddress()) {
-      return Address.create(Address.getLocalIpAddress().getHostAddress(), port);
+      return getLocalHostAddress() + ":" + port;
     } else {
-      return Address.create(inetAddress.getHostAddress(), port);
+      return inetAddress.getHostAddress() + ":" + port;
+    }
+  }
+
+  private static String getLocalHostAddress() {
+    try {
+      return InetAddress.getLocalHost().getHostAddress();
+    } catch (UnknownHostException e) {
+      throw new RuntimeException(e);
     }
   }
 
@@ -96,7 +106,7 @@ public final class TransportImpl implements Transport {
     // Setup cleanup
     stop.asMono()
         .then(doStop())
-        .doFinally(s -> onStop.emitEmpty(RETRY_NON_SERIALIZED))
+        .doFinally(s -> onStop.emitEmpty(busyLooping(Duration.ofSeconds(3))))
         .subscribe(
             null, ex -> LOGGER.warn("[{}][doStop] Exception occurred: {}", address, ex.toString()));
   }
@@ -122,7 +132,7 @@ public final class TransportImpl implements Transport {
   }
 
   @Override
-  public Address address() {
+  public String address() {
     return address;
   }
 
@@ -132,10 +142,10 @@ public final class TransportImpl implements Transport {
   }
 
   @Override
-  public final Mono<Void> stop() {
+  public Mono<Void> stop() {
     return Mono.defer(
         () -> {
-          stop.emitEmpty(RETRY_NON_SERIALIZED);
+          stop.emitEmpty(busyLooping(Duration.ofSeconds(3)));
           return onStop.asMono();
         });
   }
@@ -145,7 +155,7 @@ public final class TransportImpl implements Transport {
         () -> {
           LOGGER.info("[{}][doStop] Stopping", address);
           // Complete incoming messages observable
-          sink.emitComplete(RETRY_NON_SERIALIZED);
+          sink.emitComplete(busyLooping(Duration.ofSeconds(3)));
           return Flux.concatDelayError(closeServer(), shutdownLoopResources())
               .then()
               .doFinally(s -> connections.clear())
@@ -154,12 +164,12 @@ public final class TransportImpl implements Transport {
   }
 
   @Override
-  public final Flux<Message> listen() {
+  public Flux<Message> listen() {
     return sink.asFlux().onBackpressureBuffer();
   }
 
   @Override
-  public Mono<Void> send(Address address, Message message) {
+  public Mono<Void> send(String address, Message message) {
     return Mono.deferContextual(context -> connections.computeIfAbsent(address, this::connect))
         .flatMap(
             connection ->
@@ -172,7 +182,7 @@ public final class TransportImpl implements Transport {
   }
 
   @Override
-  public Mono<Message> requestResponse(Address address, final Message request) {
+  public Mono<Message> requestResponse(String address, final Message request) {
     return Mono.create(
         sink -> {
           Objects.requireNonNull(request, "request must be not null");
@@ -224,8 +234,8 @@ public final class TransportImpl implements Transport {
     return byteBuf;
   }
 
-  private Mono<? extends Connection> connect(Address remoteAddress) {
-    final Address mappedAddr = addressMapper.apply(remoteAddress);
+  private Mono<? extends Connection> connect(String remoteAddress) {
+    final String mappedAddr = addressMapper.apply(remoteAddress);
     return sender
         .connect(mappedAddr)
         .doOnSuccess(
@@ -277,13 +287,13 @@ public final class TransportImpl implements Transport {
 
   public static final class ReceiverContext {
 
-    private final Address address;
+    private final String address;
     private final Sinks.Many<Message> sink;
     private final LoopResources loopResources;
     private final Function<ByteBuf, Message> messageDecoder;
 
     private ReceiverContext(
-        Address address,
+        String address,
         Sinks.Many<Message> sink,
         LoopResources loopResources,
         Function<ByteBuf, Message> messageDecoder) {
@@ -313,7 +323,7 @@ public final class TransportImpl implements Transport {
           return;
         }
         final Message message = messageDecoder.apply(byteBuf);
-        sink.emitNext(message, RETRY_NON_SERIALIZED);
+        sink.emitNext(message, busyLooping(Duration.ofSeconds(3)));
       } catch (Exception e) {
         LOGGER.error("[{}][onMessage] Exception occurred:", address, e);
       }

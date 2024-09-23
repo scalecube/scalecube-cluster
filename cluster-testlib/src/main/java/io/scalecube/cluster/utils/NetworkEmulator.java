@@ -1,7 +1,6 @@
 package io.scalecube.cluster.utils;
 
 import io.scalecube.cluster.transport.api.Message;
-import io.scalecube.net.Address;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
@@ -30,21 +29,21 @@ public final class NetworkEmulator {
   private volatile OutboundSettings defaultOutboundSettings = new OutboundSettings(0, 0);
   private volatile InboundSettings defaultInboundSettings = new InboundSettings(true);
 
-  private final Map<Address, OutboundSettings> outboundSettings = new ConcurrentHashMap<>();
-  private final Map<Address, InboundSettings> inboundSettings = new ConcurrentHashMap<>();
+  private final Map<String, OutboundSettings> outboundSettings = new ConcurrentHashMap<>();
+  private final Map<String, InboundSettings> inboundSettings = new ConcurrentHashMap<>();
 
   private final AtomicLong totalMessageSentCount = new AtomicLong();
   private final AtomicLong totalOutboundMessageLostCount = new AtomicLong();
   private final AtomicLong totalInboundMessageLostCount = new AtomicLong();
 
-  private final Address address;
+  private final String address;
 
   /**
    * Creates new instance of network emulator.
    *
    * @param address local address
    */
-  NetworkEmulator(Address address) {
+  NetworkEmulator(String address) {
     this.address = address;
   }
 
@@ -56,7 +55,7 @@ public final class NetworkEmulator {
    * @param destination address of target endpoint
    * @return network outbound settings
    */
-  public OutboundSettings outboundSettings(Address destination) {
+  public OutboundSettings outboundSettings(String destination) {
     return outboundSettings.getOrDefault(destination, defaultOutboundSettings);
   }
 
@@ -67,7 +66,7 @@ public final class NetworkEmulator {
    * @param lossPercent loss in percents
    * @param meanDelay mean delay
    */
-  public void outboundSettings(Address destination, int lossPercent, int meanDelay) {
+  public void outboundSettings(String destination, int lossPercent, int meanDelay) {
     OutboundSettings settings = new OutboundSettings(lossPercent, meanDelay);
     outboundSettings.put(destination, settings);
     LOGGER.debug("[{}] Set outbound settings {} to {}", address, settings, destination);
@@ -103,7 +102,7 @@ public final class NetworkEmulator {
    *
    * @param destinations collection of target endpoints where to apply
    */
-  public void blockOutbound(Address... destinations) {
+  public void blockOutbound(String... destinations) {
     blockOutbound(Arrays.asList(destinations));
   }
 
@@ -112,8 +111,8 @@ public final class NetworkEmulator {
    *
    * @param destinations collection of target endpoints where to apply
    */
-  public void blockOutbound(Collection<Address> destinations) {
-    for (Address destination : destinations) {
+  public void blockOutbound(Collection<String> destinations) {
+    for (String destination : destinations) {
       outboundSettings.put(destination, new OutboundSettings(100, 0));
     }
     LOGGER.debug("[{}] Blocked outbound to {}", address, destinations);
@@ -124,7 +123,7 @@ public final class NetworkEmulator {
    *
    * @param destinations collection of target endpoints where to apply
    */
-  public void unblockOutbound(Address... destinations) {
+  public void unblockOutbound(String... destinations) {
     unblockOutbound(Arrays.asList(destinations));
   }
 
@@ -133,7 +132,7 @@ public final class NetworkEmulator {
    *
    * @param destinations collection of target endpoints where to apply
    */
-  public void unblockOutbound(Collection<Address> destinations) {
+  public void unblockOutbound(Collection<String> destinations) {
     destinations.forEach(outboundSettings::remove);
     LOGGER.debug("[{}] Unblocked outbound {}", address, destinations);
   }
@@ -164,7 +163,7 @@ public final class NetworkEmulator {
    * @param address target address
    * @return mono message
    */
-  public Mono<Message> tryFailOutbound(Message msg, Address address) {
+  public Mono<Message> tryFailOutbound(Message msg, String address) {
     return Mono.defer(
         () -> {
           totalMessageSentCount.incrementAndGet();
@@ -187,7 +186,7 @@ public final class NetworkEmulator {
    * @param address target address
    * @return mono message
    */
-  public Mono<Message> tryDelayOutbound(Message msg, Address address) {
+  public Mono<Message> tryDelayOutbound(Message msg, String address) {
     return Mono.defer(
         () -> {
           totalMessageSentCount.incrementAndGet();
@@ -209,7 +208,7 @@ public final class NetworkEmulator {
    * @param destination address of target endpoint
    * @return network inbound settings
    */
-  public InboundSettings inboundSettings(Address destination) {
+  public InboundSettings inboundSettings(String destination) {
     return inboundSettings.getOrDefault(destination, defaultInboundSettings);
   }
 
@@ -218,7 +217,7 @@ public final class NetworkEmulator {
    *
    * @param shallPass shallPass inbound flag
    */
-  public void inboundSettings(Address destination, boolean shallPass) {
+  public void inboundSettings(String destination, boolean shallPass) {
     InboundSettings settings = new InboundSettings(shallPass);
     inboundSettings.put(destination, settings);
     LOGGER.debug("[{}] Set inbound settings {} to {}", address, settings, destination);
@@ -253,7 +252,7 @@ public final class NetworkEmulator {
    *
    * @param destinations collection of target endpoints where to apply
    */
-  public void blockInbound(Address... destinations) {
+  public void blockInbound(String... destinations) {
     blockInbound(Arrays.asList(destinations));
   }
 
@@ -262,8 +261,8 @@ public final class NetworkEmulator {
    *
    * @param destinations collection of target endpoints where to apply
    */
-  public void blockInbound(Collection<Address> destinations) {
-    for (Address destination : destinations) {
+  public void blockInbound(Collection<String> destinations) {
+    for (String destination : destinations) {
       inboundSettings.put(destination, new InboundSettings(false));
     }
     LOGGER.debug("[{}] Blocked inbound from {}", address, destinations);
@@ -274,7 +273,7 @@ public final class NetworkEmulator {
    *
    * @param destinations collection of target endpoints where to apply
    */
-  public void unblockInbound(Address... destinations) {
+  public void unblockInbound(String... destinations) {
     unblockInbound(Arrays.asList(destinations));
   }
 
@@ -283,7 +282,7 @@ public final class NetworkEmulator {
    *
    * @param destinations collection of target endpoints where to apply
    */
-  public void unblockInbound(Collection<Address> destinations) {
+  public void unblockInbound(Collection<String> destinations) {
     destinations.forEach(inboundSettings::remove);
     LOGGER.debug("[{}] Unblocked inbound from {}", address, destinations);
   }

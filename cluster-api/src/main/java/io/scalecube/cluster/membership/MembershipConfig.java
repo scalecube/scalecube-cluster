@@ -1,6 +1,5 @@
 package io.scalecube.cluster.membership;
 
-import io.scalecube.net.Address;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -24,7 +23,7 @@ public final class MembershipConfig implements Cloneable {
   public static final int DEFAULT_LOCAL_SUSPICION_MULT = 3;
   public static final int DEFAULT_LOCAL_SYNC_INTERVAL = 15_000;
 
-  private List<Address> seedMembers = Collections.emptyList();
+  private List<String> seedMembers = Collections.emptyList();
   private int syncInterval = DEFAULT_SYNC_INTERVAL;
   private int syncTimeout = DEFAULT_SYNC_TIMEOUT;
   private int suspicionMult = DEFAULT_SUSPICION_MULT;
@@ -67,7 +66,7 @@ public final class MembershipConfig implements Cloneable {
         .syncInterval(DEFAULT_LOCAL_SYNC_INTERVAL);
   }
 
-  public List<Address> seedMembers() {
+  public List<String> seedMembers() {
     return seedMembers;
   }
 
@@ -77,7 +76,7 @@ public final class MembershipConfig implements Cloneable {
    * @param seedMembers seed members
    * @return new {@code MembershipConfig} instance
    */
-  public MembershipConfig seedMembers(Address... seedMembers) {
+  public MembershipConfig seedMembers(String... seedMembers) {
     return seedMembers(Arrays.asList(seedMembers));
   }
 
@@ -87,7 +86,7 @@ public final class MembershipConfig implements Cloneable {
    * @param seedMembers seed members
    * @return new {@code MembershipConfig} instance
    */
-  public MembershipConfig seedMembers(List<Address> seedMembers) {
+  public MembershipConfig seedMembers(List<String> seedMembers) {
     MembershipConfig m = clone();
     m.seedMembers = Collections.unmodifiableList(new ArrayList<>(seedMembers));
     return m;
