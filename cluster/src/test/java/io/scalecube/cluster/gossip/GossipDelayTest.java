@@ -1,5 +1,6 @@
 package io.scalecube.cluster.gossip;
 
+import static io.scalecube.cluster.transport.api.Transport.parsePort;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import io.scalecube.cluster.BaseTest;
@@ -9,7 +10,6 @@ import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.utils.NetworkEmulatorTransport;
-import io.scalecube.net.Address;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -74,7 +74,7 @@ public class GossipDelayTest extends BaseTest {
     return transport;
   }
 
-  private GossipProtocolImpl initGossipProtocol(Transport transport, List<Address> members) {
+  private GossipProtocolImpl initGossipProtocol(Transport transport, List<String> members) {
     GossipConfig gossipConfig =
         new GossipConfig()
             .gossipFanout(gossipFanout)
@@ -82,12 +82,13 @@ public class GossipDelayTest extends BaseTest {
             .gossipRepeatMult(gossipRepeatMultiplier);
 
     Member localMember =
-        new Member("member-" + transport.address().port(), null, transport.address(), NAMESPACE);
+        new Member(
+            "member-" + parsePort(transport.address()), null, transport.address(), NAMESPACE);
 
     Flux<MembershipEvent> membershipFlux =
         Flux.fromIterable(members)
             .filter(address -> !transport.address().equals(address))
-            .map(address -> new Member("member-" + address.port(), null, address, NAMESPACE))
+            .map(address -> new Member("member-" + parsePort(address), null, address, NAMESPACE))
             .map(member -> MembershipEvent.createAdded(member, null, 0));
 
     GossipProtocolImpl gossipProtocol =

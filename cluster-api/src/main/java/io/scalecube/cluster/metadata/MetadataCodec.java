@@ -1,13 +1,16 @@
 package io.scalecube.cluster.metadata;
 
-import io.scalecube.utils.ServiceLoaderUtil;
 import java.nio.ByteBuffer;
+import java.util.ServiceLoader;
+import java.util.stream.StreamSupport;
 
 /** Contains methods for metadata serializing/deserializing logic. */
 public interface MetadataCodec {
 
   MetadataCodec INSTANCE =
-      ServiceLoaderUtil.findFirst(MetadataCodec.class).orElseGet(JdkMetadataCodec::new);
+      StreamSupport.stream(ServiceLoader.load(MetadataCodec.class).spliterator(), false)
+          .findFirst()
+          .orElseGet(JdkMetadataCodec::new);
 
   /**
    * Deserializes metadata from buffer.

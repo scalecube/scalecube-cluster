@@ -1,5 +1,6 @@
 package io.scalecube.cluster;
 
+import static io.scalecube.cluster.transport.api.Transport.parsePort;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -8,9 +9,9 @@ import static reactor.core.publisher.Sinks.EmitFailureHandler.FAIL_FAST;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipEvent.Type;
 import io.scalecube.cluster.metadata.MetadataCodec;
-import io.scalecube.net.Address;
 import io.scalecube.transport.netty.tcp.TcpTransportFactory;
 import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -37,7 +38,7 @@ public class ClusterTest extends BaseTest {
 
   @Test
   public void testStartStopRepeatedly() throws Exception {
-    Address address = Address.from("localhost:4848");
+    String address = "localhost:4848";
 
     // Start seed node
     Cluster seedNode =
@@ -45,7 +46,7 @@ public class ClusterTest extends BaseTest {
             .gossip(opts -> opts.gossipInterval(100))
             .failureDetector(opts -> opts.pingInterval(100))
             .membership(opts -> opts.syncInterval(100))
-            .transport(opts -> opts.port(address.port()))
+            .transport(opts -> opts.port(parsePort(address)))
             .transport(opts -> opts.connectTimeout(CONNECT_TIMEOUT))
             .transportFactory(TcpTransportFactory::new)
             .startAwait();
@@ -72,7 +73,7 @@ public class ClusterTest extends BaseTest {
               .gossip(opts -> opts.gossipInterval(100))
               .failureDetector(opts -> opts.pingInterval(100))
               .membership(opts -> opts.syncInterval(100))
-              .transport(opts -> opts.port(address.port()))
+              .transport(opts -> opts.port(parsePort(address)))
               .transport(opts -> opts.connectTimeout(CONNECT_TIMEOUT))
               .transportFactory(TcpTransportFactory::new)
               .startAwait();
@@ -101,8 +102,8 @@ public class ClusterTest extends BaseTest {
 
     // Members by address
 
-    Optional<Member> otherNodeOnSeedNode = seedNode.member(otherNode.address());
-    Optional<Member> seedNodeOnOtherNode = otherNode.member(seedNode.address());
+    Optional<Member> otherNodeOnSeedNode = seedNode.memberByAddress(otherNode.address());
+    Optional<Member> seedNodeOnOtherNode = otherNode.memberByAddress(seedNode.address());
 
     assertEquals(otherNode.member(), otherNodeOnSeedNode.orElse(null));
     assertEquals(seedNode.member(), seedNodeOnOtherNode.orElse(null));
@@ -112,15 +113,11 @@ public class ClusterTest extends BaseTest {
 
   @Test
   public void testJoinLocalhostIgnored() throws InterruptedException {
-    InetAddress localIpAddress = Address.getLocalIpAddress();
-    Address localAddressByHostname = Address.create(localIpAddress.getHostName(), 4801);
-    Address localAddressByIp = Address.create(localIpAddress.getHostAddress(), 4801);
-    Address[] addresses = {
-      Address.from("localhost:4801"),
-      Address.from("127.0.0.1:4801"),
-      Address.from("127.0.1.1:4801"),
-      localAddressByHostname,
-      localAddressByIp
+    InetAddress localIpAddress = getLocalIpAddress();
+    String localAddressByHostname = localIpAddress.getHostName() + ":" + 4801;
+    String localAddressByIp = localIpAddress.getHostAddress() + ":" + 4801;
+    String[] addresses = {
+      "localhost:4801", "127.0.0.1:4801", "127.0.1.1:4801", localAddressByHostname, localAddressByIp
     };
 
     // Start seed node
@@ -141,15 +138,11 @@ public class ClusterTest extends BaseTest {
 
   @Test
   public void testJoinLocalhostIgnoredWithOverride() throws InterruptedException {
-    InetAddress localIpAddress = Address.getLocalIpAddress();
-    Address localAddressByHostname = Address.create(localIpAddress.getHostName(), 7878);
-    Address localAddressByIp = Address.create(localIpAddress.getHostAddress(), 7878);
-    Address[] addresses = {
-      Address.from("localhost:7878"),
-      Address.from("127.0.0.1:7878"),
-      Address.from("127.0.1.1:7878"),
-      localAddressByHostname,
-      localAddressByIp
+    InetAddress localIpAddress = getLocalIpAddress();
+    String localAddressByHostname = localIpAddress.getHostName() + ":" + 7878;
+    String localAddressByIp = localIpAddress.getHostAddress() + ":" + 7878;
+    String[] addresses = {
+      "localhost:7878", "127.0.0.1:7878", "127.0.1.1:7878", localAddressByHostname, localAddressByIp
     };
 
     // Start seed node
@@ -242,7 +235,7 @@ public class ClusterTest extends BaseTest {
 
       // Check all test members know valid metadata
       for (Cluster node : otherNodes) {
-        Optional<Member> memberOptional = node.member(metadataNode.member().id());
+        Optional<Member> memberOptional = node.memberById(metadataNode.member().id());
         assertTrue(memberOptional.isPresent());
         Member member = memberOptional.get();
         assertEquals(metadata, node.metadata(member).orElse(null));
@@ -254,7 +247,7 @@ public class ClusterTest extends BaseTest {
 
       // Check all nodes had updated metadata member
       for (Cluster node : otherNodes) {
-        Optional<Member> memberOptional = node.member(metadataNode.member().id());
+        Optional<Member> memberOptional = node.memberById(metadataNode.member().id());
         assertTrue(memberOptional.isPresent());
         Member member = memberOptional.get();
         assertEquals(updatedMetadata, node.metadata(member).orElse(null));
@@ -315,7 +308,7 @@ public class ClusterTest extends BaseTest {
 
       // Check all test members know valid metadata
       for (Cluster node : otherNodes) {
-        Optional<Member> memberOptional = node.member(metadataNode.member().id());
+        Optional<Member> memberOptional = node.memberById(metadataNode.member().id());
         assertTrue(memberOptional.isPresent());
         Member member = memberOptional.get();
         assertEquals(metadata, node.metadata(member).orElse(null));
@@ -328,7 +321,7 @@ public class ClusterTest extends BaseTest {
 
       // Check all nodes had updated metadata member
       for (Cluster node : otherNodes) {
-        Optional<Member> memberOptional = node.member(metadataNode.member().id());
+        Optional<Member> memberOptional = node.memberById(metadataNode.member().id());
         assertTrue(memberOptional.isPresent());
         Member member = memberOptional.get();
         //noinspection unchecked,OptionalGetWithoutIsPresent
@@ -393,7 +386,7 @@ public class ClusterTest extends BaseTest {
 
       // Check all test members know valid metadata
       for (Cluster node : otherNodes) {
-        Optional<Member> memberOptional = node.member(metadataNode.member().id());
+        Optional<Member> memberOptional = node.memberById(metadataNode.member().id());
         assertTrue(memberOptional.isPresent());
         Member member = memberOptional.get();
         assertEquals(metadata, node.metadata(member).orElse(null));
@@ -407,7 +400,7 @@ public class ClusterTest extends BaseTest {
 
       // Check all nodes had updated metadata member
       for (Cluster node : otherNodes) {
-        Optional<Member> memberOptional = node.member(metadataNode.member().id());
+        Optional<Member> memberOptional = node.memberById(metadataNode.member().id());
         assertTrue(memberOptional.isPresent());
         Member member = memberOptional.get();
         //noinspection unchecked,OptionalGetWithoutIsPresent
@@ -559,9 +552,9 @@ public class ClusterTest extends BaseTest {
     // Start seed node
     Cluster seedNode = new ClusterImpl().transportFactory(TcpTransportFactory::new).startAwait();
 
-    Address nonExistingSeed1 = Address.from("localhost:1234");
-    Address nonExistingSeed2 = Address.from("localhost:5678");
-    Address[] seeds = new Address[] {nonExistingSeed1, nonExistingSeed2, seedNode.address()};
+    String nonExistingSeed1 = "localhost:1234";
+    String nonExistingSeed2 = "localhost:5678";
+    String[] seeds = new String[] {nonExistingSeed1, nonExistingSeed2, seedNode.address()};
 
     Cluster otherNode =
         new ClusterImpl()
@@ -575,6 +568,32 @@ public class ClusterTest extends BaseTest {
     shutdown(Arrays.asList(seedNode, otherNode));
   }
 
+  @Test
+  public void testExplicitLocalMemberId() {
+    ClusterConfig config = ClusterConfig.defaultConfig().memberId("test-member");
+
+    ClusterImpl cluster = null;
+    try {
+      cluster =
+          (ClusterImpl)
+              new ClusterImpl(config).transportFactory(TcpTransportFactory::new).startAwait();
+
+      assertEquals("test-member", cluster.member().id());
+    } finally {
+      if (cluster != null) {
+        shutdown(Arrays.asList(cluster));
+      }
+    }
+  }
+
+  private static InetAddress getLocalIpAddress() {
+    try {
+      return InetAddress.getLocalHost();
+    } catch (UnknownHostException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   private void shutdown(List<Cluster> nodes) {
     try {
       Mono.whenDelayError(
@@ -585,25 +604,6 @@ public class ClusterTest extends BaseTest {
           .block(TIMEOUT);
     } catch (Exception ex) {
       LOGGER.error("Exception on cluster shutdown", ex);
-    }
-  }
-
-  @Test
-  public void testExplicitLocalMemberId() {
-    ClusterConfig config = ClusterConfig.defaultConfig()
-      .memberId("test-member");
-
-    ClusterImpl cluster = null;
-    try {
-      cluster = (ClusterImpl) new ClusterImpl(config)
-        .transportFactory(TcpTransportFactory::new)
-        .startAwait();
-
-      assertEquals("test-member", cluster.member().id());
-    } finally {
-      if (cluster != null) {
-        shutdown(Arrays.asList(cluster));
-      }
     }
   }
 }

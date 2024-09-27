@@ -35,8 +35,6 @@
   </scm>
 
   <properties>
-    <scalecube-commons.version>1.0.24</scalecube-commons.version>
-
     <slf4j.version>1.7.36</slf4j.version>
     <log4j.version>2.17.2</log4j.version>
     <reactor.version>2020.0.32</reactor.version>
@@ -122,13 +120,6 @@
         <version>${reactor.version}</version>
         <type>pom</type>
         <scope>import</scope>
-      </dependency>
-
-      <!-- Scalecube Commons -->
-      <dependency>
-        <groupId>io.scalecube</groupId>
-        <artifactId>scalecube-commons</artifactId>
-        <version>${scalecube-commons.version}</version>
       </dependency>
 
       <!-- Jackson -->

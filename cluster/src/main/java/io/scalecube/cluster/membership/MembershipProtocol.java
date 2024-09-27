@@ -1,7 +1,6 @@
 package io.scalecube.cluster.membership;
 
 import io.scalecube.cluster.Member;
-import io.scalecube.net.Address;
 import java.util.Collection;
 import java.util.Optional;
 import reactor.core.publisher.Flux;
@@ -53,7 +52,7 @@ public interface MembershipProtocol {
    *
    * @return member by id
    */
-  Optional<Member> member(String id);
+  Optional<Member> memberById(String id);
 
   /**
    * Returns cluster member by given address or null if no member with such address exists at joined
@@ -61,5 +60,5 @@ public interface MembershipProtocol {
    *
    * @return member by address
    */
-  Optional<Member> member(Address address);
+  Optional<Member> memberByAddress(String address);
 }

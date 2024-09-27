@@ -2,6 +2,7 @@ package io.scalecube.cluster.fdetector;
 
 import static io.scalecube.cluster.membership.MemberStatus.ALIVE;
 import static io.scalecube.cluster.membership.MemberStatus.SUSPECT;
+import static io.scalecube.cluster.transport.api.Transport.parsePort;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -12,7 +13,6 @@ import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.cluster.utils.NetworkEmulatorTransport;
-import io.scalecube.net.Address;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -53,7 +53,7 @@ public class FailureDetectorTest extends BaseTest {
     Transport a = createTransport();
     Transport b = createTransport();
     Transport c = createTransport();
-    List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
+    List<String> members = Arrays.asList(a.address(), b.address(), c.address());
 
     // Create failure detectors
     FailureDetectorImpl fdA = createFd(a, members);
@@ -82,7 +82,7 @@ public class FailureDetectorTest extends BaseTest {
     NetworkEmulatorTransport a = createTransport();
     NetworkEmulatorTransport b = createTransport();
     NetworkEmulatorTransport c = createTransport();
-    List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
+    List<String> members = Arrays.asList(a.address(), b.address(), c.address());
 
     // Create failure detectors
     FailureDetectorImpl fdA = createFd(a, members);
@@ -119,7 +119,7 @@ public class FailureDetectorTest extends BaseTest {
     NetworkEmulatorTransport a = createTransport();
     NetworkEmulatorTransport b = createTransport();
     NetworkEmulatorTransport c = createTransport();
-    List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
+    List<String> members = Arrays.asList(a.address(), b.address(), c.address());
 
     // Create failure detectors
     FailureDetectorImpl fdA = createFd(a, members);
@@ -151,7 +151,7 @@ public class FailureDetectorTest extends BaseTest {
     Transport a = createTransport();
     Transport b = createTransport();
     Transport c = createTransport();
-    List<Address> members = Arrays.asList(a.address(), b.address(), c.address());
+    List<String> members = Arrays.asList(a.address(), b.address(), c.address());
 
     // Create failure detectors
     FailureDetectorImpl fdA = createFd(a, members);
@@ -183,7 +183,7 @@ public class FailureDetectorTest extends BaseTest {
     NetworkEmulatorTransport b = createTransport();
     NetworkEmulatorTransport c = createTransport();
     NetworkEmulatorTransport d = createTransport();
-    List<Address> members = Arrays.asList(a.address(), b.address(), c.address(), d.address());
+    List<String> members = Arrays.asList(a.address(), b.address(), c.address(), d.address());
 
     // Create failure detectors
     FailureDetectorImpl fdA = createFd(a, members);
@@ -242,7 +242,7 @@ public class FailureDetectorTest extends BaseTest {
     NetworkEmulatorTransport b = createTransport();
     NetworkEmulatorTransport c = createTransport();
     NetworkEmulatorTransport d = createTransport();
-    List<Address> members = Arrays.asList(a.address(), b.address(), c.address(), d.address());
+    List<String> members = Arrays.asList(a.address(), b.address(), c.address(), d.address());
 
     // Create failure detectors
     FailureDetectorImpl fdA = createFd(a, members);
@@ -303,7 +303,7 @@ public class FailureDetectorTest extends BaseTest {
     // Create transports
     NetworkEmulatorTransport a = createTransport();
     NetworkEmulatorTransport b = createTransport();
-    List<Address> members = Arrays.asList(a.address(), b.address());
+    List<String> members = Arrays.asList(a.address(), b.address());
 
     // Create failure detectors
     FailureDetectorImpl fdA = createFd(a, members);
@@ -346,7 +346,7 @@ public class FailureDetectorTest extends BaseTest {
     NetworkEmulatorTransport a = createTransport();
     NetworkEmulatorTransport b = createTransport();
     NetworkEmulatorTransport x = createTransport();
-    List<Address> members = Arrays.asList(a.address(), b.address(), x.address());
+    List<String> members = Arrays.asList(a.address(), b.address(), x.address());
 
     // Create failure detectors
     FailureDetectorImpl fdA = createFd(a, members);
@@ -374,7 +374,7 @@ public class FailureDetectorTest extends BaseTest {
       TimeUnit.SECONDS.sleep(2);
 
       // restart node X as XX
-      xx = createTransport(new TransportConfig().port(x.address().port()));
+      xx = createTransport(new TransportConfig().port(parsePort(x.address())));
       assertEquals(x.address(), xx.address());
       fdetectors = Arrays.asList(fdA, fdB, fdXx = createFd(xx, members));
 
@@ -397,7 +397,7 @@ public class FailureDetectorTest extends BaseTest {
     }
   }
 
-  private FailureDetectorImpl createFd(Transport transport, List<Address> members) {
+  private FailureDetectorImpl createFd(Transport transport, List<String> members) {
     FailureDetectorConfig failureDetectorConfig =
         FailureDetectorConfig.defaultLocalConfig() // faster config for local testing
             .pingTimeout(100)
@@ -407,15 +407,16 @@ public class FailureDetectorTest extends BaseTest {
   }
 
   private FailureDetectorImpl createFd(
-      Transport transport, List<Address> addresses, FailureDetectorConfig config) {
+      Transport transport, List<String> addresses, FailureDetectorConfig config) {
 
     Member localMember =
-        new Member("member-" + transport.address().port(), null, transport.address(), NAMESPACE);
+        new Member(
+            "member-" + parsePort(transport.address()), null, transport.address(), NAMESPACE);
 
     Flux<MembershipEvent> membershipFlux =
         Flux.fromIterable(addresses)
             .filter(address -> !transport.address().equals(address))
-            .map(address -> new Member("member-" + address.port(), null, address, NAMESPACE))
+            .map(address -> new Member("member-" + parsePort(address), null, address, NAMESPACE))
             .map(member -> MembershipEvent.createAdded(member, null, 0));
 
     return new FailureDetectorImpl(localMember, transport, membershipFlux, config, scheduler);
@@ -437,11 +438,11 @@ public class FailureDetectorTest extends BaseTest {
   }
 
   private static void assertStatus(
-      Address address,
+      String address,
       MemberStatus status,
       Collection<FailureDetectorEvent> events,
-      Address... expected) {
-    List<Address> actual =
+      String... expected) {
+    List<String> actual =
         events.stream()
             .filter(event -> event.status() == status)
             .map(FailureDetectorEvent::member)
@@ -454,7 +455,7 @@ public class FailureDetectorTest extends BaseTest {
             address, expected.length, status, Arrays.toString(expected), events);
     assertEquals(expected.length, actual.size(), msg1);
 
-    for (Address member : expected) {
+    for (String member : expected) {
       String msg2 =
           String.format("Node %s expected as %s %s, but was: %s", address, status, member, events);
       assertTrue(actual.contains(member), msg2);
@@ -462,7 +463,7 @@ public class FailureDetectorTest extends BaseTest {
   }
 
   private static Future<List<FailureDetectorEvent>> listenNextEventFor(
-      FailureDetectorImpl fd, List<Address> addresses) {
+      FailureDetectorImpl fd, List<String> addresses) {
     final Transport transport = BaseTest.getField(fd, "transport");
     addresses = new ArrayList<>(addresses);
     addresses.remove(transport.address()); // exclude self
@@ -471,7 +472,7 @@ public class FailureDetectorTest extends BaseTest {
     }
 
     List<CompletableFuture<FailureDetectorEvent>> resultFuture = new ArrayList<>();
-    for (final Address member : addresses) {
+    for (final String member : addresses) {
       final CompletableFuture<FailureDetectorEvent> future = new CompletableFuture<>();
       fd.listen().filter(event -> event.member().address() == member).subscribe(future::complete);
       resultFuture.add(future);

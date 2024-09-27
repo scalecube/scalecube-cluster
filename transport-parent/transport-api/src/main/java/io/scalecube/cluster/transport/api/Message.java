@@ -1,6 +1,5 @@
 package io.scalecube.cluster.transport.api;
 
-import io.scalecube.net.Address;
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
@@ -33,8 +32,8 @@ public final class Message implements Externalizable {
   public static final String HEADER_CORRELATION_ID = "cid";
 
   /**
-   * This header represents sender address of type {@link Address}. It's an address of message
-   * originator. This header is optional.
+   * This header represents sender address. It is an address of message originator. This header is
+   * optional.
    */
   public static final String HEADER_SENDER = "sender";
 
@@ -186,12 +185,12 @@ public final class Message implements Externalizable {
   }
 
   /**
-   * Returns {@link Address} of the sender of this message.
+   * Returns address of the sender of this message.
    *
-   * @return address
+   * @return address, or null
    */
-  public Address sender() {
-    return Optional.ofNullable(header(HEADER_SENDER)).map(Address::from).orElse(null);
+  public String sender() {
+    return Optional.ofNullable(header(HEADER_SENDER)).orElse(null);
   }
 
   @Override
@@ -281,8 +280,8 @@ public final class Message implements Externalizable {
       return header(HEADER_CORRELATION_ID, correlationId);
     }
 
-    public Builder sender(Address sender) {
-      return header(HEADER_SENDER, sender.toString());
+    public Builder sender(String sender) {
+      return header(HEADER_SENDER, sender);
     }
 
     public Message build() {

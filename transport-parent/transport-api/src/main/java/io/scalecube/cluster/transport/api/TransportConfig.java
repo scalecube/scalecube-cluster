@@ -1,6 +1,5 @@
 package io.scalecube.cluster.transport.api;
 
-import io.scalecube.net.Address;
 import java.util.StringJoiner;
 import java.util.function.Function;
 import reactor.core.Exceptions;
@@ -22,7 +21,7 @@ public final class TransportConfig implements Cloneable {
   private MessageCodec messageCodec = MessageCodec.INSTANCE;
   private int maxFrameLength = 2 * 1024 * 1024; // 2 MB
   private TransportFactory transportFactory;
-  private Function<Address, Address> addressMapper = Function.identity();
+  private Function<String, String> addressMapper = Function.identity();
 
   public TransportConfig() {}
 
@@ -143,13 +142,13 @@ public final class TransportConfig implements Cloneable {
    * @param addressMapper address mapper
    * @return new {@code TransportConfig} instance
    */
-  public TransportConfig addressMapper(Function<Address, Address> addressMapper) {
+  public TransportConfig addressMapper(Function<String, String> addressMapper) {
     TransportConfig t = clone();
     t.addressMapper = addressMapper;
     return t;
   }
 
-  public Function<Address, Address> addressMapper() {
+  public Function<String, String> addressMapper() {
     return addressMapper;
   }
 

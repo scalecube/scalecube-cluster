@@ -1,7 +1,6 @@
 package io.scalecube.cluster;
 
 import io.scalecube.cluster.membership.MembershipConfig;
-import io.scalecube.net.Address;
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
@@ -20,7 +19,7 @@ public final class Member implements Externalizable {
 
   private String id;
   private String alias;
-  private Address address;
+  private String address;
   private String namespace;
 
   public Member() {}
@@ -33,7 +32,7 @@ public final class Member implements Externalizable {
    * @param address member address; not null
    * @param namespace namespace; not null
    */
-  public Member(String id, String alias, Address address, String namespace) {
+  public Member(String id, String alias, String address, String namespace) {
     this.id = Objects.requireNonNull(id, "member id");
     this.alias = alias; // optional
     this.address = Objects.requireNonNull(address, "member address");
@@ -76,7 +75,7 @@ public final class Member implements Externalizable {
    * @see io.scalecube.cluster.transport.api.TransportConfig#port(int)
    * @return member address
    */
-  public Address address() {
+  public String address() {
     return address;
   }
 
@@ -110,7 +109,7 @@ public final class Member implements Externalizable {
       out.writeUTF(alias);
     }
     // address
-    out.writeUTF(address.toString());
+    out.writeUTF(address);
     // namespace
     out.writeUTF(namespace);
   }
@@ -125,7 +124,7 @@ public final class Member implements Externalizable {
       alias = in.readUTF();
     }
     // address
-    address = Address.from(in.readUTF());
+    address = in.readUTF();
     // namespace
     this.namespace = in.readUTF();
   }

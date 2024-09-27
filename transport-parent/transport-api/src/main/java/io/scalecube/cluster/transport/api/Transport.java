@@ -1,7 +1,8 @@
 package io.scalecube.cluster.transport.api;
 
-import io.scalecube.net.Address;
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -12,13 +13,14 @@ import reactor.core.publisher.Mono;
  */
 public interface Transport {
 
+  Pattern ADDRESS_FORMAT = Pattern.compile("(?<host>^.*):(?<port>\\d+$)");
+
   /**
-   * Returns local {@link Address} on which current instance of transport listens for incoming
-   * messages.
+   * Returns local address on which current instance of transport listens for incoming messages.
    *
    * @return address
    */
-  Address address();
+  String address();
 
   /**
    * Start transport. After this call method {@link #address()} shall be eligible for calling.
@@ -50,7 +52,7 @@ public interface Transport {
    * @return promise which will be completed with result of sending (void or exception)
    * @throws IllegalArgumentException if {@code message} or {@code address} is null
    */
-  Mono<Void> send(Address address, Message message);
+  Mono<Void> send(String address, Message message);
 
   /**
    * Sends message to the given address. It will issue connect in case if no transport channel by
@@ -62,7 +64,7 @@ public interface Transport {
    * @return promise which will be completed with result of sending (message or exception)
    * @throws IllegalArgumentException if {@code message} or {@code address} is null
    */
-  Mono<Message> requestResponse(Address address, Message request);
+  Mono<Message> requestResponse(String address, Message request);
 
   /**
    * Returns stream of received messages. For each observers subscribed to the returned observable:
@@ -123,5 +125,55 @@ public interface Transport {
   static Mono<Transport> bind(TransportConfig config) {
     Objects.requireNonNull(config.transportFactory(), "[bind] transportFactory");
     return config.transportFactory().createTransport(config).start();
+  }
+
+  /**
+   * Parses string in format {@code host:port} and returns host part.
+   *
+   * @param address address, must be string in format {@code host:port}
+   * @return address host, or throwing exception
+   */
+  static String parseHost(String address) {
+    if (address == null || address.isEmpty()) {
+      throw new IllegalArgumentException("Cannot parse address host from: " + address);
+    }
+
+    Matcher matcher = ADDRESS_FORMAT.matcher(address);
+    if (!matcher.find()) {
+      throw new IllegalArgumentException("Cannot parse address host from: " + address);
+    }
+
+    String host = matcher.group(1);
+    if (host == null || host.isEmpty()) {
+      throw new IllegalArgumentException("Cannot parse address host from: " + address);
+    }
+
+    return host;
+  }
+
+  /**
+   * Parses string in format {@code host:port} and returns port part.
+   *
+   * @param address address, must be string in format {@code host:port}
+   * @return address port, or throwing exception
+   */
+  static int parsePort(String address) {
+    if (address == null || address.isEmpty()) {
+      throw new IllegalArgumentException("Cannot parse address port from: " + address);
+    }
+
+    Matcher matcher = ADDRESS_FORMAT.matcher(address);
+    if (!matcher.find()) {
+      throw new IllegalArgumentException("Cannot parse address port from: " + address);
+    }
+
+    int port;
+    try {
+      port = Integer.parseInt(matcher.group(2));
+    } catch (NumberFormatException ex) {
+      throw new IllegalArgumentException("Cannot parse address port from: " + address, ex);
+    }
+
+    return port;
   }
 }
