@@ -1,6 +1,8 @@
 package io.scalecube.cluster.utils;
 
 import io.scalecube.cluster.transport.api.Message;
+import java.lang.System.Logger;
+import java.lang.System.Logger.Level;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
@@ -9,8 +11,6 @@ import java.util.StringJoiner;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 
 /**
@@ -24,7 +24,7 @@ import reactor.core.publisher.Mono;
  */
 public final class NetworkEmulator {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(NetworkEmulator.class);
+  private static final Logger LOGGER = System.getLogger(NetworkEmulator.class.getName());
 
   private volatile OutboundSettings defaultOutboundSettings = new OutboundSettings(0, 0);
   private volatile InboundSettings defaultInboundSettings = new InboundSettings(true);
@@ -69,7 +69,8 @@ public final class NetworkEmulator {
   public void outboundSettings(String destination, int lossPercent, int meanDelay) {
     OutboundSettings settings = new OutboundSettings(lossPercent, meanDelay);
     outboundSettings.put(destination, settings);
-    LOGGER.debug("[{}] Set outbound settings {} to {}", address, settings, destination);
+    LOGGER.log(
+        Level.DEBUG, "[{0}] Set outbound settings {1} to {2}", address, settings, destination);
   }
 
   /**
@@ -80,21 +81,22 @@ public final class NetworkEmulator {
    */
   public void setDefaultOutboundSettings(int lossPercent, int meanDelay) {
     defaultOutboundSettings = new OutboundSettings(lossPercent, meanDelay);
-    LOGGER.debug("[{}] Set default outbound settings {}", address, defaultOutboundSettings);
+    LOGGER.log(
+        Level.DEBUG, "[{0}] Set default outbound settings {1}", address, defaultOutboundSettings);
   }
 
   /** Blocks outbound messages to all destinations. */
   public void blockAllOutbound() {
     outboundSettings.clear();
     setDefaultOutboundSettings(100, 0);
-    LOGGER.debug("[{}] Blocked outbound to all destinations", address);
+    LOGGER.log(Level.DEBUG, "[{0}] Blocked outbound to all destinations", address);
   }
 
   /** Unblocks outbound messages to all destinations. */
   public void unblockAllOutbound() {
     outboundSettings.clear();
     setDefaultOutboundSettings(0, 0);
-    LOGGER.debug("[{}] Unblocked outbound to all destinations", address);
+    LOGGER.log(Level.DEBUG, "[{0}] Unblocked outbound to all destinations", address);
   }
 
   /**
@@ -115,7 +117,7 @@ public final class NetworkEmulator {
     for (String destination : destinations) {
       outboundSettings.put(destination, new OutboundSettings(100, 0));
     }
-    LOGGER.debug("[{}] Blocked outbound to {}", address, destinations);
+    LOGGER.log(Level.DEBUG, "[{0}] Blocked outbound to {1}", address, destinations);
   }
 
   /**
@@ -134,7 +136,7 @@ public final class NetworkEmulator {
    */
   public void unblockOutbound(Collection<String> destinations) {
     destinations.forEach(outboundSettings::remove);
-    LOGGER.debug("[{}] Unblocked outbound {}", address, destinations);
+    LOGGER.log(Level.DEBUG, "[{0}] Unblocked outbound {1}", address, destinations);
   }
 
   /**
@@ -220,7 +222,8 @@ public final class NetworkEmulator {
   public void inboundSettings(String destination, boolean shallPass) {
     InboundSettings settings = new InboundSettings(shallPass);
     inboundSettings.put(destination, settings);
-    LOGGER.debug("[{}] Set inbound settings {} to {}", address, settings, destination);
+    LOGGER.log(
+        Level.DEBUG, "[{0}] Set inbound settings {1} to {2}", address, settings, destination);
   }
 
   /**
@@ -230,21 +233,22 @@ public final class NetworkEmulator {
    */
   public void setDefaultInboundSettings(boolean shallPass) {
     defaultInboundSettings = new InboundSettings(shallPass);
-    LOGGER.debug("[{}] Set default inbound settings {}", address, defaultInboundSettings);
+    LOGGER.log(
+        Level.DEBUG, "[{0}] Set default inbound settings {1}", address, defaultInboundSettings);
   }
 
   /** Blocks inbound messages from all destinations. */
   public void blockAllInbound() {
     inboundSettings.clear();
     setDefaultInboundSettings(false);
-    LOGGER.debug("[{}] Blocked inbound from all destinations", address);
+    LOGGER.log(Level.DEBUG, "[{0}] Blocked inbound from all destinations", address);
   }
 
   /** Unblocks inbound messages to all destinations. */
   public void unblockAllInbound() {
     inboundSettings.clear();
     setDefaultInboundSettings(true);
-    LOGGER.debug("[{}] Unblocked inbound from all destinations", address);
+    LOGGER.log(Level.DEBUG, "[{0}] Unblocked inbound from all destinations", address);
   }
 
   /**
@@ -265,7 +269,7 @@ public final class NetworkEmulator {
     for (String destination : destinations) {
       inboundSettings.put(destination, new InboundSettings(false));
     }
-    LOGGER.debug("[{}] Blocked inbound from {}", address, destinations);
+    LOGGER.log(Level.DEBUG, "[{0}] Blocked inbound from {1}", address, destinations);
   }
 
   /**
@@ -284,7 +288,7 @@ public final class NetworkEmulator {
    */
   public void unblockInbound(Collection<String> destinations) {
     destinations.forEach(inboundSettings::remove);
-    LOGGER.debug("[{}] Unblocked inbound from {}", address, destinations);
+    LOGGER.log(Level.DEBUG, "[{0}] Unblocked inbound from {1}", address, destinations);
   }
 
   /**

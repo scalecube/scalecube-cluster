@@ -10,6 +10,7 @@ import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.membership.MembershipEvent.Type;
 import io.scalecube.cluster.metadata.MetadataCodec;
 import io.scalecube.transport.netty.tcp.TcpTransportFactory;
+import java.lang.System.Logger.Level;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.time.Duration;
@@ -178,9 +179,9 @@ public class ClusterTest extends BaseTest {
                 .transportFactory(TcpTransportFactory::new)
                 .startAwait());
       }
-      LOGGER.info("Start up time: {} ms", System.currentTimeMillis() - startAt);
+      LOGGER.log(Level.INFO, "Start up time: {0} ms", System.currentTimeMillis() - startAt);
       assertEquals(membersNum + 1, seedNode.members().size());
-      LOGGER.info("Cluster nodes: {}", seedNode.members());
+      LOGGER.log(Level.INFO, "Cluster nodes: {0}", seedNode.members());
     } finally {
       // Shutdown all nodes
       shutdown(
@@ -222,7 +223,8 @@ public class ClusterTest extends BaseTest {
                                 @Override
                                 public void onMembershipEvent(MembershipEvent event) {
                                   if (event.isUpdated()) {
-                                    LOGGER.info("Received membership update event: {}", event);
+                                    LOGGER.log(
+                                        Level.INFO, "Received membership update event: {0}", event);
                                     updateLatch.countDown();
                                   }
                                 }
@@ -295,7 +297,8 @@ public class ClusterTest extends BaseTest {
                                 @Override
                                 public void onMembershipEvent(MembershipEvent event) {
                                   if (event.isUpdated()) {
-                                    LOGGER.info("Received membership update event: {}", event);
+                                    LOGGER.log(
+                                        Level.INFO, "Received membership update event: {0}", event);
                                     updateLatch.countDown();
                                   }
                                 }
@@ -373,7 +376,8 @@ public class ClusterTest extends BaseTest {
                                 @Override
                                 public void onMembershipEvent(MembershipEvent event) {
                                   if (event.isUpdated()) {
-                                    LOGGER.info("Received membership update event: {}", event);
+                                    LOGGER.log(
+                                        Level.INFO, "Received membership update event: {0}", event);
                                     updateLatch.countDown();
                                   }
                                 }
@@ -603,7 +607,7 @@ public class ClusterTest extends BaseTest {
                   .collect(Collectors.toList()))
           .block(TIMEOUT);
     } catch (Exception ex) {
-      LOGGER.error("Exception on cluster shutdown", ex);
+      LOGGER.log(Level.ERROR, "Exception on cluster shutdown", ex);
     }
   }
 }
