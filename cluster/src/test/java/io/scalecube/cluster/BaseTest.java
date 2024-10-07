@@ -6,29 +6,29 @@ import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.cluster.utils.NetworkEmulatorTransport;
 import io.scalecube.transport.netty.tcp.TcpTransportFactory;
+import java.lang.System.Logger;
+import java.lang.System.Logger.Level;
 import java.lang.reflect.Field;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInfo;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import reactor.core.Exceptions;
 
 /** Base test class. */
 public class BaseTest {
 
-  protected static final Logger LOGGER = LoggerFactory.getLogger(BaseTest.class);
+  protected static final Logger LOGGER = System.getLogger(BaseTest.class.getName());
 
   @BeforeEach
   public final void baseSetUp(TestInfo testInfo) {
-    LOGGER.info("***** Test started  : " + testInfo.getDisplayName() + " *****");
+    LOGGER.log(Level.INFO, "***** Test started  : " + testInfo.getDisplayName() + " *****");
   }
 
   @AfterEach
   public final void baseTearDown(TestInfo testInfo) {
-    LOGGER.info("***** Test finished : " + testInfo.getDisplayName() + " *****");
+    LOGGER.log(Level.INFO, "***** Test finished : " + testInfo.getDisplayName() + " *****");
   }
 
   public static <T> T getField(Object obj, String fieldName) {

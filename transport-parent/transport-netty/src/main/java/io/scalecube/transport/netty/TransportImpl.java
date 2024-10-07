@@ -14,6 +14,8 @@ import io.scalecube.cluster.transport.api.DistinctErrors;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.MessageCodec;
 import io.scalecube.cluster.transport.api.Transport;
+import java.lang.System.Logger;
+import java.lang.System.Logger.Level;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
@@ -22,8 +24,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
 import reactor.core.publisher.Flux;
@@ -35,7 +35,7 @@ import reactor.netty.resources.LoopResources;
 
 public final class TransportImpl implements Transport {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(Transport.class);
+  private static final Logger LOGGER = System.getLogger(Transport.class.getName());
 
   private static final DistinctErrors DISTINCT_ERRORS = new DistinctErrors(Duration.ofMinutes(1));
 
@@ -108,7 +108,13 @@ public final class TransportImpl implements Transport {
         .then(doStop())
         .doFinally(s -> onStop.emitEmpty(busyLooping(Duration.ofSeconds(3))))
         .subscribe(
-            null, ex -> LOGGER.warn("[{}][doStop] Exception occurred: {}", address, ex.toString()));
+            null,
+            ex ->
+                LOGGER.log(
+                    Level.WARNING,
+                    "[{0}][doStop] Exception occurred: {1}",
+                    address,
+                    ex.toString()));
   }
 
   /**
@@ -120,8 +126,12 @@ public final class TransportImpl implements Transport {
   public Mono<Transport> start() {
     return Mono.deferContextual(context -> receiver.bind())
         .doOnNext(this::init)
-        .doOnSuccess(t -> LOGGER.info("[start][{}] Bound cluster transport", t.address()))
-        .doOnError(ex -> LOGGER.error("[start][{}] Exception occurred: {}", address, ex.toString()))
+        .doOnSuccess(
+            t -> LOGGER.log(Level.INFO, "[start][{0}] Bound cluster transport", t.address()))
+        .doOnError(
+            ex ->
+                LOGGER.log(
+                    Level.ERROR, "[start][{0}] Exception occurred: {1}", address, ex.toString()))
         .thenReturn(this)
         .cast(Transport.class)
         .contextWrite(
@@ -153,13 +163,13 @@ public final class TransportImpl implements Transport {
   private Mono<Void> doStop() {
     return Mono.defer(
         () -> {
-          LOGGER.info("[{}][doStop] Stopping", address);
+          LOGGER.log(Level.INFO, "[{0}][doStop] Stopping", address);
           // Complete incoming messages observable
           sink.emitComplete(busyLooping(Duration.ofSeconds(3)));
           return Flux.concatDelayError(closeServer(), shutdownLoopResources())
               .then()
               .doFinally(s -> connections.clear())
-              .doOnSuccess(avoid -> LOGGER.info("[{}][doStop] Stopped", address));
+              .doOnSuccess(avoid -> LOGGER.log(Level.INFO, "[{0}][doStop] Stopped", address));
         });
   }
 
@@ -213,7 +223,8 @@ public final class TransportImpl implements Transport {
       return messageCodec.deserialize(stream);
     } catch (Exception e) {
       if (!DISTINCT_ERRORS.contains(e)) {
-        LOGGER.warn("[{}][decodeMessage] Exception occurred: {}", address, e.toString());
+        LOGGER.log(
+            Level.WARNING, "[{0}][decodeMessage] Exception occurred: {1}", address, e.toString());
       }
       throw new DecoderException(e);
     }
@@ -227,7 +238,8 @@ public final class TransportImpl implements Transport {
     } catch (Exception e) {
       byteBuf.release();
       if (!DISTINCT_ERRORS.contains(e)) {
-        LOGGER.warn("[{}][encodeMessage] Exception occurred: {}", address, e.toString());
+        LOGGER.log(
+            Level.WARNING, "[{0}][encodeMessage] Exception occurred: {1}", address, e.toString());
       }
       throw new EncoderException(e);
     }
@@ -244,8 +256,9 @@ public final class TransportImpl implements Transport {
                   .onDispose()
                   .doOnTerminate(() -> connections.remove(remoteAddress))
                   .subscribe();
-              LOGGER.debug(
-                  "[{}][connect][success] remoteAddress: {}, channel: {}",
+              LOGGER.log(
+                  Level.DEBUG,
+                  "[{0}][connect][success] remoteAddress: {1}, channel: {2}",
                   address,
                   remoteAddress,
                   connection.channel());
@@ -253,8 +266,9 @@ public final class TransportImpl implements Transport {
         .doOnError(
             th -> {
               if (!DISTINCT_ERRORS.contains(th)) {
-                LOGGER.warn(
-                    "[{}][connect][error] remoteAddress: {}, cause: {}",
+                LOGGER.log(
+                    Level.WARNING,
+                    "[{0}][connect][error] remoteAddress: {1}, cause: {2}",
                     address,
                     remoteAddress,
                     th.toString());
@@ -270,14 +284,19 @@ public final class TransportImpl implements Transport {
           if (server == null) {
             return Mono.empty();
           }
-          LOGGER.info("[{}][closeServer] Closing server channel", address);
+          LOGGER.log(Level.INFO, "[{0}][closeServer] Closing server channel", address);
           return Mono.fromRunnable(server::dispose)
               .then(server.onDispose())
-              .doOnSuccess(avoid -> LOGGER.info("[{}][closeServer] Closed server channel", address))
+              .doOnSuccess(
+                  avoid ->
+                      LOGGER.log(Level.INFO, "[{0}][closeServer] Closed server channel", address))
               .doOnError(
                   e ->
-                      LOGGER.warn(
-                          "[{}][closeServer] Exception occurred: {}", address, e.toString()));
+                      LOGGER.log(
+                          Level.WARNING,
+                          "[{0}][closeServer] Exception occurred: {1}",
+                          address,
+                          e.toString()));
         });
   }
 
@@ -325,7 +344,7 @@ public final class TransportImpl implements Transport {
         final Message message = messageDecoder.apply(byteBuf);
         sink.emitNext(message, busyLooping(Duration.ofSeconds(3)));
       } catch (Exception e) {
-        LOGGER.error("[{}][onMessage] Exception occurred:", address, e);
+        LOGGER.log(Level.ERROR, "[{0}][onMessage] Exception occurred", address, e);
       }
     }
   }
