@@ -850,7 +850,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
         id -> {
           LOGGER.log(
               Level.DEBUG,
-              "[{0}] Scheduled SuspicionTimeoutTask for {1}, suspicionTimeout: {2}",
+              "[{0}] Scheduled SuspicionTimeoutTask for {1}, suspicionTimeout: {2,number,#}ms",
               localMember,
               id,
               suspicionTimeout);
