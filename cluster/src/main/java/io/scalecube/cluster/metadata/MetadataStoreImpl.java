@@ -117,14 +117,14 @@ public class MetadataStoreImpl implements MetadataStore {
     if (result == null) {
       LOGGER.log(
           Level.DEBUG,
-          "[{0}] Added metadata(size={1}) for member {2}",
+          "[{0}] Added metadata(size={1,number,#}) for member {2}",
           localMember,
           value.remaining(),
           member);
     } else {
       LOGGER.log(
           Level.DEBUG,
-          "[{0}] Updated metadata(size={1}) for member {2}",
+          "[{0}] Updated metadata(size={1,number,#}) for member {2}",
           localMember,
           value.remaining(),
           member);
@@ -142,7 +142,7 @@ public class MetadataStoreImpl implements MetadataStore {
     if (metadata != null) {
       LOGGER.log(
           Level.DEBUG,
-          "[{0}] Removed metadata(size={1}) for member {2}",
+          "[{0}] Removed metadata(size={1,number,#}) for member {2}",
           localMember,
           metadata.remaining(),
           member);
@@ -187,7 +187,7 @@ public class MetadataStoreImpl implements MetadataStore {
                       LOGGER.log(
                           Level.WARNING,
                           "[{0}][{1}] Timeout getting GetMetadataResp "
-                              + "from {2} within {3} ms, cause: {4}",
+                              + "from {2} within {3,number,#}ms, cause: {4}",
                           localMember,
                           cid,
                           targetAddress,

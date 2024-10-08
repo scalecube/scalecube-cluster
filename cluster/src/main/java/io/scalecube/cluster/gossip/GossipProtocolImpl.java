@@ -169,7 +169,11 @@ public final class GossipProtocolImpl implements GossipProtocol {
       Set<String> gossipsToRemove = getGossipsToRemove(period);
       if (!gossipsToRemove.isEmpty()) {
         LOGGER.log(
-            Level.DEBUG, "[{0}][{1}] Sweep gossips: {2}", localMember, period, gossipsToRemove);
+            Level.DEBUG,
+            "[{0}][{1,number,#}] Sweep gossips: {2}",
+            localMember,
+            period,
+            gossipsToRemove);
         for (String gossipId : gossipsToRemove) {
           gossips.remove(gossipId);
         }
@@ -180,7 +184,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
       if (!gossipsThatSpread.isEmpty()) {
         LOGGER.log(
             Level.DEBUG,
-            "[{0}][{1}] Most likely disseminated gossips: {2}",
+            "[{0}][{1,number,#}] Most likely disseminated gossips: {2}",
             localMember,
             period,
             gossipsThatSpread);
@@ -193,7 +197,11 @@ public final class GossipProtocolImpl implements GossipProtocol {
       }
     } catch (Exception ex) {
       LOGGER.log(
-          Level.WARNING, "[{0}][{1}][doSpreadGossip] Exception occurred:", localMember, period, ex);
+          Level.WARNING,
+          "[{0}][{1,number,#}][doSpreadGossip] Exception occurred:",
+          localMember,
+          period,
+          ex);
     }
   }
 
@@ -240,7 +248,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
       if (sequenceIdCollector.size() > intervalsThreshold) {
         LOGGER.log(
             Level.WARNING,
-            "[{0}][{1}] Too many missed gossip messages from original gossiper: {2}, "
+            "[{0}][{1,number,#}] Too many missed gossip messages from original gossiper: {2}, "
                 + "current node({3}) was SUSPECTED much for a long time or connection problem",
             localMember,
             currentPeriod,
@@ -260,7 +268,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
       if (removed) {
         LOGGER.log(
             Level.DEBUG,
-            "[{0}][{1}] Removed {2} from remoteMembers list (size={3})",
+            "[{0}][{1,number,#}] Removed {2} from remoteMembers list (size={3,number,#})",
             localMember,
             currentPeriod,
             member,
@@ -271,7 +279,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
       remoteMembers.add(member);
       LOGGER.log(
           Level.DEBUG,
-          "[{0}][{1}] Added {2} to remoteMembers list (size={3})",
+          "[{0}][{1,number,#}] Added {2} to remoteMembers list (size={3,number,#})",
           localMember,
           currentPeriod,
           member,
@@ -316,7 +324,8 @@ public final class GossipProtocolImpl implements GossipProtocol {
                         ex ->
                             LOGGER.log(
                                 Level.DEBUG,
-                                "[{0}][{1}] Failed to send GossipReq({2}) to {3}, cause: {4}",
+                                "[{0}][{1,number,#}] "
+                                    + "Failed to send GossipReq({2}) to {3}, cause: {4}",
                                 localMember,
                                 period,
                                 message,
