@@ -36,7 +36,7 @@
 
   <properties>
     <reactor.version>2020.0.32</reactor.version>
-    <jackson.version>2.18.0</jackson.version>
+    <jackson.version>2.18.2</jackson.version>
 
     <mockito-junit.version>5.3.1</mockito-junit.version>
     <junit-jupiter.version>5.9.3</junit-jupiter.version>
