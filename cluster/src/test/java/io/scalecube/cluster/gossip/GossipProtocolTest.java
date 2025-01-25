@@ -16,8 +16,6 @@ import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.utils.NetworkEmulatorTransport;
-import java.lang.System.Logger;
-import java.lang.System.Logger.Level;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -35,6 +33,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
@@ -42,7 +42,7 @@ import reactor.core.scheduler.Schedulers;
 
 class GossipProtocolTest extends BaseTest {
 
-  private static final Logger LOGGER = System.getLogger(GossipProtocolTest.class.getName());
+  private static final Logger LOGGER = LoggerFactory.getLogger(GossipProtocolTest.class);
 
   private static final List<int[]> experiments =
       Arrays.asList(
@@ -138,8 +138,7 @@ class GossipProtocolTest extends BaseTest {
                     if (firstTimeAdded) {
                       latch.countDown();
                     } else {
-                      LOGGER.log(
-                          Level.ERROR, "Delivered gossip twice to: {0}", transport.address());
+                      LOGGER.error("Delivered gossip twice to: {}", transport.address());
                       doubleDelivery.set(true);
                     }
                   }
@@ -177,16 +176,10 @@ class GossipProtocolTest extends BaseTest {
       assertFalse(doubleDelivery.get(), "Delivered gossip twice to same member");
     } finally {
       // Print theoretical results
-      LOGGER.log(
-          Level.INFO,
+      LOGGER.info(
           "Experiment params: "
-              + "N={0}, Gfanout={1}, Grepeat_mult={2}, Tgossip={3}ms Ploss={4}%, Tmean={5}ms",
-          membersNum,
-          gossipFanout,
-          gossipRepeatMultiplier,
-          gossipInterval,
-          lossPercent,
-          meanDelay);
+              + "N={}, Gfanout={}, Grepeat_mult={}, Tgossip={}ms Ploss={}%, Tmean={}ms",
+          membersNum, gossipFanout, gossipRepeatMultiplier, gossipInterval, lossPercent, meanDelay);
       double convergProb =
           gossipConvergencePercent(gossipFanout, gossipRepeatMultiplier, membersNum, lossPercent);
       long expDissemTime =
@@ -194,28 +187,21 @@ class GossipProtocolTest extends BaseTest {
       int maxMsgPerNode =
           maxMessagesPerGossipPerNode(gossipFanout, gossipRepeatMultiplier, membersNum);
       int maxMsgTotal = maxMessagesPerGossipTotal(gossipFanout, gossipRepeatMultiplier, membersNum);
-      LOGGER.log(
-          Level.INFO,
-          "Expected dissemination time is {0}ms with probability {1}%",
-          expDissemTime,
-          convergProb);
-      LOGGER.log(
-          Level.INFO, "Max messages sent per node {0} and total {1}", maxMsgPerNode, maxMsgTotal);
+      LOGGER.info(
+          "Expected dissemination time is {}ms with probability {}%", expDissemTime, convergProb);
+      LOGGER.info("Max messages sent per node {} and total {}", maxMsgPerNode, maxMsgTotal);
 
       // Print actual results
-      LOGGER.log(
-          Level.INFO,
-          "Actual dissemination time: {0}ms (timeout {1}ms)",
-          disseminationTime,
-          gossipTimeout);
-      LOGGER.log(Level.INFO, "Messages sent stats (diss.): {0}", messageSentStatsDissemination);
+      LOGGER.info(
+          "Actual dissemination time: {}ms (timeout {}ms)", disseminationTime, gossipTimeout);
+      LOGGER.info("Messages sent stats (diss.): {}", messageSentStatsDissemination);
       if (lossPercent > 0) {
-        LOGGER.log(Level.INFO, "Messages lost stats (diss.): {0}", messageLostStatsDissemination);
+        LOGGER.info("Messages lost stats (diss.): {}", messageLostStatsDissemination);
       }
       if (awaitFullCompletion) {
-        LOGGER.log(Level.INFO, "Messages sent stats (total): {0}", messageSentStatsOverall);
+        LOGGER.info("Messages sent stats (total): {}", messageSentStatsOverall);
         if (lossPercent > 0) {
-          LOGGER.log(Level.INFO, "Messages lost stats (total): {0}", messageLostStatsOverall);
+          LOGGER.info("Messages lost stats (total): {}", messageLostStatsOverall);
         }
       }
 
@@ -303,7 +289,7 @@ class GossipProtocolTest extends BaseTest {
     try {
       Mono.when(futures).block(Duration.ofSeconds(30));
     } catch (Exception ex) {
-      LOGGER.log(Level.WARNING, "Failed to await transport termination: " + ex);
+      LOGGER.warn("Failed to await transport termination: " + ex);
     }
 
     // Await a bit

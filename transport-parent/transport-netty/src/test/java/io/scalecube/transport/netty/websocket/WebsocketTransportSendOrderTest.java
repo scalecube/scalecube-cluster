@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.transport.netty.BaseTest;
-import java.lang.System.Logger.Level;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -46,7 +45,7 @@ public class WebsocketTransportSendOrderTest extends BaseTest {
     int sentPerIteration = 1000;
     long[] iterationTimeSeries = new long[iterationNum - 1];
     for (int i = 0; i < iterationNum; i++) {
-      LOGGER.log(Level.DEBUG, "####### {0} : iteration = {1}", testInfo.getDisplayName(), i);
+      LOGGER.debug("####### {} : iteration = {}", testInfo.getDisplayName(), i);
 
       client = createWebsocketTransport();
       final List<Message> received = new ArrayList<>();
@@ -66,7 +65,7 @@ public class WebsocketTransportSendOrderTest extends BaseTest {
         Message message = Message.withQualifier("q" + j).build();
         client
             .send(server.address(), message)
-            .subscribe(null, th -> LOGGER.log(Level.ERROR, "Failed to send message", th));
+            .subscribe(null, th -> LOGGER.error("Failed to send message", th));
       }
       latch.await(20, TimeUnit.SECONDS);
       long iterationTime = System.currentTimeMillis() - startAt;
@@ -75,7 +74,7 @@ public class WebsocketTransportSendOrderTest extends BaseTest {
       }
       assertSendOrder(sentPerIteration, received);
 
-      LOGGER.log(Level.DEBUG, "Iteration time: {0} ms", iterationTime);
+      LOGGER.debug("Iteration time: {} ms", iterationTime);
 
       serverSubscriber.dispose();
       destroyTransport(client);
@@ -83,7 +82,7 @@ public class WebsocketTransportSendOrderTest extends BaseTest {
 
     LongSummaryStatistics iterationTimeStats =
         LongStream.of(iterationTimeSeries).summaryStatistics();
-    LOGGER.log(Level.DEBUG, "Iteration time stats (ms): {0}", iterationTimeStats);
+    LOGGER.debug("Iteration time stats (ms): {}", iterationTimeStats);
   }
 
   @Test
@@ -95,7 +94,7 @@ public class WebsocketTransportSendOrderTest extends BaseTest {
     long[] iterationTimeSeries = new long[iterationNum - 1];
     List<Long> totalSentTimeSeries = new ArrayList<>(sentPerIteration * (iterationNum - 1));
     for (int i = 0; i < iterationNum; i++) {
-      LOGGER.log(Level.DEBUG, "####### {0} : iteration = {1}", testInfo.getDisplayName(), i);
+      LOGGER.debug("####### {} : iteration = {}", testInfo.getDisplayName(), i);
       List<Long> iterSentTimeSeries = new ArrayList<>(sentPerIteration);
 
       client = createWebsocketTransport();
@@ -120,9 +119,8 @@ public class WebsocketTransportSendOrderTest extends BaseTest {
             .subscribe(
                 avoid -> iterSentTimeSeries.add(System.currentTimeMillis() - sentAt),
                 th ->
-                    LOGGER.log(
-                        Level.ERROR,
-                        "Failed to send message in {0} ms",
+                    LOGGER.error(
+                        "Failed to send message in {} ms",
                         System.currentTimeMillis() - sentAt,
                         th));
       }
@@ -139,15 +137,15 @@ public class WebsocketTransportSendOrderTest extends BaseTest {
       LongSummaryStatistics iterSentTimeStats =
           iterSentTimeSeries.stream().mapToLong(v -> v).summaryStatistics();
       if (i == 0) { // warm up iteration
-        LOGGER.log(Level.DEBUG, "Warm up iteration time: {0} ms", iterationTime);
-        LOGGER.log(Level.DEBUG, "Sent time stats warm up iter (ms): {0}", iterSentTimeStats);
+        LOGGER.debug("Warm up iteration time: {} ms", iterationTime);
+        LOGGER.debug("Sent time stats warm up iter (ms): {}", iterSentTimeStats);
       } else {
         totalSentTimeSeries.addAll(iterSentTimeSeries);
         LongSummaryStatistics totalSentTimeStats =
             totalSentTimeSeries.stream().mapToLong(v -> v).summaryStatistics();
-        LOGGER.log(Level.DEBUG, "Iteration time: {0} ms", iterationTime);
-        LOGGER.log(Level.DEBUG, "Sent time stats iter  (ms): {0}", iterSentTimeStats);
-        LOGGER.log(Level.DEBUG, "Sent time stats total (ms): {0}", totalSentTimeStats);
+        LOGGER.debug("Iteration time: {} ms", iterationTime);
+        LOGGER.debug("Sent time stats iter  (ms): {}", iterSentTimeStats);
+        LOGGER.debug("Sent time stats total (ms): {}", totalSentTimeStats);
       }
 
       serverSubscriber.dispose();
@@ -156,7 +154,7 @@ public class WebsocketTransportSendOrderTest extends BaseTest {
 
     LongSummaryStatistics iterationTimeStats =
         LongStream.of(iterationTimeSeries).summaryStatistics();
-    LOGGER.log(Level.DEBUG, "Iteration time stats (ms): {0}", iterationTimeStats);
+    LOGGER.debug("Iteration time stats (ms): {}", iterationTimeStats);
   }
 
   @Test
@@ -165,7 +163,7 @@ public class WebsocketTransportSendOrderTest extends BaseTest {
 
     final int total = 1000;
     for (int i = 0; i < 10; i++) {
-      LOGGER.log(Level.DEBUG, "####### {0} : iteration = {1}", testInfo.getDisplayName(), i);
+      LOGGER.debug("####### {} : iteration = {}", testInfo.getDisplayName(), i);
       ExecutorService exec =
           Executors.newFixedThreadPool(
               4,
@@ -229,7 +227,7 @@ public class WebsocketTransportSendOrderTest extends BaseTest {
           Message message = Message.withQualifier("q").correlationId(correlationId).build();
           client.send(address, message).block(Duration.ofSeconds(3));
         } catch (Exception e) {
-          LOGGER.log(Level.ERROR, "Failed to send message: j = {0} id = {1}", j, id, e);
+          LOGGER.error("Failed to send message: j = {} id = {}", j, id, e);
           throw Exceptions.propagate(e);
         }
       }

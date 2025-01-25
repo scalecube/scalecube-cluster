@@ -19,8 +19,6 @@ import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.cluster.transport.api.TransportFactory;
 import java.io.Serializable;
-import java.lang.System.Logger;
-import java.lang.System.Logger.Level;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.Collection;
@@ -37,6 +35,8 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
 import reactor.core.publisher.Flux;
@@ -45,10 +45,9 @@ import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
-/** Cluster implementation. */
 public final class ClusterImpl implements Cluster {
 
-  private static final Logger LOGGER = System.getLogger(Cluster.class.getName());
+  private static final Logger LOGGER = LoggerFactory.getLogger(Cluster.class);
 
   private static final Pattern NAMESPACE_PATTERN = Pattern.compile("^(\\w+[\\w\\-./]*\\w)+");
 
@@ -115,9 +114,7 @@ public final class ClusterImpl implements Cluster {
         .then(doStart())
         .doOnSuccess(avoid -> onStart.emitEmpty(busyLooping(Duration.ofSeconds(3))))
         .doOnError(th -> onStart.emitError(th, busyLooping(Duration.ofSeconds(3))))
-        .subscribe(
-            null,
-            th -> LOGGER.log(Level.ERROR, "[{0}][doStart] Exception occurred:", localMember, th));
+        .subscribe(null, th -> LOGGER.error("[{}][doStart] Exception occurred:", localMember, th));
 
     shutdown
         .asMono()
@@ -126,11 +123,7 @@ public final class ClusterImpl implements Cluster {
         .subscribe(
             null,
             th ->
-                LOGGER.log(
-                    Level.WARNING,
-                    "[{0}][doShutdown] Exception occurred: {1}",
-                    localMember,
-                    th.toString()));
+                LOGGER.warn("[{}][doShutdown] Exception occurred: {}", localMember, th.toString()));
   }
 
   /**
@@ -293,9 +286,7 @@ public final class ClusterImpl implements Cluster {
                       .subscribe(
                           event ->
                               membershipSink.emitNext(event, busyLooping(Duration.ofSeconds(3))),
-                          ex ->
-                              LOGGER.log(
-                                  Level.ERROR, "[{0}][membership][error] cause:", localMember, ex),
+                          ex -> LOGGER.error("[{}][membership][error] cause:", localMember, ex),
                           () -> membershipSink.emitComplete(busyLooping(Duration.ofSeconds(3)))));
 
               return Mono.fromRunnable(() -> failureDetector.start())
@@ -305,10 +296,8 @@ public final class ClusterImpl implements Cluster {
                   .then(membership.start())
                   .then();
             })
-        .doOnSubscribe(
-            s ->
-                LOGGER.log(Level.INFO, "[{0}][doStart] Starting, config: {1}", localMember, config))
-        .doOnSuccess(avoid -> LOGGER.log(Level.INFO, "[{0}][doStart] Started", localMember))
+        .doOnSubscribe(s -> LOGGER.info("[{}][doStart] Starting, config: {}", localMember, config))
+        .doOnSuccess(avoid -> LOGGER.info("[{}][doStart] Started", localMember))
         .thenReturn(this);
   }
 
@@ -349,19 +338,17 @@ public final class ClusterImpl implements Cluster {
         listenMessage()
             .subscribe(
                 handler::onMessage,
-                ex -> LOGGER.log(Level.ERROR, "[{0}][onMessage][error] cause:", localMember, ex)));
+                ex -> LOGGER.error("[{}][onMessage][error] cause:", localMember, ex)));
     actionsDisposables.add(
         listenMembership()
             .subscribe(
                 handler::onMembershipEvent,
-                ex ->
-                    LOGGER.log(
-                        Level.ERROR, "[{0}][onMembershipEvent][error] cause:", localMember, ex)));
+                ex -> LOGGER.error("[{}][onMembershipEvent][error] cause:", localMember, ex)));
     actionsDisposables.add(
         listenGossip()
             .subscribe(
                 handler::onGossip,
-                ex -> LOGGER.log(Level.ERROR, "[{0}][onGossip][error] cause:", localMember, ex)));
+                ex -> LOGGER.error("[{}][onGossip][error] cause:", localMember, ex)));
   }
 
   private Flux<Message> listenMessage() {
@@ -469,12 +456,11 @@ public final class ClusterImpl implements Cluster {
   private Mono<Void> doShutdown() {
     return Mono.defer(
         () -> {
-          LOGGER.log(Level.INFO, "[{0}][doShutdown] Shutting down", localMember);
+          LOGGER.info("[{}][doShutdown] Shutting down", localMember);
           return Flux.concatDelayError(leaveCluster(), dispose(), transport.stop())
               .then()
               .doFinally(s -> scheduler.dispose())
-              .doOnSuccess(
-                  avoid -> LOGGER.log(Level.INFO, "[{0}][doShutdown] Shutdown", localMember));
+              .doOnSuccess(avoid -> LOGGER.info("[{}][doShutdown] Shutdown", localMember));
         });
   }
 
@@ -482,16 +468,12 @@ public final class ClusterImpl implements Cluster {
     return membership
         .leaveCluster()
         .subscribeOn(scheduler)
-        .doOnSubscribe(
-            s -> LOGGER.log(Level.INFO, "[{0}][leaveCluster] Leaving cluster", localMember))
-        .doOnSuccess(s -> LOGGER.log(Level.INFO, "[{0}][leaveCluster] Left cluster", localMember))
+        .doOnSubscribe(s -> LOGGER.info("[{}][leaveCluster] Leaving cluster", localMember))
+        .doOnSuccess(s -> LOGGER.info("[{}][leaveCluster] Left cluster", localMember))
         .doOnError(
             ex ->
-                LOGGER.log(
-                    Level.WARNING,
-                    "[{0}][leaveCluster] Exception occurred: {1}",
-                    localMember,
-                    ex.toString()))
+                LOGGER.warn(
+                    "[{}][leaveCluster] Exception occurred: {}", localMember, ex.toString()))
         .then();
   }
 

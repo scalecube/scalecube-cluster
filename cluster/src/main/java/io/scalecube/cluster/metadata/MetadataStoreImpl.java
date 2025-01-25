@@ -4,8 +4,6 @@ import io.scalecube.cluster.ClusterConfig;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
-import java.lang.System.Logger;
-import java.lang.System.Logger.Level;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.HashMap;
@@ -13,6 +11,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
 import reactor.core.publisher.Mono;
@@ -20,7 +20,7 @@ import reactor.core.scheduler.Scheduler;
 
 public class MetadataStoreImpl implements MetadataStore {
 
-  private static final Logger LOGGER = System.getLogger(MetadataStore.class.getName());
+  private static final Logger LOGGER = LoggerFactory.getLogger(MetadataStore.class);
 
   // Qualifiers
 
@@ -80,7 +80,7 @@ public class MetadataStoreImpl implements MetadataStore {
             .publishOn(scheduler)
             .subscribe(
                 this::onMessage,
-                ex -> LOGGER.log(Level.ERROR, "[{0}][onMessage][error] cause:", localMember, ex)));
+                ex -> LOGGER.error("[{}][onMessage][error] cause:", localMember, ex)));
   }
 
   @Override
@@ -115,19 +115,11 @@ public class MetadataStoreImpl implements MetadataStore {
     ByteBuffer result = membersMetadata.put(member, value);
 
     if (result == null) {
-      LOGGER.log(
-          Level.DEBUG,
-          "[{0}] Added metadata(size={1,number,#}) for member {2}",
-          localMember,
-          value.remaining(),
-          member);
+      LOGGER.debug(
+          "[{}] Added metadata(size={}) for member {}", localMember, value.remaining(), member);
     } else {
-      LOGGER.log(
-          Level.DEBUG,
-          "[{0}] Updated metadata(size={1,number,#}) for member {2}",
-          localMember,
-          value.remaining(),
-          member);
+      LOGGER.debug(
+          "[{}] Updated metadata(size={}) for member {}", localMember, value.remaining(), member);
     }
     return result;
   }
@@ -140,9 +132,8 @@ public class MetadataStoreImpl implements MetadataStore {
     // remove
     ByteBuffer metadata = membersMetadata.remove(member);
     if (metadata != null) {
-      LOGGER.log(
-          Level.DEBUG,
-          "[{0}] Removed metadata(size={1,number,#}) for member {2}",
+      LOGGER.debug(
+          "[{}] Removed metadata(size={}) for member {}",
           localMember,
           metadata.remaining(),
           member);
@@ -158,8 +149,7 @@ public class MetadataStoreImpl implements MetadataStore {
           final String cid = UUID.randomUUID().toString();
           final String targetAddress = member.address();
 
-          LOGGER.log(
-              Level.DEBUG, "[{0}][{1}] Getting metadata for member {2}", localMember, cid, member);
+          LOGGER.debug("[{}][{}] Getting metadata for member {}", localMember, cid, member);
 
           Message request =
               Message.builder()
@@ -174,9 +164,8 @@ public class MetadataStoreImpl implements MetadataStore {
               .publishOn(scheduler)
               .doOnSuccess(
                   s ->
-                      LOGGER.log(
-                          Level.DEBUG,
-                          "[{0}][{1}] Received GetMetadataResp from {2}",
+                      LOGGER.debug(
+                          "[{}][{}] Received GetMetadataResp from {}",
                           localMember,
                           cid,
                           targetAddress))
@@ -184,10 +173,9 @@ public class MetadataStoreImpl implements MetadataStore {
               .map(GetMetadataResponse::getMetadata)
               .doOnError(
                   th ->
-                      LOGGER.log(
-                          Level.WARNING,
-                          "[{0}][{1}] Timeout getting GetMetadataResp "
-                              + "from {2} within {3,number,#}ms, cause: {4}",
+                      LOGGER.warn(
+                          "[{}][{}] Timeout getting GetMetadataResp "
+                              + "from {} within {}ms, cause: {}",
                           localMember,
                           cid,
                           targetAddress,
@@ -208,16 +196,15 @@ public class MetadataStoreImpl implements MetadataStore {
 
   private void onMetadataRequest(Message message) {
     final String sender = message.sender();
-    LOGGER.log(Level.DEBUG, "[{0}] Received GetMetadataReq from {1}", localMember, sender);
+    LOGGER.debug("[{}] Received GetMetadataReq from {}", localMember, sender);
 
     GetMetadataRequest reqData = message.data();
     Member targetMember = reqData.getMember();
 
     // Validate target member
     if (!targetMember.id().equals(localMember.id())) {
-      LOGGER.log(
-          Level.WARNING,
-          "[{0}] Received GetMetadataReq from {1} to {2}, but local member is {3}",
+      LOGGER.warn(
+          "[{}] Received GetMetadataReq from {} to {}, but local member is {}",
           localMember,
           sender,
           targetMember,
@@ -235,15 +222,14 @@ public class MetadataStoreImpl implements MetadataStore {
             .data(respData)
             .build();
 
-    LOGGER.log(Level.DEBUG, "[{0}] Send GetMetadataResp to {1}", localMember, sender);
+    LOGGER.debug("[{}] Send GetMetadataResp to {}", localMember, sender);
     transport
         .send(sender, response)
         .subscribe(
             null,
             ex ->
-                LOGGER.log(
-                    Level.DEBUG,
-                    "[{0}] Failed to send GetMetadataResp to {1}, cause: {2}",
+                LOGGER.debug(
+                    "[{}] Failed to send GetMetadataResp to {}, cause: {}",
                     localMember,
                     sender,
                     ex.toString()));
@@ -254,9 +240,8 @@ public class MetadataStoreImpl implements MetadataStore {
     try {
       result = config.metadataCodec().serialize(localMetadata);
     } catch (Exception e) {
-      LOGGER.log(
-          Level.ERROR,
-          "[{0}] Failed to encode metadata: {1}, cause: {2}",
+      LOGGER.error(
+          "[{}] Failed to encode metadata: {}, cause: {}",
           localMember,
           localMetadata,
           e.toString());

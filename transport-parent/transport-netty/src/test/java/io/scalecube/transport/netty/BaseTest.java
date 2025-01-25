@@ -6,28 +6,14 @@ import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.cluster.utils.NetworkEmulatorTransport;
 import io.scalecube.transport.netty.tcp.TcpTransportFactory;
 import io.scalecube.transport.netty.websocket.WebsocketTransportFactory;
-import java.lang.System.Logger;
-import java.lang.System.Logger.Level;
 import java.time.Duration;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.TestInfo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 
-/** Base test class. */
 public class BaseTest {
 
-  protected static final Logger LOGGER = System.getLogger(BaseTest.class.getName());
-
-  @BeforeEach
-  public final void baseSetUp(TestInfo testInfo) {
-    LOGGER.log(Level.INFO, "***** Test started  : " + testInfo.getDisplayName() + " *****");
-  }
-
-  @AfterEach
-  public final void baseTearDown(TestInfo testInfo) {
-    LOGGER.log(Level.INFO, "***** Test finished : " + testInfo.getDisplayName() + " *****");
-  }
+  public static final Logger LOGGER = LoggerFactory.getLogger(BaseTest.class);
 
   /**
    * Sending message from src to destination.
@@ -41,9 +27,8 @@ public class BaseTest {
         .send(to, msg)
         .doOnError(
             th ->
-                LOGGER.log(
-                    Level.ERROR,
-                    "Failed to send {0} to {1} from transport: {2}, cause: {3}",
+                LOGGER.error(
+                    "Failed to send {} to {} from transport: {}, cause: {}",
                     msg,
                     to,
                     transport,
@@ -60,7 +45,7 @@ public class BaseTest {
       try {
         transport.stop().block(Duration.ofSeconds(1));
       } catch (Exception ex) {
-        LOGGER.log(Level.WARNING, "Failed to await transport termination: {0}", ex.toString());
+        LOGGER.warn("Failed to await transport termination: {}", ex.toString());
       }
     }
   }
