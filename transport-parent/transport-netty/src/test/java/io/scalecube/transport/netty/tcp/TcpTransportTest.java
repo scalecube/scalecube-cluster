@@ -10,7 +10,6 @@ import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.utils.NetworkEmulatorTransport;
 import io.scalecube.transport.netty.BaseTest;
 import java.io.IOException;
-import java.lang.System.Logger.Level;
 import java.net.UnknownHostException;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -59,7 +58,7 @@ public class TcpTransportTest extends BaseTest {
   public void testInteractWithNoConnection(TestInfo testInfo) {
     String serverAddress = "localhost:49255";
     for (int i = 0; i < 10; i++) {
-      LOGGER.log(Level.DEBUG, "####### {0} : iteration = {1}", testInfo.getDisplayName(), i);
+      LOGGER.debug("####### {} : iteration = {}", testInfo.getDisplayName(), i);
 
       client = createTcpTransport();
 
@@ -147,7 +146,7 @@ public class TcpTransportTest extends BaseTest {
                 Message echo = Message.withData("echo/" + message.qualifier()).build();
                 server
                     .send(message.sender(), echo)
-                    .subscribe(null, th -> LOGGER.log(Level.ERROR, "Failed to send message", th));
+                    .subscribe(null, th -> LOGGER.error("Failed to send message", th));
               }
             });
 
@@ -159,10 +158,10 @@ public class TcpTransportTest extends BaseTest {
 
     client
         .send(server.address(), q1)
-        .subscribe(null, th -> LOGGER.log(Level.ERROR, "Failed to send message", th));
+        .subscribe(null, th -> LOGGER.error("Failed to send message", th));
     client
         .send(server.address(), q2)
-        .subscribe(null, th -> LOGGER.log(Level.ERROR, "Failed to send message", th));
+        .subscribe(null, th -> LOGGER.error("Failed to send message", th));
 
     List<Message> target = targetFuture.get(1, TimeUnit.SECONDS);
     assertNotNull(target);
@@ -217,7 +216,7 @@ public class TcpTransportTest extends BaseTest {
                 Message echo = Message.withData("echo/" + message.qualifier()).build();
                 server
                     .send(message.sender(), echo)
-                    .subscribe(null, th -> LOGGER.log(Level.ERROR, "Failed to send message", th));
+                    .subscribe(null, th -> LOGGER.error("Failed to send message", th));
               }
             });
 
@@ -229,10 +228,10 @@ public class TcpTransportTest extends BaseTest {
 
     client
         .send(server.address(), q1)
-        .subscribe(null, th -> LOGGER.log(Level.ERROR, "Failed to send message", th));
+        .subscribe(null, th -> LOGGER.error("Failed to send message", th));
     client
         .send(server.address(), q2)
-        .subscribe(null, th -> LOGGER.log(Level.ERROR, "Failed to send message", th));
+        .subscribe(null, th -> LOGGER.error("Failed to send message", th));
 
     List<Message> target = targetFuture.get(1, TimeUnit.SECONDS);
     assertNotNull(target);
@@ -282,7 +281,7 @@ public class TcpTransportTest extends BaseTest {
                 Message echo = Message.withData("echo/" + message.qualifier()).build();
                 server
                     .send(message.sender(), echo)
-                    .subscribe(null, th -> LOGGER.log(Level.ERROR, "Failed to send message", th));
+                    .subscribe(null, th -> LOGGER.error("Failed to send message", th));
               }
             },
             Throwable::printStackTrace);
@@ -293,7 +292,7 @@ public class TcpTransportTest extends BaseTest {
     Message message = Message.withData("throw").build();
     client
         .send(server.address(), message)
-        .subscribe(null, th -> LOGGER.log(Level.ERROR, "Failed to send message", th));
+        .subscribe(null, th -> LOGGER.error("Failed to send message", th));
     Message message0 = null;
     try {
       message0 = messageFuture0.get(1, TimeUnit.SECONDS);

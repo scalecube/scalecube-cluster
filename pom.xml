@@ -37,6 +37,7 @@
   <properties>
     <reactor.version>2020.0.32</reactor.version>
     <jackson.version>2.18.2</jackson.version>
+    <slf4j.version>1.7.36</slf4j.version>
 
     <mockito-junit.version>5.3.1</mockito-junit.version>
     <junit-jupiter.version>5.9.3</junit-jupiter.version>
@@ -77,6 +78,13 @@
         <scope>import</scope>
       </dependency>
 
+      <!-- Logging -->
+      <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-api</artifactId>
+        <version>${slf4j.version}</version>
+      </dependency>
+
       <!-- Log4j -->
       <dependency>
         <groupId>org.apache.logging.log4j</groupId>
@@ -85,57 +93,7 @@
         <type>pom</type>
         <scope>import</scope>
       </dependency>
-
-      <!-- JUnit -->
-      <dependency>
-        <groupId>org.junit.jupiter</groupId>
-        <artifactId>junit-jupiter-api</artifactId>
-        <version>${junit-jupiter.version}</version>
-      </dependency>
     </dependencies>
   </dependencyManagement>
-
-  <dependencies>
-    <!-- Test scope -->
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-engine</artifactId>
-      <version>${junit-jupiter.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-params</artifactId>
-      <version>${junit-jupiter.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-junit-jupiter</artifactId>
-      <version>${mockito-junit.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.hamcrest</groupId>
-      <artifactId>hamcrest-all</artifactId>
-      <version>${hamcrest.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.projectreactor</groupId>
-      <artifactId>reactor-test</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.logging.log4j</groupId>
-      <artifactId>log4j-core</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.logging.log4j</groupId>
-      <artifactId>log4j-jpl</artifactId>
-      <scope>test</scope>
-    </dependency>
-  </dependencies>
 
 </project>

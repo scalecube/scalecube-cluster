@@ -16,8 +16,6 @@ import io.scalecube.cluster.gossip.GossipProtocol;
 import io.scalecube.cluster.metadata.MetadataStore;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
-import java.lang.System.Logger;
-import java.lang.System.Logger.Level;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
@@ -41,6 +39,8 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
 import reactor.core.publisher.Flux;
@@ -52,7 +52,7 @@ import reactor.core.scheduler.Scheduler;
 @SuppressWarnings({"FieldCanBeLocal", "unused"})
 public final class MembershipProtocolImpl implements MembershipProtocol {
 
-  private static final Logger LOGGER = System.getLogger(MembershipProtocol.class.getName());
+  private static final Logger LOGGER = LoggerFactory.getLogger(MembershipProtocol.class);
 
   private enum MembershipUpdateReason {
     FAILURE_DETECTOR_EVENT,
@@ -142,30 +142,22 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                 .publishOn(scheduler)
                 .subscribe(
                     this::onMessage,
-                    ex ->
-                        LOGGER.log(Level.ERROR, "[{0}][onMessage][error] cause:", localMember, ex)),
+                    ex -> LOGGER.error("[{}][onMessage][error] cause:", localMember, ex)),
             failureDetector
                 .listen() // Listen to events from failure detector
                 .publishOn(scheduler)
                 .subscribe(
                     this::onFailureDetectorEvent,
                     ex ->
-                        LOGGER.log(
-                            Level.ERROR,
-                            "[{0}][onFailureDetectorEvent][error] cause:",
-                            localMember,
-                            ex)),
+                        LOGGER.error(
+                            "[{}][onFailureDetectorEvent][error] cause:", localMember, ex)),
             gossipProtocol
                 .listen() // Listen to membership gossips
                 .publishOn(scheduler)
                 .subscribe(
                     this::onMembershipGossip,
                     ex ->
-                        LOGGER.log(
-                            Level.DEBUG,
-                            "[{0}][onMembershipGossip][error] cause:",
-                            localMember,
-                            ex))));
+                        LOGGER.debug("[{}][onMembershipGossip][error] cause:", localMember, ex))));
   }
 
   // Remove duplicates and local address(es)
@@ -205,7 +197,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     if (!address0.equals(address1)) {
       return true;
     } else {
-      LOGGER.log(Level.WARNING, "[{0}] Filtering out seed address: {1}", localMember, address0);
+      LOGGER.warn("[{}] Filtering out seed address: {}", localMember, address0);
       return false;
     }
   }
@@ -264,8 +256,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       return;
     }
     // If seed addresses are specified in config - send initial sync to those nodes
-    LOGGER.log(
-        Level.INFO, "[{0}] Making initial Sync to all seed members: {1}", localMember, seedMembers);
+    LOGGER.info("[{}] Making initial Sync to all seed members: {}", localMember, seedMembers);
 
     //noinspection unchecked
     Mono<Message>[] syncs =
@@ -277,9 +268,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                             address, prepareSyncDataMsg(SYNC, UUID.randomUUID().toString()))
                         .doOnError(
                             ex ->
-                                LOGGER.log(
-                                    Level.WARNING,
-                                    "[{0}] Exception on initial Sync, cause: {1}",
+                                LOGGER.warn(
+                                    "[{}] Exception on initial Sync, cause: {}",
                                     localMember,
                                     ex.toString()))
                         .onErrorResume(Exception.class, e -> Mono.empty()))
@@ -299,11 +289,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
         .subscribe(
             null,
             ex ->
-                LOGGER.log(
-                    Level.WARNING,
-                    "[{0}] Exception on initial SyncAck, cause: {1}",
-                    localMember,
-                    ex.toString()));
+                LOGGER.warn(
+                    "[{}] Exception on initial SyncAck, cause: {}", localMember, ex.toString()));
   }
 
   @Override
@@ -359,15 +346,14 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     }
 
     Message message = prepareSyncDataMsg(SYNC, null);
-    LOGGER.log(Level.DEBUG, "[{0}][doSync] Send Sync to {1}", localMember, address);
+    LOGGER.debug("[{}][doSync] Send Sync to {}", localMember, address);
     transport
         .send(address, message)
         .subscribe(
             null,
             ex ->
-                LOGGER.log(
-                    Level.DEBUG,
-                    "[{0}][doSync] Failed to send Sync to {1}, cause: {2}",
+                LOGGER.debug(
+                    "[{}][doSync] Failed to send Sync to {}, cause: {}",
                     localMember,
                     address,
                     ex.toString()));
@@ -380,14 +366,11 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private void onMessage(Message message) {
     if (isSync(message)) {
       onSync(message)
-          .subscribe(
-              null, ex -> LOGGER.log(Level.ERROR, "[{0}][onSync][error] cause:", localMember, ex));
+          .subscribe(null, ex -> LOGGER.error("[{}][onSync][error] cause:", localMember, ex));
     } else if (isSyncAck(message)) {
       if (message.correlationId() == null) { // filter out initial sync
         onSyncAck(message, false)
-            .subscribe(
-                null,
-                ex -> LOGGER.log(Level.ERROR, "[{0}][onSyncAck][error] cause:", localMember, ex));
+            .subscribe(null, ex -> LOGGER.error("[{}][onSyncAck][error] cause:", localMember, ex));
       }
     }
   }
@@ -407,8 +390,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private Mono<Void> onSyncAck(Message syncAckMsg, boolean onStart) {
     return Mono.defer(
         () -> {
-          LOGGER.log(
-              Level.DEBUG, "[{0}] Received SyncAck from {1}", localMember, syncAckMsg.sender());
+          LOGGER.debug("[{}] Received SyncAck from {}", localMember, syncAckMsg.sender());
           return syncMembership(syncAckMsg.data(), onStart);
         });
   }
@@ -418,7 +400,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     return Mono.defer(
         () -> {
           final String sender = syncMsg.sender();
-          LOGGER.log(Level.DEBUG, "[{0}] Received Sync from {1}", localMember, sender);
+          LOGGER.debug("[{}] Received Sync from {}", localMember, sender);
           return syncMembership(syncMsg.data(), false)
               .doOnSuccess(
                   avoid -> {
@@ -428,9 +410,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                         .subscribe(
                             null,
                             ex ->
-                                LOGGER.log(
-                                    Level.DEBUG,
-                                    "[{0}] Failed to send SyncAck to {}, cause: {1}",
+                                LOGGER.debug(
+                                    "[{}] Failed to send SyncAck to {}, cause: {}",
                                     localMember,
                                     sender,
                                     ex.toString()));
@@ -447,11 +428,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     if (r0.status() == fdEvent.status()) { // status not changed
       return;
     }
-    LOGGER.log(
-        Level.DEBUG,
-        "[{0}][onFailureDetectorEvent] Received status change: {1}",
-        localMember,
-        fdEvent);
+    LOGGER.debug("[{}][onFailureDetectorEvent] Received status change: {}", localMember, fdEvent);
     if (fdEvent.status() == ALIVE) {
       // TODO: Consider to make more elegant solution
       // Alive won't override SUSPECT so issue instead extra sync with member to force it spread
@@ -463,9 +440,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           .subscribe(
               null,
               ex ->
-                  LOGGER.log(
-                      Level.DEBUG,
-                      "[{0}][onFailureDetectorEvent] Failed to send Sync to {1}, cause: {2}",
+                  LOGGER.debug(
+                      "[{}][onFailureDetectorEvent] Failed to send Sync to {}, cause: {}",
                       localMember,
                       address,
                       ex.toString()));
@@ -476,9 +452,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           .subscribe(
               null,
               ex ->
-                  LOGGER.log(
-                      Level.ERROR,
-                      "[{0}][onFailureDetectorEvent][updateMembership][error] cause:",
+                  LOGGER.error(
+                      "[{}][onFailureDetectorEvent][updateMembership][error] cause:",
                       localMember,
                       ex));
     }
@@ -488,16 +463,13 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private void onMembershipGossip(Message message) {
     if (MEMBERSHIP_GOSSIP.equals(message.qualifier())) {
       MembershipRecord record = message.data();
-      LOGGER.log(Level.DEBUG, "[{0}] Received membership gossip: {1}", localMember, record);
+      LOGGER.debug("[{}] Received membership gossip: {}", localMember, record);
       updateMembership(record, MembershipUpdateReason.MEMBERSHIP_GOSSIP)
           .subscribe(
               null,
               ex ->
-                  LOGGER.log(
-                      Level.ERROR,
-                      "[{0}][onMembershipGossip][updateMembership][error] cause:",
-                      localMember,
-                      ex));
+                  LOGGER.error(
+                      "[{}][onMembershipGossip][updateMembership][error] cause:", localMember, ex));
     }
   }
 
@@ -545,9 +517,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                           updateMembership(r1, reason)
                               .doOnError(
                                   ex ->
-                                      LOGGER.log(
-                                          Level.WARNING,
-                                          "[{0}][syncMembership][{1}][error] cause: {2}",
+                                      LOGGER.warn(
+                                          "[{}][syncMembership][{}][error] cause: {}",
                                           localMember,
                                           reason,
                                           ex.toString()))
@@ -600,10 +571,9 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           String localNamespace = membershipConfig.namespace();
           String namespace = r1.member().namespace();
           if (!areNamespacesRelated(localNamespace, namespace)) {
-            LOGGER.log(
-                Level.DEBUG,
-                "[{0}][updateMembership][{1}] Skipping update, "
-                    + "namespace not matched, local: {2}, inbound: {3}",
+            LOGGER.debug(
+                "[{}][updateMembership][{}] Skipping update, "
+                    + "namespace not matched, local: {}, inbound: {}",
                 localMember,
                 reason,
                 localNamespace,
@@ -617,10 +587,9 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           // if current record is LEAVING then we want to process other event too
           // Check if new record r1 overrides existing membership record r0
           if ((r0 == null || !r0.isLeaving()) && !r1.isOverrides(r0)) {
-            LOGGER.log(
-                Level.DEBUG,
-                "[{0}][updateMembership][{1}] Skipping update, "
-                    + "can't override r0: {2} with received r1: {3}",
+            LOGGER.debug(
+                "[{}][updateMembership][{}] Skipping update, "
+                    + "can't override r0: {} with received r1: {}",
                 localMember,
                 reason,
                 r0,
@@ -665,10 +634,9 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                   .fetchMetadata(r1.member())
                   .doOnError(
                       ex ->
-                          LOGGER.log(
-                              Level.WARNING,
-                              "[{0}][updateMembership][{1}] Skipping to add/update member: {2}, "
-                                  + "due to failed fetchMetadata call (cause: {3})",
+                          LOGGER.warn(
+                              "[{}][updateMembership][{}] Skipping to add/update member: {}, "
+                                  + "due to failed fetchMetadata call (cause: {})",
                               localMember,
                               reason,
                               r1,
@@ -721,11 +689,10 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
           membershipTable.put(localMember.id(), r2);
 
-          LOGGER.log(
-              Level.DEBUG,
-              "[{0}][updateMembership][{1}] Updating incarnation, "
-                  + "local record r0: {2} to received r1: {3}, "
-                  + "spreading with increased incarnation r2: {4}",
+          LOGGER.debug(
+              "[{}][updateMembership][{}] Updating incarnation, "
+                  + "local record r0: {} to received r1: {}, "
+                  + "spreading with increased incarnation r2: {}",
               localMember,
               reason,
               r0,
@@ -767,7 +734,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   }
 
   private void publishEvent(MembershipEvent event) {
-    LOGGER.log(Level.INFO, "[{0}][publishEvent] {1}", localMember, event);
+    LOGGER.info("[{}][publishEvent] {}", localMember, event);
     sink.emitNext(event, busyLooping(Duration.ofSeconds(3)));
   }
 
@@ -790,10 +757,9 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
           // Log that member left gracefully or without notification
           if (r0.isLeaving()) {
-            LOGGER.log(Level.INFO, "[{0}] Member left gracefully: {1}", localMember, member);
+            LOGGER.info("[{}] Member left gracefully: {}", localMember, member);
           } else {
-            LOGGER.log(
-                Level.INFO, "[{0}] Member left without notification: {1}", localMember, member);
+            LOGGER.info("[{}] Member left without notification: {}", localMember, member);
           }
 
           final long timestamp = System.currentTimeMillis();
@@ -832,8 +798,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   private void cancelSuspicionTimeoutTask(String memberId) {
     Disposable future = suspicionTimeoutTasks.remove(memberId);
     if (future != null && !future.isDisposed()) {
-      LOGGER.log(
-          Level.DEBUG, "[{0}] Cancelled SuspicionTimeoutTask for {1}", localMember, memberId);
+      LOGGER.debug("[{}] Cancelled SuspicionTimeoutTask for {}", localMember, memberId);
       future.dispose();
     }
   }
@@ -848,9 +813,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     suspicionTimeoutTasks.computeIfAbsent(
         r.member().id(),
         id -> {
-          LOGGER.log(
-              Level.DEBUG,
-              "[{0}] Scheduled SuspicionTimeoutTask for {1}, suspicionTimeout: {2,number,#}ms",
+          LOGGER.debug(
+              "[{}] Scheduled SuspicionTimeoutTask for {}, suspicionTimeout: {}ms",
               localMember,
               id,
               suspicionTimeout);
@@ -863,18 +827,14 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     suspicionTimeoutTasks.remove(memberId);
     MembershipRecord r = membershipTable.get(memberId);
     if (r != null) {
-      LOGGER.log(
-          Level.DEBUG, "[{0}] Declare SUSPECTED member {1} as DEAD by timeout", localMember, r);
+      LOGGER.debug("[{}] Declare SUSPECTED member {} as DEAD by timeout", localMember, r);
       MembershipRecord deadRecord = new MembershipRecord(r.member(), DEAD, r.incarnation());
       updateMembership(deadRecord, MembershipUpdateReason.SUSPICION_TIMEOUT)
           .subscribe(
               null,
               ex ->
-                  LOGGER.log(
-                      Level.ERROR,
-                      "[{0}][onSuspicionTimeout][updateMembership][error] cause:",
-                      localMember,
-                      ex));
+                  LOGGER.error(
+                      "[{}][onSuspicionTimeout][updateMembership][error] cause:", localMember, ex));
     }
   }
 
@@ -896,14 +856,13 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     return Mono.defer(
         () -> {
           Message msg = Message.withData(r).qualifier(MEMBERSHIP_GOSSIP).build();
-          LOGGER.log(Level.DEBUG, "[{0}] Send membership with gossip", localMember);
+          LOGGER.debug("[{}] Send membership with gossip", localMember);
           return gossipProtocol
               .spread(msg)
               .doOnError(
                   ex ->
-                      LOGGER.log(
-                          Level.DEBUG,
-                          "[{0}] Failed to send membership with gossip, cause: {1}",
+                      LOGGER.debug(
+                          "[{}] Failed to send membership with gossip, cause: {}",
                           localMember,
                           ex.toString()))
               .then();

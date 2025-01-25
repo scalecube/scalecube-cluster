@@ -4,7 +4,7 @@ import io.scalecube.cluster.utils.NetworkEmulator.OutboundSettings;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-public class NetworkEmulatorTest extends BaseTest {
+public class NetworkEmulatorTest {
 
   @Test
   public void testResolveLinkSettingsBySocketAddress() {

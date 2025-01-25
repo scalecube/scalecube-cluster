@@ -7,8 +7,6 @@ import io.scalecube.cluster.Member;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
-import java.lang.System.Logger;
-import java.lang.System.Logger.Level;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -21,6 +19,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
 import reactor.core.publisher.Flux;
@@ -31,7 +31,7 @@ import reactor.core.scheduler.Scheduler;
 
 public final class GossipProtocolImpl implements GossipProtocol {
 
-  private static final Logger LOGGER = System.getLogger(GossipProtocol.class.getName());
+  private static final Logger LOGGER = LoggerFactory.getLogger(GossipProtocol.class);
 
   // Qualifiers
 
@@ -94,24 +94,14 @@ public final class GossipProtocolImpl implements GossipProtocol {
                 .publishOn(scheduler)
                 .subscribe(
                     this::onMembershipEvent,
-                    ex ->
-                        LOGGER.log(
-                            Level.ERROR,
-                            "[{0}][onMembershipEvent][error] cause:",
-                            localMember,
-                            ex)),
+                    ex -> LOGGER.error("[{}][onMembershipEvent][error] cause:", localMember, ex)),
             transport
                 .listen() // Listen gossip requests
                 .publishOn(scheduler)
                 .filter(this::isGossipRequest)
                 .subscribe(
                     this::onGossipRequest,
-                    ex ->
-                        LOGGER.log(
-                            Level.ERROR,
-                            "[{0}][onGossipRequest][error] cause:",
-                            localMember,
-                            ex))));
+                    ex -> LOGGER.error("[{}][onGossipRequest][error] cause:", localMember, ex))));
   }
 
   @Override
@@ -168,12 +158,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
       // Sweep gossips
       Set<String> gossipsToRemove = getGossipsToRemove(period);
       if (!gossipsToRemove.isEmpty()) {
-        LOGGER.log(
-            Level.DEBUG,
-            "[{0}][{1,number,#}] Sweep gossips: {2}",
-            localMember,
-            period,
-            gossipsToRemove);
+        LOGGER.debug("[{}][{}] Sweep gossips: {}", localMember, period, gossipsToRemove);
         for (String gossipId : gossipsToRemove) {
           gossips.remove(gossipId);
         }
@@ -182,9 +167,8 @@ public final class GossipProtocolImpl implements GossipProtocol {
       // Check spread gossips
       Set<String> gossipsThatSpread = getGossipsThatMostLikelyDisseminated(period);
       if (!gossipsThatSpread.isEmpty()) {
-        LOGGER.log(
-            Level.DEBUG,
-            "[{0}][{1,number,#}] Most likely disseminated gossips: {2}",
+        LOGGER.debug(
+            "[{}][{}] Most likely disseminated gossips: {}",
             localMember,
             period,
             gossipsThatSpread);
@@ -196,12 +180,7 @@ public final class GossipProtocolImpl implements GossipProtocol {
         }
       }
     } catch (Exception ex) {
-      LOGGER.log(
-          Level.WARNING,
-          "[{0}][{1,number,#}][doSpreadGossip] Exception occurred:",
-          localMember,
-          period,
-          ex);
+      LOGGER.warn("[{}][{}][doSpreadGossip] Exception occurred:", localMember, period, ex);
     }
   }
 
@@ -246,10 +225,9 @@ public final class GossipProtocolImpl implements GossipProtocol {
       // or network issue
       final SequenceIdCollector sequenceIdCollector = entry.getValue();
       if (sequenceIdCollector.size() > intervalsThreshold) {
-        LOGGER.log(
-            Level.WARNING,
-            "[{0}][{1,number,#}] Too many missed gossip messages from original gossiper: {2}, "
-                + "current node({3}) was SUSPECTED much for a long time or connection problem",
+        LOGGER.warn(
+            "[{}][{}] Too many missed gossip messages from original gossiper: {}, "
+                + "current node({}) was SUSPECTED much for a long time or connection problem",
             localMember,
             currentPeriod,
             entry.getKey(),
@@ -266,9 +244,8 @@ public final class GossipProtocolImpl implements GossipProtocol {
       boolean removed = remoteMembers.remove(member);
       sequenceIdCollectors.remove(member.id());
       if (removed) {
-        LOGGER.log(
-            Level.DEBUG,
-            "[{0}][{1,number,#}] Removed {2} from remoteMembers list (size={3,number,#})",
+        LOGGER.debug(
+            "[{}][{}] Removed {} from remoteMembers list (size={})",
             localMember,
             currentPeriod,
             member,
@@ -277,9 +254,8 @@ public final class GossipProtocolImpl implements GossipProtocol {
     }
     if (event.isAdded()) {
       remoteMembers.add(member);
-      LOGGER.log(
-          Level.DEBUG,
-          "[{0}][{1,number,#}] Added {2} to remoteMembers list (size={3,number,#})",
+      LOGGER.debug(
+          "[{}][{}] Added {} to remoteMembers list (size={})",
           localMember,
           currentPeriod,
           member,
@@ -322,10 +298,8 @@ public final class GossipProtocolImpl implements GossipProtocol {
                     .subscribe(
                         null,
                         ex ->
-                            LOGGER.log(
-                                Level.DEBUG,
-                                "[{0}][{1,number,#}] "
-                                    + "Failed to send GossipReq({2}) to {3}, cause: {4}",
+                            LOGGER.debug(
+                                "[{}][{}] Failed to send GossipReq({}) to {}, cause: {}",
                                 localMember,
                                 period,
                                 message,
