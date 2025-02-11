@@ -34,6 +34,7 @@
 
   <properties>
     <reactor.version>2020.0.32</reactor.version>
+    <netty.version>4.1.118.Final</netty.version>
     <jackson.version>2.18.2</jackson.version>
     <slf4j.version>1.7.36</slf4j.version>
 
@@ -63,6 +64,15 @@
         <groupId>io.projectreactor</groupId>
         <artifactId>reactor-bom</artifactId>
         <version>${reactor.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+
+      <!-- Netty -->
+      <dependency>
+        <groupId>io.netty</groupId>
+        <artifactId>netty-bom</artifactId>
+        <version>${netty.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
