@@ -132,7 +132,7 @@ public final class Member implements Externalizable {
   private static String stringifyId(String id) {
     try {
       final UUID uuid = UUID.fromString(id);
-      return Long.toHexString(uuid.getMostSignificantBits() & Long.MAX_VALUE);
+      return Long.toHexString(uuid.getMostSignificantBits());
     } catch (Exception ex) {
       return id;
     }
