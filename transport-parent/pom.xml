@@ -9,8 +9,8 @@
   </parent>
 
   <artifactId>scalecube-transport-parent</artifactId>
-  <name>ScaleCube/ClusterTransport</name>
   <packaging>pom</packaging>
+  <name>${project.artifactId}</name>
 
   <modules>
     <module>transport-api</module>
