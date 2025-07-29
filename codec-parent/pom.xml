@@ -10,7 +10,7 @@
   <packaging>pom</packaging>
 
   <artifactId>scalecube-codec-parent</artifactId>
-  <name>ScaleCube/ClusterCodec</name>
+  <name>${project.artifactId}</name>
 
   <modules>
     <module>codec-jackson</module>
