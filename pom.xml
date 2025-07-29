@@ -1,11 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
     <groupId>io.scalecube</groupId>
     <artifactId>scalecube-parent</artifactId>
-    <version>0.3.1</version>
+    <version>0.3.12</version>
   </parent>
 
   <artifactId>scalecube-cluster-parent</artifactId>
@@ -33,9 +35,9 @@
   </scm>
 
   <properties>
-    <reactor.version>2020.0.32</reactor.version>
-    <netty.version>4.1.118.Final</netty.version>
-    <jackson.version>2.18.2</jackson.version>
+    <reactor.version>2024.0.8</reactor.version>
+    <netty.version>4.2.3.Final</netty.version>
+    <jackson.version>2.19.2</jackson.version>
     <slf4j.version>1.7.36</slf4j.version>
 
     <mockito-junit.version>5.3.1</mockito-junit.version>
