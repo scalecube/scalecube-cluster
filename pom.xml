@@ -34,7 +34,7 @@
 
   <properties>
     <reactor.version>2024.0.8</reactor.version>
-    <netty.version>4.2.3.Final</netty.version>
+    <netty.version>4.2.4.Final</netty.version>
     <jackson.version>2.19.2</jackson.version>
     <slf4j.version>1.7.36</slf4j.version>
 
