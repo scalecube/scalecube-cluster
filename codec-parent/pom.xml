@@ -28,13 +28,6 @@
       <artifactId>scalecube-cluster-api</artifactId>
       <version>${project.version}</version>
     </dependency>
-    <!-- Tests -->
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>scalecube-cluster-testlib</artifactId>
-      <version>${project.version}</version>
-      <scope>test</scope>
-    </dependency>
   </dependencies>
 
 </project>
