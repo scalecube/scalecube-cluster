@@ -17,13 +17,11 @@
       <artifactId>scalecube-transport-api</artifactId>
       <version>${project.version}</version>
     </dependency>
-
     <dependency>
       <groupId>io.projectreactor.netty</groupId>
       <artifactId>reactor-netty</artifactId>
     </dependency>
-
-    <!-- Test dependencies -->
+    <!-- Tests -->
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>scalecube-cluster-testlib</artifactId>
