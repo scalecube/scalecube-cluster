@@ -4,6 +4,7 @@ import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
 import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.cluster.utils.NetworkEmulatorTransport;
+import io.scalecube.transport.netty.http.HttpTransportFactory;
 import io.scalecube.transport.netty.tcp.TcpTransportFactory;
 import io.scalecube.transport.netty.websocket.WebsocketTransportFactory;
 import java.time.Duration;
@@ -70,5 +71,16 @@ public class BaseTest {
     return new NetworkEmulatorTransport(
         Transport.bindAwait(
             TransportConfig.defaultConfig().transportFactory(new WebsocketTransportFactory())));
+  }
+
+  /**
+   * Factory method to create a transport.
+   *
+   * @return tramsprot
+   */
+  protected NetworkEmulatorTransport createHttpTransport() {
+    return new NetworkEmulatorTransport(
+        Transport.bindAwait(
+            TransportConfig.defaultConfig().transportFactory(new HttpTransportFactory())));
   }
 }
