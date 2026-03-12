@@ -37,43 +37,43 @@ public class ClusterNamespacesTest extends BaseTest {
   @SuppressWarnings("unused")
   public static Stream<Arguments> testInvalidNamespaceFormat() {
     return Stream.of(
-      of(""),
-      of("  "),
-      of("/abc"),
-      of("a /b /c"),
-      of("a\nb\nc"),
-      of(".abc"),
-      of("abc."),
-      of("a-/b-/c-"),
-      of("a+/b+/c+"),
-      of("abc/"),
-      of("abc/*"),
-      of("abc/."),
-      of("./abc"),
-      of("a./b./c."));
+        of(""),
+        of("  "),
+        of("/abc"),
+        of("a /b /c"),
+        of("a\nb\nc"),
+        of(".abc"),
+        of("abc."),
+        of("a-/b-/c-"),
+        of("a+/b+/c+"),
+        of("abc/"),
+        of("abc/*"),
+        of("abc/."),
+        of("./abc"),
+        of("a./b./c."));
   }
 
   @Test
   public void testSeparateEmptyNamespaces() {
     Cluster root =
-      new ClusterImpl()
-        .transportFactory(WebsocketTransportFactory::new)
-        .membership(opts -> opts.namespace("root"))
-        .startAwait();
+        new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
+            .membership(opts -> opts.namespace("root"))
+            .startAwait();
 
     Cluster root1 =
-      new ClusterImpl()
-        .transportFactory(WebsocketTransportFactory::new)
-        .membership(opts -> opts.namespace("root1"))
-        .membership(opts -> opts.seedMembers(root.address()))
-        .startAwait();
+        new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
+            .membership(opts -> opts.namespace("root1"))
+            .membership(opts -> opts.seedMembers(root.address()))
+            .startAwait();
 
     Cluster root2 =
-      new ClusterImpl()
-        .transportFactory(WebsocketTransportFactory::new)
-        .membership(opts -> opts.namespace("root2"))
-        .membership(opts -> opts.seedMembers(root.address()))
-        .startAwait();
+        new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
+            .membership(opts -> opts.namespace("root2"))
+            .membership(opts -> opts.seedMembers(root.address()))
+            .startAwait();
 
     assertTrue(root.otherMembers().isEmpty());
     assertTrue(root1.otherMembers().isEmpty());
@@ -83,55 +83,55 @@ public class ClusterNamespacesTest extends BaseTest {
   @Test
   public void testSeparateNonEmptyNamespaces() {
     Cluster root =
-      new ClusterImpl()
-        .transportFactory(WebsocketTransportFactory::new)
-        .membership(opts -> opts.namespace("root"))
-        .startAwait();
+        new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
+            .membership(opts -> opts.namespace("root"))
+            .startAwait();
 
     Cluster bob =
-      new ClusterImpl()
-        .transportFactory(WebsocketTransportFactory::new)
-        .membership(opts -> opts.namespace("root"))
-        .membership(opts -> opts.seedMembers(root.address()))
-        .startAwait();
+        new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
+            .membership(opts -> opts.namespace("root"))
+            .membership(opts -> opts.seedMembers(root.address()))
+            .startAwait();
 
     Cluster carol =
-      new ClusterImpl()
-        .transportFactory(WebsocketTransportFactory::new)
-        .membership(opts -> opts.namespace("root"))
-        .membership(opts -> opts.seedMembers(root.address(), bob.address()))
-        .startAwait();
+        new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
+            .membership(opts -> opts.namespace("root"))
+            .membership(opts -> opts.seedMembers(root.address(), bob.address()))
+            .startAwait();
 
     Cluster root2 =
-      new ClusterImpl()
-        .transportFactory(WebsocketTransportFactory::new)
-        .membership(opts -> opts.namespace("root2"))
-        .membership(opts -> opts.seedMembers(root.address()))
-        .startAwait();
+        new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
+            .membership(opts -> opts.namespace("root2"))
+            .membership(opts -> opts.seedMembers(root.address()))
+            .startAwait();
 
     Cluster dan =
-      new ClusterImpl()
-        .transportFactory(WebsocketTransportFactory::new)
-        .membership(opts -> opts.namespace("root2"))
-        .membership(
-          opts ->
-            opts.seedMembers(
-              root.address(), root2.address(), bob.address(), carol.address()))
-        .startAwait();
+        new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
+            .membership(opts -> opts.namespace("root2"))
+            .membership(
+                opts ->
+                    opts.seedMembers(
+                        root.address(), root2.address(), bob.address(), carol.address()))
+            .startAwait();
 
     Cluster eve =
-      new ClusterImpl()
-        .transportFactory(WebsocketTransportFactory::new)
-        .membership(opts -> opts.namespace("root2"))
-        .membership(
-          opts ->
-            opts.seedMembers(
-              root.address(),
-              root2.address(),
-              dan.address(),
-              bob.address(),
-              carol.address()))
-        .startAwait();
+        new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
+            .membership(opts -> opts.namespace("root2"))
+            .membership(
+                opts ->
+                    opts.seedMembers(
+                        root.address(),
+                        root2.address(),
+                        dan.address(),
+                        bob.address(),
+                        carol.address()))
+            .startAwait();
 
     assertContainsInAnyOrder(root.otherMembers(), bob.member(), carol.member());
     assertContainsInAnyOrder(bob.otherMembers(), root.member(), carol.member());
@@ -145,42 +145,42 @@ public class ClusterNamespacesTest extends BaseTest {
   @Test
   public void testSimpleNamespacesHierarchy() {
     Cluster rootDevelop =
-      new ClusterImpl()
-        .transportFactory(WebsocketTransportFactory::new)
-        .membership(opts -> opts.namespace("develop"))
-        .startAwait();
+        new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
+            .membership(opts -> opts.namespace("develop"))
+            .startAwait();
 
     Cluster bob =
-      new ClusterImpl()
-        .transportFactory(WebsocketTransportFactory::new)
-        .membership(opts -> opts.namespace("develop/develop"))
-        .membership(opts -> opts.seedMembers(rootDevelop.address()))
-        .startAwait();
+        new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
+            .membership(opts -> opts.namespace("develop/develop"))
+            .membership(opts -> opts.seedMembers(rootDevelop.address()))
+            .startAwait();
 
     Cluster carol =
-      new ClusterImpl()
-        .transportFactory(WebsocketTransportFactory::new)
-        .membership(opts -> opts.namespace("develop/develop"))
-        .membership(opts -> opts.seedMembers(rootDevelop.address(), bob.address()))
-        .startAwait();
+        new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
+            .membership(opts -> opts.namespace("develop/develop"))
+            .membership(opts -> opts.seedMembers(rootDevelop.address(), bob.address()))
+            .startAwait();
 
     Cluster dan =
-      new ClusterImpl()
-        .transportFactory(WebsocketTransportFactory::new)
-        .membership(opts -> opts.namespace("develop/develop-2"))
-        .membership(
-          opts -> opts.seedMembers(rootDevelop.address(), bob.address(), carol.address()))
-        .startAwait();
+        new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
+            .membership(opts -> opts.namespace("develop/develop-2"))
+            .membership(
+                opts -> opts.seedMembers(rootDevelop.address(), bob.address(), carol.address()))
+            .startAwait();
 
     Cluster eve =
-      new ClusterImpl()
-        .transportFactory(WebsocketTransportFactory::new)
-        .membership(opts -> opts.namespace("develop/develop-2"))
-        .membership(
-          opts ->
-            opts.seedMembers(
-              rootDevelop.address(), bob.address(), carol.address(), dan.address()))
-        .startAwait();
+        new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
+            .membership(opts -> opts.namespace("develop/develop-2"))
+            .membership(
+                opts ->
+                    opts.seedMembers(
+                        rootDevelop.address(), bob.address(), carol.address(), dan.address()))
+            .startAwait();
 
     assertContainsInAnyOrder(
       rootDevelop.otherMembers(), bob.member(), carol.member(), dan.member(), eve.member());
@@ -195,55 +195,55 @@ public class ClusterNamespacesTest extends BaseTest {
   @Test
   public void testIsolatedParentNamespaces() {
     Cluster parent1 =
-      new ClusterImpl()
-        .transportFactory(WebsocketTransportFactory::new)
-        .membership(opts -> opts.namespace("a/1"))
-        .startAwait();
+        new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
+            .membership(opts -> opts.namespace("a/1"))
+            .startAwait();
 
     Cluster bob =
-      new ClusterImpl()
-        .transportFactory(WebsocketTransportFactory::new)
-        .membership(opts -> opts.namespace("a/1/c"))
-        .membership(opts -> opts.seedMembers(parent1.address()))
-        .startAwait();
+        new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
+            .membership(opts -> opts.namespace("a/1/c"))
+            .membership(opts -> opts.seedMembers(parent1.address()))
+            .startAwait();
 
     Cluster carol =
-      new ClusterImpl()
-        .transportFactory(WebsocketTransportFactory::new)
-        .membership(opts -> opts.namespace("a/1/c"))
-        .membership(opts -> opts.seedMembers(parent1.address(), bob.address()))
-        .startAwait();
+        new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
+            .membership(opts -> opts.namespace("a/1/c"))
+            .membership(opts -> opts.seedMembers(parent1.address(), bob.address()))
+            .startAwait();
 
     Cluster parent2 =
-      new ClusterImpl()
-        .transportFactory(WebsocketTransportFactory::new)
-        .membership(opts -> opts.namespace("a/111"))
-        .startAwait();
+        new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
+            .membership(opts -> opts.namespace("a/111"))
+            .startAwait();
 
     Cluster dan =
-      new ClusterImpl()
-        .transportFactory(WebsocketTransportFactory::new)
-        .membership(opts -> opts.namespace("a/111/c"))
-        .membership(
-          opts ->
-            opts.seedMembers(
-              parent1.address(), parent2.address(), bob.address(), carol.address()))
-        .startAwait();
+        new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
+            .membership(opts -> opts.namespace("a/111/c"))
+            .membership(
+                opts ->
+                    opts.seedMembers(
+                        parent1.address(), parent2.address(), bob.address(), carol.address()))
+            .startAwait();
 
     //noinspection unused
     Cluster eve =
-      new ClusterImpl()
-        .transportFactory(WebsocketTransportFactory::new)
-        .membership(opts -> opts.namespace("a/111/c"))
-        .membership(
-          opts ->
-            opts.seedMembers(
-              parent1.address(),
-              parent2.address(),
-              bob.address(),
-              carol.address(),
-              dan.address()))
-        .startAwait();
+        new ClusterImpl()
+            .transportFactory(WebsocketTransportFactory::new)
+            .membership(opts -> opts.namespace("a/111/c"))
+            .membership(
+                opts ->
+                    opts.seedMembers(
+                        parent1.address(),
+                        parent2.address(),
+                        bob.address(),
+                        carol.address(),
+                        dan.address()))
+            .startAwait();
 
     assertContainsInAnyOrder(parent1.otherMembers(), bob.member(), carol.member());
     assertContainsInAnyOrder(bob.otherMembers(), parent1.member(), carol.member());
