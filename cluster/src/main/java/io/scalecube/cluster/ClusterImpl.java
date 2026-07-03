@@ -152,6 +152,11 @@ public final class ClusterImpl implements Cluster {
     return cluster;
   }
 
+  @Override
+  public Transport transport() {
+    return transport;
+  }
+
   /**
    * Returns a new cluster's instance which will apply the given options.
    *

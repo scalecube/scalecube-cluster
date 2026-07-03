@@ -1,6 +1,7 @@
 package io.scalecube.cluster;
 
 import io.scalecube.cluster.transport.api.Message;
+import io.scalecube.cluster.transport.api.Transport;
 import java.util.Collection;
 import java.util.Optional;
 import reactor.core.publisher.Mono;
@@ -14,6 +15,19 @@ public interface Cluster {
    * @return cluster address
    */
   String address();
+
+  /**
+   * Returns the {@link Transport} this cluster instance is bound to — the same transport its
+   * membership, failure-detector, gossip and metadata protocols use. Exposed so embedded layers
+   * (libraries decorating the cluster) can reuse it for their own point-to-point messaging
+   * ({@link Transport#send(String, Message) send} / {@link Transport#requestResponse(String,
+   * Message) requestResponse} / {@link Transport#listen() listen}) instead of binding a second
+   * transport and opening another port. Inbound messages are delivered to the registered {@link
+   * ClusterMessageHandler#onMessage(Message)}.
+   *
+   * @return the cluster's transport
+   */
+  Transport transport();
 
   /**
    * Spreads given message between cluster members using gossiping protocol.
