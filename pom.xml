@@ -33,7 +33,7 @@
   </scm>
 
   <properties>
-    <scalecube-test-support.version>0.1.8</scalecube-test-support.version>
+    <scalecube-test-support.version>0.1.9</scalecube-test-support.version>
 
     <distributionManagement.url>https://maven.pkg.github.com/scalecube/scalecube-cluster
     </distributionManagement.url>
