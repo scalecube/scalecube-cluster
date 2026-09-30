@@ -88,7 +88,7 @@ public interface Transport {
    * @return transport
    */
   static Transport bindAwait() {
-    return bindAwait(TransportConfig.defaultConfig());
+    return bindAwait(new TransportConfig());
   }
 
   /**
@@ -112,7 +112,7 @@ public interface Transport {
    * @return promise for bind operation
    */
   static Mono<Transport> bind() {
-    return bind(TransportConfig.defaultConfig());
+    return bind(new TransportConfig());
   }
 
   /**

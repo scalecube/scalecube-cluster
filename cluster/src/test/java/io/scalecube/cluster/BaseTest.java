@@ -45,7 +45,7 @@ public class BaseTest {
   }
 
   public static NetworkEmulatorTransport createTransport() {
-    return createTransport(TransportConfig.defaultConfig());
+    return createTransport(new TransportConfig());
   }
 
   public static NetworkEmulatorTransport createTransport(TransportConfig transportConfig) {

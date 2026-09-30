@@ -6,84 +6,79 @@ import io.scalecube.cluster.membership.MembershipConfig;
 import io.scalecube.cluster.metadata.MetadataCodec;
 import io.scalecube.cluster.transport.api.TransportConfig;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.StringJoiner;
 import java.util.function.UnaryOperator;
-import reactor.core.Exceptions;
 
 /**
- * Cluster configuration encapsulate settings needed cluster to create and successfully join.
+ * Cluster configuration. Every scalar setting is read from {@link Properties} (by default {@link
+ * System#getProperties()}), keys are {@code scalecube.cluster.*}. A property set to {@code @null}
+ * is treated as not set. Setters mutate this instance and return it.
  *
  * @see MembershipConfig
  * @see FailureDetectorConfig
  * @see GossipConfig
  * @see TransportConfig
  */
-public final class ClusterConfig implements Cloneable {
+public final class ClusterConfig {
 
-  // LAN cluster
   public static final int DEFAULT_METADATA_TIMEOUT = 3_000;
 
-  // WAN cluster (overrides default/LAN settings)
-  public static final int DEFAULT_WAN_METADATA_TIMEOUT = 10_000;
-
-  // Local cluster working via loopback interface (overrides default/LAN settings)
-  public static final int DEFAULT_LOCAL_METADATA_TIMEOUT = 1_000;
+  public static final String METADATA_TIMEOUT_PROP_NAME = "scalecube.cluster.metadataTimeout";
+  public static final String MEMBER_ID_PROP_NAME = "scalecube.cluster.memberId";
+  public static final String MEMBER_ALIAS_PROP_NAME = "scalecube.cluster.memberAlias";
+  public static final String EXTERNAL_HOST_PROP_NAME = "scalecube.cluster.externalHost";
+  public static final String EXTERNAL_PORT_PROP_NAME = "scalecube.cluster.externalPort";
+  public static final String METADATA_CODEC_PROP_NAME = "scalecube.cluster.metadataCodec";
 
   private Object metadata;
-  private int metadataTimeout = DEFAULT_METADATA_TIMEOUT;
-  private MetadataCodec metadataCodec = MetadataCodec.INSTANCE;
+  private int metadataTimeout;
+  private MetadataCodec metadataCodec;
 
   private String memberId;
   private String memberAlias;
   private String externalHost;
   private Integer externalPort;
 
-  private TransportConfig transportConfig = TransportConfig.defaultConfig();
-  private FailureDetectorConfig failureDetectorConfig = FailureDetectorConfig.defaultConfig();
-  private GossipConfig gossipConfig = GossipConfig.defaultConfig();
-  private MembershipConfig membershipConfig = MembershipConfig.defaultConfig();
+  private TransportConfig transportConfig;
+  private FailureDetectorConfig failureDetectorConfig;
+  private GossipConfig gossipConfig;
+  private MembershipConfig membershipConfig;
 
-  public ClusterConfig() {}
-
-  public static ClusterConfig defaultConfig() {
-    return new ClusterConfig();
+  public ClusterConfig() {
+    this(System.getProperties());
   }
 
-  /**
-   * Creates {@code ClusterConfig} with default settings for cluster on LAN network.
-   *
-   * @return new {@code ClusterConfig}
-   */
-  public static ClusterConfig defaultLanConfig() {
-    return defaultConfig();
+  public ClusterConfig(Properties properties) {
+    metadataTimeout(properties);
+    metadataCodec(properties);
+    memberId(properties);
+    memberAlias(properties);
+    externalHost(properties);
+    externalPort(properties);
+    transportConfig = new TransportConfig(properties);
+    failureDetectorConfig = new FailureDetectorConfig(properties);
+    gossipConfig = new GossipConfig(properties);
+    membershipConfig = new MembershipConfig(properties);
   }
 
-  /**
-   * Creates {@code ClusterConfig} with default settings for cluster on WAN network.
-   *
-   * @return new {@code ClusterConfig}
-   */
-  public static ClusterConfig defaultWanConfig() {
-    return defaultConfig()
-        .failureDetector(opts -> FailureDetectorConfig.defaultWanConfig())
-        .gossip(opts -> GossipConfig.defaultWanConfig())
-        .membership(opts -> MembershipConfig.defaultWanConfig())
-        .transport(opts -> TransportConfig.defaultWanConfig())
-        .metadataTimeout(DEFAULT_WAN_METADATA_TIMEOUT);
+  private static String getProperty(Properties properties, String name) {
+    final var value = properties.getProperty(name);
+    return "@null".equals(value) ? null : value;
   }
 
-  /**
-   * Creates {@code MembershipConfig} with default settings for cluster on local loopback interface.
-   *
-   * @return new {@code MembershipConfig}
-   */
-  public static ClusterConfig defaultLocalConfig() {
-    return defaultConfig()
-        .failureDetector(opts -> FailureDetectorConfig.defaultLocalConfig())
-        .gossip(opts -> GossipConfig.defaultLocalConfig())
-        .membership(opts -> MembershipConfig.defaultLocalConfig())
-        .transport(opts -> TransportConfig.defaultLocalConfig())
-        .metadataTimeout(DEFAULT_LOCAL_METADATA_TIMEOUT);
+  private static int getProperty(Properties properties, String name, int defaultValue) {
+    final var value = getProperty(properties, name);
+    return value != null ? Integer.parseInt(value) : defaultValue;
+  }
+
+  // Same as Aeron's suppliers: the property is a class name with a public no-arg constructor
+  private static <T> T newInstance(String name, String className, Class<T> type) {
+    try {
+      return Class.forName(className).asSubclass(type).getConstructor().newInstance();
+    } catch (Exception e) {
+      throw new IllegalArgumentException(name + ": cannot instantiate " + className, e);
+    }
   }
 
   public <T> T metadata() {
@@ -91,48 +86,85 @@ public final class ClusterConfig implements Cloneable {
     return (T) metadata;
   }
 
-  /**
-   * Setter for metadata.
-   *
-   * @param metadata metadata
-   * @return new {@code ClusterConfig} instance
-   */
   public ClusterConfig metadata(Object metadata) {
-    ClusterConfig c = clone();
-    c.metadata = metadata;
-    return c;
+    this.metadata = metadata;
+    return this;
   }
 
   public int metadataTimeout() {
     return metadataTimeout;
   }
 
-  /**
-   * Setter for metadataTimeout.
-   *
-   * @param metadataTimeout metadata timeout
-   * @return new {@code ClusterConfig} instance
-   */
   public ClusterConfig metadataTimeout(int metadataTimeout) {
-    ClusterConfig c = clone();
-    c.metadataTimeout = metadataTimeout;
-    return c;
+    this.metadataTimeout = metadataTimeout;
+    return this;
+  }
+
+  public ClusterConfig metadataTimeout(Properties properties) {
+    return metadataTimeout(
+        getProperty(properties, METADATA_TIMEOUT_PROP_NAME, DEFAULT_METADATA_TIMEOUT));
   }
 
   public MetadataCodec metadataCodec() {
     return metadataCodec;
   }
 
-  /**
-   * Setter for metadataCodec.
-   *
-   * @param metadataCodec metadata codec
-   * @return new {@code ClusterConfig} instance
-   */
   public ClusterConfig metadataCodec(MetadataCodec metadataCodec) {
-    ClusterConfig c = clone();
-    c.metadataCodec = metadataCodec;
-    return c;
+    this.metadataCodec = metadataCodec;
+    return this;
+  }
+
+  /**
+   * Reads the {@link MetadataCodec} class name; when not set, the first {@code ServiceLoader}
+   * provider (or JDK serialization) is used, see {@link MetadataCodec#INSTANCE}.
+   *
+   * @param properties properties
+   * @return this
+   */
+  public ClusterConfig metadataCodec(Properties properties) {
+    final var className = getProperty(properties, METADATA_CODEC_PROP_NAME);
+    return metadataCodec(
+        className != null
+            ? newInstance(METADATA_CODEC_PROP_NAME, className, MetadataCodec.class)
+            : MetadataCodec.INSTANCE);
+  }
+
+  /**
+   * Returns ID to use for the local member. If {@code null}, the ID will be generated
+   * automatically.
+   *
+   * @return local member ID.
+   */
+  public String memberId() {
+    return memberId;
+  }
+
+  public ClusterConfig memberId(String memberId) {
+    this.memberId = memberId;
+    return this;
+  }
+
+  public ClusterConfig memberId(Properties properties) {
+    return memberId(getProperty(properties, MEMBER_ID_PROP_NAME));
+  }
+
+  /**
+   * Returns memberAlias. {@code memberAlias} is a config property which facilitates {@link
+   * io.scalecube.cluster.Member#toString()}.
+   *
+   * @return member alias.
+   */
+  public String memberAlias() {
+    return memberAlias;
+  }
+
+  public ClusterConfig memberAlias(String memberAlias) {
+    this.memberAlias = memberAlias;
+    return this;
+  }
+
+  public ClusterConfig memberAlias(Properties properties) {
+    return memberAlias(getProperty(properties, MEMBER_ALIAS_PROP_NAME));
   }
 
   /**
@@ -146,63 +178,13 @@ public final class ClusterConfig implements Cloneable {
     return externalHost;
   }
 
-  /**
-   * Setter for externalHost. {@code externalHost} is a config property for container environments,
-   * it's being set for advertising to scalecube cluster some connectable hostname which maps to
-   * scalecube transport's hostname on which scalecube transport is listening.
-   *
-   * @param externalHost external host
-   * @return new {@code ClusterConfig} instance
-   */
   public ClusterConfig externalHost(String externalHost) {
-    ClusterConfig c = clone();
-    c.externalHost = externalHost;
-    return c;
+    this.externalHost = externalHost;
+    return this;
   }
 
-  /**
-   * Returns ID to use for the local member. If {@code null}, the ID will be generated
-   * automatically.
-   *
-   * @return local member ID.
-   */
-  public String memberId() {
-    return memberId;
-  }
-
-  /**
-   * Sets ID to use for the local member. If {@code null}, the ID will be generated automatically.
-   *
-   * @param memberId local member ID
-   * @return new {@code ClusterConfig} instance
-   */
-  public ClusterConfig memberId(String memberId) {
-    ClusterConfig c = clone();
-    c.memberId = memberId;
-    return c;
-  }
-
-  /**
-   * Returns memberAlias. {@code memberAlias} is a config property which facilitates {@link
-   * io.scalecube.cluster.Member#toString()}.
-   *
-   * @return member alias.
-   */
-  public String memberAlias() {
-    return memberAlias;
-  }
-
-  /**
-   * Setter for memberAlias. {@code memberAlias} is a config property which facilitates {@link
-   * io.scalecube.cluster.Member#toString()}.
-   *
-   * @param memberAlias member alias
-   * @return new {@code ClusterConfig} instance
-   */
-  public ClusterConfig memberAlias(String memberAlias) {
-    ClusterConfig c = clone();
-    c.memberAlias = memberAlias;
-    return c;
+  public ClusterConfig externalHost(Properties properties) {
+    return externalHost(getProperty(properties, EXTERNAL_HOST_PROP_NAME));
   }
 
   /**
@@ -216,96 +198,50 @@ public final class ClusterConfig implements Cloneable {
     return externalPort;
   }
 
-  /**
-   * Setter for externalPort. {@code externalPort} is a config property for container environments,
-   * it's being set for advertising to scalecube cluster a port which mapped to scalecube
-   * transport's listening port.
-   *
-   * @param externalPort external port
-   * @return new {@code ClusterConfig} instance
-   */
   public ClusterConfig externalPort(Integer externalPort) {
-    ClusterConfig c = clone();
-    c.externalPort = externalPort;
-    return c;
+    this.externalPort = externalPort;
+    return this;
   }
 
-  /**
-   * Applies {@link TransportConfig} settings.
-   *
-   * @param op operator to apply {@link TransportConfig} settings
-   * @return new {@code ClusterConfig} instance
-   */
-  public ClusterConfig transport(UnaryOperator<TransportConfig> op) {
-    ClusterConfig c = clone();
-    c.transportConfig = op.apply(transportConfig);
-    return c;
+  public ClusterConfig externalPort(Properties properties) {
+    final var value = getProperty(properties, EXTERNAL_PORT_PROP_NAME);
+    return externalPort(value != null ? Integer.valueOf(value) : null);
   }
 
   public TransportConfig transportConfig() {
     return transportConfig;
   }
 
-  /**
-   * Applies {@link FailureDetectorConfig} settings.
-   *
-   * @param op operator to apply {@link FailureDetectorConfig} settings
-   * @return new {@code ClusterConfig} instance
-   */
-  public ClusterConfig failureDetector(UnaryOperator<FailureDetectorConfig> op) {
-    ClusterConfig c = clone();
-    c.failureDetectorConfig = op.apply(failureDetectorConfig);
-    return c;
+  public ClusterConfig transport(UnaryOperator<TransportConfig> op) {
+    transportConfig = op.apply(transportConfig);
+    return this;
   }
 
   public FailureDetectorConfig failureDetectorConfig() {
     return failureDetectorConfig;
   }
 
-  /**
-   * Applies {@link GossipConfig} settings.
-   *
-   * @param op operator to apply {@link GossipConfig} settings
-   * @return new {@code ClusterConfig} instance
-   */
-  public ClusterConfig gossip(UnaryOperator<GossipConfig> op) {
-    ClusterConfig c = clone();
-    c.gossipConfig = op.apply(gossipConfig);
-    return c;
+  public ClusterConfig failureDetector(UnaryOperator<FailureDetectorConfig> op) {
+    failureDetectorConfig = op.apply(failureDetectorConfig);
+    return this;
   }
 
   public GossipConfig gossipConfig() {
     return gossipConfig;
   }
 
-  /**
-   * Applies {@link MembershipConfig} settings.
-   *
-   * @param op operator to apply {@link MembershipConfig} settings
-   * @return new {@code ClusterConfig} instance
-   */
-  public ClusterConfig membership(UnaryOperator<MembershipConfig> op) {
-    ClusterConfig c = clone();
-    c.membershipConfig = op.apply(membershipConfig);
-    return c;
+  public ClusterConfig gossip(UnaryOperator<GossipConfig> op) {
+    gossipConfig = op.apply(gossipConfig);
+    return this;
   }
 
   public MembershipConfig membershipConfig() {
     return membershipConfig;
   }
 
-  @Override
-  public ClusterConfig clone() {
-    try {
-      ClusterConfig c = (ClusterConfig) super.clone();
-      c.transportConfig = transportConfig.clone();
-      c.failureDetectorConfig = failureDetectorConfig.clone();
-      c.gossipConfig = gossipConfig.clone();
-      c.membershipConfig = membershipConfig.clone();
-      return c;
-    } catch (CloneNotSupportedException e) {
-      throw Exceptions.propagate(e);
-    }
+  public ClusterConfig membership(UnaryOperator<MembershipConfig> op) {
+    membershipConfig = op.apply(membershipConfig);
+    return this;
   }
 
   @Override

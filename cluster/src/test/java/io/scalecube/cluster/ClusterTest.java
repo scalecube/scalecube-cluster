@@ -570,7 +570,7 @@ public class ClusterTest extends BaseTest {
 
   @Test
   public void testExplicitLocalMemberId() {
-    ClusterConfig config = ClusterConfig.defaultConfig().memberId("test-member");
+    ClusterConfig config = new ClusterConfig().memberId("test-member");
 
     ClusterImpl cluster = null;
     try {

@@ -1,168 +1,136 @@
 package io.scalecube.cluster.membership;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Properties;
 import java.util.StringJoiner;
-import reactor.core.Exceptions;
 
-public final class MembershipConfig implements Cloneable {
+public final class MembershipConfig {
 
-  // Default settings for LAN cluster
-  public static final int DEFAULT_SYNC_INTERVAL = 30_000;
+  public static final int DEFAULT_SYNC_INTERVAL = 3_000;
   public static final int DEFAULT_SYNC_TIMEOUT = 3_000;
   public static final int DEFAULT_SUSPICION_MULT = 5;
+  public static final String DEFAULT_NAMESPACE = "default";
 
-  // Default settings for WAN cluster (overrides default/LAN settings)
-  public static final int DEFAULT_WAN_SUSPICION_MULT = 6;
-  public static final int DEFAULT_WAN_SYNC_INTERVAL = 60_000;
+  public static final String SEED_MEMBERS_PROP_NAME = "scalecube.cluster.membership.seedMembers";
+  public static final String SYNC_INTERVAL_PROP_NAME = "scalecube.cluster.membership.syncInterval";
+  public static final String SYNC_TIMEOUT_PROP_NAME = "scalecube.cluster.membership.syncTimeout";
+  public static final String SUSPICION_MULT_PROP_NAME =
+      "scalecube.cluster.membership.suspicionMult";
+  public static final String NAMESPACE_PROP_NAME = "scalecube.cluster.membership.namespace";
 
-  // Default settings for local cluster working via loopback interface (overrides default/LAN
-  // settings)
-  public static final int DEFAULT_LOCAL_SUSPICION_MULT = 3;
-  public static final int DEFAULT_LOCAL_SYNC_INTERVAL = 15_000;
+  private List<String> seedMembers;
+  private int syncInterval;
+  private int syncTimeout;
+  private int suspicionMult;
+  private String namespace;
 
-  private List<String> seedMembers = Collections.emptyList();
-  private int syncInterval = DEFAULT_SYNC_INTERVAL;
-  private int syncTimeout = DEFAULT_SYNC_TIMEOUT;
-  private int suspicionMult = DEFAULT_SUSPICION_MULT;
-  private String namespace = "default";
-
-  public MembershipConfig() {}
-
-  public static MembershipConfig defaultConfig() {
-    return new MembershipConfig();
+  public MembershipConfig() {
+    this(System.getProperties());
   }
 
-  /**
-   * Creates {@code MembershipConfig} with default settings for cluster on LAN network.
-   *
-   * @return new {@code MembershipConfig}
-   */
-  public static MembershipConfig defaultLanConfig() {
-    return defaultConfig();
+  public MembershipConfig(Properties properties) {
+    seedMembers(properties);
+    syncInterval(properties);
+    syncTimeout(properties);
+    suspicionMult(properties);
+    namespace(properties);
   }
 
-  /**
-   * Creates {@code MembershipConfig} with default settings for cluster on WAN network.
-   *
-   * @return new {@code MembershipConfig}
-   */
-  public static MembershipConfig defaultWanConfig() {
-    return defaultConfig()
-        .suspicionMult(DEFAULT_WAN_SUSPICION_MULT)
-        .syncInterval(DEFAULT_WAN_SYNC_INTERVAL);
+  private static String getProperty(Properties properties, String name) {
+    final var value = properties.getProperty(name);
+    return "@null".equals(value) ? null : value;
   }
 
-  /**
-   * Creates {@code MembershipConfig} with default settings for cluster on local loopback interface.
-   *
-   * @return new {@code MembershipConfig}
-   */
-  public static MembershipConfig defaultLocalConfig() {
-    return defaultConfig()
-        .suspicionMult(DEFAULT_LOCAL_SUSPICION_MULT)
-        .syncInterval(DEFAULT_LOCAL_SYNC_INTERVAL);
+  private static String getProperty(Properties properties, String name, String defaultValue) {
+    final var value = getProperty(properties, name);
+    return value != null ? value : defaultValue;
+  }
+
+  private static int getProperty(Properties properties, String name, int defaultValue) {
+    final var value = getProperty(properties, name);
+    return value != null ? Integer.parseInt(value) : defaultValue;
   }
 
   public List<String> seedMembers() {
     return seedMembers;
   }
 
-  /**
-   * Setter for {@code seedMembers}.
-   *
-   * @param seedMembers seed members
-   * @return new {@code MembershipConfig} instance
-   */
   public MembershipConfig seedMembers(String... seedMembers) {
     return seedMembers(Arrays.asList(seedMembers));
   }
 
-  /**
-   * Setter for {@code seedMembers}.
-   *
-   * @param seedMembers seed members
-   * @return new {@code MembershipConfig} instance
-   */
   public MembershipConfig seedMembers(List<String> seedMembers) {
-    MembershipConfig m = clone();
-    m.seedMembers = Collections.unmodifiableList(new ArrayList<>(seedMembers));
-    return m;
+    this.seedMembers = List.copyOf(seedMembers);
+    return this;
+  }
+
+  /**
+   * Reads comma-separated seed members, e.g. {@code host1:4801,host2:4801}.
+   *
+   * @param properties properties
+   * @return this
+   */
+  public MembershipConfig seedMembers(Properties properties) {
+    final var value = getProperty(properties, SEED_MEMBERS_PROP_NAME);
+    if (value == null || value.isBlank()) {
+      return seedMembers(Collections.emptyList());
+    }
+    return seedMembers(
+        Arrays.stream(value.split(",")).map(String::trim).filter(s -> !s.isEmpty()).toList());
   }
 
   public int syncInterval() {
     return syncInterval;
   }
 
-  /**
-   * Setter for {@code syncInterval}.
-   *
-   * @param syncInterval sync interval
-   * @return new {@code MembershipConfig} instance
-   */
   public MembershipConfig syncInterval(int syncInterval) {
-    MembershipConfig m = clone();
-    m.syncInterval = syncInterval;
-    return m;
+    this.syncInterval = syncInterval;
+    return this;
+  }
+
+  public MembershipConfig syncInterval(Properties properties) {
+    return syncInterval(getProperty(properties, SYNC_INTERVAL_PROP_NAME, DEFAULT_SYNC_INTERVAL));
   }
 
   public int syncTimeout() {
     return syncTimeout;
   }
 
-  /**
-   * Setter for {@code syncTimeout}.
-   *
-   * @param syncTimeout sync timeout
-   * @return new {@code MembershipConfig} instance
-   */
   public MembershipConfig syncTimeout(int syncTimeout) {
-    MembershipConfig m = clone();
-    m.syncTimeout = syncTimeout;
-    return m;
+    this.syncTimeout = syncTimeout;
+    return this;
+  }
+
+  public MembershipConfig syncTimeout(Properties properties) {
+    return syncTimeout(getProperty(properties, SYNC_TIMEOUT_PROP_NAME, DEFAULT_SYNC_TIMEOUT));
   }
 
   public int suspicionMult() {
     return suspicionMult;
   }
 
-  /**
-   * Setter for {@code suspicionMult}.
-   *
-   * @param suspicionMult suspicion multiplier
-   * @return new {@code MembershipConfig} instance
-   */
   public MembershipConfig suspicionMult(int suspicionMult) {
-    MembershipConfig m = clone();
-    m.suspicionMult = suspicionMult;
-    return m;
+    this.suspicionMult = suspicionMult;
+    return this;
+  }
+
+  public MembershipConfig suspicionMult(Properties properties) {
+    return suspicionMult(getProperty(properties, SUSPICION_MULT_PROP_NAME, DEFAULT_SUSPICION_MULT));
   }
 
   public String namespace() {
     return namespace;
   }
 
-  /**
-   * Setter for {@code namespace}.
-   *
-   * @param namespace namespace
-   * @return new {@code MembershipConfig} instance
-   */
   public MembershipConfig namespace(String namespace) {
-    MembershipConfig m = clone();
-    m.namespace = namespace;
-    return m;
+    this.namespace = namespace;
+    return this;
   }
 
-  @Override
-  public MembershipConfig clone() {
-    try {
-      return (MembershipConfig) super.clone();
-    } catch (CloneNotSupportedException e) {
-      throw Exceptions.propagate(e);
-    }
+  public MembershipConfig namespace(Properties properties) {
+    return namespace(getProperty(properties, NAMESPACE_PROP_NAME, DEFAULT_NAMESPACE));
   }
 
   @Override

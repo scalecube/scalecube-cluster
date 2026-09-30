@@ -1,123 +1,92 @@
 package io.scalecube.cluster.gossip;
 
+import java.util.Properties;
 import java.util.StringJoiner;
-import reactor.core.Exceptions;
 
-public final class GossipConfig implements Cloneable {
+public final class GossipConfig {
 
-  // Default settings for LAN cluster
-  public static final long DEFAULT_GOSSIP_INTERVAL = 200;
   public static final int DEFAULT_GOSSIP_FANOUT = 3;
+  public static final long DEFAULT_GOSSIP_INTERVAL = 200;
   public static final int DEFAULT_GOSSIP_REPEAT_MULT = 3;
-  public static final int GOSSIP_SEGMENTATION_THRESHOLD = 1000;
+  public static final int DEFAULT_GOSSIP_SEGMENTATION_THRESHOLD = 1000;
 
-  // Default settings for WAN cluster (overrides default/LAN settings)
-  public static final int DEFAULT_WAN_GOSSIP_FANOUT = 4;
+  public static final String GOSSIP_FANOUT_PROP_NAME = "scalecube.cluster.gossip.gossipFanout";
+  public static final String GOSSIP_INTERVAL_PROP_NAME = "scalecube.cluster.gossip.gossipInterval";
+  public static final String GOSSIP_REPEAT_MULT_PROP_NAME =
+      "scalecube.cluster.gossip.gossipRepeatMult";
+  public static final String GOSSIP_SEGMENTATION_THRESHOLD_PROP_NAME =
+      "scalecube.cluster.gossip.gossipSegmentationThreshold";
 
-  // Default settings for local cluster working via loopback interface (overrides default/LAN
-  // settings)
-  public static final int DEFAULT_LOCAL_GOSSIP_REPEAT_MULT = 2;
-  public static final int DEFAULT_LOCAL_GOSSIP_INTERVAL = 100;
+  private int gossipFanout;
+  private long gossipInterval;
+  private int gossipRepeatMult;
+  private int gossipSegmentationThreshold;
 
-  private int gossipFanout = DEFAULT_GOSSIP_FANOUT;
-  private long gossipInterval = DEFAULT_GOSSIP_INTERVAL;
-  private int gossipRepeatMult = DEFAULT_GOSSIP_REPEAT_MULT;
-  private int gossipSegmentationThreshold = GOSSIP_SEGMENTATION_THRESHOLD;
-
-  public GossipConfig() {}
-
-  public static GossipConfig defaultConfig() {
-    return new GossipConfig();
+  public GossipConfig() {
+    this(System.getProperties());
   }
 
-  /**
-   * Creates {@code GossipConfig} with default settings for cluster on LAN network.
-   *
-   * @return new {@code GossipConfig}
-   */
-  public static GossipConfig defaultLanConfig() {
-    return defaultConfig();
+  public GossipConfig(Properties properties) {
+    gossipFanout(properties);
+    gossipInterval(properties);
+    gossipRepeatMult(properties);
+    gossipSegmentationThreshold(properties);
   }
 
-  /**
-   * Creates {@code GossipConfig} with default settings for cluster on WAN network.
-   *
-   * @return new {@code GossipConfig}
-   */
-  public static GossipConfig defaultWanConfig() {
-    return defaultConfig().gossipFanout(DEFAULT_WAN_GOSSIP_FANOUT);
+  private static String getProperty(Properties properties, String name) {
+    final var value = properties.getProperty(name);
+    return "@null".equals(value) ? null : value;
   }
 
-  /**
-   * Creates {@code GossipConfig} with default settings for cluster on local loopback interface.
-   *
-   * @return new {@code GossipConfig}
-   */
-  public static GossipConfig defaultLocalConfig() {
-    return defaultConfig()
-        .gossipRepeatMult(DEFAULT_LOCAL_GOSSIP_REPEAT_MULT)
-        .gossipInterval(DEFAULT_LOCAL_GOSSIP_INTERVAL);
+  private static int getProperty(Properties properties, String name, int defaultValue) {
+    final var value = getProperty(properties, name);
+    return value != null ? Integer.parseInt(value) : defaultValue;
   }
 
-  /**
-   * Setter for {@code gossipFanout}.
-   *
-   * @param gossipFanout gossip fanout
-   * @return new {@code GossipConfig}
-   */
-  public GossipConfig gossipFanout(int gossipFanout) {
-    GossipConfig g = clone();
-    g.gossipFanout = gossipFanout;
-    return g;
+  private static long getProperty(Properties properties, String name, long defaultValue) {
+    final var value = getProperty(properties, name);
+    return value != null ? Long.parseLong(value) : defaultValue;
   }
 
   public int gossipFanout() {
     return gossipFanout;
   }
 
-  /**
-   * Setter for {@code gossipInterval}.
-   *
-   * @param gossipInterval gossip interval
-   * @return new {@code GossipConfig}
-   */
-  public GossipConfig gossipInterval(long gossipInterval) {
-    GossipConfig g = clone();
-    g.gossipInterval = gossipInterval;
-    return g;
+  public GossipConfig gossipFanout(int gossipFanout) {
+    this.gossipFanout = gossipFanout;
+    return this;
+  }
+
+  public GossipConfig gossipFanout(Properties properties) {
+    return gossipFanout(getProperty(properties, GOSSIP_FANOUT_PROP_NAME, DEFAULT_GOSSIP_FANOUT));
   }
 
   public long gossipInterval() {
     return gossipInterval;
   }
 
-  /**
-   * Setter for {@code gossipRepeatMult}.
-   *
-   * @param gossipRepeatMult gossip repeat multiplier
-   * @return new {@code GossipConfig}
-   */
-  public GossipConfig gossipRepeatMult(int gossipRepeatMult) {
-    GossipConfig g = clone();
-    g.gossipRepeatMult = gossipRepeatMult;
-    return g;
+  public GossipConfig gossipInterval(long gossipInterval) {
+    this.gossipInterval = gossipInterval;
+    return this;
+  }
+
+  public GossipConfig gossipInterval(Properties properties) {
+    return gossipInterval(
+        getProperty(properties, GOSSIP_INTERVAL_PROP_NAME, DEFAULT_GOSSIP_INTERVAL));
   }
 
   public int gossipRepeatMult() {
     return gossipRepeatMult;
   }
 
-  /**
-   * Setter for {@code gossipSegmentationThreshold}.
-   *
-   * @param gossipSegmentationThreshold gossip segmentation threshold
-   * @return new {@code GossipConfig}
-   * @see #gossipSegmentationThreshold()
-   */
-  public GossipConfig gossipSegmentationThreshold(int gossipSegmentationThreshold) {
-    GossipConfig g = clone();
-    g.gossipSegmentationThreshold = gossipSegmentationThreshold;
-    return g;
+  public GossipConfig gossipRepeatMult(int gossipRepeatMult) {
+    this.gossipRepeatMult = gossipRepeatMult;
+    return this;
+  }
+
+  public GossipConfig gossipRepeatMult(Properties properties) {
+    return gossipRepeatMult(
+        getProperty(properties, GOSSIP_REPEAT_MULT_PROP_NAME, DEFAULT_GOSSIP_REPEAT_MULT));
   }
 
   /**
@@ -133,13 +102,17 @@ public final class GossipConfig implements Cloneable {
     return gossipSegmentationThreshold;
   }
 
-  @Override
-  public GossipConfig clone() {
-    try {
-      return (GossipConfig) super.clone();
-    } catch (CloneNotSupportedException e) {
-      throw Exceptions.propagate(e);
-    }
+  public GossipConfig gossipSegmentationThreshold(int gossipSegmentationThreshold) {
+    this.gossipSegmentationThreshold = gossipSegmentationThreshold;
+    return this;
+  }
+
+  public GossipConfig gossipSegmentationThreshold(Properties properties) {
+    return gossipSegmentationThreshold(
+        getProperty(
+            properties,
+            GOSSIP_SEGMENTATION_THRESHOLD_PROP_NAME,
+            DEFAULT_GOSSIP_SEGMENTATION_THRESHOLD));
   }
 
   @Override
