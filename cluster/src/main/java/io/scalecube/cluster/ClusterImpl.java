@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.UUID;
@@ -94,17 +95,15 @@ public final class ClusterImpl implements Cluster {
   private Scheduler scheduler;
 
   public ClusterImpl() {
-    this(ClusterConfig.defaultConfig());
+    this(new ClusterConfig());
+  }
+
+  public ClusterImpl(Properties properties) {
+    this(new ClusterConfig(properties));
   }
 
   public ClusterImpl(ClusterConfig config) {
     this.config = Objects.requireNonNull(config);
-    initLifecycle();
-  }
-
-  private ClusterImpl(ClusterImpl that) {
-    this.config = that.config.clone();
-    this.handler = that.handler;
     initLifecycle();
   }
 
@@ -126,30 +125,18 @@ public final class ClusterImpl implements Cluster {
                 LOGGER.warn("[{}][doShutdown] Exception occurred: {}", localMember, th.toString()));
   }
 
-  /**
-   * Returns a new cluster's instance which will apply the given options.
-   *
-   * @param options cluster config options
-   * @return new {@code ClusterImpl} instance
-   */
-  public ClusterImpl config(UnaryOperator<ClusterConfig> options) {
-    Objects.requireNonNull(options);
-    ClusterImpl cluster = new ClusterImpl(this);
-    cluster.config = options.apply(config);
-    return cluster;
+  public ClusterConfig config() {
+    return config;
   }
 
-  /**
-   * Returns a new cluster's instance which will apply the given options.
-   *
-   * @param options transport config options
-   * @return new {@code ClusterImpl} instance
-   */
+  public ClusterImpl config(UnaryOperator<ClusterConfig> options) {
+    config = Objects.requireNonNull(options.apply(config));
+    return this;
+  }
+
   public ClusterImpl transport(UnaryOperator<TransportConfig> options) {
-    Objects.requireNonNull(options);
-    ClusterImpl cluster = new ClusterImpl(this);
-    cluster.config = config.transport(options);
-    return cluster;
+    config.transport(options);
+    return this;
   }
 
   @Override
@@ -157,69 +144,29 @@ public final class ClusterImpl implements Cluster {
     return transport;
   }
 
-  /**
-   * Returns a new cluster's instance which will apply the given options.
-   *
-   * @param supplier transport factory supplier
-   * @return new {@code ClusterImpl} instance
-   */
   public ClusterImpl transportFactory(Supplier<TransportFactory> supplier) {
-    Objects.requireNonNull(supplier);
-    ClusterImpl cluster = new ClusterImpl(this);
-    cluster.config = config.transport(opts -> opts.transportFactory(supplier.get()));
-    return cluster;
+    config.transport(opts -> opts.transportFactory(supplier.get()));
+    return this;
   }
 
-  /**
-   * Returns a new cluster's instance which will apply the given options.
-   *
-   * @param options failureDetector config options
-   * @return new {@code ClusterImpl} instance
-   */
   public ClusterImpl failureDetector(UnaryOperator<FailureDetectorConfig> options) {
-    Objects.requireNonNull(options);
-    ClusterImpl cluster = new ClusterImpl(this);
-    cluster.config = config.failureDetector(options);
-    return cluster;
+    config.failureDetector(options);
+    return this;
   }
 
-  /**
-   * Returns a new cluster's instance which will apply the given options.
-   *
-   * @param options gossip config options
-   * @return new {@code ClusterImpl} instance
-   */
   public ClusterImpl gossip(UnaryOperator<GossipConfig> options) {
-    Objects.requireNonNull(options);
-    ClusterImpl cluster = new ClusterImpl(this);
-    cluster.config = config.gossip(options);
-    return cluster;
+    config.gossip(options);
+    return this;
   }
 
-  /**
-   * Returns a new cluster's instance which will apply the given options.
-   *
-   * @param options membership config options
-   * @return new {@code ClusterImpl} instance
-   */
   public ClusterImpl membership(UnaryOperator<MembershipConfig> options) {
-    Objects.requireNonNull(options);
-    ClusterImpl cluster = new ClusterImpl(this);
-    cluster.config = config.membership(options);
-    return cluster;
+    config.membership(options);
+    return this;
   }
 
-  /**
-   * Returns a new cluster's instance with given handler. The previous handler will be replaced.
-   *
-   * @param handler message handler supplier by the cluster
-   * @return new {@code ClusterImpl} instance
-   */
   public ClusterImpl handler(Function<Cluster, ClusterMessageHandler> handler) {
-    Objects.requireNonNull(handler);
-    ClusterImpl cluster = new ClusterImpl(this);
-    cluster.handler = handler;
-    return cluster;
+    this.handler = Objects.requireNonNull(handler);
+    return this;
   }
 
   /**

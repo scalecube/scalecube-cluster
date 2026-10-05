@@ -158,7 +158,7 @@ public class FailureDetectorTest extends BaseTest {
     FailureDetectorConfig fdBConfig =
         new FailureDetectorConfig().pingTimeout(500).pingInterval(1000);
     FailureDetectorImpl fdB = createFd(b, members, fdBConfig);
-    FailureDetectorImpl fdC = createFd(c, members, FailureDetectorConfig.defaultConfig());
+    FailureDetectorImpl fdC = createFd(c, members, new FailureDetectorConfig());
     List<FailureDetectorImpl> fdetectors = Arrays.asList(fdA, fdB, fdC);
 
     try {
@@ -399,10 +399,7 @@ public class FailureDetectorTest extends BaseTest {
 
   private FailureDetectorImpl createFd(Transport transport, List<String> members) {
     FailureDetectorConfig failureDetectorConfig =
-        FailureDetectorConfig.defaultLocalConfig() // faster config for local testing
-            .pingTimeout(100)
-            .pingInterval(200)
-            .pingReqMembers(2);
+        new FailureDetectorConfig().pingTimeout(100).pingInterval(200).pingReqMembers(2);
     return createFd(transport, members, failureDetectorConfig);
   }
 

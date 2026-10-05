@@ -1,123 +1,83 @@
 package io.scalecube.cluster.fdetector;
 
+import java.util.Properties;
 import java.util.StringJoiner;
-import reactor.core.Exceptions;
 
-public final class FailureDetectorConfig implements Cloneable {
+public final class FailureDetectorConfig {
 
-  // Default settings for LAN cluster
   public static final int DEFAULT_PING_INTERVAL = 1_000;
   public static final int DEFAULT_PING_TIMEOUT = 500;
   public static final int DEFAULT_PING_REQ_MEMBERS = 3;
 
-  // Default settings for WAN cluster (overrides default/LAN settings)
-  public static final int DEFAULT_WAN_PING_TIMEOUT = 3_000;
-  public static final int DEFAULT_WAN_PING_INTERVAL = 5_000;
+  public static final String PING_INTERVAL_PROP_NAME =
+      "scalecube.cluster.failureDetector.pingInterval";
+  public static final String PING_TIMEOUT_PROP_NAME =
+      "scalecube.cluster.failureDetector.pingTimeout";
+  public static final String PING_REQ_MEMBERS_PROP_NAME =
+      "scalecube.cluster.failureDetector.pingReqMembers";
 
-  // Default settings for local cluster working via loopback interface (overrides default/LAN
-  // settings)
-  public static final int DEFAULT_LOCAL_PING_TIMEOUT = 200;
-  public static final int DEFAULT_LOCAL_PING_INTERVAL = 1_000;
-  public static final int DEFAULT_LOCAL_PING_REQ_MEMBERS = 1;
+  private int pingInterval;
+  private int pingTimeout;
+  private int pingReqMembers;
 
-  private int pingInterval = DEFAULT_PING_INTERVAL;
-  private int pingTimeout = DEFAULT_PING_TIMEOUT;
-  private int pingReqMembers = DEFAULT_PING_REQ_MEMBERS;
-
-  public FailureDetectorConfig() {}
-
-  public static FailureDetectorConfig defaultConfig() {
-    return new FailureDetectorConfig();
+  public FailureDetectorConfig() {
+    this(System.getProperties());
   }
 
-  /**
-   * Creates {@code FailureDetectorConfig} with default settings for cluster on LAN network.
-   *
-   * @return new {@code FailureDetectorConfig}
-   */
-  public static FailureDetectorConfig defaultLanConfig() {
-    return defaultConfig();
+  public FailureDetectorConfig(Properties properties) {
+    pingInterval(properties);
+    pingTimeout(properties);
+    pingReqMembers(properties);
   }
 
-  /**
-   * Creates {@code FailureDetectorConfig} with default settings for cluster on WAN network.
-   *
-   * @return new {@code FailureDetectorConfig}
-   */
-  public static FailureDetectorConfig defaultWanConfig() {
-    return defaultConfig()
-        .pingTimeout(DEFAULT_WAN_PING_TIMEOUT)
-        .pingInterval(DEFAULT_WAN_PING_INTERVAL);
+  private static String getProperty(Properties properties, String name) {
+    final var value = properties.getProperty(name);
+    return "@null".equals(value) ? null : value;
   }
 
-  /**
-   * Creates {@code FailureDetectorConfig} with default settings for cluster on local loopback
-   * interface.
-   *
-   * @return new {@code FailureDetectorConfig}
-   */
-  public static FailureDetectorConfig defaultLocalConfig() {
-    return defaultConfig()
-        .pingTimeout(DEFAULT_LOCAL_PING_TIMEOUT)
-        .pingInterval(DEFAULT_LOCAL_PING_INTERVAL)
-        .pingReqMembers(DEFAULT_LOCAL_PING_REQ_MEMBERS);
-  }
-
-  /**
-   * Setter for {@code pingInterval}.
-   *
-   * @param pingInterval ping interval
-   * @return new {@code FailureDetectorConfig}
-   */
-  public FailureDetectorConfig pingInterval(int pingInterval) {
-    FailureDetectorConfig f = clone();
-    f.pingInterval = pingInterval;
-    return f;
+  private static int getProperty(Properties properties, String name, int defaultValue) {
+    final var value = getProperty(properties, name);
+    return value != null ? Integer.parseInt(value) : defaultValue;
   }
 
   public int pingInterval() {
     return pingInterval;
   }
 
-  /**
-   * Setter for {@code pingTimeout}.
-   *
-   * @param pingTimeout ping timeout
-   * @return new {@code FailureDetectorConfig}
-   */
-  public FailureDetectorConfig pingTimeout(int pingTimeout) {
-    FailureDetectorConfig f = clone();
-    f.pingTimeout = pingTimeout;
-    return f;
+  public FailureDetectorConfig pingInterval(int pingInterval) {
+    this.pingInterval = pingInterval;
+    return this;
+  }
+
+  public FailureDetectorConfig pingInterval(Properties properties) {
+    return pingInterval(getProperty(properties, PING_INTERVAL_PROP_NAME, DEFAULT_PING_INTERVAL));
   }
 
   public int pingTimeout() {
     return pingTimeout;
   }
 
-  /**
-   * Setter for number of members for requesting a ping.
-   *
-   * @param pingReqMembers number of members for requesting a ping
-   * @return new {@code FailureDetectorConfig}
-   */
-  public FailureDetectorConfig pingReqMembers(int pingReqMembers) {
-    FailureDetectorConfig f = clone();
-    f.pingReqMembers = pingReqMembers;
-    return f;
+  public FailureDetectorConfig pingTimeout(int pingTimeout) {
+    this.pingTimeout = pingTimeout;
+    return this;
+  }
+
+  public FailureDetectorConfig pingTimeout(Properties properties) {
+    return pingTimeout(getProperty(properties, PING_TIMEOUT_PROP_NAME, DEFAULT_PING_TIMEOUT));
   }
 
   public int pingReqMembers() {
     return pingReqMembers;
   }
 
-  @Override
-  public FailureDetectorConfig clone() {
-    try {
-      return (FailureDetectorConfig) super.clone();
-    } catch (CloneNotSupportedException e) {
-      throw Exceptions.propagate(e);
-    }
+  public FailureDetectorConfig pingReqMembers(int pingReqMembers) {
+    this.pingReqMembers = pingReqMembers;
+    return this;
+  }
+
+  public FailureDetectorConfig pingReqMembers(Properties properties) {
+    return pingReqMembers(
+        getProperty(properties, PING_REQ_MEMBERS_PROP_NAME, DEFAULT_PING_REQ_MEMBERS));
   }
 
   @Override
