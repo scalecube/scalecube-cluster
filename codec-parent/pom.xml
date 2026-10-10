@@ -17,17 +17,4 @@
     <module>codec-jackson-smile</module>
   </modules>
 
-  <dependencies>
-    <dependency>
-      <groupId>io.scalecube</groupId>
-      <artifactId>scalecube-transport-api</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>io.scalecube</groupId>
-      <artifactId>scalecube-cluster-api</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-  </dependencies>
-
 </project>
