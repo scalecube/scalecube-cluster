@@ -12,6 +12,16 @@
 
   <dependencies>
     <dependency>
+      <groupId>io.scalecube</groupId>
+      <artifactId>scalecube-transport-api</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.scalecube</groupId>
+      <artifactId>scalecube-cluster-api</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-core</artifactId>
     </dependency>
