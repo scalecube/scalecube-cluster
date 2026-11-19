@@ -35,6 +35,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -83,7 +84,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   // State
 
   private final Map<String, MembershipRecord> membershipTable = new HashMap<>();
-  private final Map<String, Member> members = new HashMap<>();
+  private final Map<String, Member> members = new ConcurrentHashMap<>();
   private final Set<String> aliveEmittedSet = new HashSet<>();
 
   // Subject
@@ -244,8 +245,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   @Override
   public Mono<Void> start() {
-    // Make initial sync with all seed members
-    return Mono.create(this::start0).then();
+    // Make initial sync with all seed members (on scheduler, as it reads membershipTable)
+    return Mono.create(this::start0).subscribeOn(scheduler).then();
   }
 
   private void start0(MonoSink<Object> sink) {
