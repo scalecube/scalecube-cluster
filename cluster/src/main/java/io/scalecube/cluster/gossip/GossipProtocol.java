@@ -20,7 +20,8 @@ public interface GossipProtocol {
   /**
    * Spreads given message between cluster members.
    *
-   * @return future result with gossip id once gossip fully spread.
+   * @return future result with gossip id once gossip fully spread; fails with {@link
+   *     IllegalStateException} if protocol is (or gets) stopped before that.
    */
   Mono<String> spread(Message message);
 
