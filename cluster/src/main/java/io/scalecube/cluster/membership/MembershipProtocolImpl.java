@@ -745,18 +745,21 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
           cancelSuspicionTimeoutTask(member.id());
 
+          // Always drop the record, even if member was never added (e.g. LEAVING gossip was the
+          // first thing we heard about it), otherwise it would stay in the table forever
+          final MembershipRecord r0 = membershipTable.remove(member.id());
+          aliveEmittedSet.remove(member.id());
+
           if (!members.containsKey(member.id())) {
             return;
           }
 
           // Removed membership
           members.remove(member.id());
-          final MembershipRecord r0 = membershipTable.remove(member.id());
           final ByteBuffer metadata = metadataStore.removeMetadata(member);
-          aliveEmittedSet.remove(member.id());
 
           // Log that member left gracefully or without notification
-          if (r0.isLeaving()) {
+          if (r0 != null && r0.isLeaving()) {
             LOGGER.info("[{}] Member left gracefully: {}", localMember, member);
           } else {
             LOGGER.info("[{}] Member left without notification: {}", localMember, member);
