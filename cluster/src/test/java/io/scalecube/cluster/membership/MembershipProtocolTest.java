@@ -180,6 +180,9 @@ public class MembershipProtocolTest extends BaseTest {
     awaitSuspicion(3);
 
     assertTrue(cmAEvents.isEmpty());
+    // LEAVING record of never-seen member must be removed after suspicion timeout
+    assertTrue(membersByStatus(cmA, MemberStatus.LEAVING).isEmpty());
+    assertTrue(membersByStatus(cmB, MemberStatus.LEAVING).isEmpty());
   }
 
   @Test
