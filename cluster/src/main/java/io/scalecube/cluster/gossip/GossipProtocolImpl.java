@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -49,7 +50,8 @@ public final class GossipProtocolImpl implements GossipProtocol {
   private long gossipCounter = 0;
   private final Map<String, SequenceIdCollector> sequenceIdCollectors = new HashMap<>();
   private final Map<String, GossipState> gossips = new HashMap<>();
-  private final Map<String, MonoSink<String>> futures = new HashMap<>();
+  private final Map<String, MonoSink<String>> futures = new ConcurrentHashMap<>();
+  private volatile boolean stopped;
 
   private final List<Member> remoteMembers = new ArrayList<>();
   private int remoteMembersIndex = -1;
@@ -116,8 +118,18 @@ public final class GossipProtocolImpl implements GossipProtocol {
 
   @Override
   public void stop() {
+    stopped = true;
+
     // Stop accepting gossip requests and spreading gossips
     actionsDisposables.dispose();
+
+    // Fail pending spread() calls, otherwise they would never complete
+    for (var gossipId : futures.keySet()) {
+      var future = futures.remove(gossipId);
+      if (future != null) {
+        future.error(new IllegalStateException("Gossip protocol stopped"));
+      }
+    }
 
     // Stop publishing events
     sink.emitComplete(busyLooping(Duration.ofSeconds(3)));
@@ -125,9 +137,17 @@ public final class GossipProtocolImpl implements GossipProtocol {
 
   @Override
   public Mono<String> spread(Message message) {
-    return Mono.just(message)
-        .subscribeOn(scheduler)
-        .flatMap(msg -> Mono.create(sink -> futures.put(createAndPutGossip(msg), sink)));
+    return Mono.<String>create(
+            sink -> {
+              var gossipId = createAndPutGossip(message);
+              futures.put(gossipId, sink);
+              sink.onCancel(() -> futures.remove(gossipId, sink));
+              // Already stopped, or stop() ran concurrently and missed this future
+              if (stopped && futures.remove(gossipId, sink)) {
+                sink.error(new IllegalStateException("Gossip protocol stopped"));
+              }
+            })
+        .subscribeOn(scheduler);
   }
 
   @Override
