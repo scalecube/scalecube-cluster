@@ -1,15 +1,20 @@
 package io.scalecube.transport.netty.tcp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import io.scalecube.cluster.transport.api.Message;
+import io.scalecube.cluster.transport.api.Transport;
+import io.scalecube.cluster.transport.api.TransportConfig;
 import io.scalecube.cluster.utils.NetworkEmulatorTransport;
 import io.scalecube.transport.netty.BaseTest;
+import io.scalecube.transport.netty.TransportImpl;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.net.UnknownHostException;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -37,6 +42,25 @@ public class TcpTransportTest extends BaseTest {
   public final void tearDown() {
     destroyTransport(client);
     destroyTransport(server);
+  }
+
+  @Test
+  public void testIsStoppedDoesNotLeakSubscribers() throws Exception {
+    Transport transport =
+        Transport.bindAwait(new TransportConfig().transportFactory(new TcpTransportFactory()));
+    try {
+      Field onStopField = TransportImpl.class.getDeclaredField("onStop");
+      onStopField.setAccessible(true);
+      Sinks.One<?> onStop = (Sinks.One<?>) onStopField.get(transport);
+
+      for (int i = 0; i < 1000; i++) {
+        assertFalse(transport.isStopped());
+      }
+      assertEquals(0, onStop.currentSubscriberCount());
+    } finally {
+      transport.stop().block(TIMEOUT);
+    }
+    assertTrue(transport.isStopped());
   }
 
   @Test

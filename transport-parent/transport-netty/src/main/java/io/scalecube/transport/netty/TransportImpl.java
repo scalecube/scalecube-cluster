@@ -47,6 +47,7 @@ public final class TransportImpl implements Transport {
   // Close handler
   private final Sinks.One<Void> stop = Sinks.one();
   private final Sinks.One<Void> onStop = Sinks.one();
+  private volatile boolean stopped;
 
   // Server
   private String address;
@@ -106,7 +107,11 @@ public final class TransportImpl implements Transport {
     // Setup cleanup
     stop.asMono()
         .then(doStop())
-        .doFinally(s -> onStop.emitEmpty(busyLooping(Duration.ofSeconds(3))))
+        .doFinally(
+            s -> {
+              stopped = true;
+              onStop.emitEmpty(busyLooping(Duration.ofSeconds(3)));
+            })
         .subscribe(
             null, ex -> LOGGER.warn("[{}][doStop] Exception occurred: {}", address, ex.toString()));
   }
@@ -138,7 +143,8 @@ public final class TransportImpl implements Transport {
 
   @Override
   public boolean isStopped() {
-    return onStop.asMono().toFuture().isDone();
+    // Don't subscribe to onStop here: every subscription stays registered until stop
+    return stopped;
   }
 
   @Override
