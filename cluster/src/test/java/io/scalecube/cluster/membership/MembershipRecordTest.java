@@ -2,6 +2,7 @@ package io.scalecube.cluster.membership;
 
 import static io.scalecube.cluster.membership.MemberStatus.ALIVE;
 import static io.scalecube.cluster.membership.MemberStatus.DEAD;
+import static io.scalecube.cluster.membership.MemberStatus.LEAVING;
 import static io.scalecube.cluster.membership.MemberStatus.SUSPECT;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -97,6 +98,12 @@ public class MembershipRecordTest extends BaseTest {
     assertFalse(r1Suspect1.isOverrides(r0Dead0));
     assertFalse(r1Suspect1.isOverrides(r0Dead1));
     assertFalse(r1Suspect1.isOverrides(r0Dead2));
+  }
+
+  @Test
+  public void testOnlyAliveOverridesUnknownMember() {
+    assertTrue(new MembershipRecord(member, ALIVE, 1).isOverrides(r0Null));
+    assertFalse(new MembershipRecord(member, LEAVING, 1).isOverrides(r0Null));
   }
 
   @Test
