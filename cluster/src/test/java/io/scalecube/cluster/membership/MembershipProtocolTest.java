@@ -144,9 +144,9 @@ public class MembershipProtocolTest extends BaseTest {
     awaitSeconds(1);
     awaitSuspicion(3);
 
-    assertMemberAndType(cmAEvents.get(0), anotherMember.id(), Type.ADDED);
-    assertMemberAndType(cmAEvents.get(1), anotherMember.id(), Type.LEAVING);
-    assertMemberAndType(cmAEvents.get(2), anotherMember.id(), Type.REMOVED);
+    // LEAVING for unknown member is ignored, stale ALIVE can't fetch metadata from gone node
+    assertTrue(cmAEvents.isEmpty(), "unexpected events: " + cmAEvents);
+    assertTrue(membersByStatus(cmA, MemberStatus.LEAVING).isEmpty());
   }
 
   @Test
