@@ -108,6 +108,10 @@ public class ClusterTest extends BaseTest {
     assertEquals(otherNode.member(), otherNodeOnSeedNode.orElse(null));
     assertEquals(seedNode.member(), seedNodeOnOtherNode.orElse(null));
 
+    // Null arguments return empty, not NPE
+    assertEquals(Optional.empty(), seedNode.memberById(null));
+    assertEquals(Optional.empty(), seedNode.metadata((Member) null));
+
     shutdown(Arrays.asList(seedNode, otherNode));
   }
 
