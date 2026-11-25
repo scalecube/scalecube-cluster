@@ -331,7 +331,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   @Override
   public Optional<Member> memberById(String id) {
-    return Optional.ofNullable(members.get(id));
+    return id == null ? Optional.empty() : Optional.ofNullable(members.get(id));
   }
 
   @Override

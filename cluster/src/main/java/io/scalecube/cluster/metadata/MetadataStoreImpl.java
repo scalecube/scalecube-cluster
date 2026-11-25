@@ -97,7 +97,9 @@ public class MetadataStoreImpl implements MetadataStore {
 
   @Override
   public Optional<ByteBuffer> metadata(Member member) {
-    return Optional.ofNullable(membersMetadata.get(member)).map(ByteBuffer::slice);
+    return member == null
+        ? Optional.empty()
+        : Optional.ofNullable(membersMetadata.get(member)).map(ByteBuffer::slice);
   }
 
   @Override
