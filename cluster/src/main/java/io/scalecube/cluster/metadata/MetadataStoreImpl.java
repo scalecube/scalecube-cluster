@@ -6,11 +6,11 @@ import io.scalecube.cluster.transport.api.Message;
 import io.scalecube.cluster.transport.api.Transport;
 import java.nio.ByteBuffer;
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
@@ -31,14 +31,14 @@ public class MetadataStoreImpl implements MetadataStore {
 
   // Injected
 
-  private Object localMetadata;
+  private volatile Object localMetadata;
   private final Member localMember;
   private final Transport transport;
   private final ClusterConfig config;
 
   // State
 
-  private final Map<Member, ByteBuffer> membersMetadata = new HashMap<>();
+  private final Map<Member, ByteBuffer> membersMetadata = new ConcurrentHashMap<>();
 
   // Scheduler
 
@@ -97,7 +97,9 @@ public class MetadataStoreImpl implements MetadataStore {
 
   @Override
   public Optional<ByteBuffer> metadata(Member member) {
-    return Optional.ofNullable(membersMetadata.get(member)).map(ByteBuffer::slice);
+    return member == null
+        ? Optional.empty()
+        : Optional.ofNullable(membersMetadata.get(member)).map(ByteBuffer::slice);
   }
 
   @Override
