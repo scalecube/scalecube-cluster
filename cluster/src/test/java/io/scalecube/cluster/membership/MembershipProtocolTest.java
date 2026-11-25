@@ -22,6 +22,7 @@ import io.scalecube.cluster.utils.NetworkEmulator;
 import io.scalecube.cluster.utils.NetworkEmulatorTransport;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -29,6 +30,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
@@ -208,6 +210,59 @@ public class MembershipProtocolTest extends BaseTest {
 
     assertEquals(2, cmAEvents.size(), "events: " + cmAEvents);
     assertMemberAndType(cmAEvents.get(1), leaver.id(), Type.LEAVING);
+  }
+
+  @Test
+  public void testStaleAliveDoesNotOverwriteLeavingDuringMetadataFetch() throws Exception {
+    final NetworkEmulatorTransport a = createTransport();
+    final NetworkEmulatorTransport b = createTransport();
+    final NetworkEmulatorTransport d = createTransport();
+    final List<String> addresses = Arrays.asList(a.address(), b.address());
+
+    final MembershipProtocolImpl cmA =
+        createMembership(a, testConfig(addresses).metadataTimeout(2000));
+    createMembership(b, addresses);
+
+    // Fake member on d: answers metadata requests after a controllable delay
+    final Member member = new Member("fakeMemberId-1", null, d.address(), NAMESPACE);
+    final var ctor =
+        Class.forName("io.scalecube.cluster.metadata.GetMetadataResponse")
+            .getDeclaredConstructor(Member.class, ByteBuffer.class);
+    ctor.setAccessible(true);
+    final var response = ctor.newInstance(member, ByteBuffer.allocate(0));
+    final var delayMillis = new AtomicLong();
+    d.listen()
+        .filter(m -> MetadataStoreImpl.GET_METADATA_REQ.equals(m.qualifier()))
+        .flatMap(
+            req ->
+                Mono.delay(Duration.ofMillis(delayMillis.get()))
+                    .then(
+                        d.send(
+                            req.sender(),
+                            Message.withData(response)
+                                .qualifier(MetadataStoreImpl.GET_METADATA_RESP)
+                                .correlationId(req.correlationId())
+                                .build())))
+        .subscribe();
+
+    awaitSeconds(2);
+
+    sendSync(b, a, new MembershipRecord(member, MemberStatus.ALIVE, 0));
+    awaitSeconds(1);
+    assertTrue(cmA.memberById(member.id()).isPresent(), "member must be added");
+
+    // ALIVE(1) starts a slow metadata fetch, LEAVING(2) arrives while it is in flight
+    delayMillis.set(1000);
+    sendSync(b, a, new MembershipRecord(member, MemberStatus.ALIVE, 1));
+    Mono.delay(Duration.ofMillis(200)).block();
+    sendSync(b, a, new MembershipRecord(member, MemberStatus.LEAVING, 2));
+
+    // Fetch completes ~0.8s later, LEAVING's suspicion timeout is 2s
+    awaitSeconds(1);
+
+    final Map<String, MembershipRecord> membershipTable = getField(cmA, "membershipTable");
+    assertEquals(
+        new MembershipRecord(member, MemberStatus.LEAVING, 2), membershipTable.get(member.id()));
   }
 
   private static Message membershipGossip(Member member, MemberStatus status, int incarnation) {

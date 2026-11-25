@@ -642,6 +642,10 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                               ex.toString()))
                   .doOnSuccess(
                       metadata1 -> {
+                        // Record may have changed during fetch, e.g. newer LEAVING arrived
+                        if (!r1.isOverrides(membershipTable.get(r1.member().id()))) {
+                          return;
+                        }
                         // If metadata was received then member is Alive
                         cancelSuspicionTimeoutTask(r1.member().id());
                         spreadMembershipGossipUnlessGossiped(r1, reason);
