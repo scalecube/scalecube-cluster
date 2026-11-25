@@ -66,7 +66,9 @@ final class MembershipRecord implements Externalizable {
    */
   public boolean isOverrides(MembershipRecord r0) {
     if (r0 == null) {
-      return isAlive() || isLeaving();
+      // Unknown member: only ALIVE adds it. A LEAVING record may be a stale copy of an already
+      // removed member, accepting it re-adds the member while any peer still holds the record.
+      return isAlive();
     }
     if (!Objects.equals(member.id(), r0.member.id())) {
       throw new IllegalArgumentException("Can't compare records for different members");
