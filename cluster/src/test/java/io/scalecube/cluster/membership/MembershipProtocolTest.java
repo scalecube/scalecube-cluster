@@ -30,7 +30,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
@@ -47,6 +48,7 @@ import reactor.util.retry.Retry;
 public class MembershipProtocolTest extends BaseTest {
 
   private static final String NAMESPACE = "ns";
+  private static final String FAKE_MEMBER_ID = "fakeMemberId-1";
 
   public static final Duration TIMEOUT = Duration.ofSeconds(10);
 
@@ -214,35 +216,65 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testStaleAliveDoesNotOverwriteLeavingDuringMetadataFetch() throws Exception {
+    final var events = Collections.synchronizedList(new ArrayList<MembershipEvent>());
+    final var cmA = staleAliveDuringMetadataFetch(MemberStatus.LEAVING, 2, events);
+
+    final Map<String, MembershipRecord> membershipTable = getField(cmA, "membershipTable");
+    final var record = membershipTable.get(FAKE_MEMBER_ID);
+    assertEquals(MemberStatus.LEAVING, record.status());
+    assertEquals(2, record.incarnation());
+    assertEquals(1, events.size(), "events: " + events);
+    assertMemberAndType(events.get(0), FAKE_MEMBER_ID, Type.LEAVING);
+  }
+
+  @Test
+  public void testStaleAliveDoesNotReAddMemberRemovedDuringMetadataFetch() throws Exception {
+    final var events = Collections.synchronizedList(new ArrayList<MembershipEvent>());
+    final var cmA = staleAliveDuringMetadataFetch(MemberStatus.DEAD, 1, events);
+
+    assertFalse(cmA.memberById(FAKE_MEMBER_ID).isPresent());
+    assertEquals(1, events.size(), "events: " + events);
+    assertMemberAndType(events.get(0), FAKE_MEMBER_ID, Type.REMOVED);
+  }
+
+  /**
+   * A knows a fake member, receives its ALIVE(1) and, while the metadata fetch for it is held,
+   * the given record. Then the fetch completes. Returns A, its events after ALIVE(1) go to {@code
+   * events}.
+   */
+  private MembershipProtocolImpl staleAliveDuringMetadataFetch(
+      MemberStatus status, int incarnation, List<MembershipEvent> events) throws Exception {
     final NetworkEmulatorTransport a = createTransport();
     final NetworkEmulatorTransport b = createTransport();
     final NetworkEmulatorTransport d = createTransport();
     final List<String> addresses = Arrays.asList(a.address(), b.address());
 
     final MembershipProtocolImpl cmA =
-        createMembership(a, testConfig(addresses).metadataTimeout(2000));
+        createMembership(a, testConfig(addresses).metadataTimeout(5000));
     createMembership(b, addresses);
 
-    // Fake member on d: answers metadata requests after a controllable delay
-    final Member member = new Member("fakeMemberId-1", null, d.address(), NAMESPACE);
+    // Fake member on d: answers metadata requests once the gate opens
+    final Member member = new Member(FAKE_MEMBER_ID, null, d.address(), NAMESPACE);
     final var ctor =
         Class.forName("io.scalecube.cluster.metadata.GetMetadataResponse")
             .getDeclaredConstructor(Member.class, ByteBuffer.class);
     ctor.setAccessible(true);
     final var response = ctor.newInstance(member, ByteBuffer.allocate(0));
-    final var delayMillis = new AtomicLong();
+    final var gate = new AtomicReference<Mono<Void>>(Mono.empty());
+    final var responded = Sinks.many().multicast().<String>directBestEffort();
     d.listen()
         .filter(m -> MetadataStoreImpl.GET_METADATA_REQ.equals(m.qualifier()))
         .flatMap(
             req ->
-                Mono.delay(Duration.ofMillis(delayMillis.get()))
+                gate.get()
                     .then(
                         d.send(
                             req.sender(),
                             Message.withData(response)
                                 .qualifier(MetadataStoreImpl.GET_METADATA_RESP)
                                 .correlationId(req.correlationId())
-                                .build())))
+                                .build()))
+                    .doOnSuccess(v -> responded.tryEmitNext(req.correlationId())))
         .subscribe();
 
     awaitSeconds(2);
@@ -250,19 +282,21 @@ public class MembershipProtocolTest extends BaseTest {
     sendSync(b, a, new MembershipRecord(member, MemberStatus.ALIVE, 0));
     awaitSeconds(1);
     assertTrue(cmA.memberById(member.id()).isPresent(), "member must be added");
+    cmA.listen().subscribe(events::add);
 
-    // ALIVE(1) starts a slow metadata fetch, LEAVING(2) arrives while it is in flight
-    delayMillis.set(1000);
+    final var release = Sinks.<Void>empty();
+    gate.set(release.asMono());
     sendSync(b, a, new MembershipRecord(member, MemberStatus.ALIVE, 1));
+    Mono.delay(Duration.ofMillis(200)).block(); // ALIVE(1) fetch is in flight
+    sendSync(b, a, new MembershipRecord(member, status, incarnation));
     Mono.delay(Duration.ofMillis(200)).block();
-    sendSync(b, a, new MembershipRecord(member, MemberStatus.LEAVING, 2));
 
-    // Fetch completes ~0.8s later, LEAVING's suspicion timeout is 2s
-    awaitSeconds(1);
-
-    final Map<String, MembershipRecord> membershipTable = getField(cmA, "membershipTable");
-    assertEquals(
-        new MembershipRecord(member, MemberStatus.LEAVING, 2), membershipTable.get(member.id()));
+    final var heldResponse = responded.asFlux().next().toFuture();
+    release.tryEmitEmpty();
+    heldResponse.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+    // Let A process the response, well within the 2s suspicion timeout
+    Mono.delay(Duration.ofMillis(300)).block();
+    return cmA;
   }
 
   private static Message membershipGossip(Member member, MemberStatus status, int incarnation) {
