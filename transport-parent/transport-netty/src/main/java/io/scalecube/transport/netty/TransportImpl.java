@@ -288,10 +288,9 @@ public final class TransportImpl implements Transport {
   }
 
   private Mono<Void> shutdownLoopResources() {
-    // Await shutdown (dispose() only starts it, a following disposeLater() is then a no-op), so
-    // stop() completes once all channels are closed; no quiet period as nothing should run anymore
+    // Await shutdown, dispose() doesn't. Non-zero quiet period, else sockets aren't released
     return loopResources.disposeLater(
-        Duration.ZERO, Duration.ofSeconds(LoopResources.DEFAULT_SHUTDOWN_TIMEOUT));
+        Duration.ofMillis(100), Duration.ofSeconds(LoopResources.DEFAULT_SHUTDOWN_TIMEOUT));
   }
 
   public static final class ReceiverContext {
