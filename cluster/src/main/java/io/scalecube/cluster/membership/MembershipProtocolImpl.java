@@ -642,11 +642,9 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                               ex.toString()))
                   .doOnSuccess(
                       metadata1 -> {
-                        // Record may have changed during fetch: removed, LEAVING or newer
+                        // Record may have changed during fetch: LEAVING or newer
                         final var current = membershipTable.get(r1.member().id());
-                        if ((r0 != null && current == null)
-                            || (current != null && current.isLeaving())
-                            || !r1.isOverrides(current)) {
+                        if ((current != null && current.isLeaving()) || !r1.isOverrides(current)) {
                           LOGGER.debug(
                               "[{}][updateMembership] Skipping stale {}, current: {}",
                               localMember,

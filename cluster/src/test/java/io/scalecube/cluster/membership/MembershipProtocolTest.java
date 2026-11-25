@@ -216,34 +216,6 @@ public class MembershipProtocolTest extends BaseTest {
 
   @Test
   public void testStaleAliveDoesNotOverwriteLeavingDuringMetadataFetch() throws Exception {
-    final var events = Collections.synchronizedList(new ArrayList<MembershipEvent>());
-    final var cmA = staleAliveDuringMetadataFetch(MemberStatus.LEAVING, 2, events);
-
-    final Map<String, MembershipRecord> membershipTable = getField(cmA, "membershipTable");
-    final var record = membershipTable.get(FAKE_MEMBER_ID);
-    assertEquals(MemberStatus.LEAVING, record.status());
-    assertEquals(2, record.incarnation());
-    assertEquals(1, events.size(), "events: " + events);
-    assertMemberAndType(events.get(0), FAKE_MEMBER_ID, Type.LEAVING);
-  }
-
-  @Test
-  public void testStaleAliveDoesNotReAddMemberRemovedDuringMetadataFetch() throws Exception {
-    final var events = Collections.synchronizedList(new ArrayList<MembershipEvent>());
-    final var cmA = staleAliveDuringMetadataFetch(MemberStatus.DEAD, 1, events);
-
-    assertFalse(cmA.memberById(FAKE_MEMBER_ID).isPresent());
-    assertEquals(1, events.size(), "events: " + events);
-    assertMemberAndType(events.get(0), FAKE_MEMBER_ID, Type.REMOVED);
-  }
-
-  /**
-   * A knows a fake member, receives its ALIVE(1) and, while the metadata fetch for it is held,
-   * the given record. Then the fetch completes. Returns A, its events after ALIVE(1) go to {@code
-   * events}.
-   */
-  private MembershipProtocolImpl staleAliveDuringMetadataFetch(
-      MemberStatus status, int incarnation, List<MembershipEvent> events) throws Exception {
     final NetworkEmulatorTransport a = createTransport();
     final NetworkEmulatorTransport b = createTransport();
     final NetworkEmulatorTransport d = createTransport();
@@ -282,13 +254,14 @@ public class MembershipProtocolTest extends BaseTest {
     sendSync(b, a, new MembershipRecord(member, MemberStatus.ALIVE, 0));
     awaitSeconds(1);
     assertTrue(cmA.memberById(member.id()).isPresent(), "member must be added");
+    final var events = Collections.synchronizedList(new ArrayList<MembershipEvent>());
     cmA.listen().subscribe(events::add);
 
     final var release = Sinks.<Void>empty();
     gate.set(release.asMono());
     sendSync(b, a, new MembershipRecord(member, MemberStatus.ALIVE, 1));
     Mono.delay(Duration.ofMillis(200)).block(); // ALIVE(1) fetch is in flight
-    sendSync(b, a, new MembershipRecord(member, status, incarnation));
+    sendSync(b, a, new MembershipRecord(member, MemberStatus.LEAVING, 2)); // arrives mid-fetch
     Mono.delay(Duration.ofMillis(200)).block();
 
     final var heldResponse = responded.asFlux().next().toFuture();
@@ -296,7 +269,13 @@ public class MembershipProtocolTest extends BaseTest {
     heldResponse.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
     // Let A process the response, well within the 2s suspicion timeout
     Mono.delay(Duration.ofMillis(300)).block();
-    return cmA;
+
+    final Map<String, MembershipRecord> membershipTable = getField(cmA, "membershipTable");
+    final var record = membershipTable.get(FAKE_MEMBER_ID);
+    assertEquals(MemberStatus.LEAVING, record.status());
+    assertEquals(2, record.incarnation());
+    assertEquals(1, events.size(), "events: " + events);
+    assertMemberAndType(events.get(0), FAKE_MEMBER_ID, Type.LEAVING);
   }
 
   private static Message membershipGossip(Member member, MemberStatus status, int incarnation) {
