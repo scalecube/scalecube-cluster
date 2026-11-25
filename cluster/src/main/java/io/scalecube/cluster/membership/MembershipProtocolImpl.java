@@ -584,6 +584,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
           // if current record is LEAVING then we want to process other event too
           // Check if new record r1 overrides existing membership record r0
+          // Unknown member (r0 == null) passes only with ALIVE, so non-ALIVE branches below use r0
           if ((r0 == null || !r0.isLeaving()) && !r1.isOverrides(r0)) {
             LOGGER.debug(
                 "[{}][updateMembership][{}] Skipping update, "
