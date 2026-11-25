@@ -27,6 +27,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
+import reactor.netty.resources.LoopResources;
 import reactor.test.StepVerifier;
 
 public class TcpTransportTest extends BaseTest {
@@ -61,6 +62,27 @@ public class TcpTransportTest extends BaseTest {
       transport.stop().block(TIMEOUT);
     }
     assertTrue(transport.isStopped());
+  }
+
+  @Test
+  public void testStopCompletesAfterEventLoopsShutdown() throws Exception {
+    Transport transport =
+        Transport.bindAwait(new TransportConfig().transportFactory(new TcpTransportFactory()));
+    client = createTcpTransport();
+
+    // Open inbound and outbound connections on transport's event loops
+    client.send(transport.address(), Message.withData("q").build()).block(TIMEOUT);
+    transport.send(client.address(), Message.withData("q").build()).block(TIMEOUT);
+
+    Field loopResourcesField = TransportImpl.class.getDeclaredField("loopResources");
+    loopResourcesField.setAccessible(true);
+    var loopResources = (LoopResources) loopResourcesField.get(transport);
+    // Same group runOn(loopResources) uses: it holds the server channel and accepted connections
+    var serverLoops = loopResources.onServer(LoopResources.DEFAULT_NATIVE);
+
+    transport.stop().block(TIMEOUT);
+
+    assertTrue(serverLoops.isTerminated(), "stop() completed before event loops were shut down");
   }
 
   @Test

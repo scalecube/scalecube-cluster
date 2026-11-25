@@ -288,7 +288,10 @@ public final class TransportImpl implements Transport {
   }
 
   private Mono<Void> shutdownLoopResources() {
-    return Mono.fromRunnable(loopResources::dispose).then(loopResources.disposeLater());
+    // Await shutdown (dispose() only starts it, a following disposeLater() is then a no-op), so
+    // stop() completes once all channels are closed; no quiet period as nothing should run anymore
+    return loopResources.disposeLater(
+        Duration.ZERO, Duration.ofSeconds(LoopResources.DEFAULT_SHUTDOWN_TIMEOUT));
   }
 
   public static final class ReceiverContext {
