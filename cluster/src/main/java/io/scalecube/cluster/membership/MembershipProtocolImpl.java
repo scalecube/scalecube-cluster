@@ -692,7 +692,10 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
         () -> {
           final Member member = r1.member();
 
-          membershipTable.put(member.id(), r1);
+          // Gate skips isOverrides when r0 is LEAVING, don't let an older LEAVING replace it
+          if (r1.isOverrides(r0)) {
+            membershipTable.put(member.id(), r1);
+          }
 
           if (r0.isLeaving()) {
             return Mono.empty(); // already known as leaving
