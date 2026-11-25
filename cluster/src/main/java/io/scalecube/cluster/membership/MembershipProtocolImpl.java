@@ -27,13 +27,11 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
@@ -85,7 +83,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
   private final Map<String, MembershipRecord> membershipTable = new HashMap<>();
   private final Map<String, Member> members = new ConcurrentHashMap<>();
-  private final Set<String> aliveEmittedSet = new HashSet<>();
 
   // Subject
 
@@ -617,7 +614,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
           if (r1.isSuspect()) {
             // Update membership and schedule/cancel suspicion timeout task
-            if (r0 == null || !r0.isLeaving()) {
+            if (!r0.isLeaving()) {
               membershipTable.put(r1.member().id(), r1);
             }
             scheduleSuspicionTimeoutTask(r1);
@@ -626,7 +623,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
           if (r1.isAlive()) {
             if (r0 != null && r0.isLeaving()) {
-              return onAliveAfterLeaving(r1);
+              return Mono.empty(); // outdated ALIVE, member is already leaving
             }
 
             // New alive or updated alive
@@ -658,26 +655,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
           return Mono.empty();
         });
-  }
-
-  private Mono<Void> onAliveAfterLeaving(MembershipRecord r1) {
-    // r1 is outdated "ALIVE" event because we already have "LEAVING"
-    final Member member = r1.member();
-    final String memberId = member.id();
-
-    members.put(memberId, member);
-
-    // Emit events if needed and ignore alive
-    if (aliveEmittedSet.add(memberId)) {
-      final long timestamp = System.currentTimeMillis();
-
-      // There is no metadata in this case
-      // We could'n fetch metadata because node already wanted to leave
-      publishEvent(MembershipEvent.createAdded(member, null, timestamp));
-      publishEvent(MembershipEvent.createLeaving(member, null, timestamp));
-    }
-
-    return Mono.empty();
   }
 
   private Mono<Void> onSelfMemberDetected(
@@ -713,24 +690,19 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     return Mono.defer(
         () -> {
           final Member member = r1.member();
-          final String memberId = member.id();
 
-          membershipTable.put(memberId, r1);
+          membershipTable.put(member.id(), r1);
 
-          if (r0 != null
-              && (r0.isAlive() || (r0.isSuspect() && aliveEmittedSet.contains(memberId)))) {
-
-            final ByteBuffer metadata = metadataStore.metadata(member).orElse(null);
-            final long timestamp = System.currentTimeMillis();
-            publishEvent(MembershipEvent.createLeaving(member, metadata, timestamp));
+          if (r0.isLeaving()) {
+            return Mono.empty(); // already known as leaving
           }
 
-          if (r0 == null || !r0.isLeaving()) {
-            scheduleSuspicionTimeoutTask(r1);
-            return spreadMembershipGossip(r1);
-          } else {
-            return Mono.empty();
-          }
+          final ByteBuffer metadata = metadataStore.metadata(member).orElse(null);
+          final long timestamp = System.currentTimeMillis();
+          publishEvent(MembershipEvent.createLeaving(member, metadata, timestamp));
+
+          scheduleSuspicionTimeoutTask(r1);
+          return spreadMembershipGossip(r1);
         });
   }
 
@@ -746,21 +718,13 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
           cancelSuspicionTimeoutTask(member.id());
 
-          // Always drop the record, even if member was never added (e.g. LEAVING gossip was the
-          // first thing we heard about it), otherwise it would stay in the table forever
-          final MembershipRecord r0 = membershipTable.remove(member.id());
-          aliveEmittedSet.remove(member.id());
-
-          if (!members.containsKey(member.id())) {
-            return;
-          }
-
           // Removed membership
+          final MembershipRecord r0 = membershipTable.remove(member.id());
           members.remove(member.id());
           final ByteBuffer metadata = metadataStore.removeMetadata(member);
 
           // Log that member left gracefully or without notification
-          if (r0 != null && r0.isLeaving()) {
+          if (r0.isLeaving()) {
             LOGGER.info("[{}] Member left gracefully: {}", localMember, member);
           } else {
             LOGGER.info("[{}] Member left without notification: {}", localMember, member);
@@ -790,12 +754,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     membershipTable.put(member.id(), r1);
 
     if (event != null) {
-
       publishEvent(event);
-
-      if (event.isAdded()) {
-        aliveEmittedSet.add(member.id());
-      }
     }
   }
 

@@ -66,8 +66,8 @@ final class MembershipRecord implements Externalizable {
    */
   public boolean isOverrides(MembershipRecord r0) {
     if (r0 == null) {
-      // Unknown member: only ALIVE adds it. A LEAVING record could be a stale copy of an
-      // already removed member and would be re-added forever (no tombstones).
+      // Unknown member: only ALIVE adds it. A LEAVING record may be a stale copy of an already
+      // removed member, accepting it re-adds the member while any peer still holds the record.
       return isAlive();
     }
     if (!Objects.equals(member.id(), r0.member.id())) {

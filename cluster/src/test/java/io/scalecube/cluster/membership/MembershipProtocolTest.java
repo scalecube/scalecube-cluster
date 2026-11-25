@@ -2,6 +2,7 @@ package io.scalecube.cluster.membership;
 
 import static io.scalecube.cluster.transport.api.Transport.parsePort;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.scalecube.cluster.BaseTest;
@@ -144,9 +145,85 @@ public class MembershipProtocolTest extends BaseTest {
     awaitSeconds(1);
     awaitSuspicion(3);
 
-    // LEAVING for unknown member is ignored, stale ALIVE can't fetch metadata from gone node
+    // LEAVING for unknown member is ignored; ALIVE can't fetch metadata as member is unreachable
     assertTrue(cmAEvents.isEmpty(), "unexpected events: " + cmAEvents);
     assertTrue(membersByStatus(cmA, MemberStatus.LEAVING).isEmpty());
+  }
+
+  @Test
+  public void testLeavingViaSyncNotReAddedForUnknownMember() {
+    final NetworkEmulatorTransport a = createTransport();
+    final NetworkEmulatorTransport b = createTransport();
+    final Member removedMember = new Member("removedNodeId-1", null, "localhost:9236", NAMESPACE);
+    final List<String> addresses = Arrays.asList(a.address(), b.address());
+
+    final MembershipProtocolImpl cmA = createMembership(a, addresses);
+    createMembership(b, addresses);
+
+    awaitSeconds(2);
+
+    // Peer that hasn't timed out yet still holds LEAVING of a member A has no record of
+    // (already removed, or never seen): A must not store, re-time or re-gossip it
+    sendSync(b, a, new MembershipRecord(removedMember, MemberStatus.LEAVING, 5));
+
+    awaitSeconds(1);
+
+    assertTrue(membersByStatus(cmA, MemberStatus.LEAVING).isEmpty());
+    final Map<String, ?> suspicionTimeoutTasks = getField(cmA, "suspicionTimeoutTasks");
+    assertFalse(suspicionTimeoutTasks.containsKey(removedMember.id()));
+  }
+
+  @Test
+  public void testStaleAliveAddsLeaverStillReachable() {
+    final NetworkEmulatorTransport a = createTransport();
+    final NetworkEmulatorTransport b = createTransport();
+    final NetworkEmulatorTransport c = createTransport();
+    final List<String> addresses = Arrays.asList(a.address(), b.address());
+
+    final MembershipProtocolImpl cmA = createMembership(a, addresses);
+    final MembershipProtocolImpl cmB = createMembership(b, addresses);
+    // Leaver: running and reachable, but unknown to A (not joined yet)
+    final Member leaver = createMembership(c, Collections.emptyList()).member();
+
+    awaitSeconds(2);
+
+    final List<MembershipEvent> cmAEvents = Collections.synchronizedList(new ArrayList<>());
+    cmA.listen().subscribe(cmAEvents::add);
+
+    final GossipProtocol gossipProtocol = getField(cmB, "gossipProtocol");
+    gossipProtocol.spread(membershipGossip(leaver, MemberStatus.LEAVING, 1)).block(TIMEOUT);
+    gossipProtocol.spread(membershipGossip(leaver, MemberStatus.ALIVE, 0)).block(TIMEOUT);
+
+    awaitSeconds(2);
+
+    // Accepted trade-off: LEAVING was dropped, the stale ALIVE fetched metadata from the
+    // still running leaver, so it is added
+    assertEquals(1, cmAEvents.size(), "events: " + cmAEvents);
+    assertMemberAndType(cmAEvents.get(0), leaver.id(), Type.ADDED);
+
+    // Recovers once a peer still holding LEAVING syncs with A
+    sendSync(b, a, new MembershipRecord(leaver, MemberStatus.LEAVING, 1));
+
+    awaitSeconds(1);
+
+    assertEquals(2, cmAEvents.size(), "events: " + cmAEvents);
+    assertMemberAndType(cmAEvents.get(1), leaver.id(), Type.LEAVING);
+  }
+
+  private static Message membershipGossip(Member member, MemberStatus status, int incarnation) {
+    return Message.builder()
+        .qualifier(MembershipProtocolImpl.MEMBERSHIP_GOSSIP)
+        .data(new MembershipRecord(member, status, incarnation))
+        .build();
+  }
+
+  private static void sendSync(Transport from, Transport to, MembershipRecord record) {
+    final Message sync =
+        Message.withData(new SyncData(Collections.singletonList(record)))
+            .qualifier(MembershipProtocolImpl.SYNC)
+            .sender(from.address())
+            .build();
+    from.send(to.address(), sync).block(TIMEOUT);
   }
 
   @Test
