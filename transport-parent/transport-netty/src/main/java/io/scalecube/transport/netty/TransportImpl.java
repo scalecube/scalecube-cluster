@@ -176,7 +176,12 @@ public final class TransportImpl implements Transport {
 
   @Override
   public Mono<Void> send(String address, Message message) {
-    return Mono.deferContextual(context -> connections.computeIfAbsent(address, this::connect))
+    return Mono.deferContextual(
+            context ->
+                // Late sends would keep restarting the event loops' quiet period on stop
+                loopResources.isDisposed()
+                    ? Mono.<Connection>error(new IllegalStateException("Transport stopped"))
+                    : connections.computeIfAbsent(address, this::connect))
         .flatMap(
             connection ->
                 Mono.deferContextual(context -> sender.send(message))
@@ -288,7 +293,9 @@ public final class TransportImpl implements Transport {
   }
 
   private Mono<Void> shutdownLoopResources() {
-    return Mono.fromRunnable(loopResources::dispose).then(loopResources.disposeLater());
+    // Await shutdown, dispose() doesn't. Non-zero quiet period, else sockets aren't released
+    return loopResources.disposeLater(
+        Duration.ofMillis(10), Duration.ofSeconds(LoopResources.DEFAULT_SHUTDOWN_TIMEOUT));
   }
 
   public static final class ReceiverContext {

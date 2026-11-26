@@ -19,6 +19,7 @@ import java.net.UnknownHostException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -26,7 +27,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
+import reactor.netty.resources.LoopResources;
 import reactor.test.StepVerifier;
 
 public class TcpTransportTest extends BaseTest {
@@ -61,6 +64,83 @@ public class TcpTransportTest extends BaseTest {
       transport.stop().block(TIMEOUT);
     }
     assertTrue(transport.isStopped());
+  }
+
+  @Test
+  public void testStopCompletesAfterEventLoopsShutdown() throws Exception {
+    Transport transport =
+        Transport.bindAwait(new TransportConfig().transportFactory(new TcpTransportFactory()));
+    client = createTcpTransport();
+
+    Field loopResourcesField = TransportImpl.class.getDeclaredField("loopResources");
+    loopResourcesField.setAccessible(true);
+    var loopResources = (LoopResources) loopResourcesField.get(transport);
+    // Same group runOn(loopResources) uses: it holds the server channel and accepted connections
+    var serverLoops = loopResources.onServer(LoopResources.DEFAULT_NATIVE);
+
+    try {
+      // Open inbound and outbound connections on transport's event loops
+      client.send(transport.address(), Message.withData("q").build()).block(TIMEOUT);
+      transport.send(client.address(), Message.withData("q").build()).block(TIMEOUT);
+    } finally {
+      transport.stop().block(TIMEOUT);
+    }
+
+    assertTrue(serverLoops.isTerminated(), "stop() completed before event loops were shut down");
+  }
+
+  @Test
+  public void testPeerSeesConnectionCloseAfterStop() throws Exception {
+    var transport =
+        Transport.bindAwait(new TransportConfig().transportFactory(new TcpTransportFactory()));
+    var peer =
+        Transport.bindAwait(new TransportConfig().transportFactory(new TcpTransportFactory()));
+    try {
+      Map<?, ?> peerConnections;
+      try {
+        peer.send(transport.address(), Message.withData("q").build()).block(TIMEOUT);
+        var connectionsField = TransportImpl.class.getDeclaredField("connections");
+        connectionsField.setAccessible(true);
+        peerConnections = (Map<?, ?>) connectionsField.get(peer);
+        assertTrue(peerConnections.containsKey(transport.address()));
+      } finally {
+        transport.stop().block(TIMEOUT);
+      }
+
+      // With zero quiet period the socket isn't released, peer's writes succeed and it keeps
+      // the stale connection
+      var deadline = System.nanoTime() + TIMEOUT.toNanos();
+      while (peerConnections.containsKey(transport.address()) && System.nanoTime() < deadline) {
+        peer.send(transport.address(), Message.withData("q").build())
+            .onErrorResume(e -> Mono.empty())
+            .block(TIMEOUT);
+        TimeUnit.MILLISECONDS.sleep(10);
+      }
+      assertFalse(peerConnections.containsKey(transport.address()), "peer kept stale connection");
+    } finally {
+      peer.stop().block(TIMEOUT);
+    }
+  }
+
+  @Test
+  public void testStopCompletesUnderSendTraffic() {
+    var transport =
+        Transport.bindAwait(new TransportConfig().transportFactory(new TcpTransportFactory()));
+    client = createTcpTransport();
+
+    // Sends more often than the quiet period, they must not keep the event loops alive
+    var sends =
+        Flux.interval(Duration.ofMillis(1))
+            .subscribe(
+                i ->
+                    transport
+                        .send(client.address(), Message.withData("q").build())
+                        .subscribe(null, e -> {}));
+    try {
+      transport.stop().block(Duration.ofSeconds(5));
+    } finally {
+      sends.dispose();
+    }
   }
 
   @Test
