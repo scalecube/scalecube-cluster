@@ -109,6 +109,20 @@ public class WebsocketTransportTest extends BaseTest {
   }
 
   @Test
+  public void testMessageLargerThan64KbIsReceived() {
+    client = createWebsocketTransport();
+    server = createWebsocketTransport();
+
+    String data = "x".repeat(100 * 1024);
+
+    StepVerifier.create(server.listen())
+        .then(() -> client.send(server.address(), Message.withData(data).build()).subscribe())
+        .assertNext(message -> assertEquals(data, message.data()))
+        .thenCancel()
+        .verify(TIMEOUT);
+  }
+
+  @Test
   public void testNetworkSettings() {
     client = createWebsocketTransport();
     server = createWebsocketTransport();

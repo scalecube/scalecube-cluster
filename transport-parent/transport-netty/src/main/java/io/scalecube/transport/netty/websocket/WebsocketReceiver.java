@@ -9,6 +9,7 @@ import reactor.netty.DisposableServer;
 import reactor.netty.http.server.HttpServer;
 import reactor.netty.http.server.HttpServerRequest;
 import reactor.netty.http.server.HttpServerResponse;
+import reactor.netty.http.server.WebsocketServerSpec;
 import reactor.netty.http.websocket.WebsocketInbound;
 import reactor.netty.http.websocket.WebsocketOutbound;
 
@@ -46,6 +47,7 @@ public final class WebsocketReceiver implements Receiver {
       HttpServerResponse response) {
     return response.sendWebsocket(
         (WebsocketInbound inbound, WebsocketOutbound outbound) ->
-            inbound.receive().retain().doOnNext(context::onMessage).then());
+            inbound.receive().retain().doOnNext(context::onMessage).then(),
+        WebsocketServerSpec.builder().maxFramePayloadLength(config.maxFrameLength()).build());
   }
 }
