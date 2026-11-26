@@ -327,7 +327,7 @@ public class MembershipProtocolTest extends BaseTest {
     // A adds the member with ALIVE(0)
     sendSync(b, a, new MembershipRecord(member, MemberStatus.ALIVE, 0));
     responded.asFlux().blockFirst(TIMEOUT);
-    awaitProcessed(d, a);
+    awaitProcessed(d, a, cmA);
     assertTrue(cmA.memberById(member.id()).isPresent(), "member must be added");
     final var events = Collections.synchronizedList(new ArrayList<MembershipEvent>());
     cmA.listen().subscribe(events::add);
@@ -342,7 +342,7 @@ public class MembershipProtocolTest extends BaseTest {
     // Fetch completes: the stale ALIVE(1) must not overwrite LEAVING(2)
     release.tryEmitEmpty();
     responded.asFlux().skip(1).blockFirst(TIMEOUT);
-    awaitProcessed(d, a);
+    awaitProcessed(d, a, cmA);
 
     final Map<String, MembershipRecord> membershipTable = getField(cmA, "membershipTable");
     final var record = membershipTable.get(FAKE_MEMBER_ID);
@@ -1555,5 +1555,13 @@ public class MembershipProtocolTest extends BaseTest {
             .sender(from.address())
             .build();
     from.requestResponse(to.address(), sync).block(TIMEOUT);
+  }
+
+  // A metadata response is handled in its own task on the scheduler, which may run after the
+  // SYNC above. It was queued before the SYNC arrived, so a task queued now runs after it
+  private static void awaitProcessed(Transport from, Transport to, MembershipProtocolImpl cm) {
+    awaitProcessed(from, to);
+    final Scheduler scheduler = getField(cm, "scheduler");
+    Mono.empty().subscribeOn(scheduler).block(TIMEOUT);
   }
 }
