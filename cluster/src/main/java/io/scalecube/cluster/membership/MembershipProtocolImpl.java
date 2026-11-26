@@ -721,7 +721,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           publishEvent(MembershipEvent.createLeaving(member, metadata, timestamp));
 
           scheduleSuspicionTimeoutTask(r1);
-          return spreadMembershipGossip(r1);
+          return spreadMembershipGossip(r1).onErrorResume(th -> Mono.empty());
         });
   }
 

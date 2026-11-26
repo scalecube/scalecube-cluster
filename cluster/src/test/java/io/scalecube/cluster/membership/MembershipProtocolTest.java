@@ -353,6 +353,30 @@ public class MembershipProtocolTest extends BaseTest {
   }
 
   @Test
+  public void testLeavingDoesNotFailWhenGossipStopped() throws Exception {
+    final NetworkEmulatorTransport a = createTransport();
+    final NetworkEmulatorTransport b = createTransport();
+    final List<String> addresses = Arrays.asList(a.address(), b.address());
+
+    final MembershipProtocolImpl cmA = createMembership(a, addresses);
+    final Member memberB = createMembership(b, addresses).member();
+
+    awaitSeconds(2);
+
+    // Node A is stopping: its gossip fails pending and new spreads
+    BaseTest.<GossipProtocol>getField(cmA, "gossipProtocol").stop();
+
+    final var onLeavingDetected =
+        MembershipProtocolImpl.class.getDeclaredMethod(
+            "onLeavingDetected", MembershipRecord.class, MembershipRecord.class);
+    onLeavingDetected.setAccessible(true);
+    final var r0 = new MembershipRecord(memberB, MemberStatus.ALIVE, 0);
+    final var r1 = new MembershipRecord(memberB, MemberStatus.LEAVING, 1);
+
+    ((Mono<?>) onLeavingDetected.invoke(cmA, r0, r1)).block(TIMEOUT);
+  }
+
+  @Test
   public void testLeaveClusterOnly() {
     final NetworkEmulatorTransport a = createTransport();
     final NetworkEmulatorTransport b = createTransport();
