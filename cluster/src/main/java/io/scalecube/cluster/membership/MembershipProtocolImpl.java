@@ -785,7 +785,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     }
   }
 
-  // Unknown member with a pending suspicion task: its LEAVING was dropped, it's gone after timeout
+  // Unknown member with a pending suspicion task: its LEAVING was dropped, it's gone after timeout.
+  // Relies on onDeadMemberDetected, the only table removal, cancelling the task first
   private boolean isDroppedLeaving(MembershipRecord r) {
     final var id = r.member().id();
     return !membershipTable.containsKey(id) && suspicionTimeoutTasks.containsKey(id);
