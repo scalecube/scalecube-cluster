@@ -171,7 +171,7 @@ public final class FailureDetectorImpl implements FailureDetector {
                 LOGGER.debug("[{}][{}] No PingReq occurred", localMember, period);
                 publishPingResult(period, pingMember, MemberStatus.SUSPECT);
               } else {
-                doPingReq(currentPeriod, pingMember, pingReqMembers, cid);
+                doPingReq(period, pingMember, pingReqMembers, cid);
               }
             });
   }
