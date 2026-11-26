@@ -166,19 +166,21 @@ public class MembershipProtocolTest extends BaseTest {
 
     awaitSeconds(2);
 
+    final List<MembershipEvent> cmAEvents = Collections.synchronizedList(new ArrayList<>());
+    cmA.listen().subscribe(cmAEvents::add);
+
     // Peer that hasn't timed out yet still holds LEAVING of a member A has no record of
-    // (already removed, or never seen): A must not store or re-time it
+    // (already removed, or never seen): A must not store it, nor emit events once timed out
     sendSync(b, a, new MembershipRecord(removedMember, MemberStatus.LEAVING, 5));
 
-    awaitSeconds(1);
+    awaitSuspicion(2);
 
     assertTrue(membersByStatus(cmA, MemberStatus.LEAVING).isEmpty());
-    final Map<String, ?> suspicionTimeoutTasks = getField(cmA, "suspicionTimeoutTasks");
-    assertFalse(suspicionTimeoutTasks.containsKey(removedMember.id()));
+    assertTrue(cmAEvents.isEmpty(), "events: " + cmAEvents);
   }
 
   @Test
-  public void testStaleAliveAddsLeaverStillReachable() {
+  public void testStaleAliveAfterDroppedLeavingIsRejected() {
     final NetworkEmulatorTransport a = createTransport();
     final NetworkEmulatorTransport b = createTransport();
     final NetworkEmulatorTransport c = createTransport();
@@ -200,18 +202,62 @@ public class MembershipProtocolTest extends BaseTest {
 
     awaitSeconds(2);
 
-    // Accepted trade-off: LEAVING was dropped, the stale ALIVE fetched metadata from the
-    // still running leaver, so it is added
-    assertEquals(1, cmAEvents.size(), "events: " + cmAEvents);
-    assertMemberAndType(cmAEvents.get(0), leaver.id(), Type.ADDED);
+    // LEAVING was dropped (unknown member), but it still rejects the older ALIVE
+    assertTrue(cmAEvents.isEmpty(), "events: " + cmAEvents);
+    assertFalse(cmA.memberById(leaver.id()).isPresent(), "leaver must not be added");
+  }
 
-    // Recovers once a peer still holding LEAVING syncs with A
-    sendSync(b, a, new MembershipRecord(leaver, MemberStatus.LEAVING, 1));
+  @Test
+  public void testDroppedLeavingRejectsAliveWhoseFetchIsInFlight() throws Exception {
+    final NetworkEmulatorTransport a = createTransport();
+    final NetworkEmulatorTransport b = createTransport();
+    final NetworkEmulatorTransport d = createTransport();
+    final List<String> addresses = Arrays.asList(a.address(), b.address());
 
+    final MembershipProtocolImpl cmA =
+        createMembership(a, testConfig(addresses).metadataTimeout(5000));
+    createMembership(b, addresses);
+
+    // Fake member on d, unknown to A: answers metadata requests once released
+    final Member member = new Member(FAKE_MEMBER_ID, null, d.address(), NAMESPACE);
+    final var ctor =
+        Class.forName("io.scalecube.cluster.metadata.GetMetadataResponse")
+            .getDeclaredConstructor(Member.class, ByteBuffer.class);
+    ctor.setAccessible(true);
+    final var response = ctor.newInstance(member, ByteBuffer.allocate(0));
+    final var release = Sinks.<Void>empty();
+    final var responded = Sinks.<String>one();
+    d.listen()
+        .filter(m -> MetadataStoreImpl.GET_METADATA_REQ.equals(m.qualifier()))
+        .flatMap(
+            req ->
+                release
+                    .asMono()
+                    .then(
+                        d.send(
+                            req.sender(),
+                            Message.withData(response)
+                                .qualifier(MetadataStoreImpl.GET_METADATA_RESP)
+                                .correlationId(req.correlationId())
+                                .build()))
+                    .doOnSuccess(v -> responded.tryEmitValue(req.correlationId())))
+        .subscribe();
+
+    awaitSeconds(2);
+
+    final List<MembershipEvent> cmAEvents = Collections.synchronizedList(new ArrayList<>());
+    cmA.listen().subscribe(cmAEvents::add);
+
+    sendSync(b, a, new MembershipRecord(member, MemberStatus.ALIVE, 0)); // fetch starts, held
+    sendSync(b, a, new MembershipRecord(member, MemberStatus.LEAVING, 1)); // dropped mid-fetch
     awaitSeconds(1);
 
-    assertEquals(2, cmAEvents.size(), "events: " + cmAEvents);
-    assertMemberAndType(cmAEvents.get(1), leaver.id(), Type.LEAVING);
+    release.tryEmitEmpty();
+    responded.asMono().block(TIMEOUT);
+    awaitSeconds(1); // let A process the metadata response
+
+    assertTrue(cmAEvents.isEmpty(), "events: " + cmAEvents);
+    assertFalse(cmA.memberById(member.id()).isPresent(), "member must not be added");
   }
 
   @Test
