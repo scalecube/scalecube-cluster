@@ -246,7 +246,8 @@ public class MembershipProtocolTest extends BaseTest {
         createMembership(a, testConfig(addresses).metadataTimeout(5000));
     createMembership(b, addresses);
 
-    // Fake member on d: answers metadata requests once the gate opens, records each answer
+    // Fake member on d: answers metadata requests once the gate opens, records answers to A
+    // (B fetches from d too, once A gossips the member)
     final Member member = new Member(FAKE_MEMBER_ID, null, d.address(), NAMESPACE);
     final var ctor =
         Class.forName("io.scalecube.cluster.metadata.GetMetadataResponse")
@@ -267,7 +268,12 @@ public class MembershipProtocolTest extends BaseTest {
                                 .qualifier(MetadataStoreImpl.GET_METADATA_RESP)
                                 .correlationId(req.correlationId())
                                 .build()))
-                    .doOnSuccess(v -> responded.tryEmitNext(req.correlationId())))
+                    .doOnSuccess(
+                        v -> {
+                          if (a.address().equals(req.sender())) {
+                            responded.tryEmitNext(req.correlationId());
+                          }
+                        }))
         .subscribe();
 
     awaitSeconds(2);
