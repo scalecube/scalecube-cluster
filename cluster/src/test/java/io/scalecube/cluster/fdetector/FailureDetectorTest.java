@@ -146,6 +146,42 @@ public class FailureDetectorTest extends BaseTest {
   }
 
   @Test
+  public void testNotSuspectedWhenOneHelperFailsAndAnotherConfirms() throws Exception {
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    NetworkEmulatorTransport c = createTransport();
+    NetworkEmulatorTransport d = createTransport();
+    List<String> members = Arrays.asList(a.address(), b.address(), c.address(), d.address());
+
+    FailureDetectorImpl fdA = createFd(a, members);
+    List<FailureDetectorImpl> fdetectors =
+        Arrays.asList(fdA, createFd(b, members), createFd(c, members), createFd(d, members));
+
+    // A can't reach D directly, and helper B fails right away; helper C can still reach D
+    a.networkEmulator().blockOutbound(b.address(), d.address());
+
+    List<FailureDetectorEvent> eventsForD = Collections.synchronizedList(new ArrayList<>());
+    fdA.listen()
+        .filter(event -> event.member().address().equals(d.address()))
+        .subscribe(eventsForD::add);
+
+    try {
+      start(fdetectors);
+      TimeUnit.SECONDS.sleep(3);
+
+      assertTrue(
+          eventsForD.stream().anyMatch(event -> event.status() == ALIVE),
+          "D expected ALIVE via helper C, but was: " + eventsForD);
+      assertTrue(
+          eventsForD.stream().noneMatch(event -> event.status() == SUSPECT),
+          "D must not be SUSPECT while helper C confirms it, but was: " + eventsForD);
+    } finally {
+      a.networkEmulator().unblockAllOutbound();
+      stop(fdetectors);
+    }
+  }
+
+  @Test
   public void testTrustedDespiteDifferentPingTimings() {
     // Create transports
     Transport a = createTransport();
