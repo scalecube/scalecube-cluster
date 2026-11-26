@@ -110,7 +110,7 @@ public class MetadataStoreImpl implements MetadataStore {
   @Override
   public ByteBuffer updateMetadata(Member member, ByteBuffer metadata) {
     if (localMember.equals(member)) {
-      throw new IllegalArgumentException("removeMetadata must not accept local member");
+      throw new IllegalArgumentException("updateMetadata must not accept local member");
     }
 
     ByteBuffer value = metadata.slice();

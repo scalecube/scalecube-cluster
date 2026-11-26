@@ -25,7 +25,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -211,17 +210,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
    * @return mono handle
    */
   public Mono<Void> updateIncarnation() {
-    return Mono.defer(
-        () -> {
-          // Update membership table
-          MembershipRecord curRecord = membershipTable.get(localMember.id());
-          MembershipRecord newRecord =
-              new MembershipRecord(localMember, ALIVE, curRecord.incarnation() + 1);
-          membershipTable.put(localMember.id(), newRecord);
-
-          // Spread new membership record over the cluster
-          return spreadMembershipGossip(newRecord);
-        });
+    return spreadLocalRecord(ALIVE);
   }
 
   /**
@@ -230,11 +219,16 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
    * @return mono handle
    */
   public Mono<Void> leaveCluster() {
+    return spreadLocalRecord(LEAVING);
+  }
+
+  // Bump local incarnation with the given status and spread it over the cluster
+  private Mono<Void> spreadLocalRecord(MemberStatus status) {
     return Mono.defer(
         () -> {
           MembershipRecord curRecord = membershipTable.get(localMember.id());
           MembershipRecord newRecord =
-              new MembershipRecord(localMember, LEAVING, curRecord.incarnation() + 1);
+              new MembershipRecord(localMember, status, curRecord.incarnation() + 1);
           membershipTable.put(localMember.id(), newRecord);
           return spreadMembershipGossip(newRecord);
         });
@@ -475,7 +469,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
     List<String> addresses =
         Stream.concat(seedMembers.stream(), otherMembers().stream().map(Member::address))
             .collect(Collectors.collectingAndThen(Collectors.toSet(), ArrayList::new));
-    Collections.shuffle(addresses);
     if (addresses.isEmpty()) {
       return Optional.empty();
     } else {
