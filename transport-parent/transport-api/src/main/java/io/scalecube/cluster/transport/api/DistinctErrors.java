@@ -44,7 +44,7 @@ public class DistinctErrors {
         return false;
       }
 
-      if (distinctObservation.deadline > now) {
+      if (distinctObservation.deadline <= now) {
         distinctObservation.resetDeadline(now + evictionInterval);
         return false;
       }
@@ -58,14 +58,14 @@ public class DistinctErrors {
     DistinctObservation existingObservation = null;
 
     for (int lastIndex = existingObservations.size() - 1, i = lastIndex; i >= 0; i--) {
-      final DistinctObservation o = existingObservations.get(lastIndex);
+      final DistinctObservation o = existingObservations.get(i);
 
       if (equals(o.throwable, observation)) {
         existingObservation = o;
         break;
       }
 
-      if (o.deadline > now) {
+      if (o.deadline <= now) {
         if (i == lastIndex) {
           existingObservations.remove(i);
         } else {
