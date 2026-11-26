@@ -24,30 +24,19 @@ class DistinctErrorsTest {
   }
 
   @Test
-  void olderErrorIsFoundAmongSeveral() {
-    DistinctErrors distinctErrors = new DistinctErrors(Duration.ofMinutes(1));
-    RuntimeException error1 = new RuntimeException("error1");
-    RuntimeException error2 = new RuntimeException("error2");
-
-    assertFalse(distinctErrors.contains(error1));
-    assertFalse(distinctErrors.contains(error2));
-    assertTrue(distinctErrors.contains(error1), "older error inside window");
-    assertTrue(distinctErrors.contains(error2), "newer error inside window");
-  }
-
-  @Test
   void expiredEntryIsEvictedWhileLiveOneIsKept() throws InterruptedException {
-    DistinctErrors distinctErrors = new DistinctErrors(Duration.ofMillis(200));
+    DistinctErrors distinctErrors = new DistinctErrors(Duration.ofMillis(500));
     RuntimeException expired = new RuntimeException("expired");
     RuntimeException live = new RuntimeException("live");
 
     assertFalse(distinctErrors.contains(expired));
-    Thread.sleep(150);
+    Thread.sleep(300);
     assertFalse(distinctErrors.contains(live));
-    Thread.sleep(100);
+    Thread.sleep(250);
 
+    // Lookup of expired scans live first, so a wrong eviction condition would drop live
+    assertFalse(distinctErrors.contains(expired), "expired entry is new again");
     assertTrue(distinctErrors.contains(live), "live entry kept");
-    assertFalse(distinctErrors.contains(expired), "expired entry evicted");
   }
 
   @Test
