@@ -215,6 +215,28 @@ public class MembershipProtocolTest extends BaseTest {
   }
 
   @Test
+  public void testOlderLeavingDoesNotReplaceNewer() {
+    final NetworkEmulatorTransport a = createTransport();
+    final NetworkEmulatorTransport b = createTransport();
+    final NetworkEmulatorTransport c = createTransport();
+    final List<String> addresses = Arrays.asList(a.address(), b.address(), c.address());
+
+    final MembershipProtocolImpl cmA = createMembership(a, addresses);
+    createMembership(b, addresses);
+    final Member member = createMembership(c, addresses).member();
+
+    awaitSeconds(2);
+
+    sendSync(b, a, new MembershipRecord(member, MemberStatus.LEAVING, 2));
+    sendSync(b, a, new MembershipRecord(member, MemberStatus.LEAVING, 1));
+
+    awaitSeconds(1);
+
+    final Map<String, MembershipRecord> membershipTable = getField(cmA, "membershipTable");
+    assertEquals(2, membershipTable.get(member.id()).incarnation());
+  }
+
+  @Test
   public void testStaleAliveDoesNotOverwriteLeavingDuringMetadataFetch() throws Exception {
     final NetworkEmulatorTransport a = createTransport();
     final NetworkEmulatorTransport b = createTransport();
