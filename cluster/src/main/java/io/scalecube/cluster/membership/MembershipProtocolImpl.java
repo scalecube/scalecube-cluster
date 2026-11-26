@@ -642,6 +642,16 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                               ex.toString()))
                   .doOnSuccess(
                       metadata1 -> {
+                        // Record may have changed during fetch: LEAVING or newer
+                        final var current = membershipTable.get(r1.member().id());
+                        if ((current != null && current.isLeaving()) || !r1.isOverrides(current)) {
+                          LOGGER.debug(
+                              "[{}][updateMembership] Skipping stale {}, current: {}",
+                              localMember,
+                              r1,
+                              current);
+                          return;
+                        }
                         // If metadata was received then member is Alive
                         cancelSuspicionTimeoutTask(r1.member().id());
                         spreadMembershipGossipUnlessGossiped(r1, reason);

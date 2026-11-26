@@ -22,6 +22,7 @@ import io.scalecube.cluster.utils.NetworkEmulator;
 import io.scalecube.cluster.utils.NetworkEmulatorTransport;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -29,6 +30,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
@@ -45,6 +48,7 @@ import reactor.util.retry.Retry;
 public class MembershipProtocolTest extends BaseTest {
 
   private static final String NAMESPACE = "ns";
+  private static final String FAKE_MEMBER_ID = "fakeMemberId-1";
 
   public static final Duration TIMEOUT = Duration.ofSeconds(10);
 
@@ -208,6 +212,70 @@ public class MembershipProtocolTest extends BaseTest {
 
     assertEquals(2, cmAEvents.size(), "events: " + cmAEvents);
     assertMemberAndType(cmAEvents.get(1), leaver.id(), Type.LEAVING);
+  }
+
+  @Test
+  public void testStaleAliveDoesNotOverwriteLeavingDuringMetadataFetch() throws Exception {
+    final NetworkEmulatorTransport a = createTransport();
+    final NetworkEmulatorTransport b = createTransport();
+    final NetworkEmulatorTransport d = createTransport();
+    final List<String> addresses = Arrays.asList(a.address(), b.address());
+
+    final MembershipProtocolImpl cmA =
+        createMembership(a, testConfig(addresses).metadataTimeout(5000));
+    createMembership(b, addresses);
+
+    // Fake member on d: answers metadata requests once the gate opens
+    final Member member = new Member(FAKE_MEMBER_ID, null, d.address(), NAMESPACE);
+    final var ctor =
+        Class.forName("io.scalecube.cluster.metadata.GetMetadataResponse")
+            .getDeclaredConstructor(Member.class, ByteBuffer.class);
+    ctor.setAccessible(true);
+    final var response = ctor.newInstance(member, ByteBuffer.allocate(0));
+    final var gate = new AtomicReference<Mono<Void>>(Mono.empty());
+    final var responded = Sinks.many().multicast().<String>directBestEffort();
+    d.listen()
+        .filter(m -> MetadataStoreImpl.GET_METADATA_REQ.equals(m.qualifier()))
+        .flatMap(
+            req ->
+                gate.get()
+                    .then(
+                        d.send(
+                            req.sender(),
+                            Message.withData(response)
+                                .qualifier(MetadataStoreImpl.GET_METADATA_RESP)
+                                .correlationId(req.correlationId())
+                                .build()))
+                    .doOnSuccess(v -> responded.tryEmitNext(req.correlationId())))
+        .subscribe();
+
+    awaitSeconds(2);
+
+    sendSync(b, a, new MembershipRecord(member, MemberStatus.ALIVE, 0));
+    awaitSeconds(1);
+    assertTrue(cmA.memberById(member.id()).isPresent(), "member must be added");
+    final var events = Collections.synchronizedList(new ArrayList<MembershipEvent>());
+    cmA.listen().subscribe(events::add);
+
+    final var release = Sinks.<Void>empty();
+    gate.set(release.asMono());
+    sendSync(b, a, new MembershipRecord(member, MemberStatus.ALIVE, 1));
+    Mono.delay(Duration.ofMillis(200)).block(); // ALIVE(1) fetch is in flight
+    sendSync(b, a, new MembershipRecord(member, MemberStatus.LEAVING, 2)); // arrives mid-fetch
+    Mono.delay(Duration.ofMillis(200)).block();
+
+    final var heldResponse = responded.asFlux().next().toFuture();
+    release.tryEmitEmpty();
+    heldResponse.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+    // Let A process the response, well within the 2s suspicion timeout
+    Mono.delay(Duration.ofMillis(300)).block();
+
+    final Map<String, MembershipRecord> membershipTable = getField(cmA, "membershipTable");
+    final var record = membershipTable.get(FAKE_MEMBER_ID);
+    assertEquals(MemberStatus.LEAVING, record.status());
+    assertEquals(2, record.incarnation());
+    assertEquals(1, events.size(), "events: " + events);
+    assertMemberAndType(events.get(0), FAKE_MEMBER_ID, Type.LEAVING);
   }
 
   private static Message membershipGossip(Member member, MemberStatus status, int incarnation) {
