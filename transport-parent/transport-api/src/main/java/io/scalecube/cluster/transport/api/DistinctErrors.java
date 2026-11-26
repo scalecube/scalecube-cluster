@@ -40,17 +40,22 @@ public class DistinctErrors {
       DistinctObservation distinctObservation = find(now, distinctObservations, observation);
 
       if (distinctObservation == null) {
-        distinctObservations.add(new DistinctObservation(observation, now + evictionInterval));
+        distinctObservations.add(new DistinctObservation(observation, deadline(now)));
         return false;
       }
 
       if (distinctObservation.deadline <= now) {
-        distinctObservation.resetDeadline(now + evictionInterval);
+        distinctObservation.resetDeadline(deadline(now));
         return false;
       }
     }
 
     return true;
+  }
+
+  // Saturate, else the "never expire" interval (Long.MAX_VALUE) overflows to a past deadline
+  private long deadline(long now) {
+    return evictionInterval == Long.MAX_VALUE ? Long.MAX_VALUE : now + evictionInterval;
   }
 
   private static DistinctObservation find(
