@@ -30,7 +30,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -247,7 +246,7 @@ public class MembershipProtocolTest extends BaseTest {
         createMembership(a, testConfig(addresses).metadataTimeout(5000));
     createMembership(b, addresses);
 
-    // Fake member on d: answers metadata requests once the gate opens
+    // Fake member on d: answers metadata requests once the gate opens, records each answer
     final Member member = new Member(FAKE_MEMBER_ID, null, d.address(), NAMESPACE);
     final var ctor =
         Class.forName("io.scalecube.cluster.metadata.GetMetadataResponse")
@@ -255,7 +254,7 @@ public class MembershipProtocolTest extends BaseTest {
     ctor.setAccessible(true);
     final var response = ctor.newInstance(member, ByteBuffer.allocate(0));
     final var gate = new AtomicReference<Mono<Void>>(Mono.empty());
-    final var responded = Sinks.many().multicast().<String>directBestEffort();
+    final var responded = Sinks.many().replay().<String>all();
     d.listen()
         .filter(m -> MetadataStoreImpl.GET_METADATA_REQ.equals(m.qualifier()))
         .flatMap(
@@ -273,24 +272,25 @@ public class MembershipProtocolTest extends BaseTest {
 
     awaitSeconds(2);
 
+    // A adds the member with ALIVE(0)
     sendSync(b, a, new MembershipRecord(member, MemberStatus.ALIVE, 0));
-    awaitSeconds(1);
+    responded.asFlux().blockFirst(TIMEOUT);
+    awaitProcessed(d, a);
     assertTrue(cmA.memberById(member.id()).isPresent(), "member must be added");
     final var events = Collections.synchronizedList(new ArrayList<MembershipEvent>());
     cmA.listen().subscribe(events::add);
 
+    // ALIVE(1) starts a fetch that d holds, LEAVING(2) is applied while it's in flight
     final var release = Sinks.<Void>empty();
     gate.set(release.asMono());
     sendSync(b, a, new MembershipRecord(member, MemberStatus.ALIVE, 1));
-    Mono.delay(Duration.ofMillis(200)).block(); // ALIVE(1) fetch is in flight
-    sendSync(b, a, new MembershipRecord(member, MemberStatus.LEAVING, 2)); // arrives mid-fetch
-    Mono.delay(Duration.ofMillis(200)).block();
+    sendSync(b, a, new MembershipRecord(member, MemberStatus.LEAVING, 2));
+    awaitProcessed(b, a);
 
-    final var heldResponse = responded.asFlux().next().toFuture();
+    // Fetch completes: the stale ALIVE(1) must not overwrite LEAVING(2)
     release.tryEmitEmpty();
-    heldResponse.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
-    // Let A process the response, well within the 2s suspicion timeout
-    Mono.delay(Duration.ofMillis(300)).block();
+    responded.asFlux().skip(1).blockFirst(TIMEOUT);
+    awaitProcessed(d, a);
 
     final Map<String, MembershipRecord> membershipTable = getField(cmA, "membershipTable");
     final var record = membershipTable.get(FAKE_MEMBER_ID);
@@ -298,22 +298,6 @@ public class MembershipProtocolTest extends BaseTest {
     assertEquals(2, record.incarnation());
     assertEquals(1, events.size(), "events: " + events);
     assertMemberAndType(events.get(0), FAKE_MEMBER_ID, Type.LEAVING);
-  }
-
-  private static Message membershipGossip(Member member, MemberStatus status, int incarnation) {
-    return Message.builder()
-        .qualifier(MembershipProtocolImpl.MEMBERSHIP_GOSSIP)
-        .data(new MembershipRecord(member, status, incarnation))
-        .build();
-  }
-
-  private static void sendSync(Transport from, Transport to, MembershipRecord record) {
-    final Message sync =
-        Message.withData(new SyncData(Collections.singletonList(record)))
-            .qualifier(MembershipProtocolImpl.SYNC)
-            .sender(from.address())
-            .build();
-    from.send(to.address(), sync).block(TIMEOUT);
   }
 
   @Test
@@ -1467,5 +1451,33 @@ public class MembershipProtocolTest extends BaseTest {
         .filter(MembershipEvent::isRemoved)
         .subscribe(recording::tryEmitNext, recording::tryEmitError, recording::tryEmitComplete);
     return recording;
+  }
+
+  private static Message membershipGossip(Member member, MemberStatus status, int incarnation) {
+    return Message.builder()
+        .qualifier(MembershipProtocolImpl.MEMBERSHIP_GOSSIP)
+        .data(new MembershipRecord(member, status, incarnation))
+        .build();
+  }
+
+  private static void sendSync(Transport from, Transport to, MembershipRecord record) {
+    final Message sync =
+        Message.withData(new SyncData(Collections.singletonList(record)))
+            .qualifier(MembershipProtocolImpl.SYNC)
+            .sender(from.address())
+            .build();
+    from.send(to.address(), sync).block(TIMEOUT);
+  }
+
+  // Returns once `to` has processed every message `from` sent before: messages on one connection
+  // keep their order, and `to` handles them one at a time, so it answers this SYNC after them
+  private static void awaitProcessed(Transport from, Transport to) {
+    final Message sync =
+        Message.withData(new SyncData(Collections.emptyList()))
+            .qualifier(MembershipProtocolImpl.SYNC)
+            .correlationId(UUID.randomUUID().toString())
+            .sender(from.address())
+            .build();
+    from.requestResponse(to.address(), sync).block(TIMEOUT);
   }
 }
