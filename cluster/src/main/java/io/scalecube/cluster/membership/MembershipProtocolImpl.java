@@ -586,6 +586,9 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           // Check if new record r1 overrides existing membership record r0
           // Unknown member (r0 == null) passes only with ALIVE, so non-ALIVE branches below use r0
           if ((r0 == null || !r0.isLeaving()) && !r1.isOverrides(r0)) {
+            if (r0 == null && r1.isLeaving()) {
+              scheduleSuspicionTimeoutTask(r1); // remembers the leave, see isDroppedLeaving
+            }
             LOGGER.debug(
                 "[{}][updateMembership][{}] Skipping update, "
                     + "can't override r0: {} with received r1: {}",
@@ -623,7 +626,7 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
           }
 
           if (r1.isAlive()) {
-            if (r0 != null && r0.isLeaving()) {
+            if ((r0 != null && r0.isLeaving()) || isDroppedLeaving(r1)) {
               return Mono.empty(); // outdated ALIVE, member is already leaving
             }
 
@@ -644,7 +647,9 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
                       metadata1 -> {
                         // Record may have changed during fetch: LEAVING or newer
                         final var current = membershipTable.get(r1.member().id());
-                        if ((current != null && current.isLeaving()) || !r1.isOverrides(current)) {
+                        if ((current != null && current.isLeaving())
+                            || !r1.isOverrides(current)
+                            || isDroppedLeaving(r1)) {
                           LOGGER.debug(
                               "[{}][updateMembership] Skipping stale {}, current: {}",
                               localMember,
@@ -778,6 +783,13 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
       LOGGER.debug("[{}] Cancelled SuspicionTimeoutTask for {}", localMember, memberId);
       future.dispose();
     }
+  }
+
+  // Unknown member with a pending suspicion task: its LEAVING was dropped, it's gone after timeout.
+  // Relies on onDeadMemberDetected, the only table removal, cancelling the task first
+  private boolean isDroppedLeaving(MembershipRecord r) {
+    final var id = r.member().id();
+    return !membershipTable.containsKey(id) && suspicionTimeoutTasks.containsKey(id);
   }
 
   private void scheduleSuspicionTimeoutTask(MembershipRecord r) {
