@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Scheduler;
 
@@ -186,34 +187,19 @@ public final class FailureDetectorImpl implements FailureDetector {
         "[{}][{}] Send PingReq to {} for {}", localMember, period, pingReqMembers, pingMember);
 
     Duration timeout = Duration.ofMillis(config.pingInterval() - config.pingTimeout());
-    pingReqMembers.forEach(
-        member ->
-            transport
-                .requestResponse(member.address(), pingReqMsg)
-                .timeout(timeout, scheduler)
-                .publishOn(scheduler)
-                .subscribe(
-                    message -> {
-                      LOGGER.debug(
-                          "[{}][{}] Received transit PingAck from {} to {}",
-                          localMember,
-                          period,
-                          message.sender(),
-                          pingMember);
-                      publishPingResult(period, pingMember, computeMemberStatus(message, period));
-                    },
-                    throwable -> {
-                      LOGGER.debug(
-                          "[{}][{}] "
-                              + "Timeout getting transit "
-                              + "PingAck from {} to {} within {}ms",
-                          localMember,
-                          period,
-                          member,
-                          pingMember,
-                          timeout.toMillis());
-                      publishPingResult(period, pingMember, MemberStatus.SUSPECT);
-                    }));
+    // First transit PingAck wins, SUSPECT only if every helper fails
+    Flux.fromIterable(pingReqMembers)
+        .flatMap(
+            member ->
+                transport
+                    .requestResponse(member.address(), pingReqMsg)
+                    .timeout(timeout, scheduler)
+                    .onErrorResume(th -> Mono.empty()))
+        .next()
+        .publishOn(scheduler)
+        .map(message -> computeMemberStatus(message, period))
+        .defaultIfEmpty(MemberStatus.SUSPECT)
+        .subscribe(status -> publishPingResult(period, pingMember, status));
   }
 
   // ================================================
