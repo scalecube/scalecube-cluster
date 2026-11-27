@@ -489,6 +489,29 @@ public class MembershipProtocolTest extends BaseTest {
   }
 
   @Test
+  public void testMemberSyncedBeforeStartIsAddedAfterStart() {
+    NetworkEmulatorTransport a = createTransport();
+    NetworkEmulatorTransport b = createTransport();
+    List<String> addresses = Arrays.asList(a.address(), b.address());
+
+    MembershipProtocolImpl cmB = createMembershipWithoutStart(b, testConfig(addresses));
+    MembershipProtocolImpl cmA = createMembership(a, addresses);
+
+    // Let syncs from A reach B before B is started
+    awaitSeconds(TEST_SYNC_INTERVAL * 2 / 1000);
+
+    List<String> addedOnB = Collections.synchronizedList(new ArrayList<>());
+    cmB.listen()
+        .filter(MembershipEvent::isAdded)
+        .map(event -> event.member().id())
+        .subscribe(addedOnB::add);
+
+    cmB.start().block(TIMEOUT);
+
+    awaitUntil(() -> assertTrue(addedOnB.contains(cmA.member().id()))).block(TIMEOUT);
+  }
+
+  @Test
   public void testInitialPhaseOk() {
     Transport a = createTransport();
     Transport b = createTransport();
@@ -1357,6 +1380,19 @@ public class MembershipProtocolTest extends BaseTest {
   }
 
   private MembershipProtocolImpl createMembership(Transport transport, ClusterConfig config) {
+    MembershipProtocolImpl membership = createMembershipWithoutStart(transport, config);
+
+    try {
+      membership.start().block(TIMEOUT);
+    } catch (Exception ex) {
+      throw Exceptions.propagate(ex);
+    }
+
+    return membership;
+  }
+
+  private MembershipProtocolImpl createMembershipWithoutStart(
+      Transport transport, ClusterConfig config) {
     Member localMember = new Member(newMemberId(), null, transport.address(), NAMESPACE);
 
     Sinks.Many<MembershipEvent> membershipProcessor = Sinks.many().multicast().directBestEffort();
@@ -1401,7 +1437,6 @@ public class MembershipProtocolTest extends BaseTest {
       failureDetector.start();
       gossipProtocol.start();
       metadataStore.start();
-      membership.start().block(TIMEOUT);
     } catch (Exception ex) {
       throw Exceptions.propagate(ex);
     }
