@@ -131,30 +131,6 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
 
     // fill in the table of members with local member
     members.put(localMember.id(), localMember);
-
-    actionsDisposables.addAll(
-        Arrays.asList(
-            transport
-                .listen() // Listen to incoming SYNC and SYNC ACK requests from other members
-                .publishOn(scheduler)
-                .subscribe(
-                    this::onMessage,
-                    ex -> LOGGER.error("[{}][onMessage][error] cause:", localMember, ex)),
-            failureDetector
-                .listen() // Listen to events from failure detector
-                .publishOn(scheduler)
-                .subscribe(
-                    this::onFailureDetectorEvent,
-                    ex ->
-                        LOGGER.error(
-                            "[{}][onFailureDetectorEvent][error] cause:", localMember, ex)),
-            gossipProtocol
-                .listen() // Listen to membership gossips
-                .publishOn(scheduler)
-                .subscribe(
-                    this::onMembershipGossip,
-                    ex ->
-                        LOGGER.debug("[{}][onMembershipGossip][error] cause:", localMember, ex))));
   }
 
   // Remove duplicates and local address(es)
@@ -234,6 +210,32 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
         });
   }
 
+  private void listenInputs() {
+    actionsDisposables.addAll(
+        Arrays.asList(
+            transport
+                .listen() // Listen to incoming SYNC and SYNC ACK requests from other members
+                .publishOn(scheduler)
+                .subscribe(
+                    this::onMessage,
+                    ex -> LOGGER.error("[{}][onMessage][error] cause:", localMember, ex)),
+            failureDetector
+                .listen() // Listen to events from failure detector
+                .publishOn(scheduler)
+                .subscribe(
+                    this::onFailureDetectorEvent,
+                    ex ->
+                        LOGGER.error(
+                            "[{}][onFailureDetectorEvent][error] cause:", localMember, ex)),
+            gossipProtocol
+                .listen() // Listen to membership gossips
+                .publishOn(scheduler)
+                .subscribe(
+                    this::onMembershipGossip,
+                    ex ->
+                        LOGGER.debug("[{}][onMembershipGossip][error] cause:", localMember, ex))));
+  }
+
   @Override
   public Mono<Void> start() {
     // Make initial sync with all seed members (on scheduler, as it reads membershipTable)
@@ -241,6 +243,8 @@ public final class MembershipProtocolImpl implements MembershipProtocol {
   }
 
   private void start0(MonoSink<Object> sink) {
+    listenInputs();
+
     // In case no members at the moment just schedule periodic sync
     if (seedMembers.isEmpty()) {
       schedulePeriodicSync();
